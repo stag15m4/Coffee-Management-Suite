@@ -1374,8 +1374,104 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
     return false;
   };
 
+  const calculateAverages = () => {
+    const averages: { [sizeId: string]: { costs: number[], sales: number[], profits: number[], margins: number[] } } = {};
+    
+    for (const size of drinkSizes) {
+      averages[size.id] = { costs: [], sales: [], profits: [], margins: [] };
+    }
+    
+    for (const recipe of recipes) {
+      for (const size of drinkSizes) {
+        const hasItems = hasIngredientsForSize(recipe, size.id);
+        if (!hasItems) continue;
+        
+        const cost = calculateSizeCost(recipe, size.id);
+        const salePrice = getSalePrice(recipe.id, size.id);
+        if (salePrice > 0) {
+          const profit = salePrice - cost;
+          const margin = (profit / salePrice) * 100;
+          averages[size.id].costs.push(cost);
+          averages[size.id].sales.push(salePrice);
+          averages[size.id].profits.push(profit);
+          averages[size.id].margins.push(margin);
+        }
+      }
+    }
+    
+    return drinkSizes.map(size => {
+      const data = averages[size.id];
+      const count = data.costs.length;
+      return {
+        sizeId: size.id,
+        sizeName: size.name,
+        avgCost: count > 0 ? data.costs.reduce((a, b) => a + b, 0) / count : 0,
+        avgSale: count > 0 ? data.sales.reduce((a, b) => a + b, 0) / count : 0,
+        avgProfit: count > 0 ? data.profits.reduce((a, b) => a + b, 0) / count : 0,
+        avgMargin: count > 0 ? data.margins.reduce((a, b) => a + b, 0) / count : 0,
+        count
+      };
+    });
+  };
+
+  const sizeAverages = calculateAverages();
+
   return (
     <div className="space-y-4">
+      <div className="rounded-2xl overflow-hidden shadow-md" style={{ backgroundColor: colors.white }}>
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ backgroundColor: colors.brown }}>
+              <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.white }}>Mixed Drinks</th>
+              <th colSpan={drinkSizes.length} className="px-4 py-3 text-center font-semibold" style={{ color: colors.white }}>Averages</th>
+            </tr>
+            <tr style={{ backgroundColor: colors.creamDark }}>
+              <th className="px-4 py-2" style={{ color: colors.brown }}></th>
+              {drinkSizes.map(size => (
+                <th key={size.id} className="px-4 py-2 text-right text-sm font-semibold" style={{ color: colors.brown }}>{size.name}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ backgroundColor: colors.white }}>
+              <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>Cost</td>
+              {sizeAverages.map(avg => (
+                <td key={avg.sizeId} className="px-4 py-2 text-right font-mono" style={{ color: colors.brown }}>
+                  {avg.count > 0 ? formatCurrency(avg.avgCost) : '-'}
+                </td>
+              ))}
+            </tr>
+            <tr style={{ backgroundColor: colors.cream }}>
+              <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>Sale</td>
+              {sizeAverages.map(avg => (
+                <td key={avg.sizeId} className="px-4 py-2 text-right font-mono" style={{ color: colors.brown }}>
+                  {avg.count > 0 ? formatCurrency(avg.avgSale) : '-'}
+                </td>
+              ))}
+            </tr>
+            <tr style={{ backgroundColor: colors.white }}>
+              <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>Profit</td>
+              {sizeAverages.map(avg => (
+                <td key={avg.sizeId} className="px-4 py-2 text-right font-mono" style={{ color: avg.avgProfit >= 0 ? colors.green : colors.red }}>
+                  {avg.count > 0 ? formatCurrency(avg.avgProfit) : '-'}
+                </td>
+              ))}
+            </tr>
+            <tr style={{ backgroundColor: colors.creamDark }}>
+              <td className="px-4 py-2 font-semibold" style={{ color: colors.brown }}>Margin</td>
+              {sizeAverages.map(avg => {
+                const marginColor = avg.avgMargin > 31 ? colors.green : avg.avgMargin > 25 ? colors.gold : colors.red;
+                return (
+                  <td key={avg.sizeId} className="px-4 py-2 text-right font-mono font-semibold" style={{ color: avg.count > 0 ? marginColor : colors.brownLight }}>
+                    {avg.count > 0 ? formatPercent(avg.avgMargin) : '-'}
+                  </td>
+                );
+              })}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
       <div className="rounded-2xl overflow-hidden shadow-md" style={{ backgroundColor: colors.white }}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
