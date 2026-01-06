@@ -96,17 +96,45 @@ interface Recipe {
   base_template_name?: string;
   is_active: boolean;
   products?: Product[];
+  recipe_ingredients?: RecipeIngredient[];
 }
 
 interface DrinkSize {
   id: string;
   name: string;
+  size_oz: number;
+  drink_type: string;
   display_order: number;
 }
 
 interface BaseTemplate {
   id: string;
   name: string;
+  drink_type: string;
+  description?: string;
+  is_active: boolean;
+  ingredients?: BaseTemplateIngredient[];
+}
+
+interface BaseTemplateIngredient {
+  id: string;
+  base_template_id: string;
+  ingredient_id: string;
+  size_id: string;
+  quantity: number;
+  ingredient?: Ingredient;
+  size?: DrinkSize;
+}
+
+interface RecipeIngredient {
+  id: string;
+  recipe_id: string;
+  ingredient_id: string;
+  size_id: string;
+  quantity: number;
+  unit?: string;
+  ingredient?: Ingredient;
+  size?: DrinkSize;
 }
 
 interface OverheadSettings {
@@ -437,9 +465,11 @@ interface RecipesTabProps {
   baseTemplates: BaseTemplate[];
   drinkSizes: DrinkSize[];
   onAddRecipe: (recipe: { name: string; category_id: string; base_template_id?: string }) => Promise<void>;
+  onAddRecipeIngredient: (ingredient: { recipe_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => Promise<void>;
+  onDeleteRecipeIngredient: (id: string) => Promise<void>;
 }
 
-const RecipesTab = ({ recipes, productCategories, drinkSizes, baseTemplates, onAddRecipe }: RecipesTabProps) => {
+const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, onAddRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient }: RecipesTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -448,6 +478,8 @@ const RecipesTab = ({ recipes, productCategories, drinkSizes, baseTemplates, onA
     category_id: '',
     base_template_id: '',
   });
+  const [addingIngredient, setAddingIngredient] = useState<{ recipeId: string; sizeId: string } | null>(null);
+  const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity: '1', unit: '' });
 
   const filteredRecipes = selectedCategory === 'all'
     ? recipes
@@ -465,6 +497,23 @@ const RecipesTab = ({ recipes, productCategories, drinkSizes, baseTemplates, onA
     });
     setNewRecipe({ name: '', category_id: '', base_template_id: '' });
     setShowAddForm(false);
+  };
+
+  const handleAddIngredient = async (recipeId: string, sizeId: string) => {
+    if (!newIngredient.ingredient_id) {
+      alert('Please select an ingredient');
+      return;
+    }
+    const selectedIngredient = ingredients.find(i => i.id === newIngredient.ingredient_id);
+    await onAddRecipeIngredient({
+      recipe_id: recipeId,
+      ingredient_id: newIngredient.ingredient_id,
+      size_id: sizeId,
+      quantity: parseFloat(newIngredient.quantity) || 1,
+      unit: newIngredient.unit || selectedIngredient?.unit,
+    });
+    setNewIngredient({ ingredient_id: '', quantity: '1', unit: '' });
+    setAddingIngredient(null);
   };
 
   return (
@@ -575,47 +624,122 @@ const RecipesTab = ({ recipes, productCategories, drinkSizes, baseTemplates, onA
             </div>
 
             {expandedRecipe === recipe.id && (
-              <div className="p-4">
-                <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
-                  Base: {recipe.base_template_name || 'None'}
+              <div className="p-4 space-y-4">
+                <p className="text-sm" style={{ color: colors.brownLight }}>
+                  Base Template: {recipe.base_template_name || 'None'}
                 </p>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {drinkSizes.map(size => {
-                    const product = recipe.products?.find(p => p.size_id === size.id);
-                    return (
-                      <div
-                        key={size.id}
-                        className="rounded-lg p-3 text-center"
-                        style={{ backgroundColor: colors.cream }}
-                      >
-                        <div className="font-semibold mb-2" style={{ color: colors.brown }}>{size.name}</div>
-                        <div className="text-xs" style={{ color: colors.brownLight }}>Cost</div>
-                        <div className="font-mono" style={{ color: colors.brown }}>
-                          {product ? formatCurrency(product.total_cost || 0) : '-'}
-                        </div>
-                        <div className="text-xs mt-2" style={{ color: colors.brownLight }}>Sale</div>
-                        <div className="font-mono font-bold" style={{ color: colors.gold }}>
-                          {product ? formatCurrency(product.sale_price || 0) : '-'}
-                        </div>
-                        {product && product.sale_price > 0 && (
-                          <>
-                            <div className="text-xs mt-2" style={{ color: colors.brownLight }}>Margin</div>
-                            <div
-                              className="font-semibold"
-                              style={{
-                                color: ((product.sale_price - (product.total_cost || 0)) / product.sale_price * 100) >= 30
-                                  ? colors.green
-                                  : colors.red
-                              }}
-                            >
-                              {formatPercent((product.sale_price - (product.total_cost || 0)) / product.sale_price * 100)}
+                <div className="space-y-3">
+                  <h4 className="font-semibold" style={{ color: colors.brown }}>Ingredients by Size</h4>
+                  <div className="grid gap-3">
+                    {drinkSizes.map(size => {
+                      const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === size.id) || [];
+                      const product = recipe.products?.find(p => p.size_id === size.id);
+                      const isAdding = addingIngredient?.recipeId === recipe.id && addingIngredient?.sizeId === size.id;
+                      
+                      return (
+                        <div
+                          key={size.id}
+                          className="rounded-lg p-3"
+                          style={{ backgroundColor: colors.cream }}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <div className="font-semibold" style={{ color: colors.brown }}>
+                              {size.name} ({size.size_oz}oz)
                             </div>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
+                            <div className="flex items-center gap-3 text-sm">
+                              <span style={{ color: colors.brownLight }}>
+                                Cost: <span className="font-mono">{product ? formatCurrency(product.total_cost || 0) : '-'}</span>
+                              </span>
+                              <span style={{ color: colors.gold }}>
+                                Sale: <span className="font-mono font-bold">{product ? formatCurrency(product.sale_price || 0) : '-'}</span>
+                              </span>
+                            </div>
+                          </div>
+
+                          {sizeIngredients.length > 0 && (
+                            <div className="mb-2 flex flex-wrap gap-2">
+                              {sizeIngredients.map(ri => {
+                                const ing = ingredients.find(i => i.id === ri.ingredient_id);
+                                return (
+                                  <div
+                                    key={ri.id}
+                                    className="flex items-center gap-1 px-2 py-1 rounded text-xs"
+                                    style={{ backgroundColor: colors.white }}
+                                  >
+                                    <span style={{ color: colors.brown }}>{ing?.name || 'Unknown'}</span>
+                                    <span style={{ color: colors.brownLight }}>({ri.quantity} {ri.unit || ing?.unit})</span>
+                                    <button
+                                      onClick={() => onDeleteRecipeIngredient(ri.id)}
+                                      className="ml-1 font-bold"
+                                      style={{ color: colors.red }}
+                                      data-testid={`button-delete-ri-${ri.id}`}
+                                    >
+                                      x
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {isAdding ? (
+                            <div className="flex flex-wrap gap-2 items-center">
+                              <select
+                                value={newIngredient.ingredient_id}
+                                onChange={(e) => setNewIngredient({ ...newIngredient, ingredient_id: e.target.value })}
+                                className="px-2 py-1 rounded border text-sm"
+                                style={{ borderColor: colors.creamDark }}
+                                data-testid={`select-ri-ingredient-${size.id}`}
+                              >
+                                <option value="">Select Ingredient</option>
+                                {ingredients.map(ing => (
+                                  <option key={ing.id} value={ing.id}>{ing.name}</option>
+                                ))}
+                              </select>
+                              <input
+                                type="number"
+                                value={newIngredient.quantity}
+                                onChange={(e) => setNewIngredient({ ...newIngredient, quantity: e.target.value })}
+                                className="w-16 px-2 py-1 rounded border text-sm"
+                                style={{ borderColor: colors.creamDark }}
+                                placeholder="Qty"
+                                data-testid={`input-ri-qty-${size.id}`}
+                              />
+                              <button
+                                onClick={() => handleAddIngredient(recipe.id, size.id)}
+                                className="px-2 py-1 rounded text-sm font-semibold"
+                                style={{ backgroundColor: colors.green, color: colors.white }}
+                                data-testid={`button-save-ri-${size.id}`}
+                              >
+                                Add
+                              </button>
+                              <button
+                                onClick={() => setAddingIngredient(null)}
+                                className="px-2 py-1 rounded text-sm"
+                                style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                                data-testid={`button-cancel-ri-${size.id}`}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setAddingIngredient({ recipeId: recipe.id, sizeId: size.id });
+                                setNewIngredient({ ingredient_id: '', quantity: '1', unit: '' });
+                              }}
+                              className="text-sm font-medium"
+                              style={{ color: colors.gold }}
+                              data-testid={`button-add-ri-${size.id}`}
+                            >
+                              + Add Ingredient
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -857,6 +981,247 @@ const SettingsTab = ({ overhead, onUpdateOverhead }: SettingsTabProps) => {
   );
 };
 
+interface BaseTemplatesTabProps {
+  baseTemplates: BaseTemplate[];
+  ingredients: Ingredient[];
+  drinkSizes: DrinkSize[];
+  onAddTemplate: (template: { name: string; drink_type: string; description?: string }) => Promise<void>;
+  onAddTemplateIngredient: (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number }) => Promise<void>;
+  onDeleteTemplateIngredient: (id: string) => Promise<void>;
+}
+
+const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient }: BaseTemplatesTabProps) => {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
+  const [newTemplate, setNewTemplate] = useState({ name: '', drink_type: 'Hot', description: '' });
+  const [addingIngredient, setAddingIngredient] = useState<{ templateId: string; sizeId: string } | null>(null);
+  const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity: '1' });
+
+  const handleAddTemplate = async () => {
+    if (!newTemplate.name) {
+      alert('Please enter a template name');
+      return;
+    }
+    await onAddTemplate(newTemplate);
+    setNewTemplate({ name: '', drink_type: 'Hot', description: '' });
+    setShowAddForm(false);
+  };
+
+  const handleAddIngredient = async (templateId: string, sizeId: string) => {
+    if (!newIngredient.ingredient_id) {
+      alert('Please select an ingredient');
+      return;
+    }
+    await onAddTemplateIngredient({
+      base_template_id: templateId,
+      ingredient_id: newIngredient.ingredient_id,
+      size_id: sizeId,
+      quantity: parseFloat(newIngredient.quantity) || 1,
+    });
+    setNewIngredient({ ingredient_id: '', quantity: '1' });
+    setAddingIngredient(null);
+  };
+
+  const drinkTypes = ['Hot', 'Cold'];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-4 justify-between">
+        <h3 className="font-bold text-lg" style={{ color: colors.brown }}>Base Templates (Disposables)</h3>
+        <button
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="px-4 py-2 font-semibold rounded-lg transition-all hover:opacity-90"
+          style={{ backgroundColor: colors.gold, color: colors.white }}
+          data-testid="button-add-template"
+        >
+          + New Base Template
+        </button>
+      </div>
+
+      {showAddForm && (
+        <div className="rounded-xl p-4 shadow-md" style={{ backgroundColor: colors.white }}>
+          <h3 className="font-bold mb-3" style={{ color: colors.brown }}>New Base Template</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input
+              type="text"
+              placeholder="Template Name (e.g., Hot Drink Base)"
+              value={newTemplate.name}
+              onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
+              className="px-3 py-2 rounded-lg border-2 outline-none"
+              style={{ borderColor: colors.creamDark }}
+              data-testid="input-template-name"
+            />
+            <select
+              value={newTemplate.drink_type}
+              onChange={(e) => setNewTemplate({ ...newTemplate, drink_type: e.target.value })}
+              className="px-3 py-2 rounded-lg border-2 outline-none"
+              style={{ borderColor: colors.creamDark }}
+              data-testid="select-template-type"
+            >
+              {drinkTypes.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              placeholder="Description (optional)"
+              value={newTemplate.description}
+              onChange={(e) => setNewTemplate({ ...newTemplate, description: e.target.value })}
+              className="px-3 py-2 rounded-lg border-2 outline-none"
+              style={{ borderColor: colors.creamDark }}
+              data-testid="input-template-description"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleAddTemplate}
+                className="px-4 py-2 font-semibold rounded-lg"
+                style={{ backgroundColor: colors.green, color: colors.white }}
+                data-testid="button-save-template"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="px-4 py-2 font-semibold rounded-lg"
+                style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                data-testid="button-cancel-template"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-4">
+        {baseTemplates.map(template => {
+          const templateSizes = drinkSizes.filter(s => s.drink_type === template.drink_type || !s.drink_type);
+          return (
+            <div
+              key={template.id}
+              className="rounded-xl shadow-md overflow-hidden"
+              style={{ backgroundColor: colors.white }}
+              data-testid={`card-template-${template.id}`}
+            >
+              <div
+                className="px-4 py-3 flex items-center justify-between cursor-pointer"
+                onClick={() => setExpandedTemplate(expandedTemplate === template.id ? null : template.id)}
+                style={{ backgroundColor: colors.creamDark }}
+              >
+                <div>
+                  <h3 className="font-bold" style={{ color: colors.brown }}>{template.name}</h3>
+                  <span className="text-sm" style={{ color: colors.brownLight }}>
+                    {template.drink_type} drinks {template.description ? `- ${template.description}` : ''}
+                  </span>
+                </div>
+                <span style={{ color: colors.gold }}>{expandedTemplate === template.id ? '▼' : '▶'}</span>
+              </div>
+
+              {expandedTemplate === template.id && (
+                <div className="p-4">
+                  <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
+                    Add disposables (cups, lids, sleeves, etc.) for each size:
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {templateSizes.map(size => {
+                      const sizeIngredients = (template.ingredients || []).filter(i => i.size_id === size.id);
+                      const isAdding = addingIngredient?.templateId === template.id && addingIngredient?.sizeId === size.id;
+
+                      return (
+                        <div
+                          key={size.id}
+                          className="rounded-lg p-3"
+                          style={{ backgroundColor: colors.cream }}
+                        >
+                          <div className="font-semibold mb-2" style={{ color: colors.brown }}>{size.name}</div>
+
+                          {sizeIngredients.map(ing => {
+                            const ingredient = ingredients.find(i => i.id === ing.ingredient_id);
+                            return (
+                              <div key={ing.id} className="flex items-center justify-between text-sm mb-1">
+                                <span style={{ color: colors.brownLight }}>
+                                  {ingredient?.name || 'Unknown'} x{ing.quantity}
+                                </span>
+                                <button
+                                  onClick={() => onDeleteTemplateIngredient(ing.id)}
+                                  className="text-xs px-2 py-1 rounded"
+                                  style={{ color: colors.red }}
+                                  data-testid={`button-delete-ing-${ing.id}`}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            );
+                          })}
+
+                          {isAdding ? (
+                            <div className="mt-2 space-y-2">
+                              <select
+                                value={newIngredient.ingredient_id}
+                                onChange={(e) => setNewIngredient({ ...newIngredient, ingredient_id: e.target.value })}
+                                className="w-full px-2 py-1 rounded border text-sm"
+                                style={{ borderColor: colors.gold }}
+                                data-testid={`select-ing-${size.id}`}
+                              >
+                                <option value="">Select ingredient</option>
+                                {ingredients.map(ing => (
+                                  <option key={ing.id} value={ing.id}>{ing.name}</option>
+                                ))}
+                              </select>
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={newIngredient.quantity}
+                                onChange={(e) => setNewIngredient({ ...newIngredient, quantity: e.target.value })}
+                                className="w-full px-2 py-1 rounded border text-sm"
+                                style={{ borderColor: colors.gold }}
+                                placeholder="Quantity"
+                                data-testid={`input-qty-${size.id}`}
+                              />
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleAddIngredient(template.id, size.id)}
+                                  className="text-xs px-2 py-1 rounded"
+                                  style={{ backgroundColor: colors.green, color: colors.white }}
+                                  data-testid={`button-confirm-ing-${size.id}`}
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  onClick={() => setAddingIngredient(null)}
+                                  className="text-xs px-2 py-1 rounded"
+                                  style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                                  data-testid={`button-cancel-ing-${size.id}`}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setAddingIngredient({ templateId: template.id, sizeId: size.id })}
+                              className="mt-2 text-sm font-medium"
+                              style={{ color: colors.gold }}
+                              data-testid={`button-add-ing-${size.id}`}
+                            >
+                              + Add Item
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 import { Fragment } from 'react';
 
 export default function Home() {
@@ -898,8 +1263,15 @@ export default function Home() {
 
       const { data: baseData } = await supabase
         .from('base_templates')
-        .select('*');
-      setBaseTemplates(baseData || []);
+        .select(`
+          *,
+          base_template_ingredients(*)
+        `);
+      const formattedBases = (baseData || []).map((b: any) => ({
+        ...b,
+        ingredients: b.base_template_ingredients || [],
+      }));
+      setBaseTemplates(formattedBases);
 
       const { data: sizeData } = await supabase
         .from('drink_sizes')
@@ -913,7 +1285,8 @@ export default function Home() {
           *,
           product_categories(name),
           base_templates(name),
-          products(*)
+          products(*),
+          recipe_ingredients(*)
         `)
         .eq('is_active', true);
 
@@ -921,6 +1294,7 @@ export default function Home() {
         ...r,
         category_name: r.product_categories?.name,
         base_template_name: r.base_templates?.name,
+        recipe_ingredients: r.recipe_ingredients || [],
       }));
       setRecipes(formattedRecipes);
 
@@ -1002,6 +1376,78 @@ export default function Home() {
     }
   };
 
+  const handleAddBaseTemplate = async (template: { name: string; drink_type: string; description?: string }) => {
+    try {
+      const { error } = await supabase
+        .from('base_templates')
+        .insert({
+          name: template.name,
+          drink_type: template.drink_type,
+          description: template.description || null,
+          is_active: true,
+        });
+
+      if (error) throw error;
+      loadAllData();
+    } catch (error: any) {
+      alert('Error adding base template: ' + error.message);
+    }
+  };
+
+  const handleAddTemplateIngredient = async (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number }) => {
+    try {
+      const { error } = await supabase
+        .from('base_template_ingredients')
+        .insert(ingredient);
+
+      if (error) throw error;
+      loadAllData();
+    } catch (error: any) {
+      alert('Error adding template ingredient: ' + error.message);
+    }
+  };
+
+  const handleDeleteTemplateIngredient = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('base_template_ingredients')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      loadAllData();
+    } catch (error: any) {
+      alert('Error deleting template ingredient: ' + error.message);
+    }
+  };
+
+  const handleAddRecipeIngredient = async (ingredient: { recipe_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => {
+    try {
+      const { error } = await supabase
+        .from('recipe_ingredients')
+        .insert(ingredient);
+
+      if (error) throw error;
+      loadAllData();
+    } catch (error: any) {
+      alert('Error adding recipe ingredient: ' + error.message);
+    }
+  };
+
+  const handleDeleteRecipeIngredient = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('recipe_ingredients')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      loadAllData();
+    } catch (error: any) {
+      alert('Error deleting recipe ingredient: ' + error.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
@@ -1032,6 +1478,9 @@ export default function Home() {
             <TabButton active={activeTab === 'ingredients'} onClick={() => setActiveTab('ingredients')}>
               Ingredients
             </TabButton>
+            <TabButton active={activeTab === 'bases'} onClick={() => setActiveTab('bases')}>
+              Bases
+            </TabButton>
             <TabButton active={activeTab === 'recipes'} onClick={() => setActiveTab('recipes')}>
               Recipes
             </TabButton>
@@ -1054,6 +1503,16 @@ export default function Home() {
             onAdd={handleAddIngredient}
           />
         )}
+        {activeTab === 'bases' && (
+          <BaseTemplatesTab
+            baseTemplates={baseTemplates}
+            ingredients={ingredients}
+            drinkSizes={drinkSizes}
+            onAddTemplate={handleAddBaseTemplate}
+            onAddTemplateIngredient={handleAddTemplateIngredient}
+            onDeleteTemplateIngredient={handleDeleteTemplateIngredient}
+          />
+        )}
         {activeTab === 'recipes' && (
           <RecipesTab
             recipes={recipes}
@@ -1062,6 +1521,8 @@ export default function Home() {
             baseTemplates={baseTemplates}
             drinkSizes={drinkSizes}
             onAddRecipe={handleAddRecipe}
+            onAddRecipeIngredient={handleAddRecipeIngredient}
+            onDeleteRecipeIngredient={handleDeleteRecipeIngredient}
           />
         )}
         {activeTab === 'pricing' && (
