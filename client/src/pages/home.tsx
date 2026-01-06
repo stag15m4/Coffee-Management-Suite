@@ -217,9 +217,10 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
     item_number: '',
   });
 
-  const filteredIngredients = selectedCategory === 'all'
+  const filteredIngredients = (selectedCategory === 'all'
     ? ingredients
-    : ingredients.filter(i => i.category_id === selectedCategory);
+    : ingredients.filter(i => i.category_id === selectedCategory)
+  ).sort((a, b) => a.name.localeCompare(b.name));
 
   const handleEdit = (ingredient: Ingredient) => {
     setEditingId(ingredient.id);
