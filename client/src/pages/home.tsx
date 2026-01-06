@@ -301,10 +301,21 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
     }
     try {
       const itemIds = Array.from(selectedItems);
+      let successCount = 0;
+      let failCount = 0;
       for (const id of itemIds) {
-        await onUpdate(id, { ingredient_type: transferTarget });
+        try {
+          await onUpdate(id, { ingredient_type: transferTarget });
+          successCount++;
+        } catch {
+          failCount++;
+        }
       }
-      alert(`Successfully transferred ${itemIds.length} item(s) to ${pluralizeType(transferTarget)}`);
+      if (failCount > 0) {
+        alert(`Transfer issue: ${failCount} item(s) failed. This is likely due to Supabase security policies. Please check RLS settings.`);
+      } else if (successCount > 0) {
+        alert(`Successfully transferred ${successCount} item(s) to ${pluralizeType(transferTarget)}`);
+      }
       setSelectedItems(new Set());
       setTransferTarget('');
     } catch (error: any) {
