@@ -229,8 +229,10 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
     item_number: '',
   });
 
+  const normalizeType = (type: string | null | undefined) => (type || 'Drink Ingredient').toLowerCase();
+  
   const filteredIngredients = ingredients
-    .filter(i => i.ingredient_type === selectedType || (!i.ingredient_type && selectedType === 'Drink Ingredient'))
+    .filter(i => normalizeType(i.ingredient_type) === selectedType.toLowerCase())
     .filter(i => selectedCategory === 'all' || i.category_id === selectedCategory)
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -337,7 +339,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
             }}
             data-testid={`tab-${type.toLowerCase().replace(' ', '-')}`}
           >
-            {pluralizeType(type)} ({ingredients.filter(i => i.ingredient_type === type || (!i.ingredient_type && type === 'Drink Ingredient')).length})
+            {pluralizeType(type)} ({ingredients.filter(i => normalizeType(i.ingredient_type) === type.toLowerCase()).length})
           </button>
         ))}
       </div>
@@ -1241,7 +1243,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                               >
                                 <option value="">Select Ingredient</option>
                                 {ingredients
-                                  .filter(ing => ing.ingredient_type === 'Drink Ingredient' || !ing.ingredient_type)
+                                  .filter(ing => (ing.ingredient_type || 'Drink Ingredient').toLowerCase() === 'drink ingredient')
                                   .sort((a, b) => a.name.localeCompare(b.name))
                                   .map(ing => (
                                   <option key={ing.id} value={ing.id}>{ing.name}</option>
@@ -1962,7 +1964,7 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
                               >
                                 <option value="">Select ingredient</option>
                                 {ingredients
-                                  .filter(ing => ing.ingredient_type === 'Disposable')
+                                  .filter(ing => (ing.ingredient_type || '').toLowerCase() === 'disposable')
                                   .sort((a, b) => a.name.localeCompare(b.name))
                                   .map(ing => (
                                   <option key={ing.id} value={ing.id}>{ing.name}</option>
