@@ -1134,24 +1134,64 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
 };
 
 interface PricingTabProps {
-  products: Product[];
+  recipes: Recipe[];
+  ingredients: Ingredient[];
+  baseTemplates: BaseTemplate[];
   drinkSizes: DrinkSize[];
+  overhead: OverheadSettings | null;
 }
 
-const PricingTab = ({ products, drinkSizes }: PricingTabProps) => {
-  const productsByRecipe = products.reduce((acc, product) => {
-    if (!acc[product.recipe_name]) {
-      acc[product.recipe_name] = {
-        name: product.recipe_name,
-        category: product.category_name,
-        sizes: {} as Record<string, Product>,
-      };
-    }
-    acc[product.recipe_name].sizes[product.size_name] = product;
-    return acc;
-  }, {} as Record<string, { name: string; category: string; sizes: Record<string, Product> }>);
+const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead }: PricingTabProps) => {
+  const getIngredientCostPerUnit = (ing: Ingredient): number => {
+    const cost = typeof ing.cost === 'string' ? parseFloat(ing.cost) : ing.cost;
+    const quantity = typeof ing.quantity === 'string' ? parseFloat(ing.quantity) : ing.quantity;
+    if (!cost || !quantity) return 0;
+    const usageUnit = ing.usage_unit || ing.unit;
+    const costPerUnit = calculateCostPerUsageUnit(cost, quantity, ing.unit, usageUnit);
+    return costPerUnit || (cost / quantity);
+  };
 
-  const recipeList = Object.values(productsByRecipe);
+  const calculateSizeCost = (recipe: Recipe, sizeId: string): number => {
+    let totalCost = 0;
+    
+    const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === sizeId) || [];
+    for (const ri of sizeIngredients) {
+      const ing = ingredients.find(i => i.id === ri.ingredient_id);
+      if (ing) {
+        totalCost += ri.quantity * getIngredientCostPerUnit(ing);
+      }
+    }
+    
+    if (recipe.base_template_id) {
+      const baseTemplate = baseTemplates.find(bt => bt.id === recipe.base_template_id);
+      const baseItems = baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
+      for (const bi of baseItems) {
+        const ing = ingredients.find(i => i.id === bi.ingredient_id);
+        if (ing) {
+          totalCost += bi.quantity * getIngredientCostPerUnit(ing);
+        }
+      }
+    }
+    
+    if (overhead) {
+      totalCost += (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0);
+    }
+    
+    return totalCost;
+  };
+
+  const hasIngredientsForSize = (recipe: Recipe, sizeId: string): boolean => {
+    const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === sizeId) || [];
+    if (sizeIngredients.length > 0) return true;
+    
+    if (recipe.base_template_id) {
+      const baseTemplate = baseTemplates.find(bt => bt.id === recipe.base_template_id);
+      const baseItems = baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
+      if (baseItems.length > 0) return true;
+    }
+    
+    return false;
+  };
 
   return (
     <div className="space-y-4">
@@ -1180,9 +1220,9 @@ const PricingTab = ({ products, drinkSizes }: PricingTabProps) => {
               </tr>
             </thead>
             <tbody>
-              {recipeList.map((recipe, idx) => (
+              {recipes.map((recipe, idx) => (
                 <tr
-                  key={recipe.name}
+                  key={recipe.id}
                   style={{
                     backgroundColor: idx % 2 === 0 ? colors.white : colors.cream,
                     borderBottom: `1px solid ${colors.creamDark}`,
@@ -1190,11 +1230,12 @@ const PricingTab = ({ products, drinkSizes }: PricingTabProps) => {
                   data-testid={`row-pricing-${recipe.name}`}
                 >
                   <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>
-                    {recipe.name}
+                    <div>{recipe.name}</div>
+                    <div className="text-xs" style={{ color: colors.brownLight }}>{recipe.category_name}</div>
                   </td>
                   {drinkSizes.map(size => {
-                    const product = recipe.sizes[size.name];
-                    if (!product) {
+                    const hasItems = hasIngredientsForSize(recipe, size.id);
+                    if (!hasItems) {
                       return (
                         <Fragment key={size.id}>
                           <td className="px-2 py-2 text-right text-xs" style={{ color: colors.brownLight }}>-</td>
@@ -1204,9 +1245,10 @@ const PricingTab = ({ products, drinkSizes }: PricingTabProps) => {
                         </Fragment>
                       );
                     }
-                    const cost = product.base_cost + product.ingredient_cost;
-                    const profit = product.sale_price - cost;
-                    const margin = product.sale_price > 0 ? (profit / product.sale_price * 100) : 0;
+                    const cost = calculateSizeCost(recipe, size.id);
+                    const salePrice = cost * 3;
+                    const profit = salePrice - cost;
+                    const margin = salePrice > 0 ? (profit / salePrice * 100) : 0;
                     const marginColor = margin >= 40 ? colors.green : margin >= 25 ? colors.gold : colors.red;
 
                     return (
@@ -1215,7 +1257,7 @@ const PricingTab = ({ products, drinkSizes }: PricingTabProps) => {
                           {formatCurrency(cost)}
                         </td>
                         <td className="px-2 py-2 text-right font-mono text-xs font-semibold" style={{ color: colors.brown }}>
-                          {formatCurrency(product.sale_price)}
+                          {formatCurrency(salePrice)}
                         </td>
                         <td className="px-2 py-2 text-right font-mono text-xs font-semibold" style={{ color: marginColor }}>
                           {formatPercent(margin)}
@@ -2064,8 +2106,11 @@ export default function Home() {
         )}
         {activeTab === 'pricing' && (
           <PricingTab
-            products={products}
+            recipes={recipes}
+            ingredients={ingredients}
+            baseTemplates={baseTemplates}
             drinkSizes={drinkSizes}
+            overhead={overhead}
           />
         )}
         {activeTab === 'settings' && (
