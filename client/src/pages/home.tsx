@@ -68,11 +68,43 @@ interface Ingredient {
   cost: number | string;
   quantity: number | string;
   unit: string;
+  usage_unit?: string;
   cost_per_unit?: number | string;
+  cost_per_usage_unit?: number | string;
   vendor?: string;
   manufacturer?: string;
   item_number?: string;
 }
+
+const unitConversions: Record<string, Record<string, number>> = {
+  oz: { g: 28.3495, grams: 28.3495, gram: 28.3495, oz: 1, ml: 29.5735 },
+  lb: { oz: 16, g: 453.592, grams: 453.592, gram: 453.592, lb: 1 },
+  gal: { oz: 128, ml: 3785.41, l: 3.78541, gal: 1 },
+  l: { ml: 1000, oz: 33.814, l: 1 },
+  kg: { g: 1000, grams: 1000, gram: 1000, oz: 35.274, lb: 2.20462, kg: 1 },
+};
+
+const calculateCostPerUsageUnit = (
+  cost: number,
+  purchaseQty: number,
+  purchaseUnit: string,
+  usageUnit: string
+): number | null => {
+  if (!usageUnit || usageUnit === purchaseUnit) {
+    return cost / purchaseQty;
+  }
+  
+  const fromUnit = purchaseUnit.toLowerCase().trim();
+  const toUnit = usageUnit.toLowerCase().trim();
+  
+  if (unitConversions[fromUnit] && unitConversions[fromUnit][toUnit]) {
+    const conversionFactor = unitConversions[fromUnit][toUnit];
+    const totalUsageUnits = purchaseQty * conversionFactor;
+    return cost / totalUsageUnits;
+  }
+  
+  return null;
+};
 
 interface Product {
   id: string;
@@ -162,6 +194,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
     cost: '',
     quantity: '',
     unit: 'oz',
+    usage_unit: '',
     vendor: '',
     manufacturer: '',
     item_number: '',
@@ -197,6 +230,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
       cost: '',
       quantity: '',
       unit: 'oz',
+      usage_unit: '',
       vendor: '',
       manufacturer: '',
       item_number: '',
@@ -286,11 +320,28 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                 data-testid="select-new-ingredient-unit"
               >
                 <option value="oz">oz</option>
+                <option value="lb">lb</option>
+                <option value="gal">gal</option>
                 <option value="gram">gram</option>
+                <option value="kg">kg</option>
+                <option value="l">l</option>
                 <option value="each">each</option>
                 <option value="count">count</option>
               </select>
             </div>
+            <select
+              value={newIngredient.usage_unit}
+              onChange={(e) => setNewIngredient({ ...newIngredient, usage_unit: e.target.value })}
+              className="px-3 py-2 rounded-lg border-2 outline-none"
+              style={{ borderColor: colors.creamDark }}
+              data-testid="select-new-ingredient-usage-unit"
+            >
+              <option value="">Usage Unit (same)</option>
+              <option value="gram">gram</option>
+              <option value="oz">oz</option>
+              <option value="ml">ml</option>
+              <option value="each">each</option>
+            </select>
             <input
               type="text"
               placeholder="Vendor"
@@ -350,6 +401,8 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                 <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Cost</th>
                 <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Quantity</th>
                 <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Cost/Unit</th>
+                <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Usage Unit</th>
+                <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.gold }}>Cost/Usage</th>
                 <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.brown }}>Vendor</th>
                 <th className="px-4 py-3 text-center font-semibold" style={{ color: colors.brown }}>Actions</th>
               </tr>
@@ -400,8 +453,25 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                       `${ingredient.quantity} ${ingredient.unit}`
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: colors.gold }}>
+                  <td className="px-4 py-3 text-right font-mono" style={{ color: colors.brownLight }}>
                     {formatCurrency(ingredient.cost_per_unit || 0)}/{ingredient.unit}
+                  </td>
+                  <td className="px-4 py-3 text-right" style={{ color: colors.brownLight }}>
+                    {ingredient.usage_unit || ingredient.unit}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: colors.gold }}>
+                    {(() => {
+                      const usageUnit = ingredient.usage_unit || ingredient.unit;
+                      const costPerUsage = calculateCostPerUsageUnit(
+                        Number(ingredient.cost) || 0,
+                        Number(ingredient.quantity) || 1,
+                        ingredient.unit,
+                        usageUnit
+                      );
+                      return costPerUsage !== null 
+                        ? `${formatCurrency(costPerUsage)}/${usageUnit}`
+                        : '-';
+                    })()}
                   </td>
                   <td className="px-4 py-3" style={{ color: colors.brownLight }}>
                     {editingId === ingredient.id ? (
