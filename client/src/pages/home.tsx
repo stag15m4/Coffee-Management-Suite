@@ -1155,12 +1155,18 @@ interface PricingTabProps {
   drinkSizes: DrinkSize[];
   overhead: OverheadSettings | null;
   pricingData: RecipeSizePricing[];
+  recipeSizeBases: { id?: string; recipe_id: string; size_id: string; base_template_id: string }[];
   onUpdatePricing: (recipeId: string, sizeId: string, salePrice: number) => Promise<void>;
 }
 
-const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead, pricingData, onUpdatePricing }: PricingTabProps) => {
+const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead, pricingData, recipeSizeBases, onUpdatePricing }: PricingTabProps) => {
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+
+  const getSizeBaseTemplateId = (recipeId: string, sizeId: string): string | null => {
+    const rsb = recipeSizeBases.find(r => r.recipe_id === recipeId && r.size_id === sizeId);
+    return rsb?.base_template_id || null;
+  };
 
   const getSalePrice = (recipeId: string, sizeId: string): number => {
     const pricing = pricingData.find(p => p.recipe_id === recipeId && p.size_id === sizeId);
@@ -1194,8 +1200,9 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
       }
     }
     
-    if (recipe.base_template_id) {
-      const baseTemplate = baseTemplates.find(bt => bt.id === recipe.base_template_id);
+    const sizeBaseId = getSizeBaseTemplateId(recipe.id, sizeId);
+    if (sizeBaseId) {
+      const baseTemplate = baseTemplates.find(bt => bt.id === sizeBaseId);
       const baseItems = baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
       for (const bi of baseItems) {
         const ing = ingredients.find(i => i.id === bi.ingredient_id);
@@ -2245,6 +2252,7 @@ export default function Home() {
             drinkSizes={drinkSizes}
             overhead={overhead}
             pricingData={pricingData}
+            recipeSizeBases={recipeSizeBases}
             onUpdatePricing={handleUpdatePricing}
           />
         )}
