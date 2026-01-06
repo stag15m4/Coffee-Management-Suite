@@ -671,13 +671,14 @@ interface RecipesTabProps {
   productCategories: Category[];
   baseTemplates: BaseTemplate[];
   drinkSizes: DrinkSize[];
+  overhead: OverheadSettings | null;
   onAddRecipe: (recipe: { name: string; category_id: string; base_template_id?: string }) => Promise<void>;
   onUpdateRecipe: (id: string, updates: { name?: string; category_id?: string; base_template_id?: string | null }) => Promise<void>;
   onAddRecipeIngredient: (ingredient: { recipe_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => Promise<void>;
   onDeleteRecipeIngredient: (id: string) => Promise<void>;
 }
 
-const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient }: RecipesTabProps) => {
+const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient }: RecipesTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -722,7 +723,17 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
       }
     }
     
+    if (overhead) {
+      const overheadCost = (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0);
+      totalCost += overheadCost;
+    }
+    
     return totalCost;
+  };
+  
+  const getOverheadCost = (): number => {
+    if (!overhead) return 0;
+    return (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0);
   };
 
   const getBaseTemplateItems = (recipe: Recipe, sizeId: string): BaseTemplateIngredient[] => {
@@ -1036,6 +1047,21 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                     </div>
                                   );
                                 })}
+                              </div>
+                            </div>
+                          )}
+
+                          {hasItems && getOverheadCost() > 0 && (
+                            <div className="mb-2">
+                              <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Overhead:</span>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                <div
+                                  className="flex items-center gap-1 px-2 py-1 rounded text-xs"
+                                  style={{ backgroundColor: colors.white, border: `1px dashed ${colors.brownLight}` }}
+                                >
+                                  <span style={{ color: colors.brown }}>Shop Overhead</span>
+                                  <span style={{ color: colors.gold }}>({formatCurrency(getOverheadCost())})</span>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -2029,6 +2055,7 @@ export default function Home() {
             productCategories={productCategories}
             baseTemplates={baseTemplates}
             drinkSizes={drinkSizes}
+            overhead={overhead}
             onAddRecipe={handleAddRecipe}
             onUpdateRecipe={handleUpdateRecipe}
             onAddRecipeIngredient={handleAddRecipeIngredient}
