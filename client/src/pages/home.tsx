@@ -2178,10 +2178,6 @@ export default function Home() {
       const { data: ingData } = await supabase
         .from('v_ingredients')
         .select('*');
-      // Debug: log unique ingredient_type values
-      const types = [...new Set((ingData || []).map((i: any) => i.ingredient_type))];
-      console.log('Ingredient types from DB:', types);
-      alert('DB ingredient types: ' + JSON.stringify(types));
       setIngredients(ingData || []);
 
       const { data: prodCatData } = await supabase
