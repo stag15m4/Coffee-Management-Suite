@@ -67,6 +67,7 @@ interface Ingredient {
   name: string;
   category_id: string;
   category_name?: string;
+  ingredient_type?: string;
   cost: number | string;
   quantity: number | string;
   unit: string;
@@ -78,6 +79,8 @@ interface Ingredient {
   item_number?: string;
   updated_at?: string;
 }
+
+const INGREDIENT_TYPES = ['Drink Ingredient', 'Shop Ingredient', 'Disposable', 'Supply'] as const;
 
 const isOlderThan3Months = (dateStr?: string): boolean => {
   if (!dateStr) return true;
@@ -201,6 +204,7 @@ interface IngredientsTabProps {
 }
 
 const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: IngredientsTabProps) => {
+  const [selectedType, setSelectedType] = useState<string>('Drink Ingredient');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Ingredient>>({});
@@ -208,6 +212,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
   const [newIngredient, setNewIngredient] = useState({
     name: '',
     category_id: '',
+    ingredient_type: 'Drink Ingredient',
     cost: '',
     quantity: '',
     unit: 'oz',
@@ -217,16 +222,17 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
     item_number: '',
   });
 
-  const filteredIngredients = (selectedCategory === 'all'
-    ? ingredients
-    : ingredients.filter(i => i.category_id === selectedCategory)
-  ).sort((a, b) => a.name.localeCompare(b.name));
+  const filteredIngredients = ingredients
+    .filter(i => i.ingredient_type === selectedType || (!i.ingredient_type && selectedType === 'Drink Ingredient'))
+    .filter(i => selectedCategory === 'all' || i.category_id === selectedCategory)
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const handleEdit = (ingredient: Ingredient) => {
     setEditingId(ingredient.id);
     setEditForm({
       name: ingredient.name,
       category_id: ingredient.category_id,
+      ingredient_type: ingredient.ingredient_type || 'Drink Ingredient',
       cost: ingredient.cost,
       quantity: ingredient.quantity,
       unit: ingredient.unit,
@@ -251,6 +257,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
     setNewIngredient({
       name: '',
       category_id: '',
+      ingredient_type: selectedType,
       cost: '',
       quantity: '',
       unit: 'oz',
@@ -264,6 +271,23 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap gap-2 mb-4">
+        {INGREDIENT_TYPES.map(type => (
+          <button
+            key={type}
+            onClick={() => { setSelectedType(type); setNewIngredient(prev => ({ ...prev, ingredient_type: type })); }}
+            className="px-4 py-2 font-semibold rounded-lg transition-all"
+            style={{
+              backgroundColor: selectedType === type ? colors.gold : colors.creamDark,
+              color: selectedType === type ? colors.white : colors.brown,
+            }}
+            data-testid={`tab-${type.toLowerCase().replace(' ', '-')}`}
+          >
+            {type}s ({ingredients.filter(i => i.ingredient_type === type || (!i.ingredient_type && type === 'Drink Ingredient')).length})
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-center gap-4 justify-between">
         <div className="flex items-center gap-2">
           <span className="font-medium" style={{ color: colors.brown }}>Category:</span>
@@ -286,7 +310,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
           style={{ backgroundColor: colors.gold, color: colors.white }}
           data-testid="button-add-ingredient"
         >
-          + Add Ingredient
+          + Add {selectedType}
         </button>
       </div>
 
@@ -465,6 +489,20 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                             >
                               {categories.map(cat => (
                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Type</label>
+                            <select
+                              value={String(editForm.ingredient_type || 'Drink Ingredient')}
+                              onChange={(e) => setEditForm({ ...editForm, ingredient_type: e.target.value })}
+                              className="w-full px-2 py-1 rounded border"
+                              style={{ borderColor: colors.gold }}
+                              data-testid={`select-edit-type-${ingredient.id}`}
+                            >
+                              {INGREDIENT_TYPES.map(type => (
+                                <option key={type} value={type}>{type}</option>
                               ))}
                             </select>
                           </div>
@@ -1084,7 +1122,10 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                 data-testid={`select-ri-ingredient-${size.id}`}
                               >
                                 <option value="">Select Ingredient</option>
-                                {ingredients.map(ing => (
+                                {ingredients
+                                  .filter(ing => ing.ingredient_type === 'Drink Ingredient' || !ing.ingredient_type)
+                                  .sort((a, b) => a.name.localeCompare(b.name))
+                                  .map(ing => (
                                   <option key={ing.id} value={ing.id}>{ing.name}</option>
                                 ))}
                               </select>
@@ -1666,7 +1707,10 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
                                 data-testid={`select-ing-${size.id}`}
                               >
                                 <option value="">Select ingredient</option>
-                                {ingredients.map(ing => (
+                                {ingredients
+                                  .filter(ing => ing.ingredient_type === 'Disposable')
+                                  .sort((a, b) => a.name.localeCompare(b.name))
+                                  .map(ing => (
                                   <option key={ing.id} value={ing.id}>{ing.name}</option>
                                 ))}
                               </select>
@@ -1955,7 +1999,7 @@ export default function Home() {
   const handleUpdateIngredient = async (id: string, updates: Partial<Ingredient>) => {
     try {
       const safeUpdates: Record<string, any> = {};
-      const allowedFields = ['name', 'category_id', 'cost', 'quantity', 'unit', 'usage_unit', 'vendor', 'manufacturer', 'item_number', 'updated_at'];
+      const allowedFields = ['name', 'category_id', 'ingredient_type', 'cost', 'quantity', 'unit', 'usage_unit', 'vendor', 'manufacturer', 'item_number', 'updated_at'];
       
       for (const key of allowedFields) {
         if (key in updates) {
