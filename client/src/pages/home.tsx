@@ -2251,15 +2251,20 @@ export default function Home() {
       }
       safeUpdates.updated_at = new Date().toISOString();
       
-      const { error } = await supabase
+      const { data, error, count } = await supabase
         .from('ingredients')
         .update(safeUpdates)
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) throw error;
-      loadAllData();
+      if (!data || data.length === 0) {
+        throw new Error('Update returned no data - check RLS policies in Supabase');
+      }
+      await loadAllData();
     } catch (error: any) {
       alert('Error updating ingredient: ' + error.message);
+      throw error;
     }
   };
 
