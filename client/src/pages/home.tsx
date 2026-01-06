@@ -436,15 +436,36 @@ interface RecipesTabProps {
   productCategories: Category[];
   baseTemplates: BaseTemplate[];
   drinkSizes: DrinkSize[];
+  onAddRecipe: (recipe: { name: string; category_id: string; base_template_id?: string }) => Promise<void>;
 }
 
-const RecipesTab = ({ recipes, productCategories, drinkSizes }: RecipesTabProps) => {
+const RecipesTab = ({ recipes, productCategories, drinkSizes, baseTemplates, onAddRecipe }: RecipesTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newRecipe, setNewRecipe] = useState({
+    name: '',
+    category_id: '',
+    base_template_id: '',
+  });
 
   const filteredRecipes = selectedCategory === 'all'
     ? recipes
     : recipes.filter(r => r.category_id === selectedCategory);
+
+  const handleAddRecipe = async () => {
+    if (!newRecipe.name || !newRecipe.category_id) {
+      alert('Please fill in recipe name and category');
+      return;
+    }
+    await onAddRecipe({
+      name: newRecipe.name,
+      category_id: newRecipe.category_id,
+      base_template_id: newRecipe.base_template_id || undefined,
+    });
+    setNewRecipe({ name: '', category_id: '', base_template_id: '' });
+    setShowAddForm(false);
+  };
 
   return (
     <div className="space-y-4">
@@ -465,6 +486,7 @@ const RecipesTab = ({ recipes, productCategories, drinkSizes }: RecipesTabProps)
           </select>
         </div>
         <button
+          onClick={() => setShowAddForm(!showAddForm)}
           className="px-4 py-2 font-semibold rounded-lg transition-all hover:opacity-90"
           style={{ backgroundColor: colors.gold, color: colors.white }}
           data-testid="button-new-recipe"
@@ -472,6 +494,65 @@ const RecipesTab = ({ recipes, productCategories, drinkSizes }: RecipesTabProps)
           + New Recipe
         </button>
       </div>
+
+      {showAddForm && (
+        <div className="rounded-xl p-4 shadow-md" style={{ backgroundColor: colors.white }}>
+          <h3 className="font-bold mb-3" style={{ color: colors.brown }}>New Recipe</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input
+              type="text"
+              placeholder="Recipe Name"
+              value={newRecipe.name}
+              onChange={(e) => setNewRecipe({ ...newRecipe, name: e.target.value })}
+              className="px-3 py-2 rounded-lg border-2 outline-none"
+              style={{ borderColor: colors.creamDark }}
+              data-testid="input-new-recipe-name"
+            />
+            <select
+              value={newRecipe.category_id}
+              onChange={(e) => setNewRecipe({ ...newRecipe, category_id: e.target.value })}
+              className="px-3 py-2 rounded-lg border-2 outline-none"
+              style={{ borderColor: colors.creamDark }}
+              data-testid="select-new-recipe-category"
+            >
+              <option value="">Select Category</option>
+              {productCategories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+            <select
+              value={newRecipe.base_template_id}
+              onChange={(e) => setNewRecipe({ ...newRecipe, base_template_id: e.target.value })}
+              className="px-3 py-2 rounded-lg border-2 outline-none"
+              style={{ borderColor: colors.creamDark }}
+              data-testid="select-new-recipe-base"
+            >
+              <option value="">No Base Template</option>
+              {baseTemplates.map(base => (
+                <option key={base.id} value={base.id}>{base.name}</option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <button
+                onClick={handleAddRecipe}
+                className="px-4 py-2 font-semibold rounded-lg"
+                style={{ backgroundColor: colors.green, color: colors.white }}
+                data-testid="button-save-new-recipe"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="px-4 py-2 font-semibold rounded-lg"
+                style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                data-testid="button-cancel-new-recipe"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4">
         {filteredRecipes.map(recipe => (
@@ -903,6 +984,24 @@ export default function Home() {
     }
   };
 
+  const handleAddRecipe = async (recipe: { name: string; category_id: string; base_template_id?: string }) => {
+    try {
+      const { error } = await supabase
+        .from('recipes')
+        .insert({
+          name: recipe.name,
+          category_id: recipe.category_id,
+          base_template_id: recipe.base_template_id || null,
+          is_active: true,
+        });
+
+      if (error) throw error;
+      loadAllData();
+    } catch (error: any) {
+      alert('Error adding recipe: ' + error.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
@@ -962,6 +1061,7 @@ export default function Home() {
             productCategories={productCategories}
             baseTemplates={baseTemplates}
             drinkSizes={drinkSizes}
+            onAddRecipe={handleAddRecipe}
           />
         )}
         {activeTab === 'pricing' && (
