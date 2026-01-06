@@ -2169,6 +2169,27 @@ export default function Home() {
   const loadAllData = async () => {
     setLoading(true);
     try {
+      // Ensure "Other" category exists
+      const { data: existingOther } = await supabase
+        .from('ingredient_categories')
+        .select('id')
+        .eq('name', 'Other')
+        .single();
+      
+      if (!existingOther) {
+        // Get max display_order
+        const { data: maxOrder } = await supabase
+          .from('ingredient_categories')
+          .select('display_order')
+          .order('display_order', { ascending: false })
+          .limit(1);
+        const nextOrder = (maxOrder?.[0]?.display_order || 0) + 1;
+        
+        await supabase
+          .from('ingredient_categories')
+          .insert({ name: 'Other', display_order: nextOrder });
+      }
+
       const { data: catData } = await supabase
         .from('ingredient_categories')
         .select('*')
