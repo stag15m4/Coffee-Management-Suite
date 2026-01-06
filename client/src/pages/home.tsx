@@ -82,6 +82,11 @@ interface Ingredient {
 
 const INGREDIENT_TYPES = ['Drink Ingredient', 'Shop Ingredient', 'Disposable', 'Supply'] as const;
 
+const pluralizeType = (type: string) => {
+  if (type === 'Supply') return 'Supplies';
+  return type + 's';
+};
+
 const isOlderThan3Months = (dateStr?: string): boolean => {
   if (!dateStr) return true;
   const date = new Date(dateStr);
@@ -294,7 +299,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
       alert('Please select items and a target type');
       return;
     }
-    for (const id of selectedItems) {
+    for (const id of Array.from(selectedItems)) {
       await onUpdate(id, { ingredient_type: transferTarget });
     }
     setSelectedItems(new Set());
@@ -315,7 +320,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
             }}
             data-testid={`tab-${type.toLowerCase().replace(' ', '-')}`}
           >
-            {type}s ({ingredients.filter(i => i.ingredient_type === type || (!i.ingredient_type && type === 'Drink Ingredient')).length})
+            {pluralizeType(type)} ({ingredients.filter(i => i.ingredient_type === type || (!i.ingredient_type && type === 'Drink Ingredient')).length})
           </button>
         ))}
       </div>
@@ -337,7 +342,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
           >
             <option value="">Transfer to...</option>
             {INGREDIENT_TYPES.filter(t => t !== selectedType).map(type => (
-              <option key={type} value={type}>{type}</option>
+              <option key={type} value={type}>{pluralizeType(type)}</option>
             ))}
           </select>
           <button
