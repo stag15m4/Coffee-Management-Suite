@@ -299,9 +299,12 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
       alert('Please select items and a target type');
       return;
     }
+    console.log('Bulk transfer starting:', { transferTarget, selectedItems: Array.from(selectedItems) });
     for (const id of Array.from(selectedItems)) {
+      console.log('Transferring ingredient:', id, 'to type:', transferTarget);
       await onUpdate(id, { ingredient_type: transferTarget });
     }
+    console.log('Bulk transfer complete');
     setSelectedItems(new Set());
     setTransferTarget('');
   };
