@@ -1431,7 +1431,7 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
                     const salePrice = getSalePrice(recipe.id, size.id);
                     const profit = salePrice - cost;
                     const margin = salePrice > 0 ? (profit / salePrice * 100) : 0;
-                    const marginColor = margin >= 40 ? colors.green : margin >= 25 ? colors.gold : colors.red;
+                    const marginColor = margin > 31 ? colors.green : margin > 25 ? colors.gold : colors.red;
                     const isEditing = editingCell === cellKey;
 
                     return (
