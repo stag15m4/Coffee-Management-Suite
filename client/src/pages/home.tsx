@@ -766,7 +766,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                       {ingredient.quantity} {ingredient.unit}
                     </td>
                     <td className="px-4 py-3 text-right font-mono" style={{ color: colors.brownLight }}>
-                      {formatCurrency(ingredient.cost_per_unit || 0)}/{ingredient.unit}
+                      {formatCurrency((Number(ingredient.cost) || 0) / (Number(ingredient.quantity) || 1))}/{ingredient.unit}
                     </td>
                     <td className="px-4 py-3 text-right" style={{ color: colors.brownLight }}>
                       {ingredient.usage_unit || ingredient.unit}
