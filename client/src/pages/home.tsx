@@ -207,9 +207,15 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
   const handleEdit = (ingredient: Ingredient) => {
     setEditingId(ingredient.id);
     setEditForm({
+      name: ingredient.name,
+      category_id: ingredient.category_id,
       cost: ingredient.cost,
       quantity: ingredient.quantity,
+      unit: ingredient.unit,
+      usage_unit: ingredient.usage_unit || '',
       vendor: ingredient.vendor || '',
+      manufacturer: ingredient.manufacturer || '',
+      item_number: ingredient.item_number || '',
     });
   };
 
@@ -409,105 +415,203 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
             </thead>
             <tbody>
               {filteredIngredients.map((ingredient, idx) => (
-                <tr
-                  key={ingredient.id}
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? colors.white : colors.cream,
-                    borderBottom: `1px solid ${colors.creamDark}`,
-                  }}
-                  data-testid={`row-ingredient-${ingredient.id}`}
-                >
-                  <td className="px-4 py-3 font-medium" style={{ color: colors.brown }}>
-                    {ingredient.name}
-                  </td>
-                  <td className="px-4 py-3" style={{ color: colors.brownLight }}>
-                    {ingredient.category_name}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono" style={{ color: colors.brown }}>
-                    {editingId === ingredient.id ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={String(editForm.cost || '')}
-                        onChange={(e) => setEditForm({ ...editForm, cost: e.target.value })}
-                        className="w-24 px-2 py-1 rounded border text-right"
-                        style={{ borderColor: colors.gold }}
-                        data-testid={`input-edit-cost-${ingredient.id}`}
-                      />
-                    ) : (
-                      formatCurrency(ingredient.cost)
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono" style={{ color: colors.brown }}>
-                    {editingId === ingredient.id ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={String(editForm.quantity || '')}
-                        onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
-                        className="w-20 px-2 py-1 rounded border text-right"
-                        style={{ borderColor: colors.gold }}
-                        data-testid={`input-edit-quantity-${ingredient.id}`}
-                      />
-                    ) : (
-                      `${ingredient.quantity} ${ingredient.unit}`
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono" style={{ color: colors.brownLight }}>
-                    {formatCurrency(ingredient.cost_per_unit || 0)}/{ingredient.unit}
-                  </td>
-                  <td className="px-4 py-3 text-right" style={{ color: colors.brownLight }}>
-                    {ingredient.usage_unit || ingredient.unit}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: colors.gold }}>
-                    {(() => {
-                      const usageUnit = ingredient.usage_unit || ingredient.unit;
-                      const costPerUsage = calculateCostPerUsageUnit(
-                        Number(ingredient.cost) || 0,
-                        Number(ingredient.quantity) || 1,
-                        ingredient.unit,
-                        usageUnit
-                      );
-                      return costPerUsage !== null 
-                        ? `${formatCurrency(costPerUsage)}/${usageUnit}`
-                        : '-';
-                    })()}
-                  </td>
-                  <td className="px-4 py-3" style={{ color: colors.brownLight }}>
-                    {editingId === ingredient.id ? (
-                      <input
-                        type="text"
-                        value={String(editForm.vendor || '')}
-                        onChange={(e) => setEditForm({ ...editForm, vendor: e.target.value })}
-                        className="w-24 px-2 py-1 rounded border"
-                        style={{ borderColor: colors.gold }}
-                        data-testid={`input-edit-vendor-${ingredient.id}`}
-                      />
-                    ) : (
-                      ingredient.vendor || '-'
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {editingId === ingredient.id ? (
-                      <div className="flex gap-2 justify-center">
-                        <button
-                          onClick={() => handleSave(ingredient.id)}
-                          className="px-3 py-1 rounded font-medium"
-                          style={{ backgroundColor: colors.green, color: colors.white }}
-                          data-testid={`button-save-${ingredient.id}`}
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="px-3 py-1 rounded font-medium"
-                          style={{ backgroundColor: colors.creamDark, color: colors.brown }}
-                          data-testid={`button-cancel-${ingredient.id}`}
-                        >
-                          Cancel
-                        </button>
+                editingId === ingredient.id ? (
+                  <tr
+                    key={ingredient.id}
+                    style={{ backgroundColor: colors.cream, borderBottom: `2px solid ${colors.gold}` }}
+                    data-testid={`row-ingredient-edit-${ingredient.id}`}
+                  >
+                    <td colSpan={9} className="px-4 py-4">
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div>
+                            <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Name</label>
+                            <input
+                              type="text"
+                              value={String(editForm.name || '')}
+                              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                              className="w-full px-2 py-1 rounded border"
+                              style={{ borderColor: colors.gold }}
+                              data-testid={`input-edit-name-${ingredient.id}`}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Category</label>
+                            <select
+                              value={String(editForm.category_id || '')}
+                              onChange={(e) => setEditForm({ ...editForm, category_id: e.target.value })}
+                              className="w-full px-2 py-1 rounded border"
+                              style={{ borderColor: colors.gold }}
+                              data-testid={`select-edit-category-${ingredient.id}`}
+                            >
+                              {categories.map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Cost ($)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={String(editForm.cost || '')}
+                              onChange={(e) => setEditForm({ ...editForm, cost: e.target.value })}
+                              className="w-full px-2 py-1 rounded border text-right"
+                              style={{ borderColor: colors.gold }}
+                              data-testid={`input-edit-cost-${ingredient.id}`}
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Quantity</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={String(editForm.quantity || '')}
+                                onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                                className="w-full px-2 py-1 rounded border text-right"
+                                style={{ borderColor: colors.gold }}
+                                data-testid={`input-edit-quantity-${ingredient.id}`}
+                              />
+                            </div>
+                            <div className="w-20">
+                              <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Unit</label>
+                              <select
+                                value={String(editForm.unit || '')}
+                                onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
+                                className="w-full px-2 py-1 rounded border"
+                                style={{ borderColor: colors.gold }}
+                                data-testid={`select-edit-unit-${ingredient.id}`}
+                              >
+                                <option value="oz">oz</option>
+                                <option value="lb">lb</option>
+                                <option value="gal">gal</option>
+                                <option value="gram">gram</option>
+                                <option value="kg">kg</option>
+                                <option value="l">l</option>
+                                <option value="each">each</option>
+                                <option value="count">count</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                          <div>
+                            <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Usage Unit</label>
+                            <select
+                              value={String(editForm.usage_unit || '')}
+                              onChange={(e) => setEditForm({ ...editForm, usage_unit: e.target.value })}
+                              className="w-full px-2 py-1 rounded border"
+                              style={{ borderColor: colors.gold }}
+                              data-testid={`select-edit-usage-unit-${ingredient.id}`}
+                            >
+                              <option value="">Same as purchase</option>
+                              <option value="gram">gram</option>
+                              <option value="oz">oz</option>
+                              <option value="ml">ml</option>
+                              <option value="each">each</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Vendor</label>
+                            <input
+                              type="text"
+                              value={String(editForm.vendor || '')}
+                              onChange={(e) => setEditForm({ ...editForm, vendor: e.target.value })}
+                              className="w-full px-2 py-1 rounded border"
+                              style={{ borderColor: colors.gold }}
+                              data-testid={`input-edit-vendor-${ingredient.id}`}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Manufacturer</label>
+                            <input
+                              type="text"
+                              value={String(editForm.manufacturer || '')}
+                              onChange={(e) => setEditForm({ ...editForm, manufacturer: e.target.value })}
+                              className="w-full px-2 py-1 rounded border"
+                              style={{ borderColor: colors.gold }}
+                              data-testid={`input-edit-manufacturer-${ingredient.id}`}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Item Number</label>
+                            <input
+                              type="text"
+                              value={String(editForm.item_number || '')}
+                              onChange={(e) => setEditForm({ ...editForm, item_number: e.target.value })}
+                              className="w-full px-2 py-1 rounded border"
+                              style={{ borderColor: colors.gold }}
+                              data-testid={`input-edit-item-number-${ingredient.id}`}
+                            />
+                          </div>
+                          <div className="flex items-end gap-2">
+                            <button
+                              onClick={() => handleSave(ingredient.id)}
+                              className="px-4 py-1 rounded font-medium"
+                              style={{ backgroundColor: colors.green, color: colors.white }}
+                              data-testid={`button-save-${ingredient.id}`}
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="px-4 py-1 rounded font-medium"
+                              style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                              data-testid={`button-cancel-${ingredient.id}`}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    ) : (
+                    </td>
+                  </tr>
+                ) : (
+                  <tr
+                    key={ingredient.id}
+                    style={{
+                      backgroundColor: idx % 2 === 0 ? colors.white : colors.cream,
+                      borderBottom: `1px solid ${colors.creamDark}`,
+                    }}
+                    data-testid={`row-ingredient-${ingredient.id}`}
+                  >
+                    <td className="px-4 py-3 font-medium" style={{ color: colors.brown }}>
+                      {ingredient.name}
+                    </td>
+                    <td className="px-4 py-3" style={{ color: colors.brownLight }}>
+                      {ingredient.category_name}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono" style={{ color: colors.brown }}>
+                      {formatCurrency(ingredient.cost)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono" style={{ color: colors.brown }}>
+                      {ingredient.quantity} {ingredient.unit}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono" style={{ color: colors.brownLight }}>
+                      {formatCurrency(ingredient.cost_per_unit || 0)}/{ingredient.unit}
+                    </td>
+                    <td className="px-4 py-3 text-right" style={{ color: colors.brownLight }}>
+                      {ingredient.usage_unit || ingredient.unit}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: colors.gold }}>
+                      {(() => {
+                        const usageUnit = ingredient.usage_unit || ingredient.unit;
+                        const costPerUsage = calculateCostPerUsageUnit(
+                          Number(ingredient.cost) || 0,
+                          Number(ingredient.quantity) || 1,
+                          ingredient.unit,
+                          usageUnit
+                        );
+                        return costPerUsage !== null 
+                          ? `${formatCurrency(costPerUsage)}/${usageUnit}`
+                          : '-';
+                      })()}
+                    </td>
+                    <td className="px-4 py-3" style={{ color: colors.brownLight }}>
+                      {ingredient.vendor || '-'}
+                    </td>
+                    <td className="px-4 py-3 text-center">
                       <button
                         onClick={() => handleEdit(ingredient)}
                         className="font-medium hover:underline"
@@ -516,9 +620,9 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                       >
                         Edit
                       </button>
-                    )}
-                  </td>
-                </tr>
+                    </td>
+                  </tr>
+                )
               ))}
             </tbody>
           </table>
@@ -535,14 +639,17 @@ interface RecipesTabProps {
   baseTemplates: BaseTemplate[];
   drinkSizes: DrinkSize[];
   onAddRecipe: (recipe: { name: string; category_id: string; base_template_id?: string }) => Promise<void>;
+  onUpdateRecipe: (id: string, updates: { name?: string; category_id?: string; base_template_id?: string | null }) => Promise<void>;
   onAddRecipeIngredient: (ingredient: { recipe_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => Promise<void>;
   onDeleteRecipeIngredient: (id: string) => Promise<void>;
 }
 
-const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, onAddRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient }: RecipesTabProps) => {
+const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient }: RecipesTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState<string | null>(null);
+  const [editRecipeForm, setEditRecipeForm] = useState({ name: '', category_id: '', base_template_id: '' });
   const [newRecipe, setNewRecipe] = useState({
     name: '',
     category_id: '',
@@ -550,6 +657,24 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
   });
   const [addingIngredient, setAddingIngredient] = useState<{ recipeId: string; sizeId: string } | null>(null);
   const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity: '1', unit: '' });
+
+  const handleEditRecipe = (recipe: Recipe) => {
+    setEditingRecipe(recipe.id);
+    setEditRecipeForm({
+      name: recipe.name,
+      category_id: recipe.category_id,
+      base_template_id: recipe.base_template_id || '',
+    });
+  };
+
+  const handleSaveRecipe = async (id: string) => {
+    await onUpdateRecipe(id, {
+      name: editRecipeForm.name,
+      category_id: editRecipeForm.category_id,
+      base_template_id: editRecipeForm.base_template_id || null,
+    });
+    setEditingRecipe(null);
+  };
 
   const filteredRecipes = selectedCategory === 'all'
     ? recipes
@@ -686,10 +811,72 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
               onClick={() => setExpandedRecipe(expandedRecipe === recipe.id ? null : recipe.id)}
               style={{ backgroundColor: colors.creamDark }}
             >
-              <div>
-                <h3 className="font-bold" style={{ color: colors.brown }}>{recipe.name}</h3>
-                <span className="text-sm" style={{ color: colors.brownLight }}>{recipe.category_name}</span>
-              </div>
+              {editingRecipe === recipe.id ? (
+                <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="text"
+                    value={editRecipeForm.name}
+                    onChange={(e) => setEditRecipeForm({ ...editRecipeForm, name: e.target.value })}
+                    className="px-2 py-1 rounded border"
+                    style={{ borderColor: colors.gold }}
+                    data-testid={`input-edit-recipe-name-${recipe.id}`}
+                  />
+                  <select
+                    value={editRecipeForm.category_id}
+                    onChange={(e) => setEditRecipeForm({ ...editRecipeForm, category_id: e.target.value })}
+                    className="px-2 py-1 rounded border"
+                    style={{ borderColor: colors.gold }}
+                    data-testid={`select-edit-recipe-category-${recipe.id}`}
+                  >
+                    {productCategories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={editRecipeForm.base_template_id}
+                    onChange={(e) => setEditRecipeForm({ ...editRecipeForm, base_template_id: e.target.value })}
+                    className="px-2 py-1 rounded border"
+                    style={{ borderColor: colors.gold }}
+                    data-testid={`select-edit-recipe-base-${recipe.id}`}
+                  >
+                    <option value="">No Base</option>
+                    {baseTemplates.map(base => (
+                      <option key={base.id} value={base.id}>{base.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleSaveRecipe(recipe.id)}
+                    className="px-3 py-1 rounded font-medium"
+                    style={{ backgroundColor: colors.green, color: colors.white }}
+                    data-testid={`button-save-recipe-${recipe.id}`}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingRecipe(null)}
+                    className="px-3 py-1 rounded font-medium"
+                    style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                    data-testid={`button-cancel-recipe-${recipe.id}`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div>
+                    <h3 className="font-bold" style={{ color: colors.brown }}>{recipe.name}</h3>
+                    <span className="text-sm" style={{ color: colors.brownLight }}>{recipe.category_name}</span>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleEditRecipe(recipe); }}
+                    className="text-sm font-medium hover:underline"
+                    style={{ color: colors.gold }}
+                    data-testid={`button-edit-recipe-${recipe.id}`}
+                  >
+                    Edit
+                  </button>
+                </div>
+              )}
               <span style={{ color: colors.gold }}>{expandedRecipe === recipe.id ? '▼' : '▶'}</span>
             </div>
 
@@ -1292,6 +1479,128 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
   );
 };
 
+interface VendorsTabProps {
+  ingredients: Ingredient[];
+}
+
+const VendorsTab = ({ ingredients }: VendorsTabProps) => {
+  const [selectedVendor, setSelectedVendor] = useState<string>('all');
+
+  const vendors = Array.from(new Set(ingredients.map(i => i.vendor).filter(Boolean))) as string[];
+  
+  const vendorData = vendors.map(vendor => {
+    const vendorIngredients = ingredients.filter(i => i.vendor === vendor);
+    const totalValue = vendorIngredients.reduce((sum, ing) => sum + (Number(ing.cost) || 0), 0);
+    return {
+      name: vendor,
+      ingredients: vendorIngredients,
+      itemCount: vendorIngredients.length,
+      totalValue,
+    };
+  }).sort((a, b) => b.totalValue - a.totalValue);
+
+  const displayedVendors = selectedVendor === 'all' 
+    ? vendorData 
+    : vendorData.filter(v => v.name === selectedVendor);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-4 justify-between">
+        <div className="flex items-center gap-2">
+          <span className="font-medium" style={{ color: colors.brown }}>Vendor:</span>
+          <select
+            value={selectedVendor}
+            onChange={(e) => setSelectedVendor(e.target.value)}
+            className="px-4 py-2 rounded-lg border-2 outline-none"
+            style={{ borderColor: colors.creamDark, color: colors.brown }}
+            data-testid="select-vendor-filter"
+          >
+            <option value="all">All Vendors ({vendors.length})</option>
+            {vendors.sort().map(vendor => (
+              <option key={vendor} value={vendor}>{vendor}</option>
+            ))}
+          </select>
+        </div>
+        <div className="text-sm" style={{ color: colors.brownLight }}>
+          {ingredients.filter(i => !i.vendor).length > 0 && (
+            <span>{ingredients.filter(i => !i.vendor).length} items without vendor</span>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-4">
+        {displayedVendors.map(vendor => (
+          <div
+            key={vendor.name}
+            className="rounded-xl shadow-md overflow-hidden"
+            style={{ backgroundColor: colors.white }}
+            data-testid={`card-vendor-${vendor.name}`}
+          >
+            <div
+              className="px-4 py-3 flex items-center justify-between"
+              style={{ backgroundColor: colors.creamDark }}
+            >
+              <div>
+                <h3 className="font-bold" style={{ color: colors.brown }}>{vendor.name}</h3>
+                <span className="text-sm" style={{ color: colors.brownLight }}>
+                  {vendor.itemCount} items
+                </span>
+              </div>
+              <div className="text-right">
+                <div className="text-sm" style={{ color: colors.brownLight }}>Total Spend</div>
+                <div className="font-bold font-mono" style={{ color: colors.gold }}>
+                  {formatCurrency(vendor.totalValue)}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${colors.creamDark}` }}>
+                    <th className="py-2 text-left font-medium" style={{ color: colors.brownLight }}>Product</th>
+                    <th className="py-2 text-left font-medium" style={{ color: colors.brownLight }}>Category</th>
+                    <th className="py-2 text-right font-medium" style={{ color: colors.brownLight }}>Cost</th>
+                    <th className="py-2 text-right font-medium" style={{ color: colors.brownLight }}>Quantity</th>
+                    <th className="py-2 text-left font-medium" style={{ color: colors.brownLight }}>Item #</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendor.ingredients.map(ing => (
+                    <tr
+                      key={ing.id}
+                      style={{ borderBottom: `1px solid ${colors.cream}` }}
+                      data-testid={`row-vendor-item-${ing.id}`}
+                    >
+                      <td className="py-2 font-medium" style={{ color: colors.brown }}>{ing.name}</td>
+                      <td className="py-2" style={{ color: colors.brownLight }}>{ing.category_name}</td>
+                      <td className="py-2 text-right font-mono" style={{ color: colors.brown }}>
+                        {formatCurrency(ing.cost)}
+                      </td>
+                      <td className="py-2 text-right font-mono" style={{ color: colors.brownLight }}>
+                        {ing.quantity} {ing.unit}
+                      </td>
+                      <td className="py-2" style={{ color: colors.brownLight }}>
+                        {ing.item_number || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+
+        {displayedVendors.length === 0 && (
+          <div className="text-center py-8" style={{ color: colors.brownLight }}>
+            No vendors found. Add vendor information to your ingredients to see them here.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 import { Fragment } from 'react';
 
 export default function Home() {
@@ -1446,6 +1755,20 @@ export default function Home() {
     }
   };
 
+  const handleUpdateRecipe = async (id: string, updates: { name?: string; category_id?: string; base_template_id?: string | null }) => {
+    try {
+      const { error } = await supabase
+        .from('recipes')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) throw error;
+      loadAllData();
+    } catch (error: any) {
+      alert('Error updating recipe: ' + error.message);
+    }
+  };
+
   const handleAddBaseTemplate = async (template: { name: string; drink_type: string; description?: string }) => {
     try {
       const { error } = await supabase
@@ -1548,6 +1871,9 @@ export default function Home() {
             <TabButton active={activeTab === 'ingredients'} onClick={() => setActiveTab('ingredients')}>
               Ingredients
             </TabButton>
+            <TabButton active={activeTab === 'vendors'} onClick={() => setActiveTab('vendors')}>
+              Vendors
+            </TabButton>
             <TabButton active={activeTab === 'bases'} onClick={() => setActiveTab('bases')}>
               Bases
             </TabButton>
@@ -1573,6 +1899,9 @@ export default function Home() {
             onAdd={handleAddIngredient}
           />
         )}
+        {activeTab === 'vendors' && (
+          <VendorsTab ingredients={ingredients} />
+        )}
         {activeTab === 'bases' && (
           <BaseTemplatesTab
             baseTemplates={baseTemplates}
@@ -1591,6 +1920,7 @@ export default function Home() {
             baseTemplates={baseTemplates}
             drinkSizes={drinkSizes}
             onAddRecipe={handleAddRecipe}
+            onUpdateRecipe={handleUpdateRecipe}
             onAddRecipeIngredient={handleAddRecipeIngredient}
             onDeleteRecipeIngredient={handleDeleteRecipeIngredient}
           />
