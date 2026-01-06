@@ -16,6 +16,8 @@ const colors = {
   white: '#FFFFFF',
   red: '#C94A4A',
   green: '#4A9C6D',
+  inputBg: '#E8DFC9',
+  buttonGold: '#C9A227',
 };
 
 const formatCurrency = (value: number | string) => {
@@ -296,15 +298,15 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
               placeholder="Name"
               value={newIngredient.name}
               onChange={(e) => setNewIngredient({ ...newIngredient, name: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
+              className="px-3 py-2 rounded-lg border-0 outline-none"
+              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
               data-testid="input-new-ingredient-name"
             />
             <select
               value={newIngredient.category_id}
               onChange={(e) => setNewIngredient({ ...newIngredient, category_id: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
+              className="px-3 py-2 rounded-lg border-0 outline-none"
+              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
               data-testid="select-new-ingredient-category"
             >
               <option value="">Select Category</option>
@@ -318,8 +320,8 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
               placeholder="Cost ($)"
               value={newIngredient.cost}
               onChange={(e) => setNewIngredient({ ...newIngredient, cost: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
+              className="px-3 py-2 rounded-lg border-0 outline-none"
+              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
               data-testid="input-new-ingredient-cost"
             />
             <div className="flex gap-2">
@@ -353,8 +355,8 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
             <select
               value={newIngredient.usage_unit}
               onChange={(e) => setNewIngredient({ ...newIngredient, usage_unit: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
+              className="px-3 py-2 rounded-lg border-0 outline-none"
+              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
               data-testid="select-new-ingredient-usage-unit"
             >
               <option value="">Usage Unit (same)</option>
@@ -368,8 +370,8 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
               placeholder="Vendor"
               value={newIngredient.vendor}
               onChange={(e) => setNewIngredient({ ...newIngredient, vendor: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
+              className="px-3 py-2 rounded-lg border-0 outline-none"
+              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
               data-testid="input-new-ingredient-vendor"
             />
             <input
@@ -377,8 +379,8 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
               placeholder="Manufacturer"
               value={newIngredient.manufacturer}
               onChange={(e) => setNewIngredient({ ...newIngredient, manufacturer: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
+              className="px-3 py-2 rounded-lg border-0 outline-none"
+              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
               data-testid="input-new-ingredient-manufacturer"
             />
             <input
@@ -386,15 +388,15 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
               placeholder="Item Number"
               value={newIngredient.item_number}
               onChange={(e) => setNewIngredient({ ...newIngredient, item_number: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
+              className="px-3 py-2 rounded-lg border-0 outline-none"
+              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
               data-testid="input-new-ingredient-item-number"
             />
             <div className="flex gap-2">
               <button
                 onClick={handleAddIngredient}
                 className="px-4 py-2 font-semibold rounded-lg"
-                style={{ backgroundColor: colors.green, color: colors.white }}
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
                 data-testid="button-save-new-ingredient"
               >
                 Save
@@ -565,7 +567,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                             <button
                               onClick={() => handleSave(ingredient.id)}
                               className="px-4 py-1 rounded font-medium"
-                              style={{ backgroundColor: colors.green, color: colors.white }}
+                              style={{ backgroundColor: colors.gold, color: colors.brown }}
                               data-testid={`button-save-${ingredient.id}`}
                             >
                               Save
@@ -832,15 +834,15 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
               placeholder="Recipe Name"
               value={newRecipe.name}
               onChange={(e) => setNewRecipe({ ...newRecipe, name: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
+              className="px-3 py-2 rounded-lg border-0 outline-none"
+              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
               data-testid="input-new-recipe-name"
             />
             <select
               value={newRecipe.category_id}
               onChange={(e) => setNewRecipe({ ...newRecipe, category_id: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
+              className="px-3 py-2 rounded-lg border-0 outline-none"
+              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
               data-testid="select-new-recipe-category"
             >
               <option value="">Select Category</option>
@@ -852,7 +854,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
               <button
                 onClick={handleAddRecipe}
                 className="px-4 py-2 font-semibold rounded-lg"
-                style={{ backgroundColor: colors.green, color: colors.white }}
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
                 data-testid="button-save-new-recipe"
               >
                 Save
@@ -889,15 +891,15 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                     type="text"
                     value={editRecipeForm.name}
                     onChange={(e) => setEditRecipeForm({ ...editRecipeForm, name: e.target.value })}
-                    className="px-2 py-1 rounded border"
-                    style={{ borderColor: colors.gold }}
+                    className="px-2 py-1 rounded border-0"
+                    style={{ backgroundColor: colors.inputBg, color: colors.brown }}
                     data-testid={`input-edit-recipe-name-${recipe.id}`}
                   />
                   <select
                     value={editRecipeForm.category_id}
                     onChange={(e) => setEditRecipeForm({ ...editRecipeForm, category_id: e.target.value })}
-                    className="px-2 py-1 rounded border"
-                    style={{ borderColor: colors.gold }}
+                    className="px-2 py-1 rounded border-0"
+                    style={{ backgroundColor: colors.inputBg, color: colors.brown }}
                     data-testid={`select-edit-recipe-category-${recipe.id}`}
                   >
                     {productCategories.map(cat => (
@@ -907,7 +909,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                   <button
                     onClick={() => handleSaveRecipe(recipe.id)}
                     className="px-3 py-1 rounded font-medium"
-                    style={{ backgroundColor: colors.green, color: colors.white }}
+                    style={{ backgroundColor: colors.gold, color: colors.brown }}
                     data-testid={`button-save-recipe-${recipe.id}`}
                   >
                     Save
@@ -1068,7 +1070,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                               <button
                                 onClick={() => handleAddIngredient(recipe.id, size.id)}
                                 className="px-2 py-1 rounded text-sm font-semibold"
-                                style={{ backgroundColor: colors.green, color: colors.white }}
+                                style={{ backgroundColor: colors.gold, color: colors.brown }}
                                 data-testid={`button-save-ri-${size.id}`}
                               >
                                 Add
@@ -1413,7 +1415,7 @@ const SettingsTab = ({ overhead, onUpdateOverhead }: SettingsTabProps) => {
               <button
                 onClick={handleSave}
                 className="px-4 py-2 font-semibold rounded-lg"
-                style={{ backgroundColor: colors.green, color: colors.white }}
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
                 data-testid="button-save-settings"
               >
                 Save Changes
@@ -1509,15 +1511,15 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
               placeholder="Template Name (e.g., Hot Drink Base)"
               value={newTemplate.name}
               onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
+              className="px-3 py-2 rounded-lg border-0 outline-none"
+              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
               data-testid="input-template-name"
             />
             <select
               value={newTemplate.drink_type}
               onChange={(e) => setNewTemplate({ ...newTemplate, drink_type: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
+              className="px-3 py-2 rounded-lg border-0 outline-none"
+              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
               data-testid="select-template-type"
             >
               {drinkTypes.map(type => (
@@ -1529,15 +1531,15 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
               placeholder="Description (optional)"
               value={newTemplate.description}
               onChange={(e) => setNewTemplate({ ...newTemplate, description: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
+              className="px-3 py-2 rounded-lg border-0 outline-none"
+              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
               data-testid="input-template-description"
             />
             <div className="flex gap-2">
               <button
                 onClick={handleAddTemplate}
                 className="px-4 py-2 font-semibold rounded-lg"
-                style={{ backgroundColor: colors.green, color: colors.white }}
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
                 data-testid="button-save-template"
               >
                 Save
@@ -1645,7 +1647,7 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
                                 <button
                                   onClick={() => handleAddIngredient(template.id, size.id)}
                                   className="text-xs px-2 py-1 rounded"
-                                  style={{ backgroundColor: colors.green, color: colors.white }}
+                                  style={{ backgroundColor: colors.gold, color: colors.brown }}
                                   data-testid={`button-confirm-ing-${size.id}`}
                                 >
                                   Add
