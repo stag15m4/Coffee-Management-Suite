@@ -848,18 +848,6 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
-            <select
-              value={newRecipe.base_template_id}
-              onChange={(e) => setNewRecipe({ ...newRecipe, base_template_id: e.target.value })}
-              className="px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.creamDark }}
-              data-testid="select-new-recipe-base"
-            >
-              <option value="">No Base Template</option>
-              {baseTemplates.map(base => (
-                <option key={base.id} value={base.id}>{base.name}</option>
-              ))}
-            </select>
             <div className="flex gap-2">
               <button
                 onClick={handleAddRecipe}
@@ -914,18 +902,6 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                   >
                     {productCategories.map(cat => (
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={editRecipeForm.base_template_id}
-                    onChange={(e) => setEditRecipeForm({ ...editRecipeForm, base_template_id: e.target.value })}
-                    className="px-2 py-1 rounded border"
-                    style={{ borderColor: colors.gold }}
-                    data-testid={`select-edit-recipe-base-${recipe.id}`}
-                  >
-                    <option value="">No Base</option>
-                    {baseTemplates.map(base => (
-                      <option key={base.id} value={base.id}>{base.name}</option>
                     ))}
                   </select>
                   <button
