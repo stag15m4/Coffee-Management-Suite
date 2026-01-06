@@ -667,6 +667,13 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
   );
 };
 
+interface RecipeSizeBase {
+  id?: string;
+  recipe_id: string;
+  size_id: string;
+  base_template_id: string;
+}
+
 interface RecipesTabProps {
   recipes: Recipe[];
   ingredients: Ingredient[];
@@ -674,13 +681,15 @@ interface RecipesTabProps {
   baseTemplates: BaseTemplate[];
   drinkSizes: DrinkSize[];
   overhead: OverheadSettings | null;
+  recipeSizeBases: RecipeSizeBase[];
   onAddRecipe: (recipe: { name: string; category_id: string; base_template_id?: string }) => Promise<void>;
   onUpdateRecipe: (id: string, updates: { name?: string; category_id?: string; base_template_id?: string | null }) => Promise<void>;
   onAddRecipeIngredient: (ingredient: { recipe_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => Promise<void>;
   onDeleteRecipeIngredient: (id: string) => Promise<void>;
+  onUpdateRecipeSizeBase: (recipeId: string, sizeId: string, baseTemplateId: string | null) => Promise<void>;
 }
 
-const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient }: RecipesTabProps) => {
+const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase }: RecipesTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -703,6 +712,11 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
     return costPerUnit || (cost / quantity);
   };
 
+  const getSizeBaseTemplateId = (recipeId: string, sizeId: string): string | null => {
+    const sizeBase = recipeSizeBases.find(rsb => rsb.recipe_id === recipeId && rsb.size_id === sizeId);
+    return sizeBase?.base_template_id || null;
+  };
+
   const calculateSizeCost = (recipe: Recipe, sizeId: string): number => {
     let totalCost = 0;
     
@@ -714,8 +728,9 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
       }
     }
     
-    if (recipe.base_template_id) {
-      const baseTemplate = baseTemplates.find(bt => bt.id === recipe.base_template_id);
+    const sizeBaseId = getSizeBaseTemplateId(recipe.id, sizeId);
+    if (sizeBaseId) {
+      const baseTemplate = baseTemplates.find(bt => bt.id === sizeBaseId);
       const baseItems = baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
       for (const bi of baseItems) {
         const ing = ingredients.find(i => i.id === bi.ingredient_id);
@@ -739,8 +754,9 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
   };
 
   const getBaseTemplateItems = (recipe: Recipe, sizeId: string): BaseTemplateIngredient[] => {
-    if (!recipe.base_template_id) return [];
-    const baseTemplate = baseTemplates.find(bt => bt.id === recipe.base_template_id);
+    const sizeBaseId = getSizeBaseTemplateId(recipe.id, sizeId);
+    if (!sizeBaseId) return [];
+    const baseTemplate = baseTemplates.find(bt => bt.id === sizeBaseId);
     return baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
   };
 
@@ -944,15 +960,12 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
 
             {expandedRecipe === recipe.id && (
               <div className="p-4 space-y-4">
-                <p className="text-sm" style={{ color: colors.brownLight }}>
-                  Base Template: {recipe.base_template_name || 'None'}
-                </p>
-
                 <div className="space-y-3">
                   <h4 className="font-semibold" style={{ color: colors.brown }}>Ingredients by Size</h4>
                   <div className="grid gap-3">
                     {drinkSizes.map(size => {
                       const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === size.id) || [];
+                      const currentBaseId = getSizeBaseTemplateId(recipe.id, size.id);
                       const baseTemplateItems = getBaseTemplateItems(recipe, size.id);
                       const calculatedCost = calculateSizeCost(recipe, size.id);
                       const hasItems = sizeIngredients.length > 0 || baseTemplateItems.length > 0;
@@ -973,6 +986,22 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                 Cost: <span className="font-mono font-bold" style={{ color: hasItems ? colors.green : colors.brownLight }}>{hasItems ? formatCurrency(calculatedCost) : '-'}</span>
                               </span>
                             </div>
+                          </div>
+
+                          <div className="mb-2 flex items-center gap-2">
+                            <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Base:</span>
+                            <select
+                              value={currentBaseId || ''}
+                              onChange={(e) => onUpdateRecipeSizeBase(recipe.id, size.id, e.target.value || null)}
+                              className="px-2 py-1 rounded text-xs border-0 outline-none"
+                              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
+                              data-testid={`select-base-${recipe.id}-${size.id}`}
+                            >
+                              <option value="">No Base</option>
+                              {baseTemplates.map(bt => (
+                                <option key={bt.id} value={bt.id}>{bt.name}</option>
+                              ))}
+                            </select>
                           </div>
 
                           {baseTemplateItems.length > 0 && (
@@ -1823,6 +1852,7 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [overhead, setOverhead] = useState<OverheadSettings | null>(null);
   const [pricingData, setPricingData] = useState<{ id?: string; recipe_id: string; size_id: string; sale_price: number }[]>([]);
+  const [recipeSizeBases, setRecipeSizeBases] = useState<{ id?: string; recipe_id: string; size_id: string; base_template_id: string }[]>([]);
 
   useEffect(() => {
     loadAllData();
@@ -1902,6 +1932,11 @@ export default function Home() {
         .select('*');
       setPricingData(recipePricingData || []);
 
+      const { data: recipeSizeBasesData } = await supabase
+        .from('recipe_size_bases')
+        .select('*');
+      setRecipeSizeBases(recipeSizeBasesData || []);
+
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -1978,6 +2013,35 @@ export default function Home() {
       loadAllData();
     } catch (error: any) {
       alert('Error updating price: ' + error.message);
+    }
+  };
+
+  const handleUpdateRecipeSizeBase = async (recipeId: string, sizeId: string, baseTemplateId: string | null) => {
+    try {
+      const existing = recipeSizeBases.find(rsb => rsb.recipe_id === recipeId && rsb.size_id === sizeId);
+      if (baseTemplateId) {
+        if (existing?.id) {
+          const { error } = await supabase
+            .from('recipe_size_bases')
+            .update({ base_template_id: baseTemplateId })
+            .eq('id', existing.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from('recipe_size_bases')
+            .insert({ recipe_id: recipeId, size_id: sizeId, base_template_id: baseTemplateId });
+          if (error) throw error;
+        }
+      } else if (existing?.id) {
+        const { error } = await supabase
+          .from('recipe_size_bases')
+          .delete()
+          .eq('id', existing.id);
+        if (error) throw error;
+      }
+      loadAllData();
+    } catch (error: any) {
+      alert('Error updating base: ' + error.message);
     }
   };
 
@@ -2164,10 +2228,12 @@ export default function Home() {
             baseTemplates={baseTemplates}
             drinkSizes={drinkSizes}
             overhead={overhead}
+            recipeSizeBases={recipeSizeBases}
             onAddRecipe={handleAddRecipe}
             onUpdateRecipe={handleUpdateRecipe}
             onAddRecipeIngredient={handleAddRecipeIngredient}
             onDeleteRecipeIngredient={handleDeleteRecipeIngredient}
+            onUpdateRecipeSizeBase={handleUpdateRecipeSizeBase}
           />
         )}
         {activeTab === 'pricing' && (
