@@ -1637,7 +1637,7 @@ const VendorsTab = ({ ingredients }: VendorsTabProps) => {
 import { Fragment } from 'react';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState('ingredients');
+  const [activeTab, setActiveTab] = useState('pricing');
   const [loading, setLoading] = useState(true);
 
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -1901,20 +1901,20 @@ export default function Home() {
       <div className="px-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex gap-1 border-b-2 flex-wrap" style={{ borderColor: colors.creamDark }}>
+            <TabButton active={activeTab === 'pricing'} onClick={() => setActiveTab('pricing')}>
+              Pricing Matrix
+            </TabButton>
             <TabButton active={activeTab === 'ingredients'} onClick={() => setActiveTab('ingredients')}>
               Ingredients
+            </TabButton>
+            <TabButton active={activeTab === 'recipes'} onClick={() => setActiveTab('recipes')}>
+              Recipes
             </TabButton>
             <TabButton active={activeTab === 'vendors'} onClick={() => setActiveTab('vendors')}>
               Vendors
             </TabButton>
             <TabButton active={activeTab === 'bases'} onClick={() => setActiveTab('bases')}>
               Bases
-            </TabButton>
-            <TabButton active={activeTab === 'recipes'} onClick={() => setActiveTab('recipes')}>
-              Recipes
-            </TabButton>
-            <TabButton active={activeTab === 'pricing'} onClick={() => setActiveTab('pricing')}>
-              Pricing Matrix
             </TabButton>
             <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')}>
               Settings
