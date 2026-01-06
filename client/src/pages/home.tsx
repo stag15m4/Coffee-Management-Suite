@@ -299,14 +299,17 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
       alert('Please select items and a target type');
       return;
     }
-    console.log('Bulk transfer starting:', { transferTarget, selectedItems: Array.from(selectedItems) });
-    for (const id of Array.from(selectedItems)) {
-      console.log('Transferring ingredient:', id, 'to type:', transferTarget);
-      await onUpdate(id, { ingredient_type: transferTarget });
+    try {
+      const itemIds = Array.from(selectedItems);
+      for (const id of itemIds) {
+        await onUpdate(id, { ingredient_type: transferTarget });
+      }
+      alert(`Successfully transferred ${itemIds.length} item(s) to ${pluralizeType(transferTarget)}`);
+      setSelectedItems(new Set());
+      setTransferTarget('');
+    } catch (error: any) {
+      alert('Transfer failed: ' + error.message);
     }
-    console.log('Bulk transfer complete');
-    setSelectedItems(new Set());
-    setTransferTarget('');
   };
 
   return (
