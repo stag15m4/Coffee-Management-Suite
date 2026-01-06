@@ -691,6 +691,46 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
   const [addingIngredient, setAddingIngredient] = useState<{ recipeId: string; sizeId: string } | null>(null);
   const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity: '1', unit: '' });
 
+  const getIngredientCostPerUnit = (ing: Ingredient): number => {
+    const cost = typeof ing.cost === 'string' ? parseFloat(ing.cost) : ing.cost;
+    const quantity = typeof ing.quantity === 'string' ? parseFloat(ing.quantity) : ing.quantity;
+    if (!cost || !quantity) return 0;
+    const usageUnit = ing.usage_unit || ing.unit;
+    const costPerUnit = calculateCostPerUsageUnit(cost, quantity, ing.unit, usageUnit);
+    return costPerUnit || (cost / quantity);
+  };
+
+  const calculateSizeCost = (recipe: Recipe, sizeId: string): number => {
+    let totalCost = 0;
+    
+    const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === sizeId) || [];
+    for (const ri of sizeIngredients) {
+      const ing = ingredients.find(i => i.id === ri.ingredient_id);
+      if (ing) {
+        totalCost += ri.quantity * getIngredientCostPerUnit(ing);
+      }
+    }
+    
+    if (recipe.base_template_id) {
+      const baseTemplate = baseTemplates.find(bt => bt.id === recipe.base_template_id);
+      const baseItems = baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
+      for (const bi of baseItems) {
+        const ing = ingredients.find(i => i.id === bi.ingredient_id);
+        if (ing) {
+          totalCost += bi.quantity * getIngredientCostPerUnit(ing);
+        }
+      }
+    }
+    
+    return totalCost;
+  };
+
+  const getBaseTemplateItems = (recipe: Recipe, sizeId: string): BaseTemplateIngredient[] => {
+    if (!recipe.base_template_id) return [];
+    const baseTemplate = baseTemplates.find(bt => bt.id === recipe.base_template_id);
+    return baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
+  };
+
   const handleEditRecipe = (recipe: Recipe) => {
     setEditingRecipe(recipe.id);
     setEditRecipeForm({
@@ -924,7 +964,9 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                   <div className="grid gap-3">
                     {drinkSizes.map(size => {
                       const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === size.id) || [];
-                      const product = recipe.products?.find(p => p.size_id === size.id);
+                      const baseTemplateItems = getBaseTemplateItems(recipe, size.id);
+                      const calculatedCost = calculateSizeCost(recipe, size.id);
+                      const hasItems = sizeIngredients.length > 0 || baseTemplateItems.length > 0;
                       const isAdding = addingIngredient?.recipeId === recipe.id && addingIngredient?.sizeId === size.id;
                       
                       return (
@@ -939,37 +981,62 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                             </div>
                             <div className="flex items-center gap-3 text-sm">
                               <span style={{ color: colors.brownLight }}>
-                                Cost: <span className="font-mono">{product ? formatCurrency(product.total_cost || 0) : '-'}</span>
-                              </span>
-                              <span style={{ color: colors.gold }}>
-                                Sale: <span className="font-mono font-bold">{product ? formatCurrency(product.sale_price || 0) : '-'}</span>
+                                Cost: <span className="font-mono font-bold" style={{ color: hasItems ? colors.green : colors.brownLight }}>{hasItems ? formatCurrency(calculatedCost) : '-'}</span>
                               </span>
                             </div>
                           </div>
 
-                          {sizeIngredients.length > 0 && (
-                            <div className="mb-2 flex flex-wrap gap-2">
-                              {sizeIngredients.map(ri => {
-                                const ing = ingredients.find(i => i.id === ri.ingredient_id);
-                                return (
-                                  <div
-                                    key={ri.id}
-                                    className="flex items-center gap-1 px-2 py-1 rounded text-xs"
-                                    style={{ backgroundColor: colors.white }}
-                                  >
-                                    <span style={{ color: colors.brown }}>{ing?.name || 'Unknown'}</span>
-                                    <span style={{ color: colors.brownLight }}>({ri.quantity} {ri.unit || ing?.unit})</span>
-                                    <button
-                                      onClick={() => onDeleteRecipeIngredient(ri.id)}
-                                      className="ml-1 font-bold"
-                                      style={{ color: colors.red }}
-                                      data-testid={`button-delete-ri-${ri.id}`}
+                          {baseTemplateItems.length > 0 && (
+                            <div className="mb-2">
+                              <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Base (Disposables):</span>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {baseTemplateItems.map(bi => {
+                                  const ing = ingredients.find(i => i.id === bi.ingredient_id);
+                                  const itemCost = ing ? bi.quantity * getIngredientCostPerUnit(ing) : 0;
+                                  return (
+                                    <div
+                                      key={bi.id}
+                                      className="flex items-center gap-1 px-2 py-1 rounded text-xs"
+                                      style={{ backgroundColor: colors.creamDark }}
                                     >
-                                      x
-                                    </button>
-                                  </div>
-                                );
-                              })}
+                                      <span style={{ color: colors.brown }}>{ing?.name || 'Unknown'}</span>
+                                      <span style={{ color: colors.brownLight }}>x{bi.quantity}</span>
+                                      <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {sizeIngredients.length > 0 && (
+                            <div className="mb-2">
+                              <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Ingredients:</span>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {sizeIngredients.map(ri => {
+                                  const ing = ingredients.find(i => i.id === ri.ingredient_id);
+                                  const itemCost = ing ? ri.quantity * getIngredientCostPerUnit(ing) : 0;
+                                  return (
+                                    <div
+                                      key={ri.id}
+                                      className="flex items-center gap-1 px-2 py-1 rounded text-xs"
+                                      style={{ backgroundColor: colors.white }}
+                                    >
+                                      <span style={{ color: colors.brown }}>{ing?.name || 'Unknown'}</span>
+                                      <span style={{ color: colors.brownLight }}>({ri.quantity} {ri.unit || ing?.unit})</span>
+                                      <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
+                                      <button
+                                        onClick={() => onDeleteRecipeIngredient(ri.id)}
+                                        className="ml-1 font-bold"
+                                        style={{ color: colors.red }}
+                                        data-testid={`button-delete-ri-${ri.id}`}
+                                      >
+                                        x
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                           )}
 
