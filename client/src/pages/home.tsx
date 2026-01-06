@@ -1731,9 +1731,19 @@ export default function Home() {
 
   const handleUpdateIngredient = async (id: string, updates: Partial<Ingredient>) => {
     try {
+      const safeUpdates: Record<string, any> = {};
+      const allowedFields = ['name', 'category_id', 'cost', 'quantity', 'unit', 'usage_unit', 'vendor', 'manufacturer', 'item_number', 'updated_at'];
+      
+      for (const key of allowedFields) {
+        if (key in updates) {
+          safeUpdates[key] = (updates as any)[key];
+        }
+      }
+      safeUpdates.updated_at = new Date().toISOString();
+      
       const { error } = await supabase
         .from('ingredients')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update(safeUpdates)
         .eq('id', id);
 
       if (error) throw error;
