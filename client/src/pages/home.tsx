@@ -1416,6 +1416,29 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
 
   const sizeAverages = calculateAverages();
 
+  const overallAverage = (() => {
+    const allCosts: number[] = [];
+    const allSales: number[] = [];
+    const allProfits: number[] = [];
+    const allMargins: number[] = [];
+    for (const avg of sizeAverages) {
+      if (avg.count > 0) {
+        allCosts.push(avg.avgCost);
+        allSales.push(avg.avgSale);
+        allProfits.push(avg.avgProfit);
+        allMargins.push(avg.avgMargin);
+      }
+    }
+    const count = allCosts.length;
+    return {
+      avgCost: count > 0 ? allCosts.reduce((a, b) => a + b, 0) / count : 0,
+      avgSale: count > 0 ? allSales.reduce((a, b) => a + b, 0) / count : 0,
+      avgProfit: count > 0 ? allProfits.reduce((a, b) => a + b, 0) / count : 0,
+      avgMargin: count > 0 ? allMargins.reduce((a, b) => a + b, 0) / count : 0,
+      count
+    };
+  })();
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl overflow-hidden shadow-md" style={{ backgroundColor: colors.white }}>
@@ -1430,6 +1453,7 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
               {drinkSizes.map(size => (
                 <th key={size.id} className="px-4 py-2 text-right text-sm font-semibold" style={{ color: colors.brown }}>{size.name}</th>
               ))}
+              <th className="px-4 py-2 text-right text-sm font-semibold" style={{ color: colors.gold }}>Overall</th>
             </tr>
           </thead>
           <tbody>
@@ -1440,6 +1464,9 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
                   {avg.count > 0 ? formatCurrency(avg.avgCost) : '-'}
                 </td>
               ))}
+              <td className="px-4 py-2 text-right font-mono font-semibold" style={{ color: colors.brown }}>
+                {overallAverage.count > 0 ? formatCurrency(overallAverage.avgCost) : '-'}
+              </td>
             </tr>
             <tr style={{ backgroundColor: colors.cream }}>
               <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>Sale</td>
@@ -1448,6 +1475,9 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
                   {avg.count > 0 ? formatCurrency(avg.avgSale) : '-'}
                 </td>
               ))}
+              <td className="px-4 py-2 text-right font-mono font-semibold" style={{ color: colors.brown }}>
+                {overallAverage.count > 0 ? formatCurrency(overallAverage.avgSale) : '-'}
+              </td>
             </tr>
             <tr style={{ backgroundColor: colors.white }}>
               <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>Profit</td>
@@ -1456,6 +1486,9 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
                   {avg.count > 0 ? formatCurrency(avg.avgProfit) : '-'}
                 </td>
               ))}
+              <td className="px-4 py-2 text-right font-mono font-semibold" style={{ color: overallAverage.avgProfit >= 0 ? colors.green : colors.red }}>
+                {overallAverage.count > 0 ? formatCurrency(overallAverage.avgProfit) : '-'}
+              </td>
             </tr>
             <tr style={{ backgroundColor: colors.creamDark }}>
               <td className="px-4 py-2 font-semibold" style={{ color: colors.brown }}>Margin</td>
@@ -1467,6 +1500,13 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
                   </td>
                 );
               })}
+              <td className="px-4 py-2 text-right font-mono font-bold" style={{ 
+                color: overallAverage.count > 0 
+                  ? (overallAverage.avgMargin > 31 ? colors.green : overallAverage.avgMargin > 25 ? colors.gold : colors.red) 
+                  : colors.brownLight 
+              }}>
+                {overallAverage.count > 0 ? formatPercent(overallAverage.avgMargin) : '-'}
+              </td>
             </tr>
           </tbody>
         </table>
