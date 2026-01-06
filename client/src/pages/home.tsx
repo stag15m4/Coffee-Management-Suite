@@ -80,7 +80,7 @@ interface Ingredient {
   updated_at?: string;
 }
 
-const INGREDIENT_TYPES = ['Drink Ingredient', 'Shop Ingredient', 'Disposable', 'Supply'] as const;
+const INGREDIENT_TYPES = ['Drink Ingredient', 'Kitchen Ingredient', 'Disposable', 'Supply'] as const;
 
 const pluralizeType = (type: string) => {
   if (type === 'Supply') return 'Supplies';
