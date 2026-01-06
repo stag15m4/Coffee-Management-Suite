@@ -1133,15 +1133,39 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
   );
 };
 
+interface RecipeSizePricing {
+  id?: string;
+  recipe_id: string;
+  size_id: string;
+  sale_price: number;
+}
+
 interface PricingTabProps {
   recipes: Recipe[];
   ingredients: Ingredient[];
   baseTemplates: BaseTemplate[];
   drinkSizes: DrinkSize[];
   overhead: OverheadSettings | null;
+  pricingData: RecipeSizePricing[];
+  onUpdatePricing: (recipeId: string, sizeId: string, salePrice: number) => Promise<void>;
 }
 
-const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead }: PricingTabProps) => {
+const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead, pricingData, onUpdatePricing }: PricingTabProps) => {
+  const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+
+  const getSalePrice = (recipeId: string, sizeId: string): number => {
+    const pricing = pricingData.find(p => p.recipe_id === recipeId && p.size_id === sizeId);
+    return pricing?.sale_price || 0;
+  };
+
+  const handleSaveSalePrice = async (recipeId: string, sizeId: string) => {
+    const price = parseFloat(editValue) || 0;
+    await onUpdatePricing(recipeId, sizeId, price);
+    setEditingCell(null);
+    setEditValue('');
+  };
+
   const getIngredientCostPerUnit = (ing: Ingredient): number => {
     const cost = typeof ing.cost === 'string' ? parseFloat(ing.cost) : ing.cost;
     const quantity = typeof ing.quantity === 'string' ? parseFloat(ing.quantity) : ing.quantity;
@@ -1246,24 +1270,61 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead 
                       );
                     }
                     const cost = calculateSizeCost(recipe, size.id);
-                    const salePrice = cost * 3;
+                    const cellKey = `${recipe.id}-${size.id}`;
+                    const salePrice = getSalePrice(recipe.id, size.id);
                     const profit = salePrice - cost;
                     const margin = salePrice > 0 ? (profit / salePrice * 100) : 0;
                     const marginColor = margin >= 40 ? colors.green : margin >= 25 ? colors.gold : colors.red;
+                    const isEditing = editingCell === cellKey;
 
                     return (
                       <Fragment key={size.id}>
                         <td className="px-2 py-2 text-right font-mono text-xs" style={{ color: colors.brown }}>
                           {formatCurrency(cost)}
                         </td>
-                        <td className="px-2 py-2 text-right font-mono text-xs font-semibold" style={{ color: colors.brown }}>
-                          {formatCurrency(salePrice)}
+                        <td className="px-1 py-1">
+                          {isEditing ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveSalePrice(recipe.id, size.id);
+                                  if (e.key === 'Escape') setEditingCell(null);
+                                }}
+                                className="w-16 px-1 py-0.5 text-right text-xs rounded border"
+                                style={{ borderColor: colors.gold }}
+                                autoFocus
+                                data-testid={`input-sale-price-${recipe.id}-${size.id}`}
+                              />
+                              <button
+                                onClick={() => handleSaveSalePrice(recipe.id, size.id)}
+                                className="text-xs px-1"
+                                style={{ color: colors.green }}
+                              >
+                                Save
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setEditingCell(cellKey);
+                                setEditValue(salePrice.toString());
+                              }}
+                              className="w-full text-right font-mono text-xs font-semibold px-1 py-0.5 rounded hover:bg-opacity-80"
+                              style={{ color: salePrice > 0 ? colors.brown : colors.brownLight }}
+                              data-testid={`button-edit-sale-${recipe.id}-${size.id}`}
+                            >
+                              {salePrice > 0 ? formatCurrency(salePrice) : 'Set'}
+                            </button>
+                          )}
                         </td>
-                        <td className="px-2 py-2 text-right font-mono text-xs font-semibold" style={{ color: marginColor }}>
-                          {formatPercent(margin)}
+                        <td className="px-2 py-2 text-right font-mono text-xs font-semibold" style={{ color: salePrice > 0 ? marginColor : colors.brownLight }}>
+                          {salePrice > 0 ? formatPercent(margin) : '-'}
                         </td>
-                        <td className="px-2 py-2 text-right font-mono text-xs" style={{ color: profit >= 0 ? colors.green : colors.red }}>
-                          {formatCurrency(profit)}
+                        <td className="px-2 py-2 text-right font-mono text-xs" style={{ color: salePrice > 0 ? (profit >= 0 ? colors.green : colors.red) : colors.brownLight }}>
+                          {salePrice > 0 ? formatCurrency(profit) : '-'}
                         </td>
                       </Fragment>
                     );
@@ -1783,6 +1844,7 @@ export default function Home() {
   const [drinkSizes, setDrinkSizes] = useState<DrinkSize[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [overhead, setOverhead] = useState<OverheadSettings | null>(null);
+  const [pricingData, setPricingData] = useState<{ id?: string; recipe_id: string; size_id: string; sale_price: number }[]>([]);
 
   useEffect(() => {
     loadAllData();
@@ -1857,6 +1919,11 @@ export default function Home() {
         .single();
       setOverhead(overheadData);
 
+      const { data: recipePricingData } = await supabase
+        .from('recipe_size_pricing')
+        .select('*');
+      setPricingData(recipePricingData || []);
+
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -1912,6 +1979,27 @@ export default function Home() {
       loadAllData();
     } catch (error: any) {
       alert('Error updating overhead: ' + error.message);
+    }
+  };
+
+  const handleUpdatePricing = async (recipeId: string, sizeId: string, salePrice: number) => {
+    try {
+      const existing = pricingData.find(p => p.recipe_id === recipeId && p.size_id === sizeId);
+      if (existing?.id) {
+        const { error } = await supabase
+          .from('recipe_size_pricing')
+          .update({ sale_price: salePrice, updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('recipe_size_pricing')
+          .insert({ recipe_id: recipeId, size_id: sizeId, sale_price: salePrice });
+        if (error) throw error;
+      }
+      loadAllData();
+    } catch (error: any) {
+      alert('Error updating price: ' + error.message);
     }
   };
 
@@ -2111,6 +2199,8 @@ export default function Home() {
             baseTemplates={baseTemplates}
             drinkSizes={drinkSizes}
             overhead={overhead}
+            pricingData={pricingData}
+            onUpdatePricing={handleUpdatePricing}
           />
         )}
         {activeTab === 'settings' && (
