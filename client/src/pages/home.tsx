@@ -209,6 +209,8 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Ingredient>>({});
   const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [transferTarget, setTransferTarget] = useState<string>('');
   const [newIngredient, setNewIngredient] = useState({
     name: '',
     category_id: '',
@@ -269,6 +271,36 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
     setShowAddForm(false);
   };
 
+  const toggleItemSelection = (id: string) => {
+    const newSet = new Set(selectedItems);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedItems(newSet);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedItems.size === filteredIngredients.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(filteredIngredients.map(i => i.id)));
+    }
+  };
+
+  const handleBulkTransfer = async () => {
+    if (!transferTarget || selectedItems.size === 0) {
+      alert('Please select items and a target type');
+      return;
+    }
+    for (const id of selectedItems) {
+      await onUpdate(id, { ingredient_type: transferTarget });
+    }
+    setSelectedItems(new Set());
+    setTransferTarget('');
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 mb-4">
@@ -287,6 +319,50 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
           </button>
         ))}
       </div>
+
+      {selectedItems.size > 0 && (
+        <div 
+          className="flex flex-wrap items-center gap-3 p-3 rounded-lg"
+          style={{ backgroundColor: colors.creamDark }}
+        >
+          <span className="font-medium" style={{ color: colors.brown }}>
+            {selectedItems.size} item{selectedItems.size > 1 ? 's' : ''} selected
+          </span>
+          <select
+            value={transferTarget}
+            onChange={(e) => setTransferTarget(e.target.value)}
+            className="px-3 py-2 rounded-lg border-2 outline-none"
+            style={{ borderColor: colors.gold, color: colors.brown }}
+            data-testid="select-transfer-target"
+          >
+            <option value="">Transfer to...</option>
+            {INGREDIENT_TYPES.filter(t => t !== selectedType).map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+          <button
+            onClick={handleBulkTransfer}
+            disabled={!transferTarget}
+            className="px-4 py-2 font-semibold rounded-lg transition-all"
+            style={{ 
+              backgroundColor: transferTarget ? colors.gold : colors.creamDark, 
+              color: transferTarget ? colors.white : colors.brownLight,
+              opacity: transferTarget ? 1 : 0.6
+            }}
+            data-testid="button-bulk-transfer"
+          >
+            Transfer
+          </button>
+          <button
+            onClick={() => setSelectedItems(new Set())}
+            className="px-4 py-2 font-semibold rounded-lg transition-all"
+            style={{ backgroundColor: colors.white, color: colors.brown, border: `1px solid ${colors.creamDark}` }}
+            data-testid="button-clear-selection"
+          >
+            Clear Selection
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-4 justify-between">
         <div className="flex items-center gap-2">
@@ -444,6 +520,16 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
           <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: colors.creamDark }}>
+                <th className="px-2 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.size === filteredIngredients.length && filteredIngredients.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded cursor-pointer"
+                    style={{ accentColor: colors.gold }}
+                    data-testid="checkbox-select-all"
+                  />
+                </th>
                 <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.brown }}>Ingredient</th>
                 <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.brown }}>Category</th>
                 <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Cost</th>
@@ -464,7 +550,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                     style={{ backgroundColor: colors.cream, borderBottom: `2px solid ${colors.gold}` }}
                     data-testid={`row-ingredient-edit-${ingredient.id}`}
                   >
-                    <td colSpan={10} className="px-4 py-4">
+                    <td colSpan={11} className="px-4 py-4">
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           <div>
@@ -633,6 +719,16 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                     }}
                     data-testid={`row-ingredient-${ingredient.id}`}
                   >
+                    <td className="px-2 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.has(ingredient.id)}
+                        onChange={() => toggleItemSelection(ingredient.id)}
+                        className="w-4 h-4 rounded cursor-pointer"
+                        style={{ accentColor: colors.gold }}
+                        data-testid={`checkbox-ingredient-${ingredient.id}`}
+                      />
+                    </td>
                     <td className="px-4 py-3 font-medium" style={{ color: colors.brown }}>
                       {ingredient.name}
                     </td>
