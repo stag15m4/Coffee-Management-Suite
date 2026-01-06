@@ -74,7 +74,22 @@ interface Ingredient {
   vendor?: string;
   manufacturer?: string;
   item_number?: string;
+  updated_at?: string;
 }
+
+const isOlderThan3Months = (dateStr?: string): boolean => {
+  if (!dateStr) return true;
+  const date = new Date(dateStr);
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  return date < threeMonthsAgo;
+};
+
+const formatDate = (dateStr?: string): string => {
+  if (!dateStr) return 'Never';
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
 
 const unitConversions: Record<string, Record<string, number>> = {
   oz: { g: 28.3495, grams: 28.3495, gram: 28.3495, oz: 1, ml: 29.5735 },
@@ -410,6 +425,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                 <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Usage Unit</th>
                 <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.gold }}>Cost/Usage</th>
                 <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.brown }}>Vendor</th>
+                <th className="px-4 py-3 text-center font-semibold" style={{ color: colors.brown }}>Last Updated</th>
                 <th className="px-4 py-3 text-center font-semibold" style={{ color: colors.brown }}>Actions</th>
               </tr>
             </thead>
@@ -421,7 +437,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                     style={{ backgroundColor: colors.cream, borderBottom: `2px solid ${colors.gold}` }}
                     data-testid={`row-ingredient-edit-${ingredient.id}`}
                   >
-                    <td colSpan={9} className="px-4 py-4">
+                    <td colSpan={10} className="px-4 py-4">
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           <div>
@@ -610,6 +626,23 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                     </td>
                     <td className="px-4 py-3" style={{ color: colors.brownLight }}>
                       {ingredient.vendor || '-'}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {isOlderThan3Months(ingredient.updated_at) && (
+                          <span 
+                            title="Price check needed - not updated in 3+ months"
+                            className="text-xs px-1.5 py-0.5 rounded font-medium"
+                            style={{ backgroundColor: colors.red, color: colors.white }}
+                            data-testid={`badge-needs-update-${ingredient.id}`}
+                          >
+                            Check
+                          </span>
+                        )}
+                        <span className="text-xs" style={{ color: colors.brownLight }}>
+                          {formatDate(ingredient.updated_at)}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button
@@ -1700,7 +1733,7 @@ export default function Home() {
     try {
       const { error } = await supabase
         .from('ingredients')
-        .update(updates)
+        .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id);
 
       if (error) throw error;
