@@ -1811,6 +1811,28 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
   const [newTemplate, setNewTemplate] = useState({ name: '', drink_type: 'Hot', description: '' });
   const [addingIngredient, setAddingIngredient] = useState<{ templateId: string; sizeId: string } | null>(null);
   const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity: '1' });
+  const [copying, setCopying] = useState(false);
+
+  const handleCopyFromSize = async (template: BaseTemplate, targetSizeId: string, sourceSizeId: string) => {
+    const sourceIngredients = (template.ingredients || []).filter(i => i.size_id === sourceSizeId);
+    if (sourceIngredients.length === 0) {
+      alert('No ingredients to copy from that size');
+      return;
+    }
+    setCopying(true);
+    try {
+      for (const ing of sourceIngredients) {
+        await onAddTemplateIngredient({
+          base_template_id: template.id,
+          ingredient_id: ing.ingredient_id,
+          size_id: targetSizeId,
+          quantity: ing.quantity,
+        });
+      }
+    } finally {
+      setCopying(false);
+    }
+  };
 
   const handleAddTemplate = async () => {
     if (!newTemplate.name) {
@@ -1949,7 +1971,31 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
                           className="rounded-lg p-3"
                           style={{ backgroundColor: colors.cream }}
                         >
-                          <div className="font-semibold mb-2" style={{ color: colors.brown }}>{size.name}</div>
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <div className="font-semibold" style={{ color: colors.brown }}>{size.name}</div>
+                            {templateSizes.filter(s => s.id !== size.id && (template.ingredients || []).some(i => i.size_id === s.id)).length > 0 && (
+                              <select
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    handleCopyFromSize(template, size.id, e.target.value);
+                                    e.target.value = '';
+                                  }
+                                }}
+                                disabled={copying}
+                                className="text-xs px-2 py-1 rounded border"
+                                style={{ borderColor: colors.gold, color: colors.brownLight }}
+                                data-testid={`select-copy-${size.id}`}
+                              >
+                                <option value="">Copy from...</option>
+                                {templateSizes
+                                  .filter(s => s.id !== size.id && (template.ingredients || []).some(i => i.size_id === s.id))
+                                  .map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                  ))
+                                }
+                              </select>
+                            )}
+                          </div>
 
                           {sizeIngredients.map(ing => {
                             const ingredient = ingredients.find(i => i.id === ing.ingredient_id);
