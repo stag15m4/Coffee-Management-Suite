@@ -1,12 +1,42 @@
-# Erwin Mills Recipe Cost Manager
+# Erwin Mills Management Suite
 
 ## Overview
 
-This is a full-stack recipe cost management application designed for food service operations. The application allows users to track ingredients with their costs, create recipes with ingredient quantities, and automatically calculate recipe costs and profit margins. The system features a custom branded UI with gold, cream, and brown color schemes matching Erwin Mills tools branding.
+This is a multi-tenant SaaS management suite for food service operations, designed to be white-labeled for multiple businesses. The suite includes:
+- **Recipe Cost Manager** - Track ingredients, create recipes, calculate costs and margins
+- **Tip Payout Calculator** - Calculate and distribute employee tips (Leads, Managers, Owners)
+- **Cash Deposit Record** - Track cash deposits and reconciliation (Managers, Owners)
+- **Bulk Coffee Ordering** - Manage wholesale coffee orders (Leads, Managers, Owners)
+
+Features role-based access control (Owner, Manager, Lead, Employee) with tenant-specific branding (logo, colors).
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Multi-Tenant Architecture
+
+### Tenant Isolation
+- Each business (tenant) has isolated data via Supabase Row Level Security
+- Tenant identified by `tenant_id` on all data tables
+- Helper functions: `get_current_tenant_id()`, `get_current_user_role()`, `has_role_or_higher()`
+
+### Role Hierarchy
+1. **Owner** - Full access, can manage users and branding
+2. **Manager** - Can manage recipes, ingredients, settings
+3. **Lead** - Access to Tip Payout and Bulk Ordering
+4. **Employee** - View-only access (future expansion)
+
+### Branding System
+- `tenant_branding` table stores logo URL and color scheme per tenant
+- ThemeProvider loads branding on login and applies CSS variables
+- Default: Erwin Mills gold/cream/brown color scheme
+
+### Database Migrations
+SQL migration files in `supabase-migrations/`:
+1. `001_multi_tenant_schema.sql` - Creates tenants, tenant_branding, user_profiles tables
+2. `002_add_tenant_to_tables.sql` - Adds tenant_id to existing tables
+3. `003_row_level_security.sql` - Enables RLS policies for data isolation
 
 ## System Architecture
 
