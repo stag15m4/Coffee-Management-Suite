@@ -2269,6 +2269,7 @@ import { Fragment } from 'react';
 export default function Home() {
   const [activeTab, setActiveTab] = useState('pricing');
   const [loading, setLoading] = useState(true);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [ingredientCategories, setIngredientCategories] = useState<Category[]>([]);
@@ -2286,7 +2287,9 @@ export default function Home() {
   }, []);
 
   const loadAllData = async () => {
-    setLoading(true);
+    if (!initialLoadDone) {
+      setLoading(true);
+    }
     try {
       // Ensure "Other" category exists
       const { data: existingOther } = await supabase
@@ -2389,6 +2392,7 @@ export default function Home() {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
+      setInitialLoadDone(true);
     }
   };
 
@@ -2650,7 +2654,7 @@ export default function Home() {
     }
   };
 
-  if (loading) {
+  if (loading && !initialLoadDone) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
         <div style={{ color: colors.brownLight }}>Loading...</div>
