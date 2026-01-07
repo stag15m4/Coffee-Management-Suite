@@ -186,10 +186,11 @@ interface BaseTemplateIngredient {
 interface RecipeIngredient {
   id: string;
   recipe_id: string;
-  ingredient_id: string;
+  ingredient_id?: string | null;
   size_id: string;
   quantity: number;
   unit?: string;
+  syrup_recipe_id?: string | null;
   ingredient?: Ingredient;
   size?: DrinkSize;
 }
@@ -843,7 +844,7 @@ interface RecipesTabProps {
   recipeSizeBases: RecipeSizeBase[];
   onAddRecipe: (recipe: { name: string; category_id: string; base_template_id?: string }) => Promise<void>;
   onUpdateRecipe: (id: string, updates: { name?: string; category_id?: string; base_template_id?: string | null }) => Promise<void>;
-  onAddRecipeIngredient: (ingredient: { recipe_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => Promise<void>;
+  onAddRecipeIngredient: (ingredient: { recipe_id: string; ingredient_id?: string | null; size_id: string; quantity: number; unit?: string; syrup_recipe_id?: string | null }) => Promise<void>;
   onDeleteRecipeIngredient: (id: string) => Promise<void>;
   onUpdateRecipeSizeBase: (recipeId: string, sizeId: string, baseTemplateId: string | null) => Promise<void>;
   onDuplicateRecipe: (recipe: Recipe) => Promise<void>;
@@ -876,6 +877,36 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
     return costPerUnit || (cost / quantity);
   };
 
+  // Calculate cost per oz for a syrup recipe
+  const getSyrupCostPerOz = (syrupRecipeId: string): number => {
+    const syrupRecipe = recipes.find(r => r.id === syrupRecipeId);
+    if (!syrupRecipe || syrupRecipe.category_name !== 'Syrups') return 0;
+    
+    // Find the bulk size for this syrup
+    const bulkSizes = drinkSizes.filter(s => s.name.toLowerCase().includes('bulk'));
+    let totalCost = 0;
+    let batchSizeOz = 0;
+    
+    for (const size of bulkSizes) {
+      const sizeIngredients = syrupRecipe.recipe_ingredients?.filter(ri => ri.size_id === size.id) || [];
+      if (sizeIngredients.length > 0) {
+        batchSizeOz = size.size_oz;
+        for (const ri of sizeIngredients) {
+          const ing = ingredients.find(i => i.id === ri.ingredient_id);
+          if (ing) {
+            totalCost += ri.quantity * getIngredientCostPerUnit(ing);
+          }
+        }
+        break; // Use first bulk size found with ingredients
+      }
+    }
+    
+    if (batchSizeOz > 0) {
+      return totalCost / batchSizeOz;
+    }
+    return 0;
+  };
+
   const getSizeBaseTemplateId = (recipeId: string, sizeId: string): string | null => {
     const sizeBase = recipeSizeBases.find(rsb => rsb.recipe_id === recipeId && rsb.size_id === sizeId);
     return sizeBase?.base_template_id || null;
@@ -886,9 +917,15 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
     
     const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === sizeId) || [];
     for (const ri of sizeIngredients) {
-      const ing = ingredients.find(i => i.id === ri.ingredient_id);
-      if (ing) {
-        totalCost += ri.quantity * getIngredientCostPerUnit(ing);
+      // Check if this is a syrup ingredient
+      if (ri.syrup_recipe_id) {
+        const syrupCostPerOz = getSyrupCostPerOz(ri.syrup_recipe_id);
+        totalCost += ri.quantity * syrupCostPerOz;
+      } else if (ri.ingredient_id) {
+        const ing = ingredients.find(i => i.id === ri.ingredient_id);
+        if (ing) {
+          totalCost += ri.quantity * getIngredientCostPerUnit(ing);
+        }
       }
     }
     
@@ -967,15 +1004,29 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
       alert('Please select an ingredient');
       return;
     }
-    const selectedIngredient = ingredients.find(i => i.id === newIngredient.ingredient_id);
-    const unitToUse = newIngredient.unit || selectedIngredient?.usage_unit || selectedIngredient?.unit || 'oz';
-    await onAddRecipeIngredient({
-      recipe_id: recipeId,
-      ingredient_id: newIngredient.ingredient_id,
-      size_id: sizeId,
-      quantity: parseFloat(newIngredient.quantity) || 1,
-      unit: unitToUse,
-    });
+    
+    // Check if this is a syrup selection (prefixed with "syrup:")
+    if (newIngredient.ingredient_id.startsWith('syrup:')) {
+      const syrupRecipeId = newIngredient.ingredient_id.replace('syrup:', '');
+      await onAddRecipeIngredient({
+        recipe_id: recipeId,
+        ingredient_id: null,
+        syrup_recipe_id: syrupRecipeId,
+        size_id: sizeId,
+        quantity: parseFloat(newIngredient.quantity) || 1,
+        unit: 'oz', // Syrups are always measured in oz
+      });
+    } else {
+      const selectedIngredient = ingredients.find(i => i.id === newIngredient.ingredient_id);
+      const unitToUse = newIngredient.unit || selectedIngredient?.usage_unit || selectedIngredient?.unit || 'oz';
+      await onAddRecipeIngredient({
+        recipe_id: recipeId,
+        ingredient_id: newIngredient.ingredient_id,
+        size_id: sizeId,
+        quantity: parseFloat(newIngredient.quantity) || 1,
+        unit: unitToUse,
+      });
+    }
     setNewIngredient({ ingredient_id: '', quantity: '1', unit: '' });
     setAddingIngredient(null);
   };
@@ -1232,6 +1283,11 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                               <span style={{ color: colors.brownLight }}>
                                 Cost: <span className="font-mono font-bold" style={{ color: hasItems ? colors.green : colors.brownLight }}>{hasItems ? formatCurrency(calculatedCost) : '-'}</span>
                               </span>
+                              {isBulkRecipe && hasItems && size.size_oz > 0 && (
+                                <span style={{ color: colors.brownLight }}>
+                                  Cost/oz: <span className="font-mono font-bold" style={{ color: colors.gold }}>{formatCurrency(calculatedCost / size.size_oz)}</span>
+                                </span>
+                              )}
                             </div>
                           </div>
 
@@ -1283,6 +1339,32 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                               <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Ingredients:</span>
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {sizeIngredients.map(ri => {
+                                  // Check if this is a syrup ingredient
+                                  if (ri.syrup_recipe_id) {
+                                    const syrupRecipe = recipes.find(r => r.id === ri.syrup_recipe_id);
+                                    const syrupCostPerOz = getSyrupCostPerOz(ri.syrup_recipe_id);
+                                    const itemCost = ri.quantity * syrupCostPerOz;
+                                    return (
+                                      <div
+                                        key={ri.id}
+                                        className="flex items-center gap-1 px-2 py-1 rounded text-xs"
+                                        style={{ backgroundColor: colors.gold + '20', border: `1px solid ${colors.gold}` }}
+                                      >
+                                        <span style={{ color: colors.brown }}>{syrupRecipe?.name || 'Unknown Syrup'}</span>
+                                        <span style={{ color: colors.brownLight }}>({ri.quantity} oz)</span>
+                                        <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
+                                        <button
+                                          onClick={() => onDeleteRecipeIngredient(ri.id)}
+                                          className="ml-1 font-bold"
+                                          style={{ color: colors.red }}
+                                          data-testid={`button-delete-ri-${ri.id}`}
+                                        >
+                                          x
+                                        </button>
+                                      </div>
+                                    );
+                                  }
+                                  
                                   const ing = ingredients.find(i => i.id === ri.ingredient_id);
                                   const itemCost = ing ? ri.quantity * getIngredientCostPerUnit(ing) : 0;
                                   return (
@@ -1334,12 +1416,24 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                 data-testid={`select-ri-ingredient-${size.id}`}
                               >
                                 <option value="">Select Ingredient</option>
-                                {ingredients
-                                  .filter(ing => (ing.ingredient_type || 'Drink Ingredient').toLowerCase() === 'drink ingredient')
-                                  .sort((a, b) => a.name.localeCompare(b.name))
-                                  .map(ing => (
-                                  <option key={ing.id} value={ing.id}>{ing.name}</option>
-                                ))}
+                                <optgroup label="Ingredients">
+                                  {ingredients
+                                    .filter(ing => (ing.ingredient_type || 'Drink Ingredient').toLowerCase() === 'drink ingredient')
+                                    .sort((a, b) => a.name.localeCompare(b.name))
+                                    .map(ing => (
+                                    <option key={ing.id} value={ing.id}>{ing.name}</option>
+                                  ))}
+                                </optgroup>
+                                {recipes.filter(r => r.category_name === 'Syrups').length > 0 && (
+                                  <optgroup label="Homemade Syrups">
+                                    {recipes
+                                      .filter(r => r.category_name === 'Syrups')
+                                      .sort((a, b) => a.name.localeCompare(b.name))
+                                      .map(syrupRecipe => (
+                                      <option key={`syrup:${syrupRecipe.id}`} value={`syrup:${syrupRecipe.id}`}>{syrupRecipe.name}</option>
+                                    ))}
+                                  </optgroup>
+                                )}
                               </select>
                               <input
                                 type="number"
@@ -2744,11 +2838,25 @@ export default function Home() {
     }
   };
 
-  const handleAddRecipeIngredient = async (ingredient: { recipe_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => {
+  const handleAddRecipeIngredient = async (ingredient: { recipe_id: string; ingredient_id?: string | null; size_id: string; quantity: number; unit?: string; syrup_recipe_id?: string | null }) => {
     try {
+      // Build the insert object, excluding null fields for cleaner inserts
+      const insertData: Record<string, any> = {
+        recipe_id: ingredient.recipe_id,
+        size_id: ingredient.size_id,
+        quantity: ingredient.quantity,
+        unit: ingredient.unit,
+      };
+      if (ingredient.ingredient_id) {
+        insertData.ingredient_id = ingredient.ingredient_id;
+      }
+      if (ingredient.syrup_recipe_id) {
+        insertData.syrup_recipe_id = ingredient.syrup_recipe_id;
+      }
+      
       const { error } = await supabase
         .from('recipe_ingredients')
-        .insert(ingredient);
+        .insert(insertData);
 
       if (error) throw error;
       loadAllData();
