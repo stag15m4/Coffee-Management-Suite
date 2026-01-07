@@ -862,29 +862,6 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
   });
   const [addingIngredient, setAddingIngredient] = useState<{ recipeId: string; sizeId: string } | null>(null);
   const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity: '1', unit: '' });
-  const [copyingRecipeSize, setCopyingRecipeSize] = useState(false);
-
-  const handleCopyRecipeSizeIngredients = async (recipe: Recipe, targetSizeId: string, sourceSizeId: string) => {
-    const sourceIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === sourceSizeId) || [];
-    if (sourceIngredients.length === 0) {
-      alert('No ingredients to copy from that size');
-      return;
-    }
-    setCopyingRecipeSize(true);
-    try {
-      for (const ri of sourceIngredients) {
-        await onAddRecipeIngredient({
-          recipe_id: recipe.id,
-          ingredient_id: ri.ingredient_id,
-          size_id: targetSizeId,
-          quantity: ri.quantity,
-          unit: ri.unit,
-        });
-      }
-    } finally {
-      setCopyingRecipeSize(false);
-    }
-  };
 
   const getIngredientCostPerUnit = (ing: Ingredient): number => {
     const cost = typeof ing.cost === 'string' ? parseFloat(ing.cost) : ing.cost;
@@ -1170,32 +1147,8 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                           style={{ backgroundColor: colors.cream }}
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
-                              <div className="font-semibold" style={{ color: colors.brown }}>
-                                {size.name} ({size.size_oz}oz)
-                              </div>
-                              {drinkSizes.filter(s => s.id !== size.id && (recipe.recipe_ingredients || []).some(ri => ri.size_id === s.id)).length > 0 && (
-                                <select
-                                  onChange={(e) => {
-                                    if (e.target.value) {
-                                      handleCopyRecipeSizeIngredients(recipe, size.id, e.target.value);
-                                      e.target.value = '';
-                                    }
-                                  }}
-                                  disabled={copyingRecipeSize}
-                                  className="text-xs px-2 py-1 rounded border"
-                                  style={{ borderColor: colors.gold, color: colors.brownLight }}
-                                  data-testid={`select-copy-recipe-${recipe.id}-${size.id}`}
-                                >
-                                  <option value="">Copy from...</option>
-                                  {drinkSizes
-                                    .filter(s => s.id !== size.id && (recipe.recipe_ingredients || []).some(ri => ri.size_id === s.id))
-                                    .map(s => (
-                                      <option key={s.id} value={s.id}>{s.name}</option>
-                                    ))
-                                  }
-                                </select>
-                              )}
+                            <div className="font-semibold" style={{ color: colors.brown }}>
+                              {size.name} ({size.size_oz}oz)
                             </div>
                             <div className="flex items-center gap-3 text-sm">
                               <span style={{ color: colors.brownLight }}>
