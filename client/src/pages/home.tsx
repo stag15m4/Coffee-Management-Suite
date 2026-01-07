@@ -846,9 +846,10 @@ interface RecipesTabProps {
   onAddRecipeIngredient: (ingredient: { recipe_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => Promise<void>;
   onDeleteRecipeIngredient: (id: string) => Promise<void>;
   onUpdateRecipeSizeBase: (recipeId: string, sizeId: string, baseTemplateId: string | null) => Promise<void>;
+  onDuplicateRecipe: (recipe: Recipe) => Promise<void>;
 }
 
-const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase }: RecipesTabProps) => {
+const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase, onDuplicateRecipe }: RecipesTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -1135,6 +1136,14 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                     data-testid={`button-edit-recipe-${recipe.id}`}
                   >
                     Edit
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDuplicateRecipe(recipe); }}
+                    className="text-sm font-medium hover:underline"
+                    style={{ color: colors.brownLight }}
+                    data-testid={`button-duplicate-recipe-${recipe.id}`}
+                  >
+                    Duplicate
                   </button>
                 </div>
               )}
@@ -2489,6 +2498,54 @@ export default function Home() {
     }
   };
 
+  const handleDuplicateRecipe = async (recipe: Recipe) => {
+    try {
+      const { data: newRecipe, error: recipeError } = await supabase
+        .from('recipes')
+        .insert({
+          name: `${recipe.name} (Copy)`,
+          category_id: recipe.category_id,
+          base_template_id: recipe.base_template_id || null,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (recipeError) throw recipeError;
+
+      if (recipe.recipe_ingredients && recipe.recipe_ingredients.length > 0) {
+        const ingredientInserts = recipe.recipe_ingredients.map(ri => ({
+          recipe_id: newRecipe.id,
+          ingredient_id: ri.ingredient_id,
+          size_id: ri.size_id,
+          quantity: ri.quantity,
+          unit: ri.unit,
+        }));
+        const { error: ingError } = await supabase
+          .from('recipe_ingredients')
+          .insert(ingredientInserts);
+        if (ingError) throw ingError;
+      }
+
+      const recipeBases = recipeSizeBases.filter(rsb => rsb.recipe_id === recipe.id);
+      if (recipeBases.length > 0) {
+        const baseInserts = recipeBases.map(rsb => ({
+          recipe_id: newRecipe.id,
+          size_id: rsb.size_id,
+          base_template_id: rsb.base_template_id,
+        }));
+        const { error: baseError } = await supabase
+          .from('recipe_size_bases')
+          .insert(baseInserts);
+        if (baseError) throw baseError;
+      }
+
+      loadAllData();
+    } catch (error: any) {
+      alert('Error duplicating recipe: ' + error.message);
+    }
+  };
+
   const handleAddRecipe = async (recipe: { name: string; category_id: string; base_template_id?: string }) => {
     try {
       const { error } = await supabase
@@ -2678,6 +2735,7 @@ export default function Home() {
             onAddRecipeIngredient={handleAddRecipeIngredient}
             onDeleteRecipeIngredient={handleDeleteRecipeIngredient}
             onUpdateRecipeSizeBase={handleUpdateRecipeSizeBase}
+            onDuplicateRecipe={handleDuplicateRecipe}
           />
         )}
         {activeTab === 'pricing' && (
