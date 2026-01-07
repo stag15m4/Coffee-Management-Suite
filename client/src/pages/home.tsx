@@ -850,9 +850,10 @@ interface RecipesTabProps {
   onDuplicateRecipe: (recipe: Recipe) => Promise<void>;
   onDeleteRecipe: (recipeId: string) => Promise<void>;
   onAddBulkSize: (name: string, oz: number) => Promise<boolean>;
+  onDeleteBulkSize: (sizeId: string) => Promise<void>;
 }
 
-const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase, onDuplicateRecipe, onDeleteRecipe, onAddBulkSize }: RecipesTabProps) => {
+const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase, onDuplicateRecipe, onDeleteRecipe, onAddBulkSize, onDeleteBulkSize }: RecipesTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -1283,8 +1284,24 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                           style={{ backgroundColor: colors.cream }}
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                            <div className="font-semibold" style={{ color: colors.brown }}>
-                              {size.name} ({size.size_oz}oz)
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold" style={{ color: colors.brown }}>
+                                {size.name} ({size.size_oz}oz)
+                              </span>
+                              {isBulkRecipe && (
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`Delete batch size "${size.name}"? This cannot be undone.`)) {
+                                      onDeleteBulkSize(size.id);
+                                    }
+                                  }}
+                                  className="text-xs px-1"
+                                  style={{ color: colors.red }}
+                                  data-testid={`button-delete-bulk-size-${size.id}`}
+                                >
+                                  Delete
+                                </button>
+                              )}
                             </div>
                             <div className="flex items-center gap-3 text-sm">
                               <span style={{ color: colors.brownLight }}>
@@ -2837,6 +2854,25 @@ export default function Home() {
     }
   };
 
+  const handleDeleteBulkSize = async (sizeId: string) => {
+    try {
+      const { error } = await supabase
+        .from('drink_sizes')
+        .delete()
+        .eq('id', sizeId);
+
+      if (error) {
+        console.error('Supabase error deleting bulk size:', error);
+        alert('Error deleting bulk size: ' + error.message + '\n\nMake sure your Supabase RLS policies allow deletes on the drink_sizes table.');
+        return;
+      }
+      await loadAllData();
+    } catch (error: any) {
+      console.error('Error in handleDeleteBulkSize:', error);
+      alert('Error deleting bulk size: ' + error.message);
+    }
+  };
+
   const handleAddBaseTemplate = async (template: { name: string; drink_type: string; description?: string }) => {
     try {
       const { error } = await supabase
@@ -3011,6 +3047,7 @@ export default function Home() {
             onDuplicateRecipe={handleDuplicateRecipe}
             onDeleteRecipe={handleDeleteRecipe}
             onAddBulkSize={handleAddBulkSize}
+            onDeleteBulkSize={handleDeleteBulkSize}
           />
         )}
         {activeTab === 'pricing' && (
