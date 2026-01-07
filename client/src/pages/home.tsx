@@ -201,10 +201,10 @@ interface RecipeIngredient {
   id: string;
   recipe_id: string;
   ingredient_id?: string | null;
+  syrup_recipe_id?: string | null;
   size_id: string;
   quantity: number;
   unit?: string;
-  syrup_recipe_id?: string | null;
   ingredient?: Ingredient;
   size?: DrinkSize;
 }
@@ -1447,13 +1447,25 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                               >
                                 <option value="">Select Ingredient</option>
                                 {isBulkRecipe ? (
-                                  <optgroup label="All Ingredients">
-                                    {ingredients
-                                      .sort((a, b) => a.name.localeCompare(b.name))
-                                      .map(ing => (
-                                      <option key={ing.id} value={ing.id}>{ing.name} ({ing.ingredient_type || 'Drink Ingredient'})</option>
-                                    ))}
-                                  </optgroup>
+                                  <>
+                                    <optgroup label="All Ingredients">
+                                      {ingredients
+                                        .sort((a, b) => a.name.localeCompare(b.name))
+                                        .map(ing => (
+                                        <option key={ing.id} value={ing.id}>{ing.name} ({ing.ingredient_type || 'Drink Ingredient'})</option>
+                                      ))}
+                                    </optgroup>
+                                    {recipes.filter(r => r.category_name === 'Syrups' && r.id !== recipe.id).length > 0 && (
+                                      <optgroup label="Homemade Syrups">
+                                        {recipes
+                                          .filter(r => r.category_name === 'Syrups' && r.id !== recipe.id)
+                                          .sort((a, b) => a.name.localeCompare(b.name))
+                                          .map(syrupRecipe => (
+                                          <option key={`syrup:${syrupRecipe.id}`} value={`syrup:${syrupRecipe.id}`}>{syrupRecipe.name}</option>
+                                        ))}
+                                      </optgroup>
+                                    )}
+                                  </>
                                 ) : (
                                   <>
                                     <optgroup label="Ingredients">
@@ -1464,10 +1476,10 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                         <option key={ing.id} value={ing.id}>{ing.name}</option>
                                       ))}
                                     </optgroup>
-                                    {recipes.filter(r => r.category_name === 'Syrups').length > 0 && (
+                                    {recipes.filter(r => r.category_name === 'Syrups' && r.id !== recipe.id).length > 0 && (
                                       <optgroup label="Homemade Syrups">
                                         {recipes
-                                          .filter(r => r.category_name === 'Syrups')
+                                          .filter(r => r.category_name === 'Syrups' && r.id !== recipe.id)
                                           .sort((a, b) => a.name.localeCompare(b.name))
                                           .map(syrupRecipe => (
                                           <option key={`syrup:${syrupRecipe.id}`} value={`syrup:${syrupRecipe.id}`}>{syrupRecipe.name}</option>
