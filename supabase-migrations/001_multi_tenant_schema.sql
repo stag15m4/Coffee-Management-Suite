@@ -98,18 +98,18 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION has_role_or_higher(required_role user_role)
 RETURNS BOOLEAN AS $$
 DECLARE
-    current_role user_role;
+    user_current_role user_role;
     role_order INTEGER;
     required_order INTEGER;
 BEGIN
-    current_role := get_current_user_role();
+    user_current_role := get_current_user_role();
     
-    IF current_role IS NULL THEN
+    IF user_current_role IS NULL THEN
         RETURN FALSE;
     END IF;
     
     -- Define role hierarchy: owner > manager > lead > employee
-    SELECT CASE current_role
+    SELECT CASE user_current_role
         WHEN 'owner' THEN 4
         WHEN 'manager' THEN 3
         WHEN 'lead' THEN 2
