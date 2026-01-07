@@ -961,12 +961,13 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
       return;
     }
     const selectedIngredient = ingredients.find(i => i.id === newIngredient.ingredient_id);
+    const unitToUse = newIngredient.unit || selectedIngredient?.usage_unit || selectedIngredient?.unit || 'oz';
     await onAddRecipeIngredient({
       recipe_id: recipeId,
       ingredient_id: newIngredient.ingredient_id,
       size_id: sizeId,
       quantity: parseFloat(newIngredient.quantity) || 1,
-      unit: newIngredient.unit || selectedIngredient?.usage_unit || selectedIngredient?.unit,
+      unit: unitToUse,
     });
     setNewIngredient({ ingredient_id: '', quantity: '1', unit: '' });
     setAddingIngredient(null);
@@ -1258,6 +1259,22 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                 placeholder="Qty"
                                 data-testid={`input-ri-qty-${size.id}`}
                               />
+                              <select
+                                value={newIngredient.unit || (() => {
+                                  const sel = ingredients.find(i => i.id === newIngredient.ingredient_id);
+                                  return sel?.usage_unit || sel?.unit || 'oz';
+                                })()}
+                                onChange={(e) => setNewIngredient({ ...newIngredient, unit: e.target.value })}
+                                className="px-2 py-1 rounded border text-sm"
+                                style={{ borderColor: colors.creamDark }}
+                                data-testid={`select-ri-unit-${size.id}`}
+                              >
+                                <option value="oz">oz</option>
+                                <option value="lb">lb</option>
+                                <option value="gram">gram</option>
+                                <option value="ml">ml</option>
+                                <option value="each">each</option>
+                              </select>
                               <button
                                 onClick={() => handleAddIngredient(recipe.id, size.id)}
                                 className="px-2 py-1 rounded text-sm font-semibold"
