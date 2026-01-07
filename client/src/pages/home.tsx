@@ -847,9 +847,11 @@ interface RecipesTabProps {
   onDeleteRecipeIngredient: (id: string) => Promise<void>;
   onUpdateRecipeSizeBase: (recipeId: string, sizeId: string, baseTemplateId: string | null) => Promise<void>;
   onDuplicateRecipe: (recipe: Recipe) => Promise<void>;
+  onDeleteRecipe: (recipeId: string) => Promise<void>;
+  onAddBulkSize: (name: string, oz: number) => Promise<void>;
 }
 
-const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase, onDuplicateRecipe }: RecipesTabProps) => {
+const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase, onDuplicateRecipe, onDeleteRecipe, onAddBulkSize }: RecipesTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -862,6 +864,8 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
   });
   const [addingIngredient, setAddingIngredient] = useState<{ recipeId: string; sizeId: string } | null>(null);
   const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity: '1', unit: '' });
+  const [showAddBulkSize, setShowAddBulkSize] = useState(false);
+  const [newBulkSize, setNewBulkSize] = useState({ name: '', oz: '' });
 
   const getIngredientCostPerUnit = (ing: Ingredient): number => {
     const cost = typeof ing.cost === 'string' ? parseFloat(ing.cost) : ing.cost;
@@ -877,7 +881,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
     return sizeBase?.base_template_id || null;
   };
 
-  const calculateSizeCost = (recipe: Recipe, sizeId: string): number => {
+  const calculateSizeCost = (recipe: Recipe, sizeId: string, skipBaseTemplate: boolean = false): number => {
     let totalCost = 0;
     
     const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === sizeId) || [];
@@ -888,21 +892,23 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
       }
     }
     
-    const sizeBaseId = getSizeBaseTemplateId(recipe.id, sizeId);
-    if (sizeBaseId) {
-      const baseTemplate = baseTemplates.find(bt => bt.id === sizeBaseId);
-      const baseItems = baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
-      for (const bi of baseItems) {
-        const ing = ingredients.find(i => i.id === bi.ingredient_id);
-        if (ing) {
-          totalCost += bi.quantity * getIngredientCostPerUnit(ing);
+    if (!skipBaseTemplate) {
+      const sizeBaseId = getSizeBaseTemplateId(recipe.id, sizeId);
+      if (sizeBaseId) {
+        const baseTemplate = baseTemplates.find(bt => bt.id === sizeBaseId);
+        const baseItems = baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
+        for (const bi of baseItems) {
+          const ing = ingredients.find(i => i.id === bi.ingredient_id);
+          if (ing) {
+            totalCost += bi.quantity * getIngredientCostPerUnit(ing);
+          }
         }
       }
-    }
-    
-    if (overhead) {
-      const overheadCost = (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0);
-      totalCost += overheadCost;
+      
+      if (overhead) {
+        const overheadCost = (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0);
+        totalCost += overheadCost;
+      }
     }
     
     return totalCost;
@@ -1122,6 +1128,14 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                   >
                     Duplicate
                   </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteRecipe(recipe.id); }}
+                    className="text-sm font-medium hover:underline"
+                    style={{ color: '#c53030' }}
+                    data-testid={`button-delete-recipe-${recipe.id}`}
+                  >
+                    Delete
+                  </button>
                 </div>
               )}
               <span style={{ color: colors.gold }}>{expandedRecipe === recipe.id ? '▼' : '▶'}</span>
@@ -1130,13 +1144,77 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
             {expandedRecipe === recipe.id && (
               <div className="p-4 space-y-4">
                 <div className="space-y-3">
-                  <h4 className="font-semibold" style={{ color: colors.brown }}>Ingredients by Size</h4>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="font-semibold" style={{ color: colors.brown }}>
+                      {recipe.category_name === 'Syrups' ? 'Batch Ingredients' : 'Ingredients by Size'}
+                    </h4>
+                    {recipe.category_name === 'Syrups' && (
+                      <button
+                        onClick={() => setShowAddBulkSize(!showAddBulkSize)}
+                        className="text-sm px-3 py-1 rounded font-medium"
+                        style={{ backgroundColor: colors.gold, color: colors.white }}
+                        data-testid="button-add-batch-size"
+                      >
+                        + Add Batch Size
+                      </button>
+                    )}
+                  </div>
+                  {showAddBulkSize && recipe.category_name === 'Syrups' && (
+                    <div className="flex flex-wrap items-center gap-2 p-2 rounded" style={{ backgroundColor: colors.creamDark }}>
+                      <input
+                        type="text"
+                        placeholder="Name (e.g., Bulk 64oz)"
+                        value={newBulkSize.name}
+                        onChange={(e) => setNewBulkSize({ ...newBulkSize, name: e.target.value })}
+                        className="px-2 py-1 rounded border-0 text-sm"
+                        style={{ backgroundColor: colors.inputBg, color: colors.brown }}
+                        data-testid="input-bulk-size-name"
+                      />
+                      <input
+                        type="number"
+                        placeholder="oz"
+                        value={newBulkSize.oz}
+                        onChange={(e) => setNewBulkSize({ ...newBulkSize, oz: e.target.value })}
+                        className="px-2 py-1 rounded border-0 text-sm w-20"
+                        style={{ backgroundColor: colors.inputBg, color: colors.brown }}
+                        data-testid="input-bulk-size-oz"
+                      />
+                      <button
+                        onClick={async () => {
+                          if (newBulkSize.oz) {
+                            const name = newBulkSize.name || `Bulk ${newBulkSize.oz}oz`;
+                            const finalName = name.toLowerCase().includes('bulk') ? name : `Bulk ${name}`;
+                            await onAddBulkSize(finalName, parseFloat(newBulkSize.oz));
+                            setNewBulkSize({ name: '', oz: '' });
+                            setShowAddBulkSize(false);
+                          }
+                        }}
+                        className="px-2 py-1 rounded text-sm font-medium"
+                        style={{ backgroundColor: colors.gold, color: colors.brown }}
+                        data-testid="button-save-batch-size"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => { setShowAddBulkSize(false); setNewBulkSize({ name: '', oz: '' }); }}
+                        className="px-2 py-1 rounded text-sm font-medium"
+                        style={{ backgroundColor: colors.creamDark, color: colors.brown, border: `1px solid ${colors.brownLight}` }}
+                        data-testid="button-cancel-batch-size"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                   <div className="grid gap-3">
-                    {drinkSizes.map(size => {
+                    {(recipe.category_name === 'Syrups' 
+                      ? drinkSizes.filter(s => s.name.toLowerCase().includes('bulk'))
+                      : drinkSizes.filter(s => !s.name.toLowerCase().includes('bulk'))
+                    ).map(size => {
                       const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === size.id) || [];
+                      const isBulkRecipe = recipe.category_name === 'Syrups';
                       const currentBaseId = getSizeBaseTemplateId(recipe.id, size.id);
-                      const baseTemplateItems = getBaseTemplateItems(recipe, size.id);
-                      const calculatedCost = calculateSizeCost(recipe, size.id);
+                      const baseTemplateItems = !isBulkRecipe ? getBaseTemplateItems(recipe, size.id) : [];
+                      const calculatedCost = calculateSizeCost(recipe, size.id, isBulkRecipe);
                       const hasItems = sizeIngredients.length > 0 || baseTemplateItems.length > 0;
                       const isAdding = addingIngredient?.recipeId === recipe.id && addingIngredient?.sizeId === size.id;
                       
@@ -1157,43 +1235,47 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                             </div>
                           </div>
 
-                          <div className="mb-2 flex items-center gap-2">
-                            <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Base:</span>
-                            <select
-                              value={currentBaseId || ''}
-                              onChange={(e) => onUpdateRecipeSizeBase(recipe.id, size.id, e.target.value || null)}
-                              className="px-2 py-1 rounded text-xs border-0 outline-none"
-                              style={{ backgroundColor: colors.inputBg, color: colors.brown }}
-                              data-testid={`select-base-${recipe.id}-${size.id}`}
-                            >
-                              <option value="">No Base</option>
-                              {baseTemplates.map(bt => (
-                                <option key={bt.id} value={bt.id}>{bt.name}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {baseTemplateItems.length > 0 && (
-                            <div className="mb-2">
-                              <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Base (Disposables):</span>
-                              <div className="flex flex-wrap gap-2 mt-1">
-                                {baseTemplateItems.map(bi => {
-                                  const ing = ingredients.find(i => i.id === bi.ingredient_id);
-                                  const itemCost = ing ? bi.quantity * getIngredientCostPerUnit(ing) : 0;
-                                  return (
-                                    <div
-                                      key={bi.id}
-                                      className="flex items-center gap-1 px-2 py-1 rounded text-xs"
-                                      style={{ backgroundColor: colors.creamDark }}
-                                    >
-                                      <span style={{ color: colors.brown }}>{ing?.name || 'Unknown'}</span>
-                                      <span style={{ color: colors.brownLight }}>x{bi.quantity}</span>
-                                      <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
-                                    </div>
-                                  );
-                                })}
+                          {!isBulkRecipe && (
+                            <>
+                              <div className="mb-2 flex items-center gap-2">
+                                <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Base:</span>
+                                <select
+                                  value={currentBaseId || ''}
+                                  onChange={(e) => onUpdateRecipeSizeBase(recipe.id, size.id, e.target.value || null)}
+                                  className="px-2 py-1 rounded text-xs border-0 outline-none"
+                                  style={{ backgroundColor: colors.inputBg, color: colors.brown }}
+                                  data-testid={`select-base-${recipe.id}-${size.id}`}
+                                >
+                                  <option value="">No Base</option>
+                                  {baseTemplates.map(bt => (
+                                    <option key={bt.id} value={bt.id}>{bt.name}</option>
+                                  ))}
+                                </select>
                               </div>
-                            </div>
+
+                              {baseTemplateItems.length > 0 && (
+                                <div className="mb-2">
+                                  <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Base (Disposables):</span>
+                                  <div className="flex flex-wrap gap-2 mt-1">
+                                    {baseTemplateItems.map(bi => {
+                                      const ing = ingredients.find(i => i.id === bi.ingredient_id);
+                                      const itemCost = ing ? bi.quantity * getIngredientCostPerUnit(ing) : 0;
+                                      return (
+                                        <div
+                                          key={bi.id}
+                                          className="flex items-center gap-1 px-2 py-1 rounded text-xs"
+                                          style={{ backgroundColor: colors.creamDark }}
+                                        >
+                                          <span style={{ color: colors.brown }}>{ing?.name || 'Unknown'}</span>
+                                          <span style={{ color: colors.brownLight }}>x{bi.quantity}</span>
+                                          <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           )}
 
                           {sizeIngredients.length > 0 && (
@@ -2296,6 +2378,26 @@ export default function Home() {
           .insert({ name: 'Syrups', display_order: nextProdOrder });
       }
 
+      // Ensure "Bulk (110oz)" size exists for syrups
+      const { data: existingBulkSize } = await supabase
+        .from('drink_sizes')
+        .select('id')
+        .eq('name', 'Bulk (110oz)')
+        .single();
+      
+      if (!existingBulkSize) {
+        const { data: maxSizeOrder } = await supabase
+          .from('drink_sizes')
+          .select('display_order')
+          .order('display_order', { ascending: false })
+          .limit(1);
+        const nextSizeOrder = (maxSizeOrder?.[0]?.display_order || 0) + 1;
+        
+        await supabase
+          .from('drink_sizes')
+          .insert({ name: 'Bulk (110oz)', size_oz: 110, display_order: nextSizeOrder });
+      }
+
       const { data: prodCatData } = await supabase
         .from('product_categories')
         .select('*')
@@ -2523,6 +2625,28 @@ export default function Home() {
     }
   };
 
+  const handleDeleteRecipe = async (recipeId: string) => {
+    if (!confirm('Are you sure you want to delete this recipe? This cannot be undone.')) {
+      return;
+    }
+    try {
+      const { error: ingError } = await supabase.from('recipe_ingredients').delete().eq('recipe_id', recipeId);
+      if (ingError) throw ingError;
+      
+      const { error: baseError } = await supabase.from('recipe_size_bases').delete().eq('recipe_id', recipeId);
+      if (baseError) throw baseError;
+      
+      const { error: pricingError } = await supabase.from('recipe_size_pricing').delete().eq('recipe_id', recipeId);
+      if (pricingError) throw pricingError;
+      
+      const { error } = await supabase.from('recipes').delete().eq('id', recipeId);
+      if (error) throw error;
+      loadAllData();
+    } catch (error: any) {
+      alert('Error deleting recipe: ' + error.message);
+    }
+  };
+
   const handleAddRecipe = async (recipe: { name: string; category_id: string; base_template_id?: string }) => {
     try {
       const { error } = await supabase
@@ -2552,6 +2676,26 @@ export default function Home() {
       loadAllData();
     } catch (error: any) {
       alert('Error updating recipe: ' + error.message);
+    }
+  };
+
+  const handleAddBulkSize = async (name: string, oz: number) => {
+    try {
+      const { data: maxOrder } = await supabase
+        .from('drink_sizes')
+        .select('display_order')
+        .order('display_order', { ascending: false })
+        .limit(1);
+      const nextOrder = (maxOrder?.[0]?.display_order || 0) + 1;
+      
+      const { error } = await supabase
+        .from('drink_sizes')
+        .insert({ name, size_oz: oz, display_order: nextOrder });
+
+      if (error) throw error;
+      loadAllData();
+    } catch (error: any) {
+      alert('Error adding bulk size: ' + error.message);
     }
   };
 
@@ -2713,6 +2857,8 @@ export default function Home() {
             onDeleteRecipeIngredient={handleDeleteRecipeIngredient}
             onUpdateRecipeSizeBase={handleUpdateRecipeSizeBase}
             onDuplicateRecipe={handleDuplicateRecipe}
+            onDeleteRecipe={handleDeleteRecipe}
+            onAddBulkSize={handleAddBulkSize}
           />
         )}
         {activeTab === 'pricing' && (
