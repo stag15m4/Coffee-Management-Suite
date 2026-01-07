@@ -2276,6 +2276,26 @@ export default function Home() {
         .select('*');
       setIngredients(ingData || []);
 
+      // Ensure "Syrups" category exists in product_categories
+      const { data: existingSyrups } = await supabase
+        .from('product_categories')
+        .select('id')
+        .eq('name', 'Syrups')
+        .single();
+      
+      if (!existingSyrups) {
+        const { data: maxProdOrder } = await supabase
+          .from('product_categories')
+          .select('display_order')
+          .order('display_order', { ascending: false })
+          .limit(1);
+        const nextProdOrder = (maxProdOrder?.[0]?.display_order || 0) + 1;
+        
+        await supabase
+          .from('product_categories')
+          .insert({ name: 'Syrups', display_order: nextProdOrder });
+      }
+
       const { data: prodCatData } = await supabase
         .from('product_categories')
         .select('*')
