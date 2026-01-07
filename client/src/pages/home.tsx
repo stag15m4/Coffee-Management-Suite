@@ -966,7 +966,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
       ingredient_id: newIngredient.ingredient_id,
       size_id: sizeId,
       quantity: parseFloat(newIngredient.quantity) || 1,
-      unit: newIngredient.unit || selectedIngredient?.unit,
+      unit: newIngredient.unit || selectedIngredient?.usage_unit || selectedIngredient?.unit,
     });
     setNewIngredient({ ingredient_id: '', quantity: '1', unit: '' });
     setAddingIngredient(null);
