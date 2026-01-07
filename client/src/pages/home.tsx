@@ -2434,15 +2434,14 @@ export default function Home() {
       setLoading(true);
     }
     try {
-      // Ensure "Other" category exists
+      // Ensure "Other" category exists (using maybeSingle to avoid errors on no match)
       const { data: existingOther } = await supabase
         .from('ingredient_categories')
         .select('id')
         .eq('name', 'Other')
-        .single();
+        .maybeSingle();
       
       if (!existingOther) {
-        // Get max display_order
         const { data: maxOrder } = await supabase
           .from('ingredient_categories')
           .select('display_order')
@@ -2455,15 +2454,17 @@ export default function Home() {
           .insert({ name: 'Other', display_order: nextOrder });
       }
 
-      const { data: catData } = await supabase
+      const { data: catData, error: catError } = await supabase
         .from('ingredient_categories')
         .select('*')
         .order('display_order');
+      if (catError) console.error('Error loading ingredient categories:', catError);
       setIngredientCategories(catData || []);
 
-      const { data: ingData } = await supabase
+      const { data: ingData, error: ingError } = await supabase
         .from('v_ingredients')
         .select('*');
+      if (ingError) console.error('Error loading ingredients:', ingError);
       setIngredients(ingData || []);
 
       // Ensure "Syrups" category exists in product_categories
@@ -2471,7 +2472,7 @@ export default function Home() {
         .from('product_categories')
         .select('id')
         .eq('name', 'Syrups')
-        .single();
+        .maybeSingle();
       
       if (!existingSyrups) {
         const { data: maxProdOrder } = await supabase
@@ -2491,7 +2492,7 @@ export default function Home() {
         .from('drink_sizes')
         .select('id')
         .eq('name', 'Bulk (110oz)')
-        .single();
+        .maybeSingle();
       
       if (!existingBulkSize) {
         const { data: maxSizeOrder } = await supabase
@@ -2530,16 +2531,17 @@ export default function Home() {
         .order('display_order');
       setDrinkSizes(sizeData || []);
 
-      const { data: recipeData } = await supabase
+      const { data: recipeData, error: recipeError } = await supabase
         .from('recipes')
         .select(`
           *,
           product_categories(name),
           base_templates(name),
           products(*),
-          recipe_ingredients(*)
+          recipe_ingredients!recipe_ingredients_recipe_id_fkey(*)
         `)
         .eq('is_active', true);
+      if (recipeError) console.error('Error loading recipes:', recipeError);
 
       const formattedRecipes = (recipeData || []).map((r: any) => ({
         ...r,
@@ -2548,22 +2550,26 @@ export default function Home() {
         recipe_ingredients: r.recipe_ingredients || [],
       }));
       setRecipes(formattedRecipes);
+      console.log('Loaded recipes:', formattedRecipes.length, 'Drink recipes:', formattedRecipes.filter((r: any) => r.category_name !== 'Syrups').length);
 
-      const { data: pricingData } = await supabase
+      const { data: pricingData, error: prodPricingError } = await supabase
         .from('v_product_pricing')
         .select('*');
+      if (prodPricingError) console.error('Error loading product pricing:', prodPricingError);
       setProducts(pricingData || []);
 
       const { data: overheadData } = await supabase
         .from('overhead_settings')
         .select('*')
         .limit(1)
-        .single();
+        .maybeSingle();
       setOverhead(overheadData);
 
-      const { data: recipePricingData } = await supabase
+      const { data: recipePricingData, error: recipePricingError } = await supabase
         .from('recipe_size_pricing')
         .select('*');
+      if (recipePricingError) console.error('Error loading recipe pricing:', recipePricingError);
+      console.log('Loaded recipe pricing:', recipePricingData?.length || 0);
       setPricingData(recipePricingData || []);
 
       const { data: recipeSizeBasesData } = await supabase
