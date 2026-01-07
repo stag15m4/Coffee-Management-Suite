@@ -943,19 +943,13 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
         }
       }
       
-      if (overhead) {
-        const overheadCost = (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0);
-        totalCost += overheadCost;
-      }
+      // Overhead is now manually added to bases, not automatically to recipes
     }
     
     return totalCost;
   };
   
-  const getOverheadCost = (): number => {
-    if (!overhead) return 0;
-    return (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0);
-  };
+  // Overhead is now manually added to bases, not automatically calculated
 
   const getBaseTemplateItems = (recipe: Recipe, sizeId: string): BaseTemplateIngredient[] => {
     const sizeBaseId = getSizeBaseTemplateId(recipe.id, sizeId);
@@ -1415,20 +1409,6 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                             </div>
                           )}
 
-                          {hasItems && getOverheadCost() > 0 && (
-                            <div className="mb-2">
-                              <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Overhead:</span>
-                              <div className="flex flex-wrap gap-2 mt-1">
-                                <div
-                                  className="flex items-center gap-1 px-2 py-1 rounded text-xs"
-                                  style={{ backgroundColor: colors.white, border: `1px dashed ${colors.brownLight}` }}
-                                >
-                                  <span style={{ color: colors.brown }}>Shop Overhead</span>
-                                  <span style={{ color: colors.gold }}>({formatCurrency(getOverheadCost())})</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
 
                           {isAdding ? (
                             <div className="flex flex-wrap gap-2 items-center">
@@ -1616,9 +1596,7 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
       }
     }
     
-    if (overhead) {
-      totalCost += (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0);
-    }
+    // Overhead is now manually added to bases, not automatically to recipes
     
     return totalCost;
   };
