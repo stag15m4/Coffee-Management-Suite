@@ -2834,6 +2834,19 @@ export default function Home() {
 
   const handleDeleteBulkSize = async (sizeId: string) => {
     try {
+      // First delete any recipe_ingredients that reference this size
+      const { error: ingredientError } = await supabase
+        .from('recipe_ingredients')
+        .delete()
+        .eq('size_id', sizeId);
+
+      if (ingredientError) {
+        console.error('Error deleting associated ingredients:', ingredientError);
+        alert('Error removing ingredients for this size: ' + ingredientError.message);
+        return;
+      }
+
+      // Then delete the size itself
       const { error } = await supabase
         .from('drink_sizes')
         .delete()
@@ -2841,7 +2854,7 @@ export default function Home() {
 
       if (error) {
         console.error('Supabase error deleting bulk size:', error);
-        alert('Error deleting bulk size: ' + error.message + '\n\nMake sure your Supabase RLS policies allow deletes on the drink_sizes table.');
+        alert('Error deleting bulk size: ' + error.message);
         return;
       }
       await loadAllData();
