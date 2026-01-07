@@ -1525,6 +1525,11 @@ interface PricingTabProps {
 const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead, pricingData, recipeSizeBases, onUpdatePricing }: PricingTabProps) => {
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  
+  // Filter out bulk sizes for pricing matrix (only show standard drink sizes)
+  const standardDrinkSizes = drinkSizes.filter(s => !s.name.toLowerCase().includes('bulk'));
+  // Filter out Syrups category recipes (they are bulk/manufacturing recipes, not for sale)
+  const drinkRecipes = recipes.filter(r => r.category_name !== 'Syrups');
 
   const getSizeBaseTemplateId = (recipeId: string, sizeId: string): string | null => {
     const rsb = recipeSizeBases.find(r => r.recipe_id === recipeId && r.size_id === sizeId);
@@ -1586,6 +1591,15 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
     const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === sizeId) || [];
     if (sizeIngredients.length > 0) return true;
     
+    // Check per-size base template
+    const sizeBaseId = getSizeBaseTemplateId(recipe.id, sizeId);
+    if (sizeBaseId) {
+      const baseTemplate = baseTemplates.find(bt => bt.id === sizeBaseId);
+      const baseItems = baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
+      if (baseItems.length > 0) return true;
+    }
+    
+    // Also check legacy base_template_id
     if (recipe.base_template_id) {
       const baseTemplate = baseTemplates.find(bt => bt.id === recipe.base_template_id);
       const baseItems = baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
@@ -1598,12 +1612,12 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
   const calculateAverages = () => {
     const averages: { [sizeId: string]: { costs: number[], sales: number[], profits: number[], margins: number[] } } = {};
     
-    for (const size of drinkSizes) {
+    for (const size of standardDrinkSizes) {
       averages[size.id] = { costs: [], sales: [], profits: [], margins: [] };
     }
     
-    for (const recipe of recipes) {
-      for (const size of drinkSizes) {
+    for (const recipe of drinkRecipes) {
+      for (const size of standardDrinkSizes) {
         const hasItems = hasIngredientsForSize(recipe, size.id);
         if (!hasItems) continue;
         
@@ -1620,7 +1634,7 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
       }
     }
     
-    return drinkSizes.map(size => {
+    return standardDrinkSizes.map(size => {
       const data = averages[size.id];
       const count = data.costs.length;
       return {
@@ -1667,11 +1681,11 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
           <thead>
             <tr style={{ backgroundColor: colors.brown }}>
               <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.white }}>Mixed Drinks</th>
-              <th colSpan={drinkSizes.length + 1} className="px-4 py-3 text-center font-semibold" style={{ color: colors.white }}>Averages</th>
+              <th colSpan={standardDrinkSizes.length + 1} className="px-4 py-3 text-center font-semibold" style={{ color: colors.white }}>Averages</th>
             </tr>
             <tr style={{ backgroundColor: colors.creamDark }}>
               <th className="px-4 py-2" style={{ color: colors.brown }}></th>
-              {drinkSizes.map(size => (
+              {standardDrinkSizes.map(size => (
                 <th key={size.id} className="px-4 py-2 text-right text-sm font-semibold" style={{ color: colors.brown }}>{size.name}</th>
               ))}
               <th className="px-4 py-2 text-right text-sm font-semibold" style={{ color: colors.gold }}>Overall</th>
@@ -1739,7 +1753,7 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
             <thead>
               <tr style={{ backgroundColor: colors.brown }}>
                 <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.white }}>Product</th>
-                {drinkSizes.map(size => (
+                {standardDrinkSizes.map(size => (
                   <th key={size.id} colSpan={4} className="px-2 py-3 text-center font-semibold" style={{ color: colors.white }}>
                     {size.name}
                   </th>
@@ -1747,7 +1761,7 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
               </tr>
               <tr style={{ backgroundColor: colors.creamDark }}>
                 <th className="px-4 py-2" style={{ color: colors.brown }}></th>
-                {drinkSizes.map(size => (
+                {standardDrinkSizes.map(size => (
                   <Fragment key={size.id}>
                     <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Cost</th>
                     <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Sale</th>
@@ -1758,7 +1772,7 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
               </tr>
             </thead>
             <tbody>
-              {recipes.map((recipe, idx) => (
+              {drinkRecipes.map((recipe, idx) => (
                 <tr
                   key={recipe.id}
                   style={{
@@ -1771,7 +1785,7 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
                     <div>{recipe.name}</div>
                     <div className="text-xs" style={{ color: colors.brownLight }}>{recipe.category_name}</div>
                   </td>
-                  {drinkSizes.map(size => {
+                  {standardDrinkSizes.map(size => {
                     const hasItems = hasIngredientsForSize(recipe, size.id);
                     if (!hasItems) {
                       return (
