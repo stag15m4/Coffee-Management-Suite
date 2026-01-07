@@ -1,9 +1,23 @@
-import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  supabase,
+  queryKeys,
+  useIngredientCategories,
+  useIngredients,
+  useProductCategories,
+  useBaseTemplates,
+  useDrinkSizes,
+  useRecipes,
+  useOverhead,
+  useRecipePricing,
+  useRecipeSizeBases,
+  useUpdateIngredient,
+  useAddIngredient,
+  useUpdateOverhead,
+  useUpdateRecipePricing,
+  useUpdateRecipeSizeBase,
+} from '@/lib/supabase-queries';
 
 const colors = {
   gold: '#C9A227',
@@ -2484,201 +2498,31 @@ import { Fragment } from 'react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('pricing');
-  const [loading, setLoading] = useState(true);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const queryClient = useQueryClient();
 
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
-  const [ingredientCategories, setIngredientCategories] = useState<Category[]>([]);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [productCategories, setProductCategories] = useState<Category[]>([]);
-  const [baseTemplates, setBaseTemplates] = useState<BaseTemplate[]>([]);
-  const [drinkSizes, setDrinkSizes] = useState<DrinkSize[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [overhead, setOverhead] = useState<OverheadSettings | null>(null);
-  const [pricingData, setPricingData] = useState<{ id?: string; recipe_id: string; size_id: string; sale_price: number }[]>([]);
-  const [recipeSizeBases, setRecipeSizeBases] = useState<{ id?: string; recipe_id: string; size_id: string; base_template_id: string }[]>([]);
+  const { data: ingredientCategories = [], isLoading: loadingCategories } = useIngredientCategories();
+  const { data: ingredients = [], isLoading: loadingIngredients } = useIngredients();
+  const { data: productCategories = [], isLoading: loadingProductCategories } = useProductCategories();
+  const { data: baseTemplates = [], isLoading: loadingBaseTemplates } = useBaseTemplates();
+  const { data: drinkSizes = [], isLoading: loadingDrinkSizes } = useDrinkSizes();
+  const { data: recipes = [], isLoading: loadingRecipes } = useRecipes();
+  const { data: overhead, isLoading: loadingOverhead } = useOverhead();
+  const { data: pricingData = [], isLoading: loadingPricing } = useRecipePricing();
+  const { data: recipeSizeBases = [], isLoading: loadingRecipeSizeBases } = useRecipeSizeBases();
 
-  useEffect(() => {
-    loadAllData();
-  }, []);
+  const updateIngredientMutation = useUpdateIngredient();
+  const addIngredientMutation = useAddIngredient();
+  const updateOverheadMutation = useUpdateOverhead();
+  const updateRecipePricingMutation = useUpdateRecipePricing();
+  const updateRecipeSizeBaseMutation = useUpdateRecipeSizeBase();
 
-  const loadAllData = async () => {
-    if (!initialLoadDone) {
-      setLoading(true);
-    }
-    try {
-      // Ensure "Other" category exists (using maybeSingle to avoid errors on no match)
-      const { data: existingOther } = await supabase
-        .from('ingredient_categories')
-        .select('id')
-        .eq('name', 'Other')
-        .maybeSingle();
-      
-      if (!existingOther) {
-        const { data: maxOrder } = await supabase
-          .from('ingredient_categories')
-          .select('display_order')
-          .order('display_order', { ascending: false })
-          .limit(1);
-        const nextOrder = (maxOrder?.[0]?.display_order || 0) + 1;
-        
-        await supabase
-          .from('ingredient_categories')
-          .insert({ name: 'Other', display_order: nextOrder });
-      }
-
-      const { data: catData, error: catError } = await supabase
-        .from('ingredient_categories')
-        .select('*')
-        .order('display_order');
-      if (catError) console.error('Error loading ingredient categories:', catError);
-      setIngredientCategories(catData || []);
-
-      const { data: ingData, error: ingError } = await supabase
-        .from('v_ingredients')
-        .select('*');
-      if (ingError) console.error('Error loading ingredients:', ingError);
-      setIngredients(ingData || []);
-
-      // Ensure "Syrups" category exists in product_categories
-      const { data: existingSyrups } = await supabase
-        .from('product_categories')
-        .select('id')
-        .eq('name', 'Syrups')
-        .maybeSingle();
-      
-      if (!existingSyrups) {
-        const { data: maxProdOrder } = await supabase
-          .from('product_categories')
-          .select('display_order')
-          .order('display_order', { ascending: false })
-          .limit(1);
-        const nextProdOrder = (maxProdOrder?.[0]?.display_order || 0) + 1;
-        
-        await supabase
-          .from('product_categories')
-          .insert({ name: 'Syrups', display_order: nextProdOrder });
-      }
-
-      // Ensure "Bulk (110oz)" size exists for syrups
-      const { data: existingBulkSize } = await supabase
-        .from('drink_sizes')
-        .select('id')
-        .eq('name', 'Bulk (110oz)')
-        .maybeSingle();
-      
-      if (!existingBulkSize) {
-        const { data: maxSizeOrder } = await supabase
-          .from('drink_sizes')
-          .select('display_order')
-          .order('display_order', { ascending: false })
-          .limit(1);
-        const nextSizeOrder = (maxSizeOrder?.[0]?.display_order || 0) + 1;
-        
-        await supabase
-          .from('drink_sizes')
-          .insert({ name: 'Bulk (110oz)', size_oz: 110, display_order: nextSizeOrder });
-      }
-
-      const { data: prodCatData } = await supabase
-        .from('product_categories')
-        .select('*')
-        .order('display_order');
-      setProductCategories(prodCatData || []);
-
-      const { data: baseData } = await supabase
-        .from('base_templates')
-        .select(`
-          *,
-          base_template_ingredients(*)
-        `);
-      const formattedBases = (baseData || []).map((b: any) => ({
-        ...b,
-        ingredients: b.base_template_ingredients || [],
-      }));
-      setBaseTemplates(formattedBases);
-
-      const { data: sizeData } = await supabase
-        .from('drink_sizes')
-        .select('*')
-        .order('display_order');
-      setDrinkSizes(sizeData || []);
-
-      const { data: recipeData, error: recipeError } = await supabase
-        .from('recipes')
-        .select(`
-          *,
-          product_categories(name),
-          base_templates(name),
-          products(*),
-          recipe_ingredients!recipe_ingredients_recipe_id_fkey(*)
-        `)
-        .eq('is_active', true);
-      if (recipeError) console.error('Error loading recipes:', recipeError);
-
-      const formattedRecipes = (recipeData || []).map((r: any) => ({
-        ...r,
-        category_name: r.product_categories?.name,
-        base_template_name: r.base_templates?.name,
-        recipe_ingredients: r.recipe_ingredients || [],
-      }));
-      setRecipes(formattedRecipes);
-
-      const { data: pricingData, error: prodPricingError } = await supabase
-        .from('v_product_pricing')
-        .select('*');
-      if (prodPricingError) console.error('Error loading product pricing:', prodPricingError);
-      setProducts(pricingData || []);
-
-      const { data: overheadData } = await supabase
-        .from('overhead_settings')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
-      setOverhead(overheadData);
-
-      const { data: recipePricingData, error: recipePricingError } = await supabase
-        .from('recipe_size_pricing')
-        .select('*');
-      if (recipePricingError) console.error('Error loading recipe pricing:', recipePricingError);
-      setPricingData(recipePricingData || []);
-
-      const { data: recipeSizeBasesData } = await supabase
-        .from('recipe_size_bases')
-        .select('*');
-      setRecipeSizeBases(recipeSizeBasesData || []);
-
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-      setInitialLoadDone(true);
-    }
-  };
+  const loading = loadingCategories || loadingIngredients || loadingProductCategories || 
+                  loadingBaseTemplates || loadingDrinkSizes || loadingRecipes || 
+                  loadingOverhead || loadingPricing || loadingRecipeSizeBases;
 
   const handleUpdateIngredient = async (id: string, updates: Partial<Ingredient>) => {
     try {
-      const safeUpdates: Record<string, any> = {};
-      const allowedFields = ['name', 'category_id', 'ingredient_type', 'cost', 'quantity', 'unit', 'usage_unit', 'vendor', 'manufacturer', 'item_number', 'updated_at'];
-      
-      for (const key of allowedFields) {
-        if (key in updates) {
-          safeUpdates[key] = (updates as any)[key];
-        }
-      }
-      safeUpdates.updated_at = new Date().toISOString();
-      
-      const { data, error, count } = await supabase
-        .from('ingredients')
-        .update(safeUpdates)
-        .eq('id', id)
-        .select();
-
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error('Update returned no data - check RLS policies in Supabase');
-      }
-      await loadAllData();
+      await updateIngredientMutation.mutateAsync({ id, updates: updates as Record<string, any> });
     } catch (error: any) {
       alert('Error updating ingredient: ' + error.message);
       throw error;
@@ -2687,12 +2531,7 @@ export default function Home() {
 
   const handleAddIngredient = async (ingredient: Partial<Ingredient>) => {
     try {
-      const { error } = await supabase
-        .from('ingredients')
-        .insert(ingredient);
-
-      if (error) throw error;
-      loadAllData();
+      await addIngredientMutation.mutateAsync(ingredient as Record<string, any>);
     } catch (error: any) {
       alert('Error adding ingredient: ' + error.message);
     }
@@ -2704,13 +2543,8 @@ export default function Home() {
 
   const handleUpdateOverhead = async (updates: Partial<OverheadSettings>) => {
     try {
-      const { error } = await supabase
-        .from('overhead_settings')
-        .update(updates)
-        .eq('id', overhead?.id);
-
-      if (error) throw error;
-      loadAllData();
+      if (!overhead?.id) return;
+      await updateOverheadMutation.mutateAsync({ id: overhead.id, updates });
     } catch (error: any) {
       alert('Error updating overhead: ' + error.message);
     }
@@ -2719,19 +2553,12 @@ export default function Home() {
   const handleUpdatePricing = async (recipeId: string, sizeId: string, salePrice: number) => {
     try {
       const existing = pricingData.find(p => p.recipe_id === recipeId && p.size_id === sizeId);
-      if (existing?.id) {
-        const { error } = await supabase
-          .from('recipe_size_pricing')
-          .update({ sale_price: salePrice, updated_at: new Date().toISOString() })
-          .eq('id', existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('recipe_size_pricing')
-          .insert({ recipe_id: recipeId, size_id: sizeId, sale_price: salePrice });
-        if (error) throw error;
-      }
-      loadAllData();
+      await updateRecipePricingMutation.mutateAsync({
+        recipeId,
+        sizeId,
+        salePrice,
+        existingId: existing?.id,
+      });
     } catch (error: any) {
       alert('Error updating price: ' + error.message);
     }
@@ -2740,30 +2567,21 @@ export default function Home() {
   const handleUpdateRecipeSizeBase = async (recipeId: string, sizeId: string, baseTemplateId: string | null) => {
     try {
       const existing = recipeSizeBases.find(rsb => rsb.recipe_id === recipeId && rsb.size_id === sizeId);
-      if (baseTemplateId) {
-        if (existing?.id) {
-          const { error } = await supabase
-            .from('recipe_size_bases')
-            .update({ base_template_id: baseTemplateId })
-            .eq('id', existing.id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase
-            .from('recipe_size_bases')
-            .insert({ recipe_id: recipeId, size_id: sizeId, base_template_id: baseTemplateId });
-          if (error) throw error;
-        }
-      } else if (existing?.id) {
-        const { error } = await supabase
-          .from('recipe_size_bases')
-          .delete()
-          .eq('id', existing.id);
-        if (error) throw error;
-      }
-      loadAllData();
+      await updateRecipeSizeBaseMutation.mutateAsync({
+        recipeId,
+        sizeId,
+        baseTemplateId,
+        existingId: existing?.id,
+      });
     } catch (error: any) {
       alert('Error updating base: ' + error.message);
     }
+  };
+
+  const invalidateRecipeData = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
+    queryClient.invalidateQueries({ queryKey: queryKeys.recipePricing });
+    queryClient.invalidateQueries({ queryKey: queryKeys.recipeSizeBases });
   };
 
   const handleDuplicateRecipe = async (recipe: Recipe) => {
@@ -2808,7 +2626,7 @@ export default function Home() {
         if (baseError) throw baseError;
       }
 
-      loadAllData();
+      invalidateRecipeData();
     } catch (error: any) {
       alert('Error duplicating recipe: ' + error.message);
     }
@@ -2830,7 +2648,7 @@ export default function Home() {
       
       const { error } = await supabase.from('recipes').delete().eq('id', recipeId);
       if (error) throw error;
-      loadAllData();
+      invalidateRecipeData();
     } catch (error: any) {
       alert('Error deleting recipe: ' + error.message);
     }
@@ -2848,7 +2666,7 @@ export default function Home() {
         });
 
       if (error) throw error;
-      loadAllData();
+      queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
     } catch (error: any) {
       alert('Error adding recipe: ' + error.message);
     }
@@ -2862,7 +2680,7 @@ export default function Home() {
         .eq('id', id);
 
       if (error) throw error;
-      loadAllData();
+      queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
     } catch (error: any) {
       alert('Error updating recipe: ' + error.message);
     }
@@ -2886,7 +2704,7 @@ export default function Home() {
         alert('Error adding bulk size: ' + error.message + '\n\nMake sure your Supabase RLS policies allow inserts on the drink_sizes table.');
         return false;
       }
-      await loadAllData();
+      queryClient.invalidateQueries({ queryKey: queryKeys.drinkSizes });
       return true;
     } catch (error: any) {
       console.error('Error in handleAddBulkSize:', error);
@@ -2897,7 +2715,6 @@ export default function Home() {
 
   const handleDeleteBulkSize = async (sizeId: string) => {
     try {
-      // First delete any recipe_ingredients that reference this size
       const { error: ingredientError } = await supabase
         .from('recipe_ingredients')
         .delete()
@@ -2909,7 +2726,6 @@ export default function Home() {
         return;
       }
 
-      // Then delete the size itself
       const { error } = await supabase
         .from('drink_sizes')
         .delete()
@@ -2920,7 +2736,8 @@ export default function Home() {
         alert('Error deleting bulk size: ' + error.message);
         return;
       }
-      await loadAllData();
+      queryClient.invalidateQueries({ queryKey: queryKeys.drinkSizes });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
     } catch (error: any) {
       console.error('Error in handleDeleteBulkSize:', error);
       alert('Error deleting bulk size: ' + error.message);
@@ -2939,7 +2756,7 @@ export default function Home() {
         });
 
       if (error) throw error;
-      loadAllData();
+      queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
     } catch (error: any) {
       alert('Error adding base template: ' + error.message);
     }
@@ -2952,7 +2769,7 @@ export default function Home() {
         .insert(ingredient);
 
       if (error) throw error;
-      loadAllData();
+      queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
     } catch (error: any) {
       alert('Error adding template ingredient: ' + error.message);
     }
@@ -2966,7 +2783,7 @@ export default function Home() {
         .eq('id', id);
 
       if (error) throw error;
-      loadAllData();
+      queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
     } catch (error: any) {
       alert('Error deleting template ingredient: ' + error.message);
     }
@@ -2974,7 +2791,6 @@ export default function Home() {
 
   const handleAddRecipeIngredient = async (ingredient: { recipe_id: string; ingredient_id?: string | null; size_id: string; quantity: number; unit?: string; syrup_recipe_id?: string | null }) => {
     try {
-      // Build the insert object, excluding null fields for cleaner inserts
       const insertData: Record<string, any> = {
         recipe_id: ingredient.recipe_id,
         size_id: ingredient.size_id,
@@ -2993,7 +2809,7 @@ export default function Home() {
         .insert(insertData);
 
       if (error) throw error;
-      loadAllData();
+      queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
     } catch (error: any) {
       alert('Error adding recipe ingredient: ' + error.message);
     }
@@ -3007,13 +2823,13 @@ export default function Home() {
         .eq('id', id);
 
       if (error) throw error;
-      loadAllData();
+      queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
     } catch (error: any) {
       alert('Error deleting recipe ingredient: ' + error.message);
     }
   };
 
-  if (loading && !initialLoadDone) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
         <div style={{ color: colors.brownLight }}>Loading...</div>
