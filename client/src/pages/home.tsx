@@ -941,9 +941,12 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
             totalCost += bi.quantity * getIngredientCostPerUnit(ing);
           }
         }
+        // Add overhead cost to base (only for drink bases, not bulk recipes)
+        if (overhead && baseTemplate) {
+          const overheadCost = (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0);
+          totalCost += overheadCost;
+        }
       }
-      
-      // Overhead is now manually added to bases, not automatically to recipes
     }
     
     return totalCost;
@@ -1327,7 +1330,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                 </select>
                               </div>
 
-                              {baseTemplateItems.length > 0 && (
+                              {(baseTemplateItems.length > 0 || (currentBaseId && overhead && (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0) > 0)) && (
                                 <div className="mb-2">
                                   <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Base (Disposables):</span>
                                   <div className="flex flex-wrap gap-2 mt-1">
@@ -1346,6 +1349,15 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                         </div>
                                       );
                                     })}
+                                    {currentBaseId && overhead && (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0) > 0 && (
+                                      <div
+                                        className="flex items-center gap-1 px-2 py-1 rounded text-xs"
+                                        style={{ backgroundColor: colors.white, border: `1px dashed ${colors.brownLight}` }}
+                                      >
+                                        <span style={{ color: colors.brown }}>Shop Overhead</span>
+                                        <span style={{ color: colors.gold }}>({formatCurrency((overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0))})</span>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               )}
@@ -1594,9 +1606,12 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
           totalCost += bi.quantity * getIngredientCostPerUnit(ing);
         }
       }
+      // Add overhead cost to base
+      if (overhead && baseTemplate) {
+        const overheadCost = (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0);
+        totalCost += overheadCost;
+      }
     }
-    
-    // Overhead is now manually added to bases, not automatically to recipes
     
     return totalCost;
   };
