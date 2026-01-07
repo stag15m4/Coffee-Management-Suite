@@ -849,7 +849,7 @@ interface RecipesTabProps {
   onUpdateRecipeSizeBase: (recipeId: string, sizeId: string, baseTemplateId: string | null) => Promise<void>;
   onDuplicateRecipe: (recipe: Recipe) => Promise<void>;
   onDeleteRecipe: (recipeId: string) => Promise<void>;
-  onAddBulkSize: (name: string, oz: number) => Promise<void>;
+  onAddBulkSize: (name: string, oz: number) => Promise<boolean>;
 }
 
 const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase, onDuplicateRecipe, onDeleteRecipe, onAddBulkSize }: RecipesTabProps) => {
@@ -1235,9 +1235,11 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                           if (newBulkSize.oz) {
                             const name = newBulkSize.name || `Bulk ${newBulkSize.oz}oz`;
                             const finalName = name.toLowerCase().includes('bulk') ? name : `Bulk ${name}`;
-                            await onAddBulkSize(finalName, parseFloat(newBulkSize.oz));
-                            setNewBulkSize({ name: '', oz: '' });
-                            setShowAddBulkSize(false);
+                            const success = await onAddBulkSize(finalName, parseFloat(newBulkSize.oz));
+                            if (success) {
+                              setNewBulkSize({ name: '', oz: '' });
+                              setShowAddBulkSize(false);
+                            }
                           }
                         }}
                         className="px-2 py-1 rounded text-sm font-medium"
@@ -1416,23 +1418,35 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                 data-testid={`select-ri-ingredient-${size.id}`}
                               >
                                 <option value="">Select Ingredient</option>
-                                <optgroup label="Ingredients">
-                                  {ingredients
-                                    .filter(ing => (ing.ingredient_type || 'Drink Ingredient').toLowerCase() === 'drink ingredient')
-                                    .sort((a, b) => a.name.localeCompare(b.name))
-                                    .map(ing => (
-                                    <option key={ing.id} value={ing.id}>{ing.name}</option>
-                                  ))}
-                                </optgroup>
-                                {recipes.filter(r => r.category_name === 'Syrups').length > 0 && (
-                                  <optgroup label="Homemade Syrups">
-                                    {recipes
-                                      .filter(r => r.category_name === 'Syrups')
+                                {isBulkRecipe ? (
+                                  <optgroup label="All Ingredients">
+                                    {ingredients
                                       .sort((a, b) => a.name.localeCompare(b.name))
-                                      .map(syrupRecipe => (
-                                      <option key={`syrup:${syrupRecipe.id}`} value={`syrup:${syrupRecipe.id}`}>{syrupRecipe.name}</option>
+                                      .map(ing => (
+                                      <option key={ing.id} value={ing.id}>{ing.name} ({ing.ingredient_type || 'Drink Ingredient'})</option>
                                     ))}
                                   </optgroup>
+                                ) : (
+                                  <>
+                                    <optgroup label="Ingredients">
+                                      {ingredients
+                                        .filter(ing => (ing.ingredient_type || 'Drink Ingredient').toLowerCase() === 'drink ingredient')
+                                        .sort((a, b) => a.name.localeCompare(b.name))
+                                        .map(ing => (
+                                        <option key={ing.id} value={ing.id}>{ing.name}</option>
+                                      ))}
+                                    </optgroup>
+                                    {recipes.filter(r => r.category_name === 'Syrups').length > 0 && (
+                                      <optgroup label="Homemade Syrups">
+                                        {recipes
+                                          .filter(r => r.category_name === 'Syrups')
+                                          .sort((a, b) => a.name.localeCompare(b.name))
+                                          .map(syrupRecipe => (
+                                          <option key={`syrup:${syrupRecipe.id}`} value={`syrup:${syrupRecipe.id}`}>{syrupRecipe.name}</option>
+                                        ))}
+                                      </optgroup>
+                                    )}
+                                  </>
                                 )}
                               </select>
                               <input
@@ -2791,7 +2805,7 @@ export default function Home() {
     }
   };
 
-  const handleAddBulkSize = async (name: string, oz: number) => {
+  const handleAddBulkSize = async (name: string, oz: number): Promise<boolean> => {
     try {
       const { data: maxOrder } = await supabase
         .from('drink_sizes')
@@ -2804,10 +2818,17 @@ export default function Home() {
         .from('drink_sizes')
         .insert({ name, size_oz: oz, display_order: nextOrder });
 
-      if (error) throw error;
-      loadAllData();
+      if (error) {
+        console.error('Supabase error adding bulk size:', error);
+        alert('Error adding bulk size: ' + error.message + '\n\nMake sure your Supabase RLS policies allow inserts on the drink_sizes table.');
+        return false;
+      }
+      await loadAllData();
+      return true;
     } catch (error: any) {
+      console.error('Error in handleAddBulkSize:', error);
       alert('Error adding bulk size: ' + error.message);
+      return false;
     }
   };
 
