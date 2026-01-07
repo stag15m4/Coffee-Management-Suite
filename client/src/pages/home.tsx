@@ -2316,10 +2316,13 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
 
 interface VendorsTabProps {
   ingredients: Ingredient[];
+  onUpdateIngredientCost: (id: string, cost: number) => Promise<void>;
 }
 
-const VendorsTab = ({ ingredients }: VendorsTabProps) => {
+const VendorsTab = ({ ingredients, onUpdateIngredientCost }: VendorsTabProps) => {
   const [selectedVendor, setSelectedVendor] = useState<string>('all');
+  const [editingCost, setEditingCost] = useState<string | null>(null);
+  const [editCostValue, setEditCostValue] = useState<string>('');
 
   const vendors = Array.from(new Set(ingredients.map(i => i.vendor).filter(Boolean))) as string[];
   
@@ -2410,7 +2413,48 @@ const VendorsTab = ({ ingredients }: VendorsTabProps) => {
                       <td className="py-2 font-medium" style={{ color: colors.brown }}>{ing.name}</td>
                       <td className="py-2" style={{ color: colors.brownLight }}>{ing.category_name}</td>
                       <td className="py-2 text-right font-mono" style={{ color: colors.brown }}>
-                        {formatCurrency(ing.cost)}
+                        {editingCost === ing.id ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editCostValue}
+                            onChange={(e) => setEditCostValue(e.target.value)}
+                            onBlur={async () => {
+                              const newCost = parseFloat(editCostValue);
+                              if (!isNaN(newCost) && newCost !== Number(ing.cost)) {
+                                await onUpdateIngredientCost(ing.id, newCost);
+                              }
+                              setEditingCost(null);
+                            }}
+                            onKeyDown={async (e) => {
+                              if (e.key === 'Enter') {
+                                const newCost = parseFloat(editCostValue);
+                                if (!isNaN(newCost) && newCost !== Number(ing.cost)) {
+                                  await onUpdateIngredientCost(ing.id, newCost);
+                                }
+                                setEditingCost(null);
+                              } else if (e.key === 'Escape') {
+                                setEditingCost(null);
+                              }
+                            }}
+                            autoFocus
+                            className="w-20 px-2 py-1 text-right rounded border"
+                            style={{ borderColor: colors.gold, backgroundColor: colors.inputBg }}
+                            data-testid={`input-cost-${ing.id}`}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingCost(ing.id);
+                              setEditCostValue(String(ing.cost || 0));
+                            }}
+                            className="hover:underline cursor-pointer"
+                            style={{ color: colors.brown }}
+                            data-testid={`button-edit-cost-${ing.id}`}
+                          >
+                            {formatCurrency(ing.cost)}
+                          </button>
+                        )}
                       </td>
                       <td className="py-2 text-right font-mono" style={{ color: colors.brownLight }}>
                         {ing.quantity} {ing.unit}
@@ -2652,6 +2696,10 @@ export default function Home() {
     } catch (error: any) {
       alert('Error adding ingredient: ' + error.message);
     }
+  };
+
+  const handleUpdateIngredientCost = async (id: string, cost: number) => {
+    await handleUpdateIngredient(id, { cost });
   };
 
   const handleUpdateOverhead = async (updates: Partial<OverheadSettings>) => {
@@ -3024,7 +3072,7 @@ export default function Home() {
           />
         )}
         {activeTab === 'vendors' && (
-          <VendorsTab ingredients={ingredients} />
+          <VendorsTab ingredients={ingredients} onUpdateIngredientCost={handleUpdateIngredientCost} />
         )}
         {activeTab === 'bases' && (
           <BaseTemplatesTab
