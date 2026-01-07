@@ -1232,14 +1232,19 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                       />
                       <button
                         onClick={async () => {
+                          console.log('Save clicked, oz value:', newBulkSize.oz);
                           if (newBulkSize.oz) {
                             const name = newBulkSize.name || `Bulk ${newBulkSize.oz}oz`;
                             const finalName = name.toLowerCase().includes('bulk') ? name : `Bulk ${name}`;
+                            console.log('Calling onAddBulkSize with:', finalName, parseFloat(newBulkSize.oz));
                             const success = await onAddBulkSize(finalName, parseFloat(newBulkSize.oz));
+                            console.log('onAddBulkSize returned:', success);
                             if (success) {
                               setNewBulkSize({ name: '', oz: '' });
                               setShowAddBulkSize(false);
                             }
+                          } else {
+                            alert('Please enter a size in oz');
                           }
                         }}
                         className="px-2 py-1 rounded text-sm font-medium"
