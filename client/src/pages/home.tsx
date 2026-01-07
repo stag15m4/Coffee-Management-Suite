@@ -2550,7 +2550,6 @@ export default function Home() {
         recipe_ingredients: r.recipe_ingredients || [],
       }));
       setRecipes(formattedRecipes);
-      console.log('Loaded recipes:', formattedRecipes.length, 'Drink recipes:', formattedRecipes.filter((r: any) => r.category_name !== 'Syrups').length);
 
       const { data: pricingData, error: prodPricingError } = await supabase
         .from('v_product_pricing')
@@ -2569,7 +2568,6 @@ export default function Home() {
         .from('recipe_size_pricing')
         .select('*');
       if (recipePricingError) console.error('Error loading recipe pricing:', recipePricingError);
-      console.log('Loaded recipe pricing:', recipePricingData?.length || 0);
       setPricingData(recipePricingData || []);
 
       const { data: recipeSizeBasesData } = await supabase
