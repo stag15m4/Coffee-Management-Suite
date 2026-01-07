@@ -2821,7 +2821,7 @@ export default function Home() {
       
       const { error } = await supabase
         .from('drink_sizes')
-        .insert({ name, size_oz: oz, display_order: nextOrder });
+        .insert({ name, size_oz: oz, display_order: nextOrder, drink_type: 'bulk' });
 
       if (error) {
         console.error('Supabase error adding bulk size:', error);
