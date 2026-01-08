@@ -538,19 +538,23 @@ export default function CashDeposit() {
         <div className="flex flex-col items-center gap-3">
           <div className="flex flex-wrap items-center justify-center gap-2">
             <span style={{ color: colors.brown }} className="font-medium">Date Range:</span>
-            <div 
-              className="px-4 py-2 rounded-md text-sm font-medium"
-              style={{ backgroundColor: colors.creamDark, color: colors.brown }}
-            >
-              {formatDateDisplay(dateRange.start)}
-            </div>
+            <Input
+              type="date"
+              value={dateRange.start}
+              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+              className="w-auto"
+              style={{ backgroundColor: colors.creamDark, color: colors.brown, border: 'none' }}
+              data-testid="input-date-start"
+            />
             <span style={{ color: colors.brown }}>to</span>
-            <div 
-              className="px-4 py-2 rounded-md text-sm font-medium"
-              style={{ backgroundColor: colors.creamDark, color: colors.brown }}
-            >
-              {formatDateDisplay(dateRange.end)}
-            </div>
+            <Input
+              type="date"
+              value={dateRange.end}
+              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+              className="w-auto"
+              style={{ backgroundColor: colors.creamDark, color: colors.brown, border: 'none' }}
+              data-testid="input-date-end"
+            />
             <label className="relative cursor-pointer">
               <Button 
                 asChild
@@ -576,26 +580,6 @@ export default function CashDeposit() {
             >
               Export CSV
             </Button>
-          </div>
-
-          {/* Hidden date inputs for actual selection */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <Input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="w-36"
-              style={{ backgroundColor: colors.white }}
-              data-testid="input-date-start"
-            />
-            <Input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="w-36"
-              style={{ backgroundColor: colors.white }}
-              data-testid="input-date-end"
-            />
           </div>
 
           {/* Archive Controls */}
