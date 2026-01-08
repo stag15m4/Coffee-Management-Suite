@@ -57,25 +57,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserData = useCallback(async (userId: string) => {
     try {
-      // Fetch user profile with timeout
-      const profilePromise = supabase
+      // Fetch user profile
+      const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout fetching profile')), 10000)
-      );
-      
-      const { data: profileData, error: profileError } = await Promise.race([
-        profilePromise,
-        timeoutPromise
-      ]) as any;
 
       if (profileError) {
-        console.error('Error fetching profile:', profileError);
-        // Set minimal profile from auth data so user can still proceed
+        console.error('Error fetching profile:', profileError.message, profileError.code);
+        // Profile not found - user exists in auth but no profile record
+        // This happens when RLS blocks the query or profile doesn't exist
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      if (!profileData) {
+        console.error('No profile data returned for user:', userId);
+        setProfile(null);
+        setLoading(false);
         return;
       }
 
@@ -113,8 +114,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })();
         
-    } catch (error) {
-      console.error('Error fetching user data:', error);
+    } catch (error: any) {
+      console.error('Error fetching user data:', error?.message || error);
+      setProfile(null);
+      setLoading(false);
     }
   }, []);
 
