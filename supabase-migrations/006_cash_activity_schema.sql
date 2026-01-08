@@ -54,6 +54,10 @@ CREATE POLICY "Managers can update cash_activity" ON cash_activity
     USING (
         tenant_id = get_current_tenant_id() 
         AND has_role_or_higher('manager')
+    )
+    WITH CHECK (
+        tenant_id = get_current_tenant_id()
+        AND has_role_or_higher('manager')
     );
 
 CREATE POLICY "Managers can delete cash_activity" ON cash_activity
