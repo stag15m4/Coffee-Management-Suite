@@ -11,6 +11,8 @@ import Home from "@/pages/home";
 import CashDeposit from "@/pages/cash-deposit";
 import TipPayout from "@/pages/tip-payout";
 import CoffeeOrder from "@/pages/coffee-order";
+import AdminUsers from "@/pages/admin-users";
+import AdminBranding from "@/pages/admin-branding";
 
 function Router() {
   return (
@@ -39,6 +41,16 @@ function Router() {
       <Route path="/coffee-order">
         <ProtectedRoute module="bulk-ordering">
           <CoffeeOrder />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/users">
+        <ProtectedRoute>
+          <AdminUsers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/branding">
+        <ProtectedRoute>
+          <AdminBranding />
         </ProtectedRoute>
       </Route>
     </Switch>
