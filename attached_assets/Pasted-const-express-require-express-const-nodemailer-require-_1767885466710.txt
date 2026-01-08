@@ -1,0 +1,129 @@
+const express = require('express');
+const nodemailer = require('nodemailer');
+const path = require('path');
+const { Pool } = require('pg');
+
+const app = express();
+app.use(express.json());
+app.use(express.static('public'));
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
+
+const transporter = nodemailer.createTransport({
+  host: 'box5648.bluehost.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+app.get('/api/prices', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT product_id, price FROM product_prices');
+    const prices = {};
+    result.rows.forEach(row => {
+      prices[row.product_id] = parseFloat(row.price);
+    });
+    res.json(prices);
+  } catch (error) {
+    console.error('Error fetching prices:', error);
+    res.status(500).json({ error: 'Failed to fetch prices' });
+  }
+});
+
+app.post('/api/prices', async (req, res) => {
+  try {
+    const { prices } = req.body;
+    for (const [productId, price] of Object.entries(prices)) {
+      await pool.query(
+        `INSERT INTO product_prices (product_id, price, updated_at) 
+         VALUES ($1, $2, CURRENT_TIMESTAMP) 
+         ON CONFLICT (product_id) 
+         DO UPDATE SET price = $2, updated_at = CURRENT_TIMESTAMP`,
+        [parseInt(productId), parseFloat(price)]
+      );
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving prices:', error);
+    res.status(500).json({ error: 'Failed to save prices' });
+  }
+});
+
+app.get('/api/history', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, order_date, items, units, total_cost FROM order_history ORDER BY order_date DESC LIMIT 50'
+    );
+    const history = result.rows.map(row => ({
+      id: row.id,
+      date: row.order_date,
+      items: row.items,
+      units: row.units,
+      totalCost: row.total_cost ? parseFloat(row.total_cost) : null
+    }));
+    res.json(history);
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+app.post('/api/history', async (req, res) => {
+  try {
+    const { items, units, totalCost } = req.body;
+    const result = await pool.query(
+      `INSERT INTO order_history (items, units, total_cost) VALUES ($1, $2, $3) RETURNING id, order_date`,
+      [JSON.stringify(items), units, totalCost || null]
+    );
+    res.json({ 
+      success: true, 
+      id: result.rows[0].id,
+      date: result.rows[0].order_date
+    });
+  } catch (error) {
+    console.error('Error saving history:', error);
+    res.status(500).json({ error: 'Failed to save history' });
+  }
+});
+
+app.post('/send-order', async (req, res) => {
+  const { vendorEmail, subject, body, ccEmail } = req.body;
+
+  if (!vendorEmail || !subject || !body) {
+    return res.status(400).json({ success: false, error: 'Missing required fields' });
+  }
+
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    return res.status(500).json({ success: false, error: 'Email credentials not configured' });
+  }
+
+  try {
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: vendorEmail,
+      cc: ccEmail || undefined,
+      subject: subject,
+      text: body
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: 'Order sent successfully!' });
+  } catch (error) {
+    console.error('Email error:', error);
+    res.status(500).json({ success: false, error: 'Failed to send email: ' + error.message });
+  }
+});
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+const PORT = 5000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
