@@ -385,7 +385,7 @@ export default function CoffeeOrder() {
         >
           Erwin Mills Coffee Company
         </p>
-        <h1 className="text-2xl font-semibold" style={{ color: colors.teal }}>
+        <h1 className="text-2xl font-semibold" style={{ color: colors.brown }}>
           Bulk Coffee Order App
         </h1>
       </header>
