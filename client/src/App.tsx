@@ -18,9 +18,14 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/">
+      <Route path="/admin/users">
         <ProtectedRoute>
-          <Dashboard />
+          <AdminUsers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/branding">
+        <ProtectedRoute>
+          <AdminBranding />
         </ProtectedRoute>
       </Route>
       <Route path="/recipe-costing">
@@ -43,14 +48,9 @@ function Router() {
           <CoffeeOrder />
         </ProtectedRoute>
       </Route>
-      <Route path="/admin/users">
+      <Route path="/">
         <ProtectedRoute>
-          <AdminUsers />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin/branding">
-        <ProtectedRoute>
-          <AdminBranding />
+          <Dashboard />
         </ProtectedRoute>
       </Route>
     </Switch>
