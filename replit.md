@@ -39,6 +39,33 @@ SQL migration files in `supabase-migrations/`:
 3. `003_row_level_security.sql` - Enables RLS policies for data isolation
 4. `004_fix_user_profile_security.sql` - Prevents user role self-escalation
 5. `005_create_first_user.sql` - Template for creating first owner account
+6. `006_cash_activity_schema.sql` - Cash deposit tracking with auto-calculated fields
+7. `007_tip_payout_schema.sql` - Tip employees, weekly tips, and employee hours tables
+
+### Implemented Modules
+
+#### Cash Deposit Record (`/cash-deposit`)
+- Tracks daily cash deposits with calculated deposit amounts
+- Fields: drawer date, gross revenue, cash sales, tip pool, owner tips, pay in/out
+- Auto-calculated: calculated deposit, difference, net cash
+- Features: date range filtering, archive toggle, CSV import/export, flagging
+- Styling: Erwin Mills branding with gold buttons, cream inputs
+
+#### Tip Payout Calculator (`/tip-payout`)
+- Manages tip distribution based on employee hours worked
+- Week-based system (Monday-Sunday) with week picker
+- Daily tip entry grid (7 days) for Cash and CC tips
+- Automatic 3.5% CC fee deduction
+- Employee management (add new employees)
+- Hours entry per employee with hours/minutes inputs
+- Team hours verification check
+- Payout summary showing:
+  - Total tips after CC fee
+  - Total team hours
+  - Calculated hourly rate
+  - Per-employee payouts
+- CSV export functionality
+- Tables: tip_employees, tip_weekly_data, tip_employee_hours
 
 ### Authentication System
 - **AuthContext** (`client/src/contexts/AuthContext.tsx`) - Manages user session, profile, tenant, and branding state
