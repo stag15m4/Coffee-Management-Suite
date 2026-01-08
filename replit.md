@@ -37,6 +37,14 @@ SQL migration files in `supabase-migrations/`:
 1. `001_multi_tenant_schema.sql` - Creates tenants, tenant_branding, user_profiles tables
 2. `002_add_tenant_to_tables.sql` - Adds tenant_id to existing tables
 3. `003_row_level_security.sql` - Enables RLS policies for data isolation
+4. `004_fix_user_profile_security.sql` - Prevents user role self-escalation
+5. `005_create_first_user.sql` - Template for creating first owner account
+
+### Authentication System
+- **AuthContext** (`client/src/contexts/AuthContext.tsx`) - Manages user session, profile, tenant, and branding state
+- **Login page** (`client/src/pages/login.tsx`) - Email/password authentication with Erwin Mills branding
+- **ProtectedRoute** (`client/src/components/ProtectedRoute.tsx`) - Route-level access control by role/module
+- **Dashboard** (`client/src/pages/dashboard.tsx`) - Role-based module cards showing accessible apps
 
 ## System Architecture
 
