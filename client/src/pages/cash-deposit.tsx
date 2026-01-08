@@ -799,7 +799,7 @@ export default function CashDeposit() {
                 <Label style={{ color: colors.brown }}>Calculated Deposit</Label>
                 <div 
                   className="px-3 py-2 rounded-md font-mono min-h-9 flex items-center border"
-                  style={{ backgroundColor: colors.inputBg, borderColor: 'hsl(var(--input))' }}
+                  style={{ backgroundColor: colors.inputBg, borderColor: 'hsl(var(--input))', color: colors.brown }}
                 >
                   {formatCurrency(calculatedDeposit())}
                 </div>
@@ -811,7 +811,7 @@ export default function CashDeposit() {
                   style={{ 
                     backgroundColor: colors.inputBg, 
                     borderColor: 'hsl(var(--input))',
-                    color: diff >= 0 ? '#16a34a' : '#dc2626'
+                    color: diff >= 0 ? '#22c55e' : '#dc2626'
                   }}
                 >
                   {formatCurrency(diff)}
@@ -821,7 +821,7 @@ export default function CashDeposit() {
                 <Label style={{ color: colors.brown }}>Net Cash</Label>
                 <div 
                   className="px-3 py-2 rounded-md font-mono font-bold min-h-9 flex items-center"
-                  style={{ backgroundColor: colors.green, color: colors.white }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   {formatCurrency(netCash())}
                 </div>
