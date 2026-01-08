@@ -40,19 +40,19 @@ export default function AdminUsers() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (tenant?.id) {
+    if (profile?.tenant_id) {
       loadUsers();
     }
-  }, [tenant?.id]);
+  }, [profile?.tenant_id]);
 
   const loadUsers = async () => {
-    if (!tenant?.id) return;
+    if (!profile?.tenant_id) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('user_profiles')
         .select('id, email, full_name, role, is_active')
-        .eq('tenant_id', tenant.id)
+        .eq('tenant_id', profile.tenant_id)
         .order('role', { ascending: true });
 
       if (error) throw error;
@@ -105,13 +105,13 @@ export default function AdminUsers() {
 
   const sortedUsers = [...users].sort((a, b) => getRoleOrder(a.role) - getRoleOrder(b.role));
 
-  // Show loading while profile or tenant loads
-  if (!profile || !tenant) {
+  // Show loading while profile loads
+  if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
         <div className="text-center">
           <div className="w-10 h-10 rounded-full animate-pulse mx-auto mb-3" style={{ backgroundColor: colors.gold }} />
-          <p style={{ color: colors.brownLight }}>Loading...</p>
+          <p style={{ color: colors.brownLight }}>Loading profile...</p>
         </div>
       </div>
     );
