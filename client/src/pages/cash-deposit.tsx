@@ -798,8 +798,8 @@ export default function CashDeposit() {
               <div className="space-y-2">
                 <Label style={{ color: colors.brown }}>Calculated Deposit</Label>
                 <div 
-                  className="px-3 py-2 rounded-md font-mono font-medium min-h-9 flex items-center"
-                  style={{ backgroundColor: colors.brownLight, color: colors.white }}
+                  className="px-3 py-2 rounded-md font-mono min-h-9 flex items-center border"
+                  style={{ backgroundColor: colors.inputBg, borderColor: 'hsl(var(--input))' }}
                 >
                   {formatCurrency(calculatedDeposit())}
                 </div>
@@ -807,9 +807,10 @@ export default function CashDeposit() {
               <div className="space-y-2">
                 <Label style={{ color: colors.brown }}>Difference</Label>
                 <div 
-                  className="px-3 py-2 rounded-md font-mono font-bold min-h-9 flex items-center"
+                  className="px-3 py-2 rounded-md font-mono font-bold min-h-9 flex items-center border"
                   style={{ 
-                    backgroundColor: colors.gold, 
+                    backgroundColor: colors.inputBg, 
+                    borderColor: 'hsl(var(--input))',
                     color: diff >= 0 ? '#16a34a' : '#dc2626'
                   }}
                 >
