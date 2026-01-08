@@ -3,21 +3,22 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Settings, History, Trash2, Send, Save, Download, FileText, Plus, Minus, Coffee } from 'lucide-react';
+import { ArrowLeft, Download, FileText } from 'lucide-react';
 import { Link } from 'wouter';
-import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E5DDD0',
-  white: '#FFFDF7',
-  inputBg: '#FDF8E8',
+  gold: '#D4A84B',
+  goldDark: '#B8923F',
+  brown: '#2C2416',
+  brownLight: '#666',
+  cream: '#FBF7F0',
+  creamDark: '#E8DFD0',
+  white: '#FFFFFF',
+  inputBg: '#F8F6F2',
+  red: '#C74B4B',
+  teal: '#4A7C8C',
 };
 
 const PRODUCTS = [
@@ -273,18 +274,18 @@ export default function CoffeeOrder() {
       <head>
         <title>Coffee Order History</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 30px; color: #4A3728; max-width: 700px; margin: 0 auto; }
-          .container { border: 1px solid #C9A227; border-radius: 8px; padding: 25px; background: #FFFDF7; }
+          body { font-family: Arial, sans-serif; padding: 30px; color: #2C2416; max-width: 700px; margin: 0 auto; }
+          .container { border: 1px solid #D4A84B; border-radius: 8px; padding: 25px; background: #FFFFFF; }
           .header { text-align: center; margin-bottom: 20px; }
           .header h1 { margin: 0; font-size: 24px; }
-          .header h2 { margin: 5px 0; font-size: 16px; font-weight: normal; color: #6B5344; }
-          .summary { display: flex; flex-wrap: wrap; gap: 10px 40px; margin: 20px 0; padding: 15px 0; border-bottom: 1px solid #E5DDD0; }
+          .header h2 { margin: 5px 0; font-size: 16px; font-weight: normal; color: #666; }
+          .summary { display: flex; flex-wrap: wrap; gap: 10px 40px; margin: 20px 0; padding: 15px 0; border-bottom: 1px solid #E8DFD0; }
           .summary-item { font-size: 13px; }
-          .summary-item.highlight { background-color: #C9A227; padding: 3px 8px; border-radius: 3px; }
+          .summary-item.highlight { background-color: #D4A84B; padding: 3px 8px; border-radius: 3px; }
           table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th { background-color: #C9A227; color: #4A3728; padding: 10px; text-align: left; font-weight: bold; }
-          td { padding: 8px; border-bottom: 1px solid #E5DDD0; }
-          .total-row { background-color: #C9A227; font-weight: bold; }
+          th { background-color: #D4A84B; color: #2C2416; padding: 10px; text-align: left; font-weight: bold; }
+          td { padding: 8px; border-bottom: 1px solid #E8DFD0; }
+          .total-row { background-color: #D4A84B; font-weight: bold; }
           @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
         </style>
       </head>
@@ -356,361 +357,378 @@ export default function CoffeeOrder() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <header 
-        className="sticky top-0 z-50 border-b px-4 py-3"
-        style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-      >
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <Link href="/" data-testid="link-back-dashboard">
-              <Button variant="ghost" size="icon" style={{ color: colors.brown }}>
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-            </Link>
-            <img src={logoUrl} alt="Erwin Mills" className="h-10 w-auto" />
-            <div>
-              <h1 className="font-bold text-lg" style={{ color: colors.brown }}>Bulk Coffee Order</h1>
-              <p className="text-sm" style={{ color: colors.brownLight }}>
-                Five Star Coffee Roasters
-              </p>
-            </div>
+      {/* Back Button */}
+      <div className="absolute top-4 left-4 z-10">
+        <Link href="/" data-testid="link-back-dashboard">
+          <Button variant="ghost" size="icon" style={{ color: colors.brown }}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        </Link>
+      </div>
+
+      {/* Header matching original */}
+      <header className="text-center py-8 border-b-4" style={{ backgroundColor: colors.cream, borderColor: colors.gold }}>
+        <div 
+          className="inline-block p-3 rounded-lg mb-3"
+          style={{ border: `3px solid ${colors.gold}`, backgroundColor: colors.white }}
+        >
+          <div className="text-center">
+            <div className="text-2xl font-bold" style={{ color: colors.brown }}>FIVE STAR</div>
+            <div className="text-xs tracking-widest" style={{ color: colors.brownLight }}>COFFEE ROASTERS</div>
           </div>
         </div>
+        <p 
+          className="text-sm tracking-widest uppercase font-semibold mb-2"
+          style={{ color: colors.brown }}
+        >
+          Erwin Mills Coffee Company
+        </p>
+        <h1 className="text-2xl font-semibold" style={{ color: colors.teal }}>
+          Bulk Coffee Order App
+        </h1>
       </header>
 
-      <main className="max-w-4xl mx-auto p-4 space-y-4">
-        <div className="flex gap-2 flex-wrap">
-          <Button
-            variant={showSettings ? 'default' : 'outline'}
+      <main className="max-w-3xl mx-auto px-5 py-8">
+        {/* Action Buttons */}
+        <div className="flex gap-3 mb-6 flex-wrap">
+          <button
             onClick={() => { setShowSettings(!showSettings); setShowHistory(false); }}
-            style={showSettings ? { backgroundColor: colors.gold, color: colors.brown } : { borderColor: colors.creamDark }}
+            className="px-5 py-2 rounded-md text-sm font-medium transition-all"
+            style={{ 
+              backgroundColor: showSettings ? colors.gold : colors.white,
+              color: showSettings ? colors.brown : colors.brown,
+              border: `1px solid ${colors.creamDark}`
+            }}
             data-testid="button-settings"
           >
-            <Settings className="w-4 h-4 mr-2" />
             Settings
-          </Button>
-          <Button
-            variant={showHistory ? 'default' : 'outline'}
+          </button>
+          <button
             onClick={() => { setShowHistory(!showHistory); setShowSettings(false); }}
-            style={showHistory ? { backgroundColor: colors.gold, color: colors.brown } : { borderColor: colors.creamDark }}
+            className="px-5 py-2 rounded-md text-sm font-medium transition-all"
+            style={{ 
+              backgroundColor: showHistory ? colors.gold : colors.white,
+              color: showHistory ? colors.brown : colors.brown,
+              border: `1px solid ${colors.creamDark}`
+            }}
             data-testid="button-history"
           >
-            <History className="w-4 h-4 mr-2" />
             History
-          </Button>
-          <Button
-            variant="outline"
+          </button>
+          <button
             onClick={clearOrder}
-            className="ml-auto"
-            style={{ borderColor: '#C74B4B', color: '#C74B4B' }}
+            className="ml-auto px-5 py-2 rounded-md text-sm font-medium"
+            style={{ 
+              backgroundColor: colors.white,
+              color: colors.red,
+              border: `1px solid ${colors.red}`
+            }}
             data-testid="button-clear"
           >
-            <Trash2 className="w-4 h-4 mr-2" />
             Clear All
-          </Button>
+          </button>
         </div>
 
+        {/* Settings Panel */}
         {showSettings && (
-          <Card style={{ backgroundColor: colors.white }}>
-            <CardHeader className="pb-2">
-              <CardTitle style={{ color: colors.brown }}>Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="text-sm font-medium" style={{ color: colors.brownLight }}>Vendor Email (Five Star)</label>
-                  <Input
-                    type="email"
-                    placeholder="sales@fivestarroasters.com"
-                    value={vendorEmail}
-                    onChange={(e) => {
-                      setVendorEmail(e.target.value);
-                      localStorage.setItem('coffee_vendor_email', e.target.value);
-                    }}
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
-                    data-testid="input-vendor-email"
+          <div className="rounded-lg p-6 mb-5" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}`, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+            <h2 className="text-lg font-semibold pb-3 mb-5 border-b-2" style={{ color: colors.brown, borderColor: colors.gold }}>
+              Settings
+            </h2>
+            <div className="grid gap-4 md:grid-cols-2 mb-6">
+              <div>
+                <label className="block text-sm mb-2 font-medium" style={{ color: colors.brownLight }}>Vendor Email (Five Star)</label>
+                <input
+                  type="email"
+                  placeholder="sales@fivestarroasters.com"
+                  value={vendorEmail}
+                  onChange={(e) => {
+                    setVendorEmail(e.target.value);
+                    localStorage.setItem('coffee_vendor_email', e.target.value);
+                  }}
+                  className="w-full px-4 py-2 rounded-md text-sm"
+                  style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                  data-testid="input-vendor-email"
+                />
+              </div>
+              <div>
+                <label className="block text-sm mb-2 font-medium" style={{ color: colors.brownLight }}>CC Email (optional - send yourself a copy)</label>
+                <input
+                  type="email"
+                  placeholder="seth@erwinmills.com"
+                  value={ccEmail}
+                  onChange={(e) => {
+                    setCcEmail(e.target.value);
+                    localStorage.setItem('coffee_cc_email', e.target.value);
+                  }}
+                  className="w-full px-4 py-2 rounded-md text-sm"
+                  style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                  data-testid="input-cc-email"
+                />
+              </div>
+            </div>
+
+            <h3 className="text-sm font-semibold uppercase tracking-wide mt-6 mb-2" style={{ color: colors.gold }}>Product Pricing</h3>
+            <p className="text-sm mb-4" style={{ color: colors.brownLight }}>Set prices for each product to track order costs. Prices are saved until you change them.</p>
+            
+            <h4 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>5lb Bags</h4>
+            <div className="space-y-2 mb-6">
+              {fiveLbProducts.map(product => (
+                <div key={product.id} className="flex justify-between items-center px-4 py-3 rounded-md" style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}` }}>
+                  <span className="font-medium" style={{ color: colors.brown }}>{product.name} <span className="font-normal" style={{ color: colors.brownLight }}>{product.size}</span></span>
+                  <input
+                    type="text"
+                    placeholder="$0.00"
+                    value={productPrices[product.id] ? productPrices[product.id].toFixed(2) : ''}
+                    onChange={(e) => savePrice(product.id, e.target.value)}
+                    className="w-20 px-3 py-1 text-right text-sm rounded-md"
+                    style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                    data-testid={`input-price-${product.id}`}
                   />
                 </div>
-                <div>
-                  <label className="text-sm font-medium" style={{ color: colors.brownLight }}>CC Email (optional)</label>
-                  <Input
-                    type="email"
-                    placeholder="seth@erwinmills.com"
-                    value={ccEmail}
-                    onChange={(e) => {
-                      setCcEmail(e.target.value);
-                      localStorage.setItem('coffee_cc_email', e.target.value);
-                    }}
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
-                    data-testid="input-cc-email"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4">
-                <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>Product Pricing</h3>
-                <p className="text-sm mb-4" style={{ color: colors.brownLight }}>Set prices for each product to track order costs.</p>
-                
-                <h4 className="text-sm font-medium mb-2" style={{ color: colors.brown }}>5lb Bags</h4>
-                <div className="space-y-2 mb-4">
-                  {fiveLbProducts.map(product => (
-                    <div key={product.id} className="flex justify-between items-center p-3 rounded-md" style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}` }}>
-                      <span style={{ color: colors.brown }}>{product.name} <span style={{ color: colors.brownLight }}>{product.size}</span></span>
-                      <Input
-                        type="text"
-                        placeholder="$0.00"
-                        value={productPrices[product.id] ? productPrices[product.id].toFixed(2) : ''}
-                        onChange={(e) => savePrice(product.id, e.target.value)}
-                        className="w-20 text-right"
-                        style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                        data-testid={`input-price-${product.id}`}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                <h4 className="text-sm font-medium mb-2" style={{ color: colors.brown }}>12oz Bags</h4>
-                <div className="space-y-2">
-                  {twelveOzProducts.map(product => (
-                    <div key={product.id} className="flex justify-between items-center p-3 rounded-md" style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}` }}>
-                      <span style={{ color: colors.brown }}>{product.name} <span style={{ color: colors.brownLight }}>{product.size}</span></span>
-                      <Input
-                        type="text"
-                        placeholder="$0.00"
-                        value={productPrices[product.id] ? productPrices[product.id].toFixed(2) : ''}
-                        onChange={(e) => savePrice(product.id, e.target.value)}
-                        className="w-20 text-right"
-                        style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                        data-testid={`input-price-${product.id}`}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {showHistory && (
-          <Card style={{ backgroundColor: colors.white }}>
-            <CardHeader className="pb-2">
-              <CardTitle style={{ color: colors.brown }}>Order History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2 mb-4">
-                <Button
-                  variant="outline"
-                  onClick={exportCSV}
-                  style={{ borderColor: colors.creamDark }}
-                  data-testid="button-export-csv"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export CSV
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={exportPDF}
-                  style={{ borderColor: colors.creamDark }}
-                  data-testid="button-export-pdf"
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Export PDF
-                </Button>
-              </div>
-
-              {orderHistory.length === 0 ? (
-                <p className="text-center py-4" style={{ color: colors.brownLight }}>No previous orders yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {orderHistory.slice(0, 10).map(order => (
-                    <div 
-                      key={order.id} 
-                      className="flex justify-between items-center p-3 rounded-md"
-                      style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}` }}
-                    >
-                      <div>
-                        <div className="font-medium" style={{ color: colors.brown }}>
-                          {new Date(order.order_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                        </div>
-                        <div className="text-sm" style={{ color: colors.brownLight }}>
-                          {order.units} units{order.total_cost ? ` - ${formatCurrency(order.total_cost)}` : ''}
-                        </div>
-                      </div>
-                      <Button
-                        onClick={() => loadOrder(order.items)}
-                        style={{ backgroundColor: colors.gold, color: colors.brown }}
-                        data-testid={`button-load-order-${order.id}`}
-                      >
-                        Load
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        <Card style={{ backgroundColor: colors.white }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
-              <Coffee className="w-5 h-5" />
-              Weekly Order
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>5lb Bags</h3>
-              <div className="space-y-2">
-                {fiveLbProducts.map(product => {
-                  const qty = orderItems[product.id] || 0;
-                  return (
-                    <div 
-                      key={product.id} 
-                      className="flex justify-between items-center p-3 rounded-md transition-all"
-                      style={{ 
-                        backgroundColor: qty > 0 ? colors.inputBg : colors.white,
-                        border: qty > 0 ? `2px solid ${colors.gold}` : `1px solid ${colors.creamDark}`
-                      }}
-                    >
-                      <span style={{ color: colors.brown }}>{product.name} <span style={{ color: colors.brownLight }}>{product.size}</span></span>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => updateQty(product.id, -1)}
-                          style={{ backgroundColor: colors.creamDark }}
-                          data-testid={`button-minus-${product.id}`}
-                        >
-                          <Minus className="w-4 h-4" />
-                        </Button>
-                        <Input
-                          type="number"
-                          value={qty || ''}
-                          placeholder="0"
-                          onChange={(e) => setQty(product.id, e.target.value)}
-                          className="w-14 text-center"
-                          style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                          data-testid={`input-qty-${product.id}`}
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => updateQty(product.id, 1)}
-                          style={{ backgroundColor: colors.gold, color: colors.brown }}
-                          data-testid={`button-plus-${product.id}`}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              ))}
             </div>
 
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>12oz Bags</h3>
-              <div className="space-y-2">
-                {twelveOzProducts.map(product => {
-                  const qty = orderItems[product.id] || 0;
-                  return (
-                    <div 
-                      key={product.id} 
-                      className="flex justify-between items-center p-3 rounded-md transition-all"
-                      style={{ 
-                        backgroundColor: qty > 0 ? colors.inputBg : colors.white,
-                        border: qty > 0 ? `2px solid ${colors.gold}` : `1px solid ${colors.creamDark}`
-                      }}
-                    >
-                      <span style={{ color: colors.brown }}>{product.name} <span style={{ color: colors.brownLight }}>{product.size}</span></span>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => updateQty(product.id, -1)}
-                          style={{ backgroundColor: colors.creamDark }}
-                          data-testid={`button-minus-${product.id}`}
-                        >
-                          <Minus className="w-4 h-4" />
-                        </Button>
-                        <Input
-                          type="number"
-                          value={qty || ''}
-                          placeholder="0"
-                          onChange={(e) => setQty(product.id, e.target.value)}
-                          className="w-14 text-center"
-                          style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                          data-testid={`input-qty-${product.id}`}
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => updateQty(product.id, 1)}
-                          style={{ backgroundColor: colors.gold, color: colors.brown }}
-                          data-testid={`button-plus-${product.id}`}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>Notes</h3>
-              <Textarea
-                placeholder="Add any special instructions or notes for this order..."
-                value={orderNotes}
-                onChange={(e) => setOrderNotes(e.target.value)}
-                className="min-h-[80px]"
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                data-testid="input-order-notes"
-              />
-            </div>
-
-            <div className="p-4 rounded-md" style={{ backgroundColor: colors.inputBg }}>
-              <div className="flex justify-between mb-2">
-                <span style={{ color: colors.brownLight }}>Items Selected:</span>
-                <span className="font-medium" style={{ color: colors.brown }}>{totalItems}</span>
-              </div>
-              <div className="flex justify-between mb-2">
-                <span style={{ color: colors.brownLight }}>Total Units:</span>
-                <span className="font-medium" style={{ color: colors.brown }}>{totalUnits}</span>
-              </div>
-              <div className="flex justify-between">
-                <span style={{ color: colors.brownLight }}>Total Cost:</span>
-                <span className="font-bold text-lg" style={{ color: colors.brown }}>{formatCurrency(totalCost)}</span>
-              </div>
-            </div>
-
+            <h4 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>12oz Bags</h4>
             <div className="space-y-2">
-              <Button
-                onClick={sendOrder}
-                disabled={totalItems === 0 || saving}
-                className="w-full"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
-                data-testid="button-send-order"
-              >
-                <Send className="w-4 h-4 mr-2" />
-                Send Order to Five Star
-              </Button>
-              <Button
-                onClick={() => saveToHistory(false)}
-                disabled={totalItems === 0 || saving}
-                variant="outline"
-                className="w-full"
-                style={{ borderColor: colors.brownLight, color: colors.brownLight }}
-                data-testid="button-save-history"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save to History Only
-              </Button>
+              {twelveOzProducts.map(product => (
+                <div key={product.id} className="flex justify-between items-center px-4 py-3 rounded-md" style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}` }}>
+                  <span className="font-medium" style={{ color: colors.brown }}>{product.name} <span className="font-normal" style={{ color: colors.brownLight }}>{product.size}</span></span>
+                  <input
+                    type="text"
+                    placeholder="$0.00"
+                    value={productPrices[product.id] ? productPrices[product.id].toFixed(2) : ''}
+                    onChange={(e) => savePrice(product.id, e.target.value)}
+                    className="w-20 px-3 py-1 text-right text-sm rounded-md"
+                    style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                    data-testid={`input-price-${product.id}`}
+                  />
+                </div>
+              ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        )}
+
+        {/* History Panel */}
+        {showHistory && (
+          <div className="rounded-lg p-6 mb-5" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}`, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+            <h2 className="text-lg font-semibold pb-3 mb-5 border-b-2" style={{ color: colors.brown, borderColor: colors.gold }}>
+              Order History
+            </h2>
+            <div className="flex gap-3 mb-4">
+              <button
+                onClick={exportCSV}
+                className="px-5 py-2 rounded-md text-sm font-medium"
+                style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                data-testid="button-export-csv"
+              >
+                <Download className="w-4 h-4 inline mr-2" />
+                Export CSV
+              </button>
+              <button
+                onClick={exportPDF}
+                className="px-5 py-2 rounded-md text-sm font-medium"
+                style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                data-testid="button-export-pdf"
+              >
+                <FileText className="w-4 h-4 inline mr-2" />
+                Export PDF
+              </button>
+            </div>
+
+            {orderHistory.length === 0 ? (
+              <p className="text-center py-5" style={{ color: colors.brownLight }}>No previous orders yet</p>
+            ) : (
+              <div className="space-y-3">
+                {orderHistory.slice(0, 10).map(order => (
+                  <div 
+                    key={order.id} 
+                    className="flex justify-between items-center px-4 py-3 rounded-md"
+                    style={{ backgroundColor: '#F5E6C8', border: `1px solid ${colors.creamDark}` }}
+                  >
+                    <div>
+                      <div className="font-medium" style={{ color: colors.brown }}>
+                        {new Date(order.order_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </div>
+                      <div className="text-sm" style={{ color: colors.brownLight }}>
+                        {order.units} units{order.total_cost ? ` - ${formatCurrency(order.total_cost)}` : ''}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => loadOrder(order.items)}
+                      className="px-4 py-2 rounded-md text-sm font-semibold"
+                      style={{ backgroundColor: colors.gold, color: colors.brown }}
+                      data-testid={`button-load-order-${order.id}`}
+                    >
+                      Load
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Weekly Order Card */}
+        <div className="rounded-lg p-6" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}`, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <h2 className="text-lg font-semibold pb-3 mb-5 border-b-2" style={{ color: colors.brown, borderColor: colors.gold }}>
+            Weekly Order
+          </h2>
+
+          {/* 5lb Bags */}
+          <h3 className="text-sm font-semibold uppercase tracking-wide mb-4" style={{ color: colors.gold }}>5lb Bags</h3>
+          <div className="space-y-3 mb-8">
+            {fiveLbProducts.map(product => {
+              const qty = orderItems[product.id] || 0;
+              return (
+                <div 
+                  key={product.id} 
+                  className="flex justify-between items-center px-4 py-3 rounded-lg transition-all"
+                  style={{ 
+                    backgroundColor: qty > 0 ? '#F5E6C8' : colors.inputBg,
+                    border: qty > 0 ? `2px solid ${colors.gold}` : `1px solid ${colors.creamDark}`
+                  }}
+                >
+                  <span className="font-medium" style={{ color: colors.brown }}>
+                    {product.name} <span className="font-normal" style={{ color: colors.brownLight }}>{product.size}</span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => updateQty(product.id, -1)}
+                      className="w-8 h-8 rounded-md flex items-center justify-center text-lg font-semibold"
+                      style={{ backgroundColor: colors.creamDark, color: colors.brownLight }}
+                      data-testid={`button-minus-${product.id}`}
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      value={qty || ''}
+                      placeholder="0"
+                      onChange={(e) => setQty(product.id, e.target.value)}
+                      className="w-12 h-8 text-center text-sm font-medium rounded-md"
+                      style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                      data-testid={`input-qty-${product.id}`}
+                    />
+                    <button
+                      onClick={() => updateQty(product.id, 1)}
+                      className="w-8 h-8 rounded-md flex items-center justify-center text-lg font-semibold"
+                      style={{ backgroundColor: colors.gold, color: colors.brown }}
+                      data-testid={`button-plus-${product.id}`}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 12oz Bags */}
+          <h3 className="text-sm font-semibold uppercase tracking-wide mb-4" style={{ color: colors.gold }}>12oz Bags</h3>
+          <div className="space-y-3 mb-8">
+            {twelveOzProducts.map(product => {
+              const qty = orderItems[product.id] || 0;
+              return (
+                <div 
+                  key={product.id} 
+                  className="flex justify-between items-center px-4 py-3 rounded-lg transition-all"
+                  style={{ 
+                    backgroundColor: qty > 0 ? '#F5E6C8' : colors.inputBg,
+                    border: qty > 0 ? `2px solid ${colors.gold}` : `1px solid ${colors.creamDark}`
+                  }}
+                >
+                  <span className="font-medium" style={{ color: colors.brown }}>
+                    {product.name} <span className="font-normal" style={{ color: colors.brownLight }}>{product.size}</span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => updateQty(product.id, -1)}
+                      className="w-8 h-8 rounded-md flex items-center justify-center text-lg font-semibold"
+                      style={{ backgroundColor: colors.creamDark, color: colors.brownLight }}
+                      data-testid={`button-minus-${product.id}`}
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      value={qty || ''}
+                      placeholder="0"
+                      onChange={(e) => setQty(product.id, e.target.value)}
+                      className="w-12 h-8 text-center text-sm font-medium rounded-md"
+                      style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                      data-testid={`input-qty-${product.id}`}
+                    />
+                    <button
+                      onClick={() => updateQty(product.id, 1)}
+                      className="w-8 h-8 rounded-md flex items-center justify-center text-lg font-semibold"
+                      style={{ backgroundColor: colors.gold, color: colors.brown }}
+                      data-testid={`button-plus-${product.id}`}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Notes */}
+          <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>Notes</h3>
+          <textarea
+            placeholder="Add any special instructions or notes for this order..."
+            value={orderNotes}
+            onChange={(e) => setOrderNotes(e.target.value)}
+            className="w-full min-h-[80px] px-4 py-3 rounded-md text-sm resize-y mb-5"
+            style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+            data-testid="input-order-notes"
+          />
+
+          {/* Summary */}
+          <div className="rounded-lg p-5 mb-5" style={{ backgroundColor: '#F5E6C8' }}>
+            <div className="flex justify-between mb-2">
+              <span style={{ color: colors.brownLight }}>Items Selected:</span>
+              <span className="font-semibold" style={{ color: colors.brown }}>{totalItems}</span>
+            </div>
+            <div className="flex justify-between mb-2">
+              <span style={{ color: colors.brownLight }}>Total Units:</span>
+              <span className="font-semibold" style={{ color: colors.brown }}>{totalUnits}</span>
+            </div>
+            <div className="flex justify-between">
+              <span style={{ color: colors.brownLight }}>Total Cost:</span>
+              <span className="font-semibold text-lg" style={{ color: colors.brown }}>{formatCurrency(totalCost)}</span>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <button
+            onClick={sendOrder}
+            disabled={totalItems === 0 || saving}
+            className="w-full py-3 rounded-lg text-base font-semibold mb-3 transition-all"
+            style={{ 
+              background: totalItems === 0 ? colors.creamDark : `linear-gradient(135deg, ${colors.gold} 0%, ${colors.goldDark} 100%)`,
+              color: totalItems === 0 ? '#999' : colors.brown,
+              boxShadow: totalItems === 0 ? 'none' : `0 4px 12px rgba(212, 168, 75, 0.4)`,
+              cursor: totalItems === 0 ? 'not-allowed' : 'pointer'
+            }}
+            data-testid="button-send-order"
+          >
+            Send Order to Five Star
+          </button>
+          <button
+            onClick={() => saveToHistory(false)}
+            disabled={totalItems === 0 || saving}
+            className="w-full py-3 rounded-lg text-base font-semibold transition-all"
+            style={{ 
+              backgroundColor: totalItems === 0 ? colors.creamDark : '#666',
+              color: totalItems === 0 ? '#999' : colors.white,
+              cursor: totalItems === 0 ? 'not-allowed' : 'pointer'
+            }}
+            data-testid="button-save-history"
+          >
+            Save to History Only
+          </button>
+        </div>
       </main>
     </div>
   );
