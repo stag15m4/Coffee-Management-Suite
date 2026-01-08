@@ -1,0 +1,708 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase-queries';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { ArrowLeft, Download, Plus, UserPlus, Clock, DollarSign, CheckCircle, AlertCircle } from 'lucide-react';
+import { Link } from 'wouter';
+import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
+
+const colors = {
+  gold: '#C9A227',
+  goldLight: '#D4B23A',
+  brown: '#4A3728',
+  brownLight: '#6B5344',
+  cream: '#F5F0E1',
+  creamDark: '#E8E0CC',
+  white: '#FFFDF7',
+  inputBg: '#FDF8E8',
+  green: '#22c55e',
+  red: '#ef4444',
+};
+
+const CC_FEE_RATE = 0.035;
+
+interface TipEmployee {
+  id: string;
+  tenant_id: string;
+  name: string;
+  is_active: boolean;
+}
+
+interface WeeklyTipData {
+  id?: string;
+  tenant_id: string;
+  week_key: string;
+  cash_tips: number;
+  cc_tips: number;
+  cash_entries: number[];
+  cc_entries: number[];
+}
+
+interface EmployeeHours {
+  id?: string;
+  tenant_id: string;
+  employee_id: string;
+  week_key: string;
+  hours: number;
+}
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(value || 0);
+};
+
+const formatHoursMinutes = (decimalHours: number) => {
+  const h = Math.floor(decimalHours);
+  const m = Math.round((decimalHours - h) * 60);
+  return `${h}h ${m.toString().padStart(2, '0')}m`;
+};
+
+const getMonday = (date: Date = new Date()) => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  return d.toISOString().split('T')[0];
+};
+
+const getWeekRange = (weekKey: string) => {
+  const monday = new Date(weekKey + 'T00:00:00');
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return {
+    start: monday.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
+    end: sunday.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
+  };
+};
+
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+export default function TipPayout() {
+  const { profile, tenant } = useAuth();
+  const { toast } = useToast();
+  
+  const [employees, setEmployees] = useState<TipEmployee[]>([]);
+  const [weekKey, setWeekKey] = useState(getMonday());
+  const [weeklyData, setWeeklyData] = useState<WeeklyTipData | null>(null);
+  const [employeeHours, setEmployeeHours] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  const [newEmployeeName, setNewEmployeeName] = useState('');
+  const [cashEntries, setCashEntries] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [ccEntries, setCcEntries] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [hoursInput, setHoursInput] = useState('');
+  const [minutesInput, setMinutesInput] = useState('');
+  const [teamHoursCheck, setTeamHoursCheck] = useState('');
+  const [teamMinutesCheck, setTeamMinutesCheck] = useState('');
+  const [hoursVerifyResult, setHoursVerifyResult] = useState<{ match: boolean; message: string } | null>(null);
+
+  const loadEmployees = useCallback(async () => {
+    if (!tenant?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('tip_employees')
+        .select('*')
+        .eq('tenant_id', tenant.id)
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      setEmployees(data || []);
+    } catch (error: any) {
+      console.error('Error loading employees:', error);
+    }
+  }, [tenant?.id]);
+
+  const loadWeekData = useCallback(async () => {
+    if (!tenant?.id) return;
+    
+    setLoading(true);
+    try {
+      const { data: weekData, error: weekError } = await supabase
+        .from('tip_weekly_data')
+        .select('*')
+        .eq('tenant_id', tenant.id)
+        .eq('week_key', weekKey)
+        .maybeSingle();
+      
+      if (weekError) throw weekError;
+      
+      if (weekData) {
+        setWeeklyData(weekData);
+        setCashEntries(weekData.cash_entries || [0, 0, 0, 0, 0, 0, 0]);
+        setCcEntries(weekData.cc_entries || [0, 0, 0, 0, 0, 0, 0]);
+      } else {
+        setWeeklyData(null);
+        setCashEntries([0, 0, 0, 0, 0, 0, 0]);
+        setCcEntries([0, 0, 0, 0, 0, 0, 0]);
+      }
+
+      const { data: hoursData, error: hoursError } = await supabase
+        .from('tip_employee_hours')
+        .select('*, tip_employees(name)')
+        .eq('tenant_id', tenant.id)
+        .eq('week_key', weekKey);
+      
+      if (hoursError) throw hoursError;
+      
+      const hoursMap: Record<string, number> = {};
+      (hoursData || []).forEach((h: any) => {
+        if (h.tip_employees?.name) {
+          hoursMap[h.tip_employees.name] = parseFloat(h.hours) || 0;
+        }
+      });
+      setEmployeeHours(hoursMap);
+      
+    } catch (error: any) {
+      console.error('Error loading week data:', error);
+      toast({
+        title: 'Error loading data',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [tenant?.id, weekKey, toast]);
+
+  useEffect(() => {
+    loadEmployees();
+  }, [loadEmployees]);
+
+  useEffect(() => {
+    loadWeekData();
+  }, [loadWeekData]);
+
+  const addEmployee = async () => {
+    if (!tenant?.id || !newEmployeeName.trim()) {
+      toast({ title: 'Please enter an employee name', variant: 'destructive' });
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('tip_employees')
+        .insert({
+          tenant_id: tenant.id,
+          name: newEmployeeName.trim()
+        });
+      
+      if (error) {
+        if (error.code === '23505') {
+          toast({ title: 'Employee already exists', variant: 'destructive' });
+        } else {
+          throw error;
+        }
+      } else {
+        toast({ title: `${newEmployeeName.trim()} added!` });
+        setNewEmployeeName('');
+        loadEmployees();
+      }
+    } catch (error: any) {
+      toast({ title: 'Error adding employee', description: error.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveTips = async () => {
+    if (!tenant?.id) return;
+    
+    const cashTotal = cashEntries.reduce((a, b) => a + (parseFloat(String(b)) || 0), 0);
+    const ccTotal = ccEntries.reduce((a, b) => a + (parseFloat(String(b)) || 0), 0);
+    
+    if (cashTotal === 0 && ccTotal === 0) {
+      toast({ title: 'Please enter tip amounts', variant: 'destructive' });
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('tip_weekly_data')
+        .upsert({
+          tenant_id: tenant.id,
+          week_key: weekKey,
+          cash_tips: cashTotal,
+          cc_tips: ccTotal,
+          cash_entries: cashEntries,
+          cc_entries: ccEntries,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'tenant_id,week_key' });
+      
+      if (error) throw error;
+      toast({ title: 'Tips saved!' });
+      loadWeekData();
+    } catch (error: any) {
+      toast({ title: 'Error saving tips', description: error.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addHours = async () => {
+    if (!tenant?.id || !selectedEmployee) {
+      toast({ title: 'Please select an employee', variant: 'destructive' });
+      return;
+    }
+    
+    const h = parseInt(hoursInput) || 0;
+    const m = Math.min(parseInt(minutesInput) || 0, 59);
+    const totalHours = h + m / 60;
+    
+    if (totalHours === 0) {
+      toast({ title: 'Please enter hours', variant: 'destructive' });
+      return;
+    }
+    
+    const employee = employees.find(e => e.name === selectedEmployee);
+    if (!employee) return;
+    
+    setSaving(true);
+    try {
+      const { data: existing } = await supabase
+        .from('tip_employee_hours')
+        .select('id')
+        .eq('employee_id', employee.id)
+        .eq('week_key', weekKey)
+        .maybeSingle();
+      
+      if (existing) {
+        const { error } = await supabase
+          .from('tip_employee_hours')
+          .update({ hours: totalHours, updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('tip_employee_hours')
+          .insert({
+            tenant_id: tenant.id,
+            employee_id: employee.id,
+            week_key: weekKey,
+            hours: totalHours
+          });
+        if (error) throw error;
+      }
+      
+      toast({ title: `${selectedEmployee}: ${formatHoursMinutes(totalHours)} saved` });
+      setHoursInput('');
+      setMinutesInput('');
+      loadWeekData();
+    } catch (error: any) {
+      toast({ title: 'Error saving hours', description: error.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const verifyTeamHours = () => {
+    const h = parseInt(teamHoursCheck) || 0;
+    const m = Math.min(parseInt(teamMinutesCheck) || 0, 59);
+    const declared = h + m / 60;
+    const actual = Object.values(employeeHours).reduce((a, b) => a + b, 0);
+    const diff = Math.abs(actual - declared);
+    
+    if (diff < 0.1) {
+      setHoursVerifyResult({ match: true, message: `Perfect! ${formatHoursMinutes(actual)}` });
+    } else {
+      setHoursVerifyResult({
+        match: false,
+        message: `Warning: Entered ${formatHoursMinutes(actual)} vs declared ${formatHoursMinutes(declared)} (diff ${diff.toFixed(2)}h)`
+      });
+    }
+  };
+
+  const cashTotal = cashEntries.reduce((a, b) => a + (parseFloat(String(b)) || 0), 0);
+  const ccTotal = ccEntries.reduce((a, b) => a + (parseFloat(String(b)) || 0), 0);
+  const ccAfterFee = ccTotal * (1 - CC_FEE_RATE);
+  const totalPool = cashTotal + ccAfterFee;
+  const totalTeamHours = Object.values(employeeHours).reduce((a, b) => a + b, 0);
+  const hourlyRate = totalTeamHours > 0 ? totalPool / totalTeamHours : 0;
+
+  const weekRange = getWeekRange(weekKey);
+
+  const exportCSV = () => {
+    let csv = `Week: ${weekRange.start} - ${weekRange.end}\n\n`;
+    csv += "Employee,Hours,Hourly Rate,Payout\n";
+    
+    Object.entries(employeeHours)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([name, hours]) => {
+        csv += `"${name}","${formatHoursMinutes(hours)}",${hourlyRate.toFixed(2)},${(hours * hourlyRate).toFixed(2)}\n`;
+      });
+    
+    csv += `\nTotal Tip Pool,,,${totalPool.toFixed(2)}\n`;
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Tips_${weekKey}.csv`;
+    link.click();
+  };
+
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
+      <header 
+        className="sticky top-0 z-50 border-b px-4 py-3"
+        style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+      >
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Link href="/" data-testid="link-back-dashboard">
+              <Button variant="ghost" size="icon" style={{ color: colors.brown }}>
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <img src={logoUrl} alt="Erwin Mills" className="h-10 w-auto" />
+            <div>
+              <h1 className="font-bold text-lg" style={{ color: colors.brown }}>Tip Payout Calculator</h1>
+              <p className="text-sm" style={{ color: colors.brownLight }}>
+                Calculate and distribute tips
+              </p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto p-4 space-y-4">
+        <Card style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }}>
+          <CardContent className="p-4">
+            <div className="text-center space-y-2">
+              <p className="font-semibold" style={{ color: colors.brown }}>
+                Week: Monday {weekRange.start} – Sunday {weekRange.end}
+              </p>
+              <Input
+                type="date"
+                value={weekKey}
+                onChange={(e) => setWeekKey(getMonday(new Date(e.target.value)))}
+                className="max-w-xs mx-auto"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                data-testid="input-week-picker"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card style={{ backgroundColor: colors.white }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+              <UserPlus className="w-5 h-5" />
+              Add New Employee
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Input
+              placeholder="Employee name"
+              value={newEmployeeName}
+              onChange={(e) => setNewEmployeeName(e.target.value)}
+              style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              data-testid="input-new-employee"
+            />
+            <Button
+              onClick={addEmployee}
+              disabled={saving || !newEmployeeName.trim()}
+              className="w-full"
+              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              data-testid="button-add-employee"
+            >
+              Add Employee
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card style={{ backgroundColor: colors.white }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+              <DollarSign className="w-5 h-5" />
+              Daily Tips Entry
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium" style={{ color: colors.brownLight }}>Cash Tips</Label>
+              <div className="grid grid-cols-7 gap-1 mt-1">
+                {DAYS.map((day, i) => (
+                  <div key={`cash-${i}`} className="text-center">
+                    <span className="text-xs block mb-1" style={{ color: colors.brownLight }}>{day}</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0"
+                      value={cashEntries[i] || ''}
+                      onChange={(e) => {
+                        const newEntries = [...cashEntries];
+                        newEntries[i] = parseFloat(e.target.value) || 0;
+                        setCashEntries(newEntries);
+                      }}
+                      className="text-center text-sm p-1"
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                      data-testid={`input-cash-${day.toLowerCase()}`}
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-right text-sm mt-1" style={{ color: colors.brown }}>
+                Total: {formatCurrency(cashTotal)}
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium" style={{ color: colors.brownLight }}>Credit Card Tips</Label>
+              <div className="grid grid-cols-7 gap-1 mt-1">
+                {DAYS.map((day, i) => (
+                  <div key={`cc-${i}`} className="text-center">
+                    <span className="text-xs block mb-1" style={{ color: colors.brownLight }}>{day}</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0"
+                      value={ccEntries[i] || ''}
+                      onChange={(e) => {
+                        const newEntries = [...ccEntries];
+                        newEntries[i] = parseFloat(e.target.value) || 0;
+                        setCcEntries(newEntries);
+                      }}
+                      className="text-center text-sm p-1"
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                      data-testid={`input-cc-${day.toLowerCase()}`}
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-right text-sm mt-1" style={{ color: colors.brown }}>
+                Total: {formatCurrency(ccTotal)} (after 3.5% fee: {formatCurrency(ccAfterFee)})
+              </p>
+            </div>
+
+            <Button
+              onClick={saveTips}
+              disabled={saving}
+              className="w-full"
+              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              data-testid="button-save-tips"
+            >
+              Save Tips
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card style={{ backgroundColor: colors.white }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+              <Clock className="w-5 h-5" />
+              Enter Hours
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+              <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} data-testid="select-employee">
+                <SelectValue placeholder="Select Employee" />
+              </SelectTrigger>
+              <SelectContent>
+                {employees.map((emp) => (
+                  <SelectItem key={emp.id} value={emp.name} data-testid={`option-employee-${emp.id}`}>
+                    {emp.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm" style={{ color: colors.brownLight }}>Hours</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={hoursInput}
+                  onChange={(e) => setHoursInput(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  data-testid="input-hours"
+                />
+              </div>
+              <div>
+                <Label className="text-sm" style={{ color: colors.brownLight }}>Minutes (0-59)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="59"
+                  placeholder="0"
+                  value={minutesInput}
+                  onChange={(e) => setMinutesInput(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  data-testid="input-minutes"
+                />
+              </div>
+            </div>
+            
+            <Button
+              onClick={addHours}
+              disabled={saving || !selectedEmployee}
+              className="w-full"
+              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              data-testid="button-add-hours"
+            >
+              Add Hours
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card style={{ backgroundColor: colors.white }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+              <CheckCircle className="w-5 h-5" />
+              Verify Total Team Hours
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm" style={{ color: colors.brownLight }}>Total Hours</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={teamHoursCheck}
+                  onChange={(e) => setTeamHoursCheck(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  data-testid="input-team-hours"
+                />
+              </div>
+              <div>
+                <Label className="text-sm" style={{ color: colors.brownLight }}>Total Minutes</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="59"
+                  placeholder="0"
+                  value={teamMinutesCheck}
+                  onChange={(e) => setTeamMinutesCheck(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  data-testid="input-team-minutes"
+                />
+              </div>
+            </div>
+            
+            <Button
+              onClick={verifyTeamHours}
+              className="w-full"
+              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              data-testid="button-verify-hours"
+            >
+              Verify
+            </Button>
+            
+            {hoursVerifyResult && (
+              <div
+                className="text-center font-semibold p-2 rounded"
+                style={{
+                  color: hoursVerifyResult.match ? colors.green : colors.red,
+                  backgroundColor: hoursVerifyResult.match ? '#dcfce7' : '#fef2f2'
+                }}
+                data-testid="text-hours-verify-result"
+              >
+                {hoursVerifyResult.message}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }}>
+          <CardHeader className="pb-2">
+            <CardTitle style={{ color: colors.brown }} className="text-center">
+              Payout Summary
+              <br />
+              <span className="text-base font-normal">{weekRange.start} – {weekRange.end}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div 
+              className="p-3 rounded-md space-y-1"
+              style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, borderWidth: 1 }}
+            >
+              <p style={{ color: colors.brown }}>
+                <strong>Total Tips (After CC Fee):</strong> {formatCurrency(totalPool)}
+              </p>
+              <p style={{ color: colors.brown }}>
+                <strong>Total Team Hours:</strong> {formatHoursMinutes(totalTeamHours)} ({totalTeamHours.toFixed(2)}h)
+              </p>
+              <p style={{ color: colors.gold, fontSize: '1.1em' }}>
+                <strong>Calculated Hourly Rate:</strong> {formatCurrency(hourlyRate)}/hr
+              </p>
+            </div>
+
+            {Object.keys(employeeHours).length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ backgroundColor: colors.inputBg }}>
+                      <th className="text-left p-2 border-b" style={{ borderColor: colors.gold, color: colors.brown }}>Employee</th>
+                      <th className="text-left p-2 border-b" style={{ borderColor: colors.gold, color: colors.brown }}>Hours</th>
+                      <th className="text-right p-2 border-b" style={{ borderColor: colors.gold, color: colors.brown }}>Payout</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(employeeHours)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([name, hours]) => (
+                        <tr key={name} className="border-b" style={{ borderColor: colors.creamDark }}>
+                          <td className="p-2" style={{ color: colors.brown }}>{name}</td>
+                          <td className="p-2" style={{ color: colors.brown }}>{formatHoursMinutes(hours)}</td>
+                          <td className="p-2 text-right font-medium" style={{ color: colors.brown }}>
+                            {formatCurrency(hours * hourlyRate)}
+                          </td>
+                        </tr>
+                      ))}
+                    <tr style={{ backgroundColor: colors.gold }}>
+                      <td colSpan={2} className="p-2 font-bold" style={{ color: colors.brown }}>Total Paid Out</td>
+                      <td className="p-2 text-right font-bold" style={{ color: colors.brown }}>
+                        {formatCurrency(totalPool)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-center py-4" style={{ color: colors.brownLight }}>
+                No hours entered yet. Add employee hours above.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card style={{ backgroundColor: colors.white }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-center" style={{ color: colors.brown }}>
+              Export
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button
+              onClick={exportCSV}
+              disabled={Object.keys(employeeHours).length === 0}
+              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              className="gap-2"
+              data-testid="button-export-csv"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  );
+}
