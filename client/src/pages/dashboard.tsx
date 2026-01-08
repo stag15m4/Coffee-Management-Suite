@@ -152,7 +152,6 @@ export default function Dashboard() {
               description="Track cash deposits and reconciliation"
               icon={<Receipt className="w-6 h-6" style={{ color: colors.brown }} />}
               href="/cash-deposit"
-              disabled
             />
           )}
           
