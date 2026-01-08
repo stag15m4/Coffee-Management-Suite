@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Download, Plus, UserPlus, Clock, DollarSign, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Download, Plus, UserPlus, Clock, DollarSign, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { Link } from 'wouter';
 import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
@@ -355,6 +355,96 @@ export default function TipPayout() {
     link.click();
   };
 
+  const exportPDF = () => {
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Tip Payout - ${weekRange.start} to ${weekRange.end}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; color: #4A3728; }
+          h1 { color: #4A3728; border-bottom: 2px solid #C9A227; padding-bottom: 10px; }
+          h2 { color: #6B5344; margin-top: 20px; }
+          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+          th, td { border: 1px solid #C9A227; padding: 8px; text-align: left; }
+          th { background-color: #C9A227; color: #4A3728; }
+          .summary { background-color: #F5F0E1; padding: 15px; border-radius: 8px; margin: 15px 0; }
+          .total-row { background-color: #C9A227; font-weight: bold; }
+          @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+        </style>
+      </head>
+      <body>
+        <h1>Tip Payout Summary</h1>
+        <p><strong>Week:</strong> ${weekRange.start} - ${weekRange.end}</p>
+        
+        <div class="summary">
+          <p><strong>Total Tips (After 3.5% CC Fee):</strong> ${formatCurrency(totalPool)}</p>
+          <p><strong>Total Team Hours:</strong> ${formatHoursMinutes(totalTeamHours)}</p>
+          <p><strong>Calculated Hourly Rate:</strong> ${formatCurrency(hourlyRate)}</p>
+        </div>
+        
+        <h2>Employee Payouts</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Hours</th>
+              <th>Payout</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Object.entries(employeeHours)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([name, hours]) => `
+                <tr>
+                  <td>${name}</td>
+                  <td>${formatHoursMinutes(hours)}</td>
+                  <td>${formatCurrency(hours * hourlyRate)}</td>
+                </tr>
+              `).join('')}
+            <tr class="total-row">
+              <td colspan="2">Total Paid Out</td>
+              <td>${formatCurrency(totalPool)}</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <h2>Daily Tips Breakdown</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Credit Card</th>
+              <th>Cash</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${DAYS.map((day: string, i: number) => `
+              <tr>
+                <td>${day}</td>
+                <td>${formatCurrency(parseFloat(String(ccEntries[i])) || 0)}</td>
+                <td>${formatCurrency(parseFloat(String(cashEntries[i])) || 0)}</td>
+              </tr>
+            `).join('')}
+            <tr class="total-row">
+              <td>Totals</td>
+              <td>${formatCurrency(ccTotal)} (after fee: ${formatCurrency(ccAfterFee)})</td>
+              <td>${formatCurrency(cashTotal)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
       <header 
@@ -691,16 +781,26 @@ export default function TipPayout() {
               Export
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex justify-center">
+          <CardContent className="flex flex-col items-center gap-2">
             <Button
               onClick={exportCSV}
               disabled={Object.keys(employeeHours).length === 0}
               style={{ backgroundColor: colors.gold, color: colors.brown }}
-              className="gap-2"
+              className="gap-2 w-48"
               data-testid="button-export-csv"
             >
               <Download className="w-4 h-4" />
               Export CSV
+            </Button>
+            <Button
+              onClick={exportPDF}
+              disabled={Object.keys(employeeHours).length === 0}
+              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              className="gap-2 w-48"
+              data-testid="button-export-pdf"
+            >
+              <FileText className="w-4 h-4" />
+              Export PDF
             </Button>
           </CardContent>
         </Card>
