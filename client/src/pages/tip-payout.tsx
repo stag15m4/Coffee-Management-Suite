@@ -274,6 +274,7 @@ export default function TipPayout() {
       const { data: existing } = await supabase
         .from('tip_employee_hours')
         .select('id')
+        .eq('tenant_id', tenant.id)
         .eq('employee_id', employee.id)
         .eq('week_key', weekKey)
         .maybeSingle();
@@ -282,7 +283,8 @@ export default function TipPayout() {
         const { error } = await supabase
           .from('tip_employee_hours')
           .update({ hours: totalHours, updated_at: new Date().toISOString() })
-          .eq('id', existing.id);
+          .eq('id', existing.id)
+          .eq('tenant_id', tenant.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
