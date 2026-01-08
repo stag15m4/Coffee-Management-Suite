@@ -56,16 +56,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchUserData = useCallback(async (userId: string) => {
+    console.log('fetchUserData called for userId:', userId);
     try {
       // Fetch user profile
+      console.log('Fetching user profile from Supabase...');
       const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
+      console.log('Profile fetch result:', { profileData, profileError });
+
       if (profileError) {
-        console.error('Error fetching profile:', profileError.message, profileError.code);
+        console.error('Error fetching profile:', profileError.message, profileError.code, profileError.details);
         // Profile not found - user exists in auth but no profile record
         // This happens when RLS blocks the query or profile doesn't exist
         setProfile(null);
