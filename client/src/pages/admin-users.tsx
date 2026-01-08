@@ -39,11 +39,6 @@ export default function AdminUsers() {
   const [newRole, setNewRole] = useState<'manager' | 'lead' | 'employee'>('employee');
   const [saving, setSaving] = useState(false);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('AdminUsers mounted, profile:', profile);
-  }, [profile]);
-
   useEffect(() => {
     if (profile?.tenant_id) {
       loadUsers();
@@ -54,18 +49,13 @@ export default function AdminUsers() {
     if (!profile?.tenant_id) return;
     setLoading(true);
     try {
-      console.log('Loading users for tenant:', profile.tenant_id);
       const { data, error } = await supabase
         .from('user_profiles')
         .select('id, email, full_name, role, is_active')
         .eq('tenant_id', profile.tenant_id)
         .order('role', { ascending: true });
 
-      if (error) {
-        console.error('Error loading users:', error);
-        throw error;
-      }
-      console.log('Loaded users:', data);
+      if (error) throw error;
       setUsers(data || []);
     } catch (error: any) {
       toast({ title: 'Error loading users', description: error.message, variant: 'destructive' });

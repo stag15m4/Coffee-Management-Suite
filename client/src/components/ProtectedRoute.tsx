@@ -10,11 +10,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requiredRole, module }: ProtectedRouteProps) {
   const { user, profile, loading, hasRole, canAccessModule } = useAuth();
 
-  // Debug logging
-  console.log('ProtectedRoute state:', { loading, hasUser: !!user, hasProfile: !!profile, requiredRole, module });
-
   if (loading) {
-    console.log('ProtectedRoute: showing loading state');
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F0E1' }}>
         <div className="text-center">
