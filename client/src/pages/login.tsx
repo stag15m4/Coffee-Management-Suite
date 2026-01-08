@@ -21,15 +21,16 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, user, profile, loading } = useAuth();
+  const { signIn, user, loading } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!loading && user && profile) {
+    // Redirect when user is authenticated (don't wait for profile)
+    if (!loading && user) {
       setLocation('/');
     }
-  }, [loading, user, profile, setLocation]);
+  }, [loading, user, setLocation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
