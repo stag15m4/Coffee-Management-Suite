@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import Home from "@/pages/home";
 import CashDeposit from "@/pages/cash-deposit";
 import TipPayout from "@/pages/tip-payout";
+import CoffeeOrder from "@/pages/coffee-order";
 
 function Router() {
   return (
@@ -33,6 +34,11 @@ function Router() {
       <Route path="/tip-payout">
         <ProtectedRoute module="tip-payout">
           <TipPayout />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/coffee-order">
+        <ProtectedRoute module="bulk-ordering">
+          <CoffeeOrder />
         </ProtectedRoute>
       </Route>
     </Switch>
