@@ -24,8 +24,23 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
     );
   }
 
-  if (!user || !profile) {
+  if (!user) {
     return <Redirect to="/login" />;
+  }
+  
+  // Show loading state while profile is being fetched (but user is authenticated)
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F0E1' }}>
+        <div className="text-center">
+          <div 
+            className="w-12 h-12 rounded-full mx-auto mb-4 animate-pulse"
+            style={{ backgroundColor: '#C9A227' }}
+          />
+          <p style={{ color: '#4A3728' }}>Loading profile...</p>
+        </div>
+      </div>
+    );
   }
 
   if (requiredRole && !hasRole(requiredRole)) {
