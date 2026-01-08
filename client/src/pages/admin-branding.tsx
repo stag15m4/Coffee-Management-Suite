@@ -50,14 +50,14 @@ export default function AdminBranding() {
   }, [branding]);
 
   const saveBranding = async () => {
-    if (!tenant?.id) return;
+    if (!profile?.tenant_id) return;
     
     setSaving(true);
     try {
       const { error } = await supabase
         .from('tenant_branding')
         .upsert({
-          tenant_id: tenant.id,
+          tenant_id: profile.tenant_id,
           company_name: companyName || null,
           tagline: tagline || null,
           logo_url: logoUrl || null,
@@ -86,13 +86,13 @@ export default function AdminBranding() {
     toast({ title: 'Colors reset to defaults' });
   };
 
-  // Show loading while profile or tenant loads
-  if (!profile || !tenant) {
+  // Show loading while profile loads
+  if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
         <div className="text-center">
           <div className="w-10 h-10 rounded-full animate-pulse mx-auto mb-3" style={{ backgroundColor: colors.gold }} />
-          <p style={{ color: colors.brownLight }}>Loading...</p>
+          <p style={{ color: colors.brownLight }}>Loading profile...</p>
         </div>
       </div>
     );
