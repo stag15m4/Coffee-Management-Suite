@@ -41,6 +41,7 @@ SQL migration files in `supabase-migrations/`:
 5. `005_create_first_user.sql` - Template for creating first owner account
 6. `006_cash_activity_schema.sql` - Cash deposit tracking with auto-calculated fields
 7. `007_tip_payout_schema.sql` - Tip employees, weekly tips, and employee hours tables
+8. `008_coffee_order_schema.sql` - Coffee product prices and order history tables
 
 ### Implemented Modules
 
@@ -66,6 +67,16 @@ SQL migration files in `supabase-migrations/`:
   - Per-employee payouts
 - CSV export functionality
 - Tables: tip_employees, tip_weekly_data, tip_employee_hours
+
+#### Coffee Order (`/coffee-order`)
+- Bulk coffee ordering from Five Star Coffee Roasters
+- Products: 5lb bags (Espresso, Double Stack, Triple Stack, Decaf, Cold Brew) and 12oz bags
+- Settings panel for vendor/CC email and product pricing
+- Order history with load previous order functionality
+- Summary showing items, units, and total cost
+- Notes field for special instructions
+- Export to CSV and PDF
+- Tables: coffee_product_prices, coffee_order_history
 
 ### Authentication System
 - **AuthContext** (`client/src/contexts/AuthContext.tsx`) - Manages user session, profile, tenant, and branding state
