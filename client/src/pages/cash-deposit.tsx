@@ -10,15 +10,18 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText } from 'lucide-react';
 import { Link } from 'wouter';
 import * as XLSX from 'xlsx';
+import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
   gold: '#C9A227',
+  goldLight: '#D4B23A',
   brown: '#4A3728',
   brownLight: '#6B5344',
   cream: '#F5F0E1',
   creamDark: '#E8E0CC',
   white: '#FFFDF7',
   inputBg: '#FDF8E8',
+  green: '#22c55e',
 };
 
 interface CashEntry {
@@ -463,76 +466,180 @@ export default function CashDeposit() {
     );
   }
 
+  const formatDateDisplay = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const currentYear = new Date().getFullYear();
+  const archiveYears = [currentYear, currentYear - 1];
+
+  const handleArchiveYear = async (year: number) => {
+    if (!tenant?.id) return;
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+    
+    const { error } = await supabase
+      .from('cash_activity')
+      .update({ archived: true })
+      .eq('tenant_id', tenant.id)
+      .gte('drawer_date', startDate)
+      .lte('drawer_date', endDate);
+    
+    if (error) {
+      toast({ title: 'Error archiving entries', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: `Archived all ${year} entries` });
+      loadEntries();
+    }
+  };
+
+  const handleRestoreYear = async (year: number) => {
+    if (!tenant?.id) return;
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+    
+    const { error } = await supabase
+      .from('cash_activity')
+      .update({ archived: false })
+      .eq('tenant_id', tenant.id)
+      .gte('drawer_date', startDate)
+      .lte('drawer_date', endDate);
+    
+    if (error) {
+      toast({ title: 'Error restoring entries', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: `Restored all ${year} entries` });
+      loadEntries();
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center gap-4 flex-wrap">
+      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4">
+        {/* Header with logo and back button */}
+        <div className="flex items-start gap-2">
           <Link href="/">
             <Button variant="ghost" size="icon" style={{ color: colors.brown }} data-testid="button-back">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold" style={{ color: colors.brown }} data-testid="text-page-title">Cash Deposit Record</h1>
         </div>
 
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <Label style={{ color: colors.brown }}>From:</Label>
-          <Input
-            type="date"
-            value={dateRange.start}
-            onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-            className="w-auto"
-            data-testid="input-date-start"
-          />
+        {/* Logo and Title */}
+        <div className="flex flex-col items-center mb-4">
+          <img src={logoUrl} alt="Erwin Mills" className="h-20 md:h-24 mb-2" />
+          <h1 className="text-xl md:text-2xl font-semibold" style={{ color: colors.brown }} data-testid="text-page-title">
+            Cash Activity Tracker
+          </h1>
         </div>
-        <div className="flex items-center gap-2">
-          <Label style={{ color: colors.brown }}>To:</Label>
-          <Input
-            type="date"
-            value={dateRange.end}
-            onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-            className="w-auto"
-            data-testid="input-date-end"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="relative cursor-pointer">
-            <Button variant="outline" asChild>
-              <span>
-                <Upload className="h-4 w-4 mr-2" />
-                Import
-              </span>
+
+        {/* Date Range and Actions */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span style={{ color: colors.brown }} className="font-medium">Date Range:</span>
+            <div 
+              className="px-4 py-2 rounded-md text-sm font-medium"
+              style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+            >
+              {formatDateDisplay(dateRange.start)}
+            </div>
+            <span style={{ color: colors.brown }}>to</span>
+            <div 
+              className="px-4 py-2 rounded-md text-sm font-medium"
+              style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+            >
+              {formatDateDisplay(dateRange.end)}
+            </div>
+            <label className="relative cursor-pointer">
+              <Button 
+                asChild
+                className="text-white font-medium"
+                style={{ backgroundColor: colors.gold }}
+              >
+                <span>Import</span>
+              </Button>
+              <input
+                type="file"
+                accept=".csv,.xlsx,.xls,.ods"
+                onChange={handleImportFile}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                data-testid="input-import-file"
+              />
+            </label>
+            <Button 
+              onClick={exportToCSV} 
+              disabled={entries.length === 0}
+              className="text-white font-medium"
+              style={{ backgroundColor: colors.gold }}
+              data-testid="button-export-csv"
+            >
+              Export CSV
             </Button>
-            <input
-              type="file"
-              accept=".csv,.xlsx,.xls,.ods"
-              onChange={handleImportFile}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-              data-testid="input-import-file"
-            />
-          </label>
-          <Button variant="outline" onClick={exportToCSV} disabled={entries.length === 0} data-testid="button-export-csv">
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => setShowArchived(e.target.checked)}
-            className="rounded"
-            data-testid="checkbox-show-archived"
-          />
-          <span className="text-sm" style={{ color: colors.brown }}>Show Archived</span>
-        </label>
-      </div>
+          </div>
 
-      <Card style={{ backgroundColor: colors.white }}>
-        <CardHeader>
-          <CardTitle style={{ color: colors.brown }}>{editingEntry ? 'Edit Entry' : 'Daily Entry'}</CardTitle>
-        </CardHeader>
+          {/* Hidden date inputs for actual selection */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Input
+              type="date"
+              value={dateRange.start}
+              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+              className="w-36"
+              style={{ backgroundColor: colors.white }}
+              data-testid="input-date-start"
+            />
+            <Input
+              type="date"
+              value={dateRange.end}
+              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+              className="w-36"
+              style={{ backgroundColor: colors.white }}
+              data-testid="input-date-end"
+            />
+          </div>
+
+          {/* Archive Controls */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span style={{ color: colors.brown }} className="font-medium">Archive:</span>
+            {archiveYears.map(year => (
+              <Button
+                key={year}
+                variant="secondary"
+                size="sm"
+                onClick={() => handleArchiveYear(year)}
+                style={{ backgroundColor: colors.brownLight, color: colors.white }}
+              >
+                Archive {year}
+              </Button>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleRestoreYear(currentYear - 1)}
+              style={{ borderColor: colors.brownLight, color: colors.brown }}
+            >
+              {currentYear - 1} (Archived) - Restore
+            </Button>
+            <label className="flex items-center gap-2 cursor-pointer ml-2">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+                className="rounded"
+                data-testid="checkbox-show-archived"
+              />
+              <span className="text-sm" style={{ color: colors.brown }}>Show Archived</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Daily Entry Form */}
+        <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg" style={{ color: colors.brown }}>
+              {editingEntry ? 'Edit Entry' : 'Daily Entry'}
+            </CardTitle>
+          </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -542,6 +649,7 @@ export default function CashDeposit() {
                   type="date"
                   value={formData.drawer_date}
                   onChange={(e) => updateField('drawer_date', e.target.value)}
+                  style={{ backgroundColor: colors.inputBg }}
                   data-testid="input-entry-date"
                 />
               </div>
@@ -555,6 +663,7 @@ export default function CashDeposit() {
                     value={formData.gross_revenue}
                     onChange={(e) => updateField('gross_revenue', e.target.value)}
                     className="pl-7"
+                    style={{ backgroundColor: colors.inputBg }}
                     placeholder="0.00"
                     data-testid="input-gross-revenue"
                   />
@@ -570,6 +679,7 @@ export default function CashDeposit() {
                     value={formData.starting_drawer}
                     onChange={(e) => updateField('starting_drawer', e.target.value)}
                     className="pl-7"
+                    style={{ backgroundColor: colors.inputBg }}
                     placeholder="200.00"
                     data-testid="input-starting-drawer"
                   />
@@ -585,6 +695,7 @@ export default function CashDeposit() {
                     value={formData.cash_sales}
                     onChange={(e) => updateField('cash_sales', e.target.value)}
                     className="pl-7"
+                    style={{ backgroundColor: colors.inputBg }}
                     placeholder="0.00"
                     data-testid="input-cash-sales"
                   />
@@ -603,6 +714,7 @@ export default function CashDeposit() {
                     value={formData.tip_pool}
                     onChange={(e) => updateField('tip_pool', e.target.value)}
                     className="pl-7"
+                    style={{ backgroundColor: colors.inputBg }}
                     placeholder="0.00"
                     data-testid="input-tip-pool"
                   />
@@ -618,6 +730,7 @@ export default function CashDeposit() {
                     value={formData.owner_tips}
                     onChange={(e) => updateField('owner_tips', e.target.value)}
                     className="pl-7"
+                    style={{ backgroundColor: colors.inputBg }}
                     placeholder="0.00"
                     data-testid="input-owner-tips"
                   />
@@ -633,6 +746,7 @@ export default function CashDeposit() {
                     value={formData.pay_in}
                     onChange={(e) => updateField('pay_in', e.target.value)}
                     className="pl-7"
+                    style={{ backgroundColor: colors.inputBg }}
                     placeholder="0.00"
                     data-testid="input-pay-in"
                   />
@@ -648,6 +762,7 @@ export default function CashDeposit() {
                     value={formData.pay_out}
                     onChange={(e) => updateField('pay_out', e.target.value)}
                     className="pl-7"
+                    style={{ backgroundColor: colors.inputBg }}
                     placeholder="0.00"
                     data-testid="input-pay-out"
                   />
@@ -657,7 +772,7 @@ export default function CashDeposit() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label>Actual Deposit</Label>
+                <Label style={{ color: colors.brown }}>Actual Deposit</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
@@ -666,54 +781,67 @@ export default function CashDeposit() {
                     value={formData.actual_deposit}
                     onChange={(e) => updateField('actual_deposit', e.target.value)}
                     className="pl-7"
+                    style={{ backgroundColor: colors.inputBg }}
                     placeholder="0.00"
                     data-testid="input-actual-deposit"
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Calculated Deposit</Label>
-                <div className="px-3 py-2 rounded-md bg-muted font-mono">
+                <Label style={{ color: colors.brown }}>Calculated Deposit</Label>
+                <div 
+                  className="px-3 py-2 rounded-md font-mono font-medium min-h-9 flex items-center"
+                  style={{ backgroundColor: colors.brownLight, color: colors.white }}
+                >
                   {formatCurrency(calculatedDeposit())}
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Difference</Label>
-                <div className={`px-3 py-2 rounded-md font-mono font-bold ${
-                  Math.abs(diff) < 0.01 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
-                  diff > 0 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' :
-                  'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                }`}>
+                <Label style={{ color: colors.brown }}>Difference</Label>
+                <div 
+                  className="px-3 py-2 rounded-md font-mono font-bold min-h-9 flex items-center"
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
+                >
                   {formatCurrency(diff)}
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Net Cash</Label>
-                <div className="px-3 py-2 rounded-md bg-primary text-primary-foreground font-mono font-bold">
+                <Label style={{ color: colors.brown }}>Net Cash</Label>
+                <div 
+                  className="px-3 py-2 rounded-md font-mono font-bold min-h-9 flex items-center"
+                  style={{ backgroundColor: colors.green, color: colors.white }}
+                >
                   {formatCurrency(netCash())}
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Notes</Label>
+              <Label style={{ color: colors.brown }}>Notes</Label>
               <Textarea
                 value={formData.notes}
                 onChange={(e) => updateField('notes', e.target.value)}
                 placeholder="Optional notes..."
                 rows={2}
+                style={{ backgroundColor: colors.inputBg }}
                 data-testid="input-notes"
               />
             </div>
 
             <div className="flex gap-3 items-center flex-wrap">
-              <Button type="submit" disabled={saving} data-testid="button-save-entry">
+              <Button 
+                type="submit" 
+                disabled={saving}
+                style={{ backgroundColor: colors.brown, color: colors.white }}
+                data-testid="button-save-entry"
+              >
                 {saving ? 'Saving...' : editingEntry ? 'Update Entry' : 'Save Entry'}
               </Button>
               <Button
                 type="button"
                 variant={formData.flagged ? 'destructive' : 'outline'}
                 onClick={() => updateField('flagged', !formData.flagged)}
+                style={formData.flagged ? {} : { borderColor: colors.brown, color: colors.brown }}
                 data-testid="button-toggle-flag"
               >
                 <Flag className="h-4 w-4 mr-2" />
