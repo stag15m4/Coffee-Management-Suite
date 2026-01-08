@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Download, FileText } from 'lucide-react';
 import { Link } from 'wouter';
+import fiveStarLogoUrl from '@assets/IMG_0471_1767886800383.jpeg';
 
 const colors = {
   gold: '#D4A84B',
@@ -372,10 +373,11 @@ export default function CoffeeOrder() {
           className="inline-block p-3 rounded-lg mb-3"
           style={{ border: `3px solid ${colors.gold}`, backgroundColor: colors.white }}
         >
-          <div className="text-center">
-            <div className="text-2xl font-bold" style={{ color: colors.brown }}>FIVE STAR</div>
-            <div className="text-xs tracking-widest" style={{ color: colors.brownLight }}>COFFEE ROASTERS</div>
-          </div>
+          <img 
+            src={fiveStarLogoUrl} 
+            alt="Five Star Coffee Roasters" 
+            className="h-16 w-auto"
+          />
         </div>
         <p 
           className="text-sm tracking-widest uppercase font-semibold mb-2"
