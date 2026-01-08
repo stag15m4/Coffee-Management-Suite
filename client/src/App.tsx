@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Home from "@/pages/home";
+import CashDeposit from "@/pages/cash-deposit";
 
 function Router() {
   return (
@@ -21,6 +22,11 @@ function Router() {
       <Route path="/recipe-costing">
         <ProtectedRoute module="recipe-costing">
           <Home />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/cash-deposit">
+        <ProtectedRoute module="cash-deposit">
+          <CashDeposit />
         </ProtectedRoute>
       </Route>
     </Switch>
