@@ -808,7 +808,10 @@ export default function CashDeposit() {
                 <Label style={{ color: colors.brown }}>Difference</Label>
                 <div 
                   className="px-3 py-2 rounded-md font-mono font-bold min-h-9 flex items-center"
-                  style={{ backgroundColor: colors.gold, color: colors.white }}
+                  style={{ 
+                    backgroundColor: colors.gold, 
+                    color: diff >= 0 ? '#16a34a' : '#dc2626'
+                  }}
                 >
                   {formatCurrency(diff)}
                 </div>
