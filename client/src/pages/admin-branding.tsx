@@ -86,7 +86,19 @@ export default function AdminBranding() {
     toast({ title: 'Colors reset to defaults' });
   };
 
-  if (profile?.role !== 'owner') {
+  // Show loading while profile or tenant loads
+  if (!profile || !tenant) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
+        <div className="text-center">
+          <div className="w-10 h-10 rounded-full animate-pulse mx-auto mb-3" style={{ backgroundColor: colors.gold }} />
+          <p style={{ color: colors.brownLight }}>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (profile.role !== 'owner') {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
         <p style={{ color: colors.brown }}>Access denied. Owner role required.</p>
