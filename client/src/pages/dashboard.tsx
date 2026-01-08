@@ -142,7 +142,6 @@ export default function Dashboard() {
               description="Calculate and distribute employee tips"
               icon={<DollarSign className="w-6 h-6" style={{ color: colors.brown }} />}
               href="/tip-payout"
-              disabled
             />
           )}
           
