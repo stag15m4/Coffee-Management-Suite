@@ -534,88 +534,106 @@ export default function CashDeposit() {
           </h1>
         </div>
 
-        {/* Date Range and Actions */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <span style={{ color: colors.brown }} className="font-medium">Date Range:</span>
-            <Input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="w-auto"
-              style={{ backgroundColor: colors.creamDark, color: colors.brown, border: 'none' }}
-              data-testid="input-date-start"
-            />
-            <span style={{ color: colors.brown }}>to</span>
-            <Input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="w-auto"
-              style={{ backgroundColor: colors.creamDark, color: colors.brown, border: 'none' }}
-              data-testid="input-date-end"
-            />
-            <label className="relative cursor-pointer">
+        {/* Date Range Section */}
+        <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+          <CardContent className="py-3 px-4">
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <span style={{ color: colors.brown }} className="font-medium">Date Range:</span>
+              <div 
+                className="px-4 py-2 rounded-md text-sm font-medium cursor-pointer relative overflow-hidden"
+                style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+              >
+                {formatDateDisplay(dateRange.start)}
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  data-testid="input-date-start"
+                />
+              </div>
+              <span style={{ color: colors.brown }}>to</span>
+              <div 
+                className="px-4 py-2 rounded-md text-sm font-medium cursor-pointer relative overflow-hidden"
+                style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+              >
+                {formatDateDisplay(dateRange.end)}
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  data-testid="input-date-end"
+                />
+              </div>
+              <label className="relative cursor-pointer" data-testid="button-import">
+                <Button 
+                  asChild
+                  className="text-white font-medium"
+                  style={{ backgroundColor: '#3B82F6' }}
+                >
+                  <span>Import</span>
+                </Button>
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.xls,.ods"
+                  onChange={handleImportFile}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  data-testid="input-import-file"
+                />
+              </label>
               <Button 
-                asChild
+                onClick={exportToCSV} 
+                disabled={entries.length === 0}
                 className="text-white font-medium"
                 style={{ backgroundColor: colors.gold }}
+                data-testid="button-export-csv"
               >
-                <span>Import</span>
+                Export CSV
               </Button>
-              <input
-                type="file"
-                accept=".csv,.xlsx,.xls,.ods"
-                onChange={handleImportFile}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-                data-testid="input-import-file"
-              />
-            </label>
-            <Button 
-              onClick={exportToCSV} 
-              disabled={entries.length === 0}
-              className="text-white font-medium"
-              style={{ backgroundColor: colors.gold }}
-              data-testid="button-export-csv"
-            >
-              Export CSV
-            </Button>
-          </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Archive Controls */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <span style={{ color: colors.brown }} className="font-medium">Archive:</span>
-            {archiveYears.map(year => (
+        {/* Archive Section */}
+        <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+          <CardContent className="py-3 px-4">
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <span style={{ color: colors.brown }} className="font-medium">Archive:</span>
+              {archiveYears.map(year => (
+                <Button
+                  key={year}
+                  size="sm"
+                  onClick={() => handleArchiveYear(year)}
+                  className="text-white font-medium"
+                  style={{ backgroundColor: colors.brownLight }}
+                  data-testid={`button-archive-${year}`}
+                >
+                  Archive {year}
+                </Button>
+              ))}
               <Button
-                key={year}
-                variant="secondary"
+                variant="outline"
                 size="sm"
-                onClick={() => handleArchiveYear(year)}
-                style={{ backgroundColor: colors.brownLight, color: colors.white }}
+                onClick={() => handleRestoreYear(currentYear - 1)}
+                style={{ borderColor: colors.brownLight, color: colors.brown }}
+                data-testid={`button-restore-${currentYear - 1}`}
               >
-                Archive {year}
+                {currentYear - 1} (Archived) - Restore
               </Button>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleRestoreYear(currentYear - 1)}
-              style={{ borderColor: colors.brownLight, color: colors.brown }}
-            >
-              {currentYear - 1} (Archived) - Restore
-            </Button>
-            <label className="flex items-center gap-2 cursor-pointer ml-2">
-              <input
-                type="checkbox"
-                checked={showArchived}
-                onChange={(e) => setShowArchived(e.target.checked)}
-                className="rounded"
-                data-testid="checkbox-show-archived"
-              />
-              <span className="text-sm" style={{ color: colors.brown }}>Show Archived</span>
-            </label>
-          </div>
-        </div>
+              <label className="flex items-center gap-2 cursor-pointer ml-2">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                  className="rounded"
+                  data-testid="checkbox-show-archived"
+                />
+                <span className="text-sm" style={{ color: colors.brown }}>Show Archived</span>
+              </label>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Daily Entry Form */}
         <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
@@ -629,13 +647,19 @@ export default function CashDeposit() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label style={{ color: colors.brown }}>Date</Label>
-                <Input
-                  type="date"
-                  value={formData.drawer_date}
-                  onChange={(e) => updateField('drawer_date', e.target.value)}
-                  style={{ backgroundColor: colors.inputBg }}
-                  data-testid="input-entry-date"
-                />
+                <div 
+                  className="px-3 py-2 rounded-md text-sm cursor-pointer relative min-h-9 flex items-center border"
+                  style={{ backgroundColor: colors.inputBg, borderColor: 'hsl(var(--input))' }}
+                >
+                  {formData.drawer_date ? formatDateDisplay(formData.drawer_date) : 'Select date'}
+                  <input
+                    type="date"
+                    value={formData.drawer_date}
+                    onChange={(e) => updateField('drawer_date', e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    data-testid="input-entry-date"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label style={{ color: colors.brown }}>Gross Revenue</Label>
