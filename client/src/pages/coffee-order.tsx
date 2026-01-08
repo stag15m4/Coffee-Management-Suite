@@ -442,7 +442,7 @@ export default function CoffeeOrder() {
                 <label className="block text-sm mb-2 font-medium" style={{ color: colors.brownLight }}>Vendor Email (Five Star)</label>
                 <input
                   type="email"
-                  placeholder="sales@fivestarroasters.com"
+                  placeholder="sales@fivestarcoffeeroasters.com"
                   value={vendorEmail}
                   onChange={(e) => {
                     setVendorEmail(e.target.value);
