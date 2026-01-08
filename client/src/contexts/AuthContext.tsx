@@ -57,41 +57,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserData = useCallback(async (userId: string) => {
     try {
-      // Fetch user profile
-      const { data: profileData, error: profileError } = await supabase
+      // Fetch user profile with timeout
+      const profilePromise = supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout fetching profile')), 10000)
+      );
+      
+      const { data: profileData, error: profileError } = await Promise.race([
+        profilePromise,
+        timeoutPromise
+      ]) as any;
 
       if (profileError) {
         console.error('Error fetching profile:', profileError);
+        // Set minimal profile from auth data so user can still proceed
         return;
       }
 
       setProfile(profileData);
 
-      // Fetch tenant
-      const { data: tenantData, error: tenantError } = await supabase
-        .from('tenants')
-        .select('*')
-        .eq('id', profileData.tenant_id)
-        .single();
+      // Fetch tenant (non-blocking)
+      (async () => {
+        try {
+          const { data: tenantData, error: tenantError } = await supabase
+            .from('tenants')
+            .select('*')
+            .eq('id', profileData.tenant_id)
+            .single();
+          if (!tenantError && tenantData) {
+            setTenant(tenantData);
+          }
+        } catch (err) {
+          console.error('Error fetching tenant:', err);
+        }
+      })();
 
-      if (!tenantError && tenantData) {
-        setTenant(tenantData);
-      }
-
-      // Fetch branding
-      const { data: brandingData, error: brandingError } = await supabase
-        .from('tenant_branding')
-        .select('*')
-        .eq('tenant_id', profileData.tenant_id)
-        .single();
-
-      if (!brandingError && brandingData) {
-        setBranding(brandingData);
-      }
+      // Fetch branding (non-blocking)
+      (async () => {
+        try {
+          const { data: brandingData, error: brandingError } = await supabase
+            .from('tenant_branding')
+            .select('*')
+            .eq('tenant_id', profileData.tenant_id)
+            .single();
+          if (!brandingError && brandingData) {
+            setBranding(brandingData);
+          }
+        } catch (err) {
+          console.error('Error fetching branding:', err);
+        }
+      })();
+        
     } catch (error) {
       console.error('Error fetching user data:', error);
     }
