@@ -49,6 +49,9 @@ CREATE POLICY "Leads+ can update prices" ON coffee_product_prices
   FOR UPDATE USING (
     tenant_id = get_current_tenant_id() 
     AND has_role_or_higher('lead')
+  ) WITH CHECK (
+    tenant_id = get_current_tenant_id() 
+    AND has_role_or_higher('lead')
   );
 
 CREATE POLICY "Managers+ can delete prices" ON coffee_product_prices
@@ -69,6 +72,9 @@ CREATE POLICY "Leads+ can insert orders" ON coffee_order_history
 
 CREATE POLICY "Leads+ can update orders" ON coffee_order_history
   FOR UPDATE USING (
+    tenant_id = get_current_tenant_id() 
+    AND has_role_or_higher('lead')
+  ) WITH CHECK (
     tenant_id = get_current_tenant_id() 
     AND has_role_or_higher('lead')
   );
