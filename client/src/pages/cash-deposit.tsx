@@ -11,6 +11,16 @@ import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText } from 'luc
 import { Link } from 'wouter';
 import * as XLSX from 'xlsx';
 
+const colors = {
+  gold: '#C9A227',
+  brown: '#4A3728',
+  brownLight: '#6B5344',
+  cream: '#F5F0E1',
+  creamDark: '#E8E0CC',
+  white: '#FFFDF7',
+  inputBg: '#FDF8E8',
+};
+
 interface CashEntry {
   id: string;
   tenant_id: string;
@@ -441,26 +451,33 @@ export default function CashDeposit() {
   
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
+        <div className="text-center">
+          <div 
+            className="w-12 h-12 rounded-full mx-auto mb-4 animate-pulse"
+            style={{ backgroundColor: colors.gold }}
+          />
+          <p style={{ color: colors.brown }}>Loading...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center gap-4 flex-wrap">
-        <Link href="/">
-          <Button variant="ghost" size="icon" data-testid="button-back">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <h1 className="text-2xl font-bold" data-testid="text-page-title">Cash Deposit Record</h1>
-      </div>
+    <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center gap-4 flex-wrap">
+          <Link href="/">
+            <Button variant="ghost" size="icon" style={{ color: colors.brown }} data-testid="button-back">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-bold" style={{ color: colors.brown }} data-testid="text-page-title">Cash Deposit Record</h1>
+        </div>
 
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
-          <Label>From:</Label>
+          <Label style={{ color: colors.brown }}>From:</Label>
           <Input
             type="date"
             value={dateRange.start}
@@ -470,7 +487,7 @@ export default function CashDeposit() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Label>To:</Label>
+          <Label style={{ color: colors.brown }}>To:</Label>
           <Input
             type="date"
             value={dateRange.end}
@@ -508,19 +525,19 @@ export default function CashDeposit() {
             className="rounded"
             data-testid="checkbox-show-archived"
           />
-          <span className="text-sm">Show Archived</span>
+          <span className="text-sm" style={{ color: colors.brown }}>Show Archived</span>
         </label>
       </div>
 
-      <Card>
+      <Card style={{ backgroundColor: colors.white }}>
         <CardHeader>
-          <CardTitle>{editingEntry ? 'Edit Entry' : 'Daily Entry'}</CardTitle>
+          <CardTitle style={{ color: colors.brown }}>{editingEntry ? 'Edit Entry' : 'Daily Entry'}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label>Date</Label>
+                <Label style={{ color: colors.brown }}>Date</Label>
                 <Input
                   type="date"
                   value={formData.drawer_date}
@@ -529,7 +546,7 @@ export default function CashDeposit() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Gross Revenue</Label>
+                <Label style={{ color: colors.brown }}>Gross Revenue</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
@@ -544,7 +561,7 @@ export default function CashDeposit() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Starting Drawer</Label>
+                <Label style={{ color: colors.brown }}>Starting Drawer</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
@@ -559,7 +576,7 @@ export default function CashDeposit() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Cash Sales</Label>
+                <Label style={{ color: colors.brown }}>Cash Sales</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
@@ -577,7 +594,7 @@ export default function CashDeposit() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label>Tip Pool</Label>
+                <Label style={{ color: colors.brown }}>Tip Pool</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
@@ -592,7 +609,7 @@ export default function CashDeposit() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Owner Tips</Label>
+                <Label style={{ color: colors.brown }}>Owner Tips</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
@@ -607,7 +624,7 @@ export default function CashDeposit() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Pay In</Label>
+                <Label style={{ color: colors.brown }}>Pay In</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
@@ -622,7 +639,7 @@ export default function CashDeposit() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Pay Out</Label>
+                <Label style={{ color: colors.brown }}>Pay Out</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
@@ -841,6 +858,7 @@ export default function CashDeposit() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
