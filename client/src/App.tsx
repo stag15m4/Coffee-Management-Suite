@@ -9,6 +9,7 @@ import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Home from "@/pages/home";
 import CashDeposit from "@/pages/cash-deposit";
+import TipPayout from "@/pages/tip-payout";
 
 function Router() {
   return (
@@ -27,6 +28,11 @@ function Router() {
       <Route path="/cash-deposit">
         <ProtectedRoute module="cash-deposit">
           <CashDeposit />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/tip-payout">
+        <ProtectedRoute module="tip-payout">
+          <TipPayout />
         </ProtectedRoute>
       </Route>
     </Switch>
