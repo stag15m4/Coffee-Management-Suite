@@ -1,0 +1,64 @@
+| viewname          | full_definition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v_food_pricing    |  SELECT f.id,
+    f.category_id,
+    f.name,
+    f.cost,
+    f.units_per_case,
+    f.cost_per_unit,
+    f.sale_price,
+    f.vendor,
+    f.notes,
+    f.is_active,
+    f.created_at,
+    f.updated_at,
+    pc.name AS category_name,
+        CASE
+            WHEN f.sale_price > 0::numeric THEN round((f.sale_price - f.cost_per_unit) / f.sale_price * 100::numeric, 1)
+            ELSE 0::numeric
+        END AS margin_percent,
+    round(f.sale_price - f.cost_per_unit, 2) AS profit
+   FROM food_items f
+     LEFT JOIN product_categories pc ON f.category_id = pc.id
+  WHERE f.is_active = true
+  ORDER BY pc.display_order, f.name;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| v_ingredients     |  SELECT i.id,
+    i.name,
+    i.category_id,
+    i.ingredient_type,
+    i.cost,
+    i.quantity,
+    i.unit,
+    i.usage_unit,
+    i.vendor,
+    i.manufacturer,
+    i.item_number,
+    i.updated_at,
+    i.is_active,
+    ic.name AS category_name
+   FROM ingredients i
+     LEFT JOIN ingredient_categories ic ON i.category_id = ic.id;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| v_product_pricing |  SELECT p.id AS product_id,
+    r.id AS recipe_id,
+    r.name AS recipe_name,
+    pc.name AS category_name,
+    ds.name AS size_name,
+    ds.size_oz,
+    ds.drink_type,
+    p.sale_price,
+    COALESCE(( SELECT sum(i.cost_per_unit * bti.quantity) AS sum
+           FROM base_template_ingredients bti
+             JOIN ingredients i ON bti.ingredient_id = i.id
+          WHERE bti.base_template_id = r.base_template_id AND bti.size_id = ds.id), 0::numeric) + COALESCE(( SELECT overhead_settings.cost_per_minute * overhead_settings.minutes_per_drink
+           FROM overhead_settings
+         LIMIT 1), 0::numeric) AS base_cost,
+    COALESCE(( SELECT sum(i.cost_per_unit * ri.quantity) AS sum
+           FROM recipe_ingredients ri
+             JOIN ingredients i ON ri.ingredient_id = i.id
+          WHERE ri.recipe_id = r.id AND ri.size_id = ds.id), 0::numeric) AS ingredient_cost,
+    p.is_active
+   FROM products p
+     JOIN recipes r ON p.recipe_id = r.id
+     JOIN drink_sizes ds ON p.size_id = ds.id
+     LEFT JOIN product_categories pc ON r.category_id = pc.id
+  ORDER BY pc.display_order, r.name, ds.display_order; |
