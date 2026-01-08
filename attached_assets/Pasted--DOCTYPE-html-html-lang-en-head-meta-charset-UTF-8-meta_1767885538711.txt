@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bulk Coffee Order App</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #FBF7F0;
+      color: #333;
+      min-height: 100vh;
+    }
+    
+    .header {
+      background: #FBF7F0;
+      padding: 30px 20px;
+      text-align: center;
+      border-bottom: 4px solid #D4A84B;
+    }
+    
+    .header img {
+      max-width: 200px;
+      height: auto;
+      margin-bottom: 10px;
+      border: 3px solid #D4A84B;
+      border-radius: 8px;
+      padding: 10px;
+      background: white;
+    }
+    
+    .header p {
+      color: #2C2416;
+      font-size: 14px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .header h1 {
+      color: #2C2416;
+      font-size: 28px;
+      font-weight: 600;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 30px 20px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border: 1px solid #E8DFD0;
+    }
+    
+    .card h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #2C2416;
+      border-bottom: 2px solid #D4A84B;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #8B6914;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+    
+    .product-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      background: #F8F6F2;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #E8DFD0;
+      transition: all 0.2s;
+    }
+    
+    .product-row.selected {
+      background: #F5E6C8;
+      border: 2px solid #D4A84B;
+    }
+    
+    .product-name {
+      font-weight: 500;
+      color: #2C2416;
+    }
+    
+    .product-size {
+      color: #666;
+      font-weight: 400;
+    }
+    
+    .qty-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .qty-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .qty-btn.minus {
+      background: #E8DFD0;
+      color: #666;
+    }
+    
+    .qty-btn.plus {
+      background: #D4A84B;
+      color: #2C2416;
+    }
+    
+    .qty-input {
+      width: 50px;
+      height: 32px;
+      border: 1px solid #E8DFD0;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 500;
+    }
+    
+    .qty-input:focus {
+      outline: none;
+      border-color: #D4A84B;
+    }
+    
+    .summary {
+      background: #F5E6C8;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    
+    .summary-row:last-child {
+      margin-bottom: 0;
+    }
+    
+    .summary-label {
+      color: #666;
+    }
+    
+    .summary-value {
+      font-weight: 600;
+      color: #2C2416;
+    }
+    
+    .summary-value.large {
+      font-size: 18px;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 14px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #D4A84B 0%, #B8923F 100%);
+      color: #2C2416;
+      box-shadow: 0 4px 12px rgba(212, 168, 75, 0.4);
+    }
+    
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+    
+    .btn-primary:disabled {
+      background: #E8DFD0;
+      color: #999;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    
+    .btn-secondary {
+      background: white;
+      color: #333;
+      border: 1px solid #E8DFD0;
+      margin-top: 10px;
+    }
+    
+    .btn-danger {
+      background: white;
+      color: #C74B4B;
+      border: 1px solid #C74B4B;
+    }
+    
+    .settings-grid {
+      display: grid;
+      gap: 16px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #E8DFD0;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: #D4A84B;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    
+    .action-btn {
+      padding: 10px 20px;
+      background: white;
+      border: 1px solid #E8DFD0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .action-btn.active {
+      background: #D4A84B;
+      color: #2C2416;
+      border-color: #D4A84B;
+    }
+    
+    .action-btn.clear {
+      margin-left: auto;
+      color: #C74B4B;
+      border-color: #C74B4B;
+    }
+    
+    .section { margin-bottom: 30px; }
+    
+    .notes-input {
+      width: 100%;
+      min-height: 80px;
+      padding: 12px 14px;
+      border: 1px solid #E8DFD0;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+    }
+    
+    .notes-input:focus {
+      outline: none;
+      border-color: #D4A84B;
+    }
+    
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: #F8F6F2;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border: 1px solid #E8DFD0;
+    }
+    
+    .price-row .product-name {
+      font-weight: 500;
+      color: #2C2416;
+    }
+    
+    .price-input {
+      width: 80px;
+      height: 32px;
+      border: 1px solid #E8DFD0;
+      border-radius: 6px;
+      text-align: right;
+      font-size: 14px;
+      padding: 0 10px;
+    }
+    
+    .price-input:focus {
+      outline: none;
+      border-color: #D4A84B;
+    }
+    
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 6px;
+      color: white;
+      font-size: 14px;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .notification.success { background: #5D8A48; }
+    .notification.error { background: #C74B4B; }
+    
+    .hidden { display: none !important; }
+    
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #F5E6C8;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      border: 1px solid #E8DFD0;
+    }
+    
+    .history-date {
+      font-weight: 500;
+      color: #2C2416;
+    }
+    
+    .history-units {
+      font-size: 13px;
+      color: #666;
+    }
+    
+    .history-btn {
+      padding: 8px 16px;
+      background: #D4A84B;
+      color: #2C2416;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 90vh;
+      overflow: auto;
+    }
+    
+    .modal h3 {
+      margin-bottom: 16px;
+      font-size: 20px;
+      color: #2C2416;
+    }
+    
+    .modal p {
+      color: #666;
+      margin-bottom: 20px;
+    }
+    
+    .sending {
+      text-align: center;
+      padding: 40px;
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #E8DFD0;
+      border-top-color: #D4A84B;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    
+    input[type="number"] { -moz-appearance: textfield; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <img src="/logo.jpeg" alt="Five Star Coffee Roasters">
+    <p>Erwin Mills Coffee Company</p>
+    <h1>Bulk Coffee Order App</h1>
+  </header>
+  
+  <div class="container">
+    <div class="action-buttons">
+      <button class="action-btn" id="settingsBtn">Settings</button>
+      <button class="action-btn" id="historyBtn">History</button>
+      <button class="action-btn clear" id="clearBtn">Clear All</button>
+    </div>
+    
+    <div class="card hidden" id="settingsPanel">
+      <h2>Settings</h2>
+      <div class="settings-grid">
+        <div class="form-group">
+          <label>Vendor Email (Five Star)</label>
+          <input type="email" id="vendorEmail" placeholder="sales@fivestarroasters.com">
+        </div>
+        <div class="form-group">
+          <label>CC Email (optional - send yourself a copy)</label>
+          <input type="email" id="ccEmail" placeholder="seth@erwinmills.com">
+        </div>
+      </div>
+      
+      <h3 style="margin-top: 24px;">Product Pricing</h3>
+      <p style="color: #666; font-size: 13px; margin-bottom: 16px;">Set prices for each product to track order costs. Prices are saved until you change them.</p>
+      
+      <div class="section">
+        <h3>5lb Bags</h3>
+        <div id="fiveLbPrices"></div>
+      </div>
+      
+      <div class="section">
+        <h3>12oz Bags</h3>
+        <div id="twelveOzPrices"></div>
+      </div>
+    </div>
+    
+    <div class="card hidden" id="historyPanel">
+      <h2>Order History</h2>
+      <div class="report-buttons" style="display: flex; gap: 10px; margin-bottom: 16px;">
+        <button class="action-btn" onclick="exportCSV()">Export CSV</button>
+        <button class="action-btn" onclick="exportPDF()">Export PDF</button>
+      </div>
+      <div id="historyList">
+        <p style="color: #666; text-align: center; padding: 20px;">No previous orders yet</p>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>Weekly Order</h2>
+      
+      <div class="section">
+        <h3>5lb Bags</h3>
+        <div id="fiveLbProducts"></div>
+      </div>
+      
+      <div class="section">
+        <h3>12oz Bags</h3>
+        <div id="twelveOzProducts"></div>
+      </div>
+      
+      <div class="section">
+        <h3>Notes</h3>
+        <textarea id="orderNotes" class="notes-input" placeholder="Add any special instructions or notes for this order..."></textarea>
+      </div>
+      
+      <div class="summary">
+        <div class="summary-row">
+          <span class="summary-label">Items Selected:</span>
+          <span class="summary-value" id="itemCount">0</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Total Units:</span>
+          <span class="summary-value" id="totalUnits">0</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Total Cost:</span>
+          <span class="summary-value large" id="totalCost">$0.00</span>
+        </div>
+      </div>
+      
+      <button class="btn btn-primary" id="sendBtn" disabled>Send Order to Five Star</button>
+      <button class="btn" id="saveHistoryBtn" disabled style="margin-top: 10px; background: #666;">Save to History Only</button>
+    </div>
+  </div>
+  
+  <div class="modal hidden" id="sendingModal">
+    <div class="modal-content">
+      <div class="sending">
+        <div class="spinner"></div>
+        <p>Sending your order...</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal hidden" id="successModal">
+    <div class="modal-content">
+      <h3>Order Sent!</h3>
+      <p>Your order has been emailed to Five Star Roasters.</p>
+      <button class="btn btn-primary" id="successCloseBtn" onclick="document.getElementById('successModal').classList.add('hidden')">Done</button>
+    </div>
+  </div>
+  
+  <div class="notification hidden" id="notification"></div>
+
+  <script>
+    const products = [
+      { id: 1, name: 'Espresso', size: '5lb', category: '5lb' },
+      { id: 2, name: 'Double Stack', size: '5lb', category: '5lb' },
+      { id: 3, name: 'Triple Stack', size: '5lb', category: '5lb' },
+      { id: 4, name: 'Decaf', size: '5lb', category: '5lb' },
+      { id: 5, name: 'Cold Brew', size: '5lb', category: '5lb' },
+      { id: 6, name: 'Double Stack', size: '12oz', category: '12oz' },
+      { id: 7, name: 'Triple Stack', size: '12oz', category: '12oz' },
+      { id: 8, name: 'Decaf', size: '12oz', category: '12oz' },
+      { id: 9, name: 'Espresso', size: '12oz', category: '12oz' },
+    ];
+    
+    let orderItems = {};
+    let orderHistory = [];
+    let productPrices = {};
+    
+    async function loadDataFromServer() {
+      try {
+        const [pricesRes, historyRes] = await Promise.all([
+          fetch('/api/prices'),
+          fetch('/api/history')
+        ]);
+        const pricesData = await pricesRes.json();
+        const historyData = await historyRes.json();
+        productPrices = pricesData && typeof pricesData === 'object' ? pricesData : {};
+        orderHistory = Array.isArray(historyData) ? historyData : [];
+        renderPrices();
+        renderHistory();
+        updateSummary();
+      } catch (err) {
+        console.error('Error loading data:', err);
+        orderHistory = [];
+        productPrices = {};
+      }
+    }
+    
+    document.getElementById('vendorEmail').value = localStorage.getItem('fivestar_vendor') || '';
+    document.getElementById('ccEmail').value = localStorage.getItem('fivestar_cc') || '';
+    
+    function renderPrices() {
+      const fiveLbPrices = document.getElementById('fiveLbPrices');
+      const twelveOzPrices = document.getElementById('twelveOzPrices');
+      
+      fiveLbPrices.innerHTML = products.filter(p => p.category === '5lb').map(p => priceRow(p)).join('');
+      twelveOzPrices.innerHTML = products.filter(p => p.category === '12oz').map(p => priceRow(p)).join('');
+    }
+    
+    function priceRow(product) {
+      const price = productPrices[product.id] || '';
+      return `
+        <div class="price-row">
+          <span class="product-name">${product.name} <span class="product-size">${product.size}</span></span>
+          <input type="text" class="price-input" value="${price}" placeholder="$0.00" 
+                 onchange="setPrice(${product.id}, this.value)" id="price-${product.id}">
+        </div>
+      `;
+    }
+    
+    async function setPrice(id, value) {
+      const price = parseFloat(value.replace(/[^0-9.]/g, '')) || 0;
+      if (price === 0) {
+        delete productPrices[id];
+      } else {
+        productPrices[id] = price;
+      }
+      document.getElementById('price-' + id).value = price > 0 ? price.toFixed(2) : '';
+      updateSummary();
+      
+      try {
+        await fetch('/api/prices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prices: { [id]: price } })
+        });
+      } catch (err) {
+        console.error('Error saving price:', err);
+      }
+    }
+    
+    function calculateTotalCost() {
+      let total = 0;
+      for (const [id, qty] of Object.entries(orderItems)) {
+        const price = productPrices[id] || 0;
+        total += price * qty;
+      }
+      return total;
+    }
+    
+    function formatCurrency(amount) {
+      return '$' + amount.toFixed(2);
+    }
+    
+    document.getElementById('vendorEmail').addEventListener('change', (e) => {
+      localStorage.setItem('fivestar_vendor', e.target.value);
+    });
+    document.getElementById('ccEmail').addEventListener('change', (e) => {
+      localStorage.setItem('fivestar_cc', e.target.value);
+    });
+    
+    function renderProducts() {
+      const fiveLb = document.getElementById('fiveLbProducts');
+      const twelveOz = document.getElementById('twelveOzProducts');
+      
+      fiveLb.innerHTML = products.filter(p => p.category === '5lb').map(p => productRow(p)).join('');
+      twelveOz.innerHTML = products.filter(p => p.category === '12oz').map(p => productRow(p)).join('');
+    }
+    
+    function productRow(product) {
+      const qty = orderItems[product.id] || 0;
+      const selected = qty > 0 ? 'selected' : '';
+      return `
+        <div class="product-row ${selected}" id="row-${product.id}">
+          <span class="product-name">${product.name} <span class="product-size">${product.size}</span></span>
+          <div class="qty-controls">
+            <button class="qty-btn minus" onclick="updateQty(${product.id}, -1)">-</button>
+            <input type="number" class="qty-input" value="${qty || ''}" placeholder="0" 
+                   onchange="setQty(${product.id}, this.value)" id="input-${product.id}">
+            <button class="qty-btn plus" onclick="updateQty(${product.id}, 1)">+</button>
+          </div>
+        </div>
+      `;
+    }
+    
+    function updateQty(id, delta) {
+      const current = orderItems[id] || 0;
+      const newQty = Math.max(0, current + delta);
+      setQty(id, newQty);
+    }
+    
+    function setQty(id, value) {
+      const qty = Math.max(0, parseInt(value) || 0);
+      if (qty === 0) {
+        delete orderItems[id];
+      } else {
+        orderItems[id] = qty;
+      }
+      renderProducts();
+      updateSummary();
+    }
+    
+    function updateSummary() {
+      const items = Object.keys(orderItems).length;
+      const units = Object.values(orderItems).reduce((a, b) => a + b, 0);
+      const totalCost = calculateTotalCost();
+      document.getElementById('itemCount').textContent = items;
+      document.getElementById('totalUnits').textContent = units;
+      document.getElementById('totalCost').textContent = formatCurrency(totalCost);
+      document.getElementById('sendBtn').disabled = items === 0;
+      document.getElementById('saveHistoryBtn').disabled = items === 0;
+    }
+    
+    async function importLocalData() {
+      const localHistory = JSON.parse(localStorage.getItem('fivestar_history') || '[]');
+      const localPrices = JSON.parse(localStorage.getItem('fivestar_prices') || '{}');
+      
+      if (localHistory.length === 0 && Object.keys(localPrices).length === 0) {
+        showNotification('No local data found on this device', 'error');
+        return;
+      }
+      
+      let imported = 0;
+      
+      if (Object.keys(localPrices).length > 0) {
+        try {
+          await fetch('/api/prices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prices: localPrices })
+          });
+          imported++;
+        } catch (err) {
+          console.error('Error importing prices:', err);
+        }
+      }
+      
+      for (const order of localHistory) {
+        try {
+          await fetch('/api/history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              items: order.items,
+              units: order.units,
+              totalCost: order.totalCost || 0
+            })
+          });
+          imported++;
+        } catch (err) {
+          console.error('Error importing order:', err);
+        }
+      }
+      
+      localStorage.removeItem('fivestar_history');
+      localStorage.removeItem('fivestar_prices');
+      
+      await loadDataFromServer();
+      showNotification(`Imported ${localHistory.length} orders and prices from this device`);
+    }
+    
+    async function saveToHistoryOnly() {
+      const totalUnits = Object.values(orderItems).reduce((a, b) => a + b, 0);
+      
+      const historyEntry = {
+        items: { ...orderItems },
+        units: totalUnits,
+        totalCost: calculateTotalCost()
+      };
+      
+      try {
+        const historyRes = await fetch('/api/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(historyEntry)
+        });
+        const historyResult = await historyRes.json();
+        historyEntry.date = historyResult.date;
+        historyEntry.id = historyResult.id;
+        
+        if (!Array.isArray(orderHistory)) orderHistory = [];
+        orderHistory.unshift(historyEntry);
+        orderHistory = orderHistory.slice(0, 20);
+        
+        showNotification('Order saved to history');
+        clearOrder();
+      } catch (err) {
+        showNotification('Error saving to history: ' + err.message, 'error');
+      }
+    }
+    
+    document.getElementById('saveHistoryBtn').addEventListener('click', saveToHistoryOnly);
+    
+    function clearOrder() {
+      orderItems = {};
+      document.getElementById('orderNotes').value = '';
+      renderProducts();
+      updateSummary();
+      showNotification('Order cleared');
+    }
+    
+    function showNotification(msg, type = 'success') {
+      const el = document.getElementById('notification');
+      el.textContent = msg;
+      el.className = `notification ${type}`;
+      setTimeout(() => el.className = 'notification hidden', 3000);
+    }
+    
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+      document.getElementById('settingsPanel').classList.toggle('hidden');
+      document.getElementById('historyPanel').classList.add('hidden');
+      document.getElementById('settingsBtn').classList.toggle('active');
+      document.getElementById('historyBtn').classList.remove('active');
+    });
+    
+    document.getElementById('historyBtn').addEventListener('click', () => {
+      document.getElementById('historyPanel').classList.toggle('hidden');
+      document.getElementById('settingsPanel').classList.add('hidden');
+      document.getElementById('historyBtn').classList.toggle('active');
+      document.getElementById('settingsBtn').classList.remove('active');
+      renderHistory();
+    });
+    
+    document.getElementById('clearBtn').addEventListener('click', clearOrder);
+    
+    function renderHistory() {
+      const list = document.getElementById('historyList');
+      if (orderHistory.length === 0) {
+        list.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No previous orders yet</p>';
+        return;
+      }
+      list.innerHTML = orderHistory.slice(0, 10).map(order => `
+        <div class="history-item">
+          <div>
+            <div class="history-date">${new Date(order.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+            <div class="history-units">${order.units} units${order.totalCost ? ' - ' + formatCurrency(order.totalCost) : ''}</div>
+          </div>
+          <button class="history-btn" onclick='loadOrder(${JSON.stringify(order.items)})'>Load</button>
+        </div>
+      `).join('');
+    }
+    
+    function loadOrder(items) {
+      orderItems = items;
+      renderProducts();
+      updateSummary();
+      document.getElementById('historyPanel').classList.add('hidden');
+      document.getElementById('historyBtn').classList.remove('active');
+      showNotification('Previous order loaded');
+    }
+    
+    document.getElementById('sendBtn').addEventListener('click', sendOrder);
+    
+    async function sendOrder() {
+      const vendorEmail = document.getElementById('vendorEmail').value;
+      const ccEmail = document.getElementById('ccEmail').value;
+      
+      if (!vendorEmail) {
+        showNotification('Please set vendor email in Settings', 'error');
+        document.getElementById('settingsPanel').classList.remove('hidden');
+        document.getElementById('settingsBtn').classList.add('active');
+        return;
+      }
+      
+      const subject = `Weekly Coffee Order - Erwin Mills - ${new Date().toLocaleDateString()}`;
+      
+      let body = `Weekly Coffee Order - Erwin Mills Coffee Company\n`;
+      body += `Order Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n`;
+      body += `----------------------------------------\n\n`;
+      
+      const fiveLb = products.filter(p => p.category === '5lb' && orderItems[p.id]);
+      if (fiveLb.length) {
+        body += `5LB BAGS\n--------------------\n`;
+        fiveLb.forEach(p => body += `${p.name}: ${orderItems[p.id]}\n`);
+        body += `\n`;
+      }
+      
+      const twelveOz = products.filter(p => p.category === '12oz' && orderItems[p.id]);
+      if (twelveOz.length) {
+        body += `12OZ BAGS\n--------------------\n`;
+        twelveOz.forEach(p => body += `${p.name}: ${orderItems[p.id]}\n`);
+        body += `\n`;
+      }
+      
+      const totalUnits = Object.values(orderItems).reduce((a, b) => a + b, 0);
+      body += `----------------------------------------\n`;
+      body += `Total Units: ${totalUnits}\n\n`;
+      
+      const notes = document.getElementById('orderNotes').value.trim();
+      if (notes) {
+        body += `NOTES\n--------------------\n${notes}\n\n`;
+      }
+      
+      body += `Please confirm receipt of this order.\n\nThank you,\nErwin Mills Coffee Company`;
+      
+      document.getElementById('sendingModal').classList.remove('hidden');
+      
+      try {
+        const response = await fetch('/send-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vendorEmail, ccEmail, subject, body })
+        });
+        
+        const result = await response.json();
+        
+        document.getElementById('sendingModal').classList.add('hidden');
+        
+        if (result.success) {
+          const historyEntry = {
+            items: { ...orderItems },
+            units: totalUnits,
+            totalCost: calculateTotalCost()
+          };
+          
+          try {
+            const historyRes = await fetch('/api/history', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(historyEntry)
+            });
+            const historyResult = await historyRes.json();
+            historyEntry.date = historyResult.date;
+            historyEntry.id = historyResult.id;
+          } catch (err) {
+            historyEntry.date = new Date().toISOString();
+            console.error('Error saving history:', err);
+          }
+          
+          if (!Array.isArray(orderHistory)) orderHistory = [];
+          orderHistory.unshift(historyEntry);
+          orderHistory = orderHistory.slice(0, 20);
+          
+          document.getElementById('successModal').classList.remove('hidden');
+          clearOrder();
+        } else {
+          showNotification(result.error || 'Failed to send order', 'error');
+        }
+      } catch (err) {
+        document.getElementById('sendingModal').classList.add('hidden');
+        showNotification('Error sending order: ' + err.message, 'error');
+      }
+    }
+    
+    document.getElementById('successCloseBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('successModal').classList.add('hidden');
+    });
+    
+    document.getElementById('successModal').addEventListener('click', (e) => {
+      if (e.target.id === 'successModal') {
+        document.getElementById('successModal').classList.add('hidden');
+      }
+    });
+    
+    function exportCSV() {
+      if (orderHistory.length === 0) {
+        showNotification('No order history to export', 'error');
+        return;
+      }
+      
+      let csv = 'Date,Units,Total Cost,Items\n';
+      
+      orderHistory.forEach(order => {
+        const date = new Date(order.date).toLocaleDateString('en-US');
+        const units = order.units;
+        const cost = order.totalCost ? order.totalCost.toFixed(2) : '0.00';
+        const items = Object.entries(order.items).map(([id, qty]) => {
+          const product = products.find(p => p.id == id);
+          return product ? `${product.name} ${product.size} x${qty}` : '';
+        }).filter(Boolean).join('; ');
+        
+        csv += `"${date}",${units},$${cost},"${items}"\n`;
+      });
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fivestar-orders-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showNotification('CSV exported successfully');
+    }
+    
+    function exportPDF() {
+      if (orderHistory.length === 0) {
+        showNotification('No order history to export', 'error');
+        return;
+      }
+      
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const goldColor = [193, 154, 73];
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      let grandTotalUnits = 0;
+      let grandTotalCost = 0;
+      orderHistory.forEach(order => {
+        grandTotalUnits += order.units || 0;
+        grandTotalCost += order.totalCost || 0;
+      });
+      
+      const dates = orderHistory.map(o => new Date(o.date)).sort((a, b) => a - b);
+      const startDate = dates[0].toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+      const endDate = dates[dates.length - 1].toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+      
+      doc.setFontSize(24);
+      doc.setFont(undefined, 'bold');
+      doc.text('Erwin Mills Coffee Co.', pageWidth / 2, 30, { align: 'center' });
+      
+      doc.setFontSize(16);
+      doc.text('Coffee Order History', pageWidth / 2, 42, { align: 'center' });
+      
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'normal');
+      doc.text(`${startDate} - ${endDate}`, pageWidth / 2, 54, { align: 'center' });
+      
+      doc.setFontSize(11);
+      doc.text(`Total Orders: ${orderHistory.length}`, 30, 72);
+      doc.text(`Total Units: ${grandTotalUnits}`, 30, 82);
+      
+      doc.setFont(undefined, 'bold');
+      doc.text(`Total Cost: ${formatCurrency(grandTotalCost)}`, 120, 72);
+      doc.setTextColor(...goldColor);
+      doc.text(`Vendor: Five Star Coffee Roasters`, 120, 82);
+      doc.setTextColor(0, 0, 0);
+      
+      let y = 100;
+      
+      orderHistory.forEach((order, orderIndex) => {
+        if (y > 240) {
+          doc.addPage();
+          y = 25;
+        }
+        
+        const orderDate = new Date(order.date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+        
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text(`Order: ${orderDate}`, 20, y);
+        y += 8;
+        
+        doc.setFillColor(...goldColor);
+        doc.rect(20, y - 4, 170, 8, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(10);
+        doc.text('Product', 25, y + 1);
+        doc.text('Qty', 110, y + 1);
+        doc.text('Unit Price', 135, y + 1);
+        doc.text('Total', 170, y + 1);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        y += 10;
+        
+        let orderCost = 0;
+        let orderUnits = 0;
+        
+        Object.entries(order.items).forEach(([id, qty]) => {
+          if (y > 270) {
+            doc.addPage();
+            y = 25;
+          }
+          
+          const product = products.find(p => p.id == id);
+          if (product) {
+            const unitPrice = productPrices[id] || 0;
+            const lineTotal = unitPrice * qty;
+            
+            doc.setFontSize(10);
+            doc.text(`${product.name} (${product.size})`, 25, y);
+            doc.text(String(qty), 110, y);
+            doc.text(unitPrice > 0 ? formatCurrency(unitPrice) : '-', 135, y);
+            doc.text(lineTotal > 0 ? formatCurrency(lineTotal) : '-', 170, y);
+            
+            orderUnits += qty;
+            orderCost += lineTotal;
+            y += 6;
+          }
+        });
+        
+        doc.setFillColor(...goldColor);
+        doc.rect(20, y - 3, 170, 7, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(undefined, 'bold');
+        doc.text('TOTAL', 25, y + 1);
+        doc.text(String(orderUnits), 110, y + 1);
+        doc.text('', 135, y + 1);
+        doc.text(orderCost > 0 ? formatCurrency(orderCost) : '-', 170, y + 1);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        
+        y += 18;
+      });
+      
+      doc.save(`coffee-orders-${new Date().toISOString().split('T')[0]}.pdf`);
+      showNotification('PDF exported successfully');
+    }
+    
+    renderProducts();
+    renderPrices();
+    updateSummary();
+    loadDataFromServer();
+  </script>
+</body>
+</html>

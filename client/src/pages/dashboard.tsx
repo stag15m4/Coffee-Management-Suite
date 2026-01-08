@@ -156,11 +156,10 @@ export default function Dashboard() {
           
           {canAccessModule('bulk-ordering') && (
             <ModuleCard
-              title="Bulk Ordering"
+              title="Coffee Orders"
               description="Manage wholesale coffee orders"
               icon={<Coffee className="w-6 h-6" style={{ color: colors.brown }} />}
-              href="/bulk-ordering"
-              disabled
+              href="/coffee-order"
             />
           )}
         </div>
