@@ -570,7 +570,7 @@ export default function CashDeposit() {
                 <Button 
                   asChild
                   className="text-white font-medium"
-                  style={{ backgroundColor: '#3B82F6' }}
+                  style={{ backgroundColor: colors.gold }}
                 >
                   <span>Import</span>
                 </Button>
