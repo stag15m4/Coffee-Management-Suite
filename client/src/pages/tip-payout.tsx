@@ -360,79 +360,135 @@ export default function TipPayout() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Tip Payout - ${weekRange.start} to ${weekRange.end}</title>
+        <title>Erwin Mills Coffee Co. - Weekly Tip Payout Summary</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 20px; color: #4A3728; }
-          h1 { color: #4A3728; border-bottom: 2px solid #C9A227; padding-bottom: 10px; }
-          h2 { color: #6B5344; margin-top: 20px; }
-          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-          th, td { border: 1px solid #C9A227; padding: 8px; text-align: left; }
-          th { background-color: #C9A227; color: #4A3728; }
-          .summary { background-color: #F5F0E1; padding: 15px; border-radius: 8px; margin: 15px 0; }
-          .total-row { background-color: #C9A227; font-weight: bold; }
-          @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+          body { 
+            font-family: Arial, sans-serif; 
+            padding: 30px; 
+            color: #4A3728;
+            max-width: 700px;
+            margin: 0 auto;
+          }
+          .container {
+            border: 1px solid #C9A227;
+            border-radius: 8px;
+            padding: 25px;
+            background: #FFFDF7;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 20px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #4A3728;
+          }
+          .header h2 {
+            margin: 5px 0 0 0;
+            font-size: 16px;
+            font-weight: normal;
+            color: #6B5344;
+          }
+          .header .week {
+            margin-top: 5px;
+            font-size: 14px;
+            color: #6B5344;
+          }
+          .summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 40px;
+            margin: 20px 0;
+            padding: 15px 0;
+            border-bottom: 1px solid #E5DDD0;
+          }
+          .summary-item {
+            font-size: 13px;
+          }
+          .summary-item.highlight {
+            background-color: #C9A227;
+            padding: 3px 8px;
+            border-radius: 3px;
+          }
+          .summary-item.gold-text {
+            color: #C9A227;
+            font-weight: bold;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+          }
+          th {
+            background-color: #C9A227;
+            color: #4A3728;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: bold;
+            font-size: 13px;
+          }
+          td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #E5DDD0;
+            font-size: 13px;
+          }
+          .total-row {
+            background-color: #C9A227;
+            font-weight: bold;
+          }
+          .total-row td {
+            border-bottom: none;
+            padding: 10px 12px;
+          }
+          @media print { 
+            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } 
+          }
         </style>
       </head>
       <body>
-        <h1>Tip Payout Summary</h1>
-        <p><strong>Week:</strong> ${weekRange.start} - ${weekRange.end}</p>
-        
-        <div class="summary">
-          <p><strong>Total Tips (After 3.5% CC Fee):</strong> ${formatCurrency(totalPool)}</p>
-          <p><strong>Total Team Hours:</strong> ${formatHoursMinutes(totalTeamHours)}</p>
-          <p><strong>Calculated Hourly Rate:</strong> ${formatCurrency(hourlyRate)}</p>
-        </div>
-        
-        <h2>Employee Payouts</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Employee</th>
-              <th>Hours</th>
-              <th>Payout</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${Object.entries(employeeHours)
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([name, hours]) => `
-                <tr>
-                  <td>${name}</td>
-                  <td>${formatHoursMinutes(hours)}</td>
-                  <td>${formatCurrency(hours * hourlyRate)}</td>
-                </tr>
-              `).join('')}
-            <tr class="total-row">
-              <td colspan="2">Total Paid Out</td>
-              <td>${formatCurrency(totalPool)}</td>
-            </tr>
-          </tbody>
-        </table>
-        
-        <h2>Daily Tips Breakdown</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Day</th>
-              <th>Credit Card</th>
-              <th>Cash</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${DAYS.map((day: string, i: number) => `
+        <div class="container">
+          <div class="header">
+            <h1>Erwin Mills Coffee Co.</h1>
+            <h2>Weekly Tip Payout Summary</h2>
+            <div class="week">Week: ${weekRange.start} - ${weekRange.end}</div>
+          </div>
+          
+          <div class="summary">
+            <div class="summary-item">Total Cash Tips: ${formatCurrency(cashTotal)}</div>
+            <div class="summary-item">Total CC Tips: ${formatCurrency(ccTotal)}</div>
+            <div class="summary-item">CC After 3.5% Fee: ${formatCurrency(ccAfterFee)}</div>
+            <div class="summary-item highlight">Total Tip Pool: ${formatCurrency(totalPool)}</div>
+            <div class="summary-item">Total Team Hours: ${formatHoursMinutes(totalTeamHours)} (${totalTeamHours.toFixed(2)}h)</div>
+            <div class="summary-item gold-text">Hourly Rate: ${formatCurrency(hourlyRate)}/hr</div>
+          </div>
+          
+          <table>
+            <thead>
               <tr>
-                <td>${day}</td>
-                <td>${formatCurrency(parseFloat(String(ccEntries[i])) || 0)}</td>
-                <td>${formatCurrency(parseFloat(String(cashEntries[i])) || 0)}</td>
+                <th>Employee</th>
+                <th>Hours</th>
+                <th>Payout</th>
               </tr>
-            `).join('')}
-            <tr class="total-row">
-              <td>Totals</td>
-              <td>${formatCurrency(ccTotal)} (after fee: ${formatCurrency(ccAfterFee)})</td>
-              <td>${formatCurrency(cashTotal)}</td>
-            </tr>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              ${Object.entries(employeeHours)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([name, hours]) => `
+                  <tr>
+                    <td>${name}</td>
+                    <td>${formatHoursMinutes(hours)}</td>
+                    <td>${formatCurrency(hours * hourlyRate)}</td>
+                  </tr>
+                `).join('')}
+              <tr class="total-row">
+                <td>TOTAL</td>
+                <td>${formatHoursMinutes(totalTeamHours)}</td>
+                <td>${formatCurrency(totalPool)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </body>
       </html>
     `;
