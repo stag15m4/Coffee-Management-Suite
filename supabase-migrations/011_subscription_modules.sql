@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
 INSERT INTO subscription_plans (id, name, description, monthly_price, display_order) VALUES
     ('free', 'Free Trial', '14-day trial with all features', 0, 1),
     ('alacarte', 'À La Carte', 'Pick individual modules at $19.99 each', 0, 2),
-    ('premium', 'Premium Suite', 'All 4 modules including Recipe Costing', 99.99, 3)
+    ('test_eval', 'Test & Eval', 'Full-featured access for testing and evaluation', 49.99, 3),
+    ('premium', 'Premium Suite', 'All 4 modules including Recipe Costing', 99.99, 4)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,
@@ -66,6 +67,14 @@ ON CONFLICT DO NOTHING;
 
 -- À la carte: No default modules (admin selects which ones tenant has purchased)
 -- (no inserts needed)
+
+-- Test & Eval: All modules (full-featured)
+INSERT INTO subscription_plan_modules (plan_id, module_id) VALUES
+    ('test_eval', 'recipe-costing'),
+    ('test_eval', 'tip-payout'),
+    ('test_eval', 'cash-deposit'),
+    ('test_eval', 'bulk-ordering')
+ON CONFLICT DO NOTHING;
 
 -- Premium: All modules
 INSERT INTO subscription_plan_modules (plan_id, module_id) VALUES
@@ -159,7 +168,7 @@ CREATE POLICY "Platform admins can manage all module overrides" ON tenant_module
 -- =====================================================
 -- HELPER FUNCTION: Get enabled modules for a tenant
 -- Returns array of module IDs that are enabled for a tenant
--- Supports: Free Trial (all), Premium (all), À La Carte (selected)
+-- Supports: Free Trial (all), Test & Eval (all), Premium (all), À La Carte (selected)
 -- =====================================================
 CREATE OR REPLACE FUNCTION get_tenant_enabled_modules(p_tenant_id UUID)
 RETURNS TEXT[] AS $$
@@ -177,8 +186,8 @@ BEGIN
         tenant_plan := 'free';
     END IF;
 
-    -- For free trial and premium: get all modules from plan
-    IF tenant_plan IN ('free', 'premium') THEN
+    -- For free trial, test & eval, and premium: get all modules from plan
+    IF tenant_plan IN ('free', 'test_eval', 'premium') THEN
         SELECT ARRAY_AGG(m.id) INTO result
         FROM modules m
         LEFT JOIN subscription_plan_modules spm ON spm.module_id = m.id AND spm.plan_id = tenant_plan
