@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Building2, 
@@ -17,7 +18,8 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  Settings
+  Settings,
+  Package
 } from 'lucide-react';
 import {
   Dialog,
@@ -27,6 +29,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface TenantWithStats {
   id: string;
@@ -37,6 +46,28 @@ interface TenantWithStats {
   is_active: boolean;
   created_at: string;
   user_count?: number;
+}
+
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  description: string;
+  monthly_price: number;
+}
+
+interface Module {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface ModuleOverride {
+  module_id: string;
+  is_enabled: boolean;
+}
+
+interface PlanModules {
+  [planId: string]: string[];
 }
 
 export default function PlatformAdmin() {
@@ -61,6 +92,15 @@ export default function PlatformAdmin() {
   const [ownerPassword, setOwnerPassword] = useState('');
   const [creating, setCreating] = useState(false);
 
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [planModules, setPlanModules] = useState<PlanModules>({});
+  const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
+  const [selectedTenant, setSelectedTenant] = useState<TenantWithStats | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<string>('');
+  const [moduleOverrides, setModuleOverrides] = useState<ModuleOverride[]>([]);
+  const [savingSubscription, setSavingSubscription] = useState(false);
+
   useEffect(() => {
     if (!authLoading && !isPlatformAdmin) {
       setLocation('/login');
@@ -70,8 +110,111 @@ export default function PlatformAdmin() {
   useEffect(() => {
     if (isPlatformAdmin) {
       loadTenants();
+      loadSubscriptionData();
     }
   }, [isPlatformAdmin]);
+
+  const loadSubscriptionData = async () => {
+    try {
+      const [plansResult, modulesResult, planModulesResult] = await Promise.all([
+        supabase.from('subscription_plans').select('*').order('display_order'),
+        supabase.from('modules').select('*').order('display_order'),
+        supabase.from('subscription_plan_modules').select('*')
+      ]);
+
+      if (plansResult.data) {
+        setSubscriptionPlans(plansResult.data);
+      }
+      if (modulesResult.data) {
+        setModules(modulesResult.data);
+      }
+      if (planModulesResult.data) {
+        const pm: PlanModules = {};
+        planModulesResult.data.forEach((item: { plan_id: string; module_id: string }) => {
+          if (!pm[item.plan_id]) pm[item.plan_id] = [];
+          pm[item.plan_id].push(item.module_id);
+        });
+        setPlanModules(pm);
+      }
+    } catch (error: any) {
+      console.error('Error loading subscription data:', error);
+    }
+  };
+
+  const openSubscriptionDialog = async (tenant: TenantWithStats) => {
+    setSelectedTenant(tenant);
+    setSelectedPlan(tenant.subscription_plan || 'free');
+    
+    const { data: overrides } = await supabase
+      .from('tenant_module_overrides')
+      .select('module_id, is_enabled')
+      .eq('tenant_id', tenant.id);
+    
+    setModuleOverrides(overrides || []);
+    setShowSubscriptionDialog(true);
+  };
+
+  const getEffectiveModuleStatus = (moduleId: string): boolean => {
+    const override = moduleOverrides.find(o => o.module_id === moduleId);
+    if (override !== undefined) {
+      return override.is_enabled;
+    }
+    return (planModules[selectedPlan] || []).includes(moduleId);
+  };
+
+  const toggleModuleOverride = (moduleId: string) => {
+    const currentStatus = getEffectiveModuleStatus(moduleId);
+    const existingOverride = moduleOverrides.find(o => o.module_id === moduleId);
+    
+    if (existingOverride) {
+      setModuleOverrides(moduleOverrides.map(o => 
+        o.module_id === moduleId ? { ...o, is_enabled: !currentStatus } : o
+      ));
+    } else {
+      setModuleOverrides([...moduleOverrides, { module_id: moduleId, is_enabled: !currentStatus }]);
+    }
+  };
+
+  const saveSubscriptionSettings = async () => {
+    if (!selectedTenant) return;
+    
+    setSavingSubscription(true);
+    try {
+      const { error: planError } = await supabase
+        .from('tenants')
+        .update({ subscription_plan: selectedPlan })
+        .eq('id', selectedTenant.id);
+
+      if (planError) throw planError;
+
+      await supabase
+        .from('tenant_module_overrides')
+        .delete()
+        .eq('tenant_id', selectedTenant.id);
+
+      if (moduleOverrides.length > 0) {
+        const overridesToInsert = moduleOverrides.map(o => ({
+          tenant_id: selectedTenant.id,
+          module_id: o.module_id,
+          is_enabled: o.is_enabled
+        }));
+
+        const { error: overrideError } = await supabase
+          .from('tenant_module_overrides')
+          .insert(overridesToInsert);
+
+        if (overrideError) throw overrideError;
+      }
+
+      toast({ title: 'Subscription updated successfully!' });
+      setShowSubscriptionDialog(false);
+      loadTenants();
+    } catch (error: any) {
+      toast({ title: 'Error updating subscription', description: error.message, variant: 'destructive' });
+    } finally {
+      setSavingSubscription(false);
+    }
+  };
 
   const loadTenants = async () => {
     setLoading(true);
@@ -409,6 +552,15 @@ export default function PlatformAdmin() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => openSubscriptionDialog(tenant)}
+                      className="border-purple-500 text-purple-400 hover:bg-purple-500/10"
+                      data-testid={`button-manage-subscription-${tenant.id}`}
+                    >
+                      <Package className="w-4 h-4 mr-1" /> Modules
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => toggleTenantActive(tenant.id, tenant.is_active)}
                       className={tenant.is_active 
                         ? "border-red-500 text-red-400 hover:bg-red-500/10" 
@@ -440,6 +592,73 @@ export default function PlatformAdmin() {
             </Card>
           )}
         </div>
+
+        {/* Subscription Management Dialog */}
+        <Dialog open={showSubscriptionDialog} onOpenChange={setShowSubscriptionDialog}>
+          <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle>Manage Subscription</DialogTitle>
+              <DialogDescription className="text-slate-400">
+                {selectedTenant?.name} - Configure plan and modules
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 mt-4">
+              <div>
+                <Label className="text-slate-200">Subscription Plan</Label>
+                <Select value={selectedPlan} onValueChange={setSelectedPlan}>
+                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1" data-testid="select-subscription-plan">
+                    <SelectValue placeholder="Select a plan" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-700 border-slate-600">
+                    {subscriptionPlans.map((plan) => (
+                      <SelectItem key={plan.id} value={plan.id} className="text-white hover:bg-slate-600">
+                        {plan.name} - ${plan.monthly_price}/mo
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-slate-200 mb-3 block">Module Access</Label>
+                <div className="space-y-3">
+                  {modules.map((module) => {
+                    const isEnabled = getEffectiveModuleStatus(module.id);
+                    const isInPlan = (planModules[selectedPlan] || []).includes(module.id);
+                    const hasOverride = moduleOverrides.some(o => o.module_id === module.id);
+                    
+                    return (
+                      <div key={module.id} className="flex items-center justify-between p-3 bg-slate-700 rounded-lg">
+                        <div>
+                          <p className="font-medium text-sm">{module.name}</p>
+                          <p className="text-xs text-slate-400">
+                            {isInPlan ? 'Included in plan' : 'Not in plan'}
+                            {hasOverride && ' (override)'}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={isEnabled}
+                          onCheckedChange={() => toggleModuleOverride(module.id)}
+                          data-testid={`switch-module-${module.id}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <Button 
+                onClick={saveSubscriptionSettings} 
+                disabled={savingSubscription}
+                className="w-full bg-purple-600 hover:bg-purple-700"
+                data-testid="button-save-subscription"
+              >
+                {savingSubscription ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Save Changes
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
