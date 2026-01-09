@@ -52,11 +52,14 @@ SQL migration files in `supabase-migrations/`:
 11. `011_subscription_modules.sql` - Subscription plans and module access control
 
 ### Subscription & Module Access System
-- **Subscription Plans**: Free Trial, Basic, Standard, Premium with different module access
-- **Module Access Control**: Platform admin can assign plans to tenants and toggle individual modules
-- **Per-Tenant Overrides**: Modules can be enabled/disabled per tenant beyond their plan defaults
-- **Database Function**: `get_tenant_enabled_modules(tenant_id)` returns enabled modules for a tenant
-- Tables: `modules`, `subscription_plans`, `subscription_plan_modules`, `tenant_module_overrides`
+- **Pricing Model**:
+  - **À La Carte**: Tips, Deposits, Ordering at $19.99 each (pick and choose)
+  - **Premium Suite**: All 4 modules for $99.99/month (includes Recipe Costing)
+  - **Recipe Costing** is premium-only (the "heavy hitter" module)
+- **Free Trial**: 14-day trial with all features
+- **Platform Admin** can assign plans and select à la carte modules per tenant
+- **Database Function**: `get_tenant_enabled_modules(tenant_id)` returns enabled modules
+- Tables: `modules`, `subscription_plans`, `subscription_plan_modules`, `tenant_module_subscriptions`, `tenant_module_overrides`
 
 ### Implemented Modules
 
