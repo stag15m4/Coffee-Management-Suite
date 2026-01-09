@@ -13,11 +13,13 @@ import TipPayout from "@/pages/tip-payout";
 import CoffeeOrder from "@/pages/coffee-order";
 import AdminUsers from "@/pages/admin-users";
 import AdminBranding from "@/pages/admin-branding";
+import PlatformAdmin from "@/pages/platform-admin";
 
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/platform-admin" component={PlatformAdmin} />
       <Route path="/admin/users">
         <ProtectedRoute>
           <AdminUsers />

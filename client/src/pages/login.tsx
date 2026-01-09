@@ -21,16 +21,21 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, user, loading } = useAuth();
+  const { signIn, user, loading, isPlatformAdmin, profile } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Redirect when user is authenticated (don't wait for profile)
     if (!loading && user) {
-      setLocation('/');
+      if (isPlatformAdmin) {
+        setLocation('/platform-admin');
+      } else if (profile) {
+        setLocation('/');
+      }
+      // If user exists but no profile or platform admin found,
+      // they may be a new user without a proper setup - stay on login
     }
-  }, [loading, user, setLocation]);
+  }, [loading, user, isPlatformAdmin, profile, setLocation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,8 +57,7 @@ export default function Login() {
       title: 'Welcome back!',
       description: 'You have been logged in successfully.',
     });
-    
-    setLocation('/');
+    // Redirect handled by useEffect after auth state updates
   };
 
   return (
