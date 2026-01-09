@@ -75,9 +75,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('platform_admins')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (!adminError && adminData) {
+      if (adminData && !adminError) {
         // User is a platform admin - no need to fetch tenant/branding
         setPlatformAdmin(adminData);
         setProfile(null);
