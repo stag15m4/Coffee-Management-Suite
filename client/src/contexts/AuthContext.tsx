@@ -13,6 +13,13 @@ export interface UserProfile {
   is_active: boolean;
 }
 
+export interface PlatformAdmin {
+  id: string;
+  email: string;
+  full_name: string | null;
+  is_active: boolean;
+}
+
 export interface TenantBranding {
   id: string;
   tenant_id: string;
@@ -29,12 +36,17 @@ export interface Tenant {
   id: string;
   name: string;
   slug: string;
+  subscription_status?: string;
+  subscription_plan?: string;
+  is_active?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: UserProfile | null;
+  platformAdmin: PlatformAdmin | null;
+  isPlatformAdmin: boolean;
   tenant: Tenant | null;
   branding: TenantBranding | null;
   loading: boolean;
@@ -51,73 +63,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [platformAdmin, setPlatformAdmin] = useState<PlatformAdmin | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [branding, setBranding] = useState<TenantBranding | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserData = useCallback(async (userId: string) => {
+  const fetchUserData = useCallback(async (userId: string): Promise<boolean> => {
     try {
-      // Fetch user profile
+      // First check if user is a platform admin
+      const { data: adminData, error: adminError } = await supabase
+        .from('platform_admins')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (!adminError && adminData) {
+        // User is a platform admin - no need to fetch tenant/branding
+        setPlatformAdmin(adminData);
+        setProfile(null);
+        setTenant(null);
+        setBranding(null);
+        return true;
+      }
+
+      // Not a platform admin, check for regular user profile
       const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (profileError) {
-        console.error('Error fetching profile:', profileError.message);
-        // Profile not found - user exists in auth but no profile record
-        // This happens when RLS blocks the query or profile doesn't exist
+      if (profileError || !profileData) {
+        console.error('Error fetching profile:', profileError?.message);
         setProfile(null);
-        setLoading(false);
-        return;
-      }
-
-      if (!profileData) {
-        console.error('No profile data returned for user:', userId);
-        setProfile(null);
-        setLoading(false);
-        return;
+        setPlatformAdmin(null);
+        return false;
       }
 
       setProfile(profileData);
+      setPlatformAdmin(null);
 
-      // Fetch tenant (non-blocking)
-      (async () => {
-        try {
-          const { data: tenantData, error: tenantError } = await supabase
-            .from('tenants')
-            .select('*')
-            .eq('id', profileData.tenant_id)
-            .single();
-          if (!tenantError && tenantData) {
-            setTenant(tenantData);
-          }
-        } catch (err) {
-          console.error('Error fetching tenant:', err);
+      // Fetch tenant and branding in parallel (non-blocking for UI)
+      Promise.all([
+        supabase.from('tenants').select('*').eq('id', profileData.tenant_id).single(),
+        supabase.from('tenant_branding').select('*').eq('tenant_id', profileData.tenant_id).single()
+      ]).then(([tenantResult, brandingResult]) => {
+        if (!tenantResult.error && tenantResult.data) {
+          setTenant(tenantResult.data);
         }
-      })();
+        if (!brandingResult.error && brandingResult.data) {
+          setBranding(brandingResult.data);
+        }
+      }).catch(err => {
+        console.error('Error fetching tenant/branding:', err);
+      });
 
-      // Fetch branding (non-blocking)
-      (async () => {
-        try {
-          const { data: brandingData, error: brandingError } = await supabase
-            .from('tenant_branding')
-            .select('*')
-            .eq('tenant_id', profileData.tenant_id)
-            .single();
-          if (!brandingError && brandingData) {
-            setBranding(brandingData);
-          }
-        } catch (err) {
-          console.error('Error fetching branding:', err);
-        }
-      })();
-        
+      return true;
     } catch (error: any) {
       console.error('Error fetching user data:', error?.message || error);
       setProfile(null);
-      setLoading(false);
+      setPlatformAdmin(null);
+      return false;
     }
   }, []);
 
@@ -142,6 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await fetchUserData(session.user.id);
         } else {
           setProfile(null);
+          setPlatformAdmin(null);
           setTenant(null);
           setBranding(null);
         }
@@ -189,6 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
+    setPlatformAdmin(null);
     setTenant(null);
     setBranding(null);
   };
@@ -225,6 +233,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         session,
         profile,
+        platformAdmin,
+        isPlatformAdmin: !!platformAdmin,
         tenant,
         branding,
         loading,
