@@ -156,6 +156,7 @@ export default function PlatformAdmin() {
 
   const calculateMonthlyTotal = (): number => {
     if (selectedPlan === 'premium') return 99.99;
+    if (selectedPlan === 'test_eval') return 49.99;
     if (selectedPlan === 'free') return 0;
     return selectedModules.reduce((total, moduleId) => {
       const module = modules.find(m => m.id === moduleId);
@@ -620,6 +621,34 @@ export default function PlatformAdmin() {
                 />
               </div>
 
+              {/* Test & Eval Option */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                  selectedPlan === 'test_eval' 
+                    ? 'border-blue-500 bg-blue-900/30' 
+                    : 'border-slate-600 bg-slate-700 hover:border-slate-500'
+                }`}
+                onClick={() => setSelectedPlan(selectedPlan === 'test_eval' ? 'alacarte' : 'test_eval')}
+                data-testid="toggle-test-eval"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-lg">Test & Eval</p>
+                    <p className="text-sm text-slate-400">Full access for testing and evaluation</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-bold text-blue-400">$49.99</p>
+                    <p className="text-xs text-slate-400">/month</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={selectedPlan === 'test_eval'}
+                  onCheckedChange={(checked) => setSelectedPlan(checked ? 'test_eval' : 'alacarte')}
+                  className="mt-3"
+                  data-testid="switch-test-eval"
+                />
+              </div>
+
               {/* Free Trial Option */}
               {selectedTenant?.subscription_status === 'trial' && (
                 <div 
@@ -642,7 +671,7 @@ export default function PlatformAdmin() {
               )}
 
               {/* À La Carte Modules */}
-              {selectedPlan !== 'premium' && selectedPlan !== 'free' && (
+              {selectedPlan !== 'premium' && selectedPlan !== 'test_eval' && selectedPlan !== 'free' && (
                 <div>
                   <Label className="text-slate-200 mb-3 block">À La Carte Modules ($19.99 each)</Label>
                   <div className="space-y-3">
@@ -685,8 +714,8 @@ export default function PlatformAdmin() {
                 </div>
               )}
 
-              {/* Premium modules preview */}
-              {selectedPlan === 'premium' && (
+              {/* Premium/Test & Eval modules preview */}
+              {(selectedPlan === 'premium' || selectedPlan === 'test_eval') && (
                 <div>
                   <Label className="text-slate-200 mb-3 block">Included Modules</Label>
                   <div className="space-y-2">
