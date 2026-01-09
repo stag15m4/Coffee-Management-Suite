@@ -41,6 +41,8 @@ export interface Tenant {
   is_active?: boolean;
 }
 
+export type ModuleId = 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering';
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -49,12 +51,14 @@ interface AuthContextType {
   isPlatformAdmin: boolean;
   tenant: Tenant | null;
   branding: TenantBranding | null;
+  enabledModules: ModuleId[];
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string, tenantId: string, role?: UserRole) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   hasRole: (requiredRole: UserRole) => boolean;
-  canAccessModule: (module: 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering') => boolean;
+  canAccessModule: (module: ModuleId) => boolean;
+  refreshEnabledModules: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -66,7 +70,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [platformAdmin, setPlatformAdmin] = useState<PlatformAdmin | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [branding, setBranding] = useState<TenantBranding | null>(null);
+  const [enabledModules, setEnabledModules] = useState<ModuleId[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const fetchEnabledModules = useCallback(async (tenantId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('get_tenant_enabled_modules', {
+        p_tenant_id: tenantId
+      });
+      
+      if (error) {
+        // If the function doesn't exist yet, query plan modules directly as fallback
+        console.warn('Module access function not available, using plan-based fallback:', error.message);
+        
+        // Query the tenant's plan and get default modules
+        const { data: tenantData } = await supabase
+          .from('tenants')
+          .select('subscription_plan')
+          .eq('id', tenantId)
+          .single();
+        
+        const plan = tenantData?.subscription_plan || 'free';
+        
+        const { data: planModules } = await supabase
+          .from('subscription_plan_modules')
+          .select('module_id')
+          .eq('plan_id', plan);
+        
+        if (planModules && planModules.length > 0) {
+          setEnabledModules(planModules.map(pm => pm.module_id as ModuleId));
+        } else {
+          // Default to all modules only for free/trial plans
+          if (plan === 'free' || !plan) {
+            setEnabledModules(['recipe-costing', 'tip-payout', 'cash-deposit', 'bulk-ordering']);
+          } else {
+            setEnabledModules([]);
+          }
+        }
+        return;
+      }
+      
+      setEnabledModules((data || []) as ModuleId[]);
+    } catch (err) {
+      console.error('Error in fetchEnabledModules:', err);
+      // On complete failure, set empty to be safe (no access)
+      setEnabledModules([]);
+    }
+  }, []);
 
   const fetchUserData = useCallback(async (userId: string): Promise<boolean> => {
     try {
@@ -103,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(profileData);
       setPlatformAdmin(null);
 
-      // Fetch tenant and branding in parallel (non-blocking for UI)
+      // Fetch tenant, branding, and enabled modules in parallel (non-blocking for UI)
       Promise.all([
         supabase.from('tenants').select('*').eq('id', profileData.tenant_id).single(),
         supabase.from('tenant_branding').select('*').eq('tenant_id', profileData.tenant_id).single()
@@ -117,6 +167,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }).catch(err => {
         console.error('Error fetching tenant/branding:', err);
       });
+
+      // Fetch enabled modules for this tenant
+      fetchEnabledModules(profileData.tenant_id);
 
       return true;
     } catch (error: any) {
@@ -199,7 +252,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPlatformAdmin(null);
     setTenant(null);
     setBranding(null);
+    setEnabledModules([]);
   };
+
+  const refreshEnabledModules = useCallback(async () => {
+    if (profile?.tenant_id) {
+      await fetchEnabledModules(profile.tenant_id);
+    }
+  }, [profile?.tenant_id, fetchEnabledModules]);
 
   const hasRole = (requiredRole: UserRole): boolean => {
     if (!profile) return false;
@@ -214,9 +274,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return roleHierarchy[profile.role] >= roleHierarchy[requiredRole];
   };
 
-  const canAccessModule = (module: 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering'): boolean => {
+  const canAccessModule = (module: ModuleId): boolean => {
     if (!profile) return false;
 
+    // First check if the module is enabled for this tenant's subscription
+    if (!enabledModules.includes(module)) {
+      return false;
+    }
+
+    // Then check if the user's role has access to this module type
     const moduleAccess: Record<string, UserRole> = {
       'recipe-costing': 'manager',    // Managers and Owners
       'tip-payout': 'lead',           // Leads, Managers, Owners
@@ -237,12 +303,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isPlatformAdmin: !!platformAdmin,
         tenant,
         branding,
+        enabledModules,
         loading,
         signIn,
         signUp,
         signOut,
         hasRole,
         canAccessModule,
+        refreshEnabledModules,
       }}
     >
       {children}

@@ -1,10 +1,10 @@
-import { useAuth, UserRole } from '@/contexts/AuthContext';
+import { useAuth, UserRole, ModuleId } from '@/contexts/AuthContext';
 import { Redirect } from 'wouter';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredRole?: UserRole;
-  module?: 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering';
+  module?: ModuleId;
 }
 
 export function ProtectedRoute({ children, requiredRole, module }: ProtectedRouteProps) {
