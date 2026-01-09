@@ -49,6 +49,14 @@ SQL migration files in `supabase-migrations/`:
 8. `008_coffee_order_schema.sql` - Coffee product prices and order history tables
 9. `009_fix_user_profile_read.sql` - Fixes RLS circular dependency bug
 10. `010_platform_admin_schema.sql` - Platform admin tables for SaaS management
+11. `011_subscription_modules.sql` - Subscription plans and module access control
+
+### Subscription & Module Access System
+- **Subscription Plans**: Free Trial, Basic, Standard, Premium with different module access
+- **Module Access Control**: Platform admin can assign plans to tenants and toggle individual modules
+- **Per-Tenant Overrides**: Modules can be enabled/disabled per tenant beyond their plan defaults
+- **Database Function**: `get_tenant_enabled_modules(tenant_id)` returns enabled modules for a tenant
+- Tables: `modules`, `subscription_plans`, `subscription_plan_modules`, `tenant_module_overrides`
 
 ### Implemented Modules
 
