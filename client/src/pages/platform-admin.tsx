@@ -59,15 +59,12 @@ interface Module {
   id: string;
   name: string;
   description: string;
+  monthly_price: number;
+  is_premium_only: boolean;
 }
 
-interface ModuleOverride {
+interface ModuleSubscription {
   module_id: string;
-  is_enabled: boolean;
-}
-
-interface PlanModules {
-  [planId: string]: string[];
 }
 
 export default function PlatformAdmin() {
@@ -94,11 +91,10 @@ export default function PlatformAdmin() {
 
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
-  const [planModules, setPlanModules] = useState<PlanModules>({});
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<TenantWithStats | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<string>('');
-  const [moduleOverrides, setModuleOverrides] = useState<ModuleOverride[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<string>('free');
+  const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [savingSubscription, setSavingSubscription] = useState(false);
 
   useEffect(() => {
@@ -116,10 +112,9 @@ export default function PlatformAdmin() {
 
   const loadSubscriptionData = async () => {
     try {
-      const [plansResult, modulesResult, planModulesResult] = await Promise.all([
+      const [plansResult, modulesResult] = await Promise.all([
         supabase.from('subscription_plans').select('*').order('display_order'),
         supabase.from('modules').select('*').order('display_order'),
-        supabase.from('subscription_plan_modules').select('*')
       ]);
 
       if (plansResult.data) {
@@ -128,51 +123,45 @@ export default function PlatformAdmin() {
       if (modulesResult.data) {
         setModules(modulesResult.data);
       }
-      if (planModulesResult.data) {
-        const pm: PlanModules = {};
-        planModulesResult.data.forEach((item: { plan_id: string; module_id: string }) => {
-          if (!pm[item.plan_id]) pm[item.plan_id] = [];
-          pm[item.plan_id].push(item.module_id);
-        });
-        setPlanModules(pm);
-      }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading subscription data:', error);
     }
   };
 
   const openSubscriptionDialog = async (tenant: TenantWithStats) => {
     setSelectedTenant(tenant);
-    setSelectedPlan(tenant.subscription_plan || 'free');
+    const plan = tenant.subscription_plan || 'free';
+    setSelectedPlan(plan);
     
-    const { data: overrides } = await supabase
-      .from('tenant_module_overrides')
-      .select('module_id, is_enabled')
-      .eq('tenant_id', tenant.id);
+    if (plan === 'alacarte') {
+      const { data: subs } = await supabase
+        .from('tenant_module_subscriptions')
+        .select('module_id')
+        .eq('tenant_id', tenant.id);
+      setSelectedModules((subs || []).map((s: ModuleSubscription) => s.module_id));
+    } else {
+      setSelectedModules([]);
+    }
     
-    setModuleOverrides(overrides || []);
     setShowSubscriptionDialog(true);
   };
 
-  const getEffectiveModuleStatus = (moduleId: string): boolean => {
-    const override = moduleOverrides.find(o => o.module_id === moduleId);
-    if (override !== undefined) {
-      return override.is_enabled;
+  const toggleModule = (moduleId: string) => {
+    if (selectedModules.includes(moduleId)) {
+      setSelectedModules(selectedModules.filter(m => m !== moduleId));
+    } else {
+      setSelectedModules([...selectedModules, moduleId]);
     }
-    return (planModules[selectedPlan] || []).includes(moduleId);
   };
 
-  const toggleModuleOverride = (moduleId: string) => {
-    const currentStatus = getEffectiveModuleStatus(moduleId);
-    const existingOverride = moduleOverrides.find(o => o.module_id === moduleId);
-    
-    if (existingOverride) {
-      setModuleOverrides(moduleOverrides.map(o => 
-        o.module_id === moduleId ? { ...o, is_enabled: !currentStatus } : o
-      ));
-    } else {
-      setModuleOverrides([...moduleOverrides, { module_id: moduleId, is_enabled: !currentStatus }]);
-    }
+  const calculateMonthlyTotal = (): number => {
+    if (selectedPlan === 'premium') return 99.99;
+    if (selectedPlan === 'free') return 0;
+    return selectedModules.reduce((total, moduleId) => {
+      const module = modules.find(m => m.id === moduleId);
+      const price = parseFloat(String(module?.monthly_price || 0)) || 0;
+      return total + price;
+    }, 0);
   };
 
   const saveSubscriptionSettings = async () => {
@@ -188,29 +177,29 @@ export default function PlatformAdmin() {
       if (planError) throw planError;
 
       await supabase
-        .from('tenant_module_overrides')
+        .from('tenant_module_subscriptions')
         .delete()
         .eq('tenant_id', selectedTenant.id);
 
-      if (moduleOverrides.length > 0) {
-        const overridesToInsert = moduleOverrides.map(o => ({
+      if (selectedPlan === 'alacarte' && selectedModules.length > 0) {
+        const subsToInsert = selectedModules.map(moduleId => ({
           tenant_id: selectedTenant.id,
-          module_id: o.module_id,
-          is_enabled: o.is_enabled
+          module_id: moduleId
         }));
 
-        const { error: overrideError } = await supabase
-          .from('tenant_module_overrides')
-          .insert(overridesToInsert);
+        const { error: subError } = await supabase
+          .from('tenant_module_subscriptions')
+          .insert(subsToInsert);
 
-        if (overrideError) throw overrideError;
+        if (subError) throw subError;
       }
 
       toast({ title: 'Subscription updated successfully!' });
       setShowSubscriptionDialog(false);
       loadTenants();
-    } catch (error: any) {
-      toast({ title: 'Error updating subscription', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast({ title: 'Error updating subscription', description: message, variant: 'destructive' });
     } finally {
       setSavingSubscription(false);
     }
@@ -603,48 +592,120 @@ export default function PlatformAdmin() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 mt-4">
-              <div>
-                <Label className="text-slate-200">Subscription Plan</Label>
-                <Select value={selectedPlan} onValueChange={setSelectedPlan}>
-                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1" data-testid="select-subscription-plan">
-                    <SelectValue placeholder="Select a plan" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-700 border-slate-600">
-                    {subscriptionPlans.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.id} className="text-white hover:bg-slate-600">
-                        {plan.name} - ${plan.monthly_price}/mo
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Premium Suite Toggle */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                  selectedPlan === 'premium' 
+                    ? 'border-purple-500 bg-purple-900/30' 
+                    : 'border-slate-600 bg-slate-700 hover:border-slate-500'
+                }`}
+                onClick={() => setSelectedPlan(selectedPlan === 'premium' ? 'alacarte' : 'premium')}
+                data-testid="toggle-premium-suite"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-lg">Premium Suite</p>
+                    <p className="text-sm text-slate-400">All 4 modules including Recipe Costing</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-bold text-purple-400">$99.99</p>
+                    <p className="text-xs text-slate-400">/month</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={selectedPlan === 'premium'}
+                  onCheckedChange={(checked) => setSelectedPlan(checked ? 'premium' : 'alacarte')}
+                  className="mt-3"
+                  data-testid="switch-premium"
+                />
               </div>
 
-              <div>
-                <Label className="text-slate-200 mb-3 block">Module Access</Label>
-                <div className="space-y-3">
-                  {modules.map((module) => {
-                    const isEnabled = getEffectiveModuleStatus(module.id);
-                    const isInPlan = (planModules[selectedPlan] || []).includes(module.id);
-                    const hasOverride = moduleOverrides.some(o => o.module_id === module.id);
-                    
-                    return (
-                      <div key={module.id} className="flex items-center justify-between p-3 bg-slate-700 rounded-lg">
-                        <div>
-                          <p className="font-medium text-sm">{module.name}</p>
-                          <p className="text-xs text-slate-400">
-                            {isInPlan ? 'Included in plan' : 'Not in plan'}
-                            {hasOverride && ' (override)'}
-                          </p>
-                        </div>
-                        <Switch
-                          checked={isEnabled}
-                          onCheckedChange={() => toggleModuleOverride(module.id)}
-                          data-testid={`switch-module-${module.id}`}
-                        />
-                      </div>
-                    );
-                  })}
+              {/* Free Trial Option */}
+              {selectedTenant?.subscription_status === 'trial' && (
+                <div 
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                    selectedPlan === 'free' 
+                      ? 'border-green-500 bg-green-900/30' 
+                      : 'border-slate-600 bg-slate-700 hover:border-slate-500'
+                  }`}
+                  onClick={() => setSelectedPlan('free')}
+                  data-testid="toggle-free-trial"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">Free Trial</p>
+                      <p className="text-sm text-slate-400">14-day trial with all features</p>
+                    </div>
+                    <Badge className="bg-green-600">FREE</Badge>
+                  </div>
                 </div>
+              )}
+
+              {/* À La Carte Modules */}
+              {selectedPlan !== 'premium' && selectedPlan !== 'free' && (
+                <div>
+                  <Label className="text-slate-200 mb-3 block">À La Carte Modules ($19.99 each)</Label>
+                  <div className="space-y-3">
+                    {modules.map((module) => {
+                      const isSelected = selectedModules.includes(module.id);
+                      const isPremiumOnly = module.is_premium_only;
+                      
+                      return (
+                        <div 
+                          key={module.id} 
+                          className={`flex items-center justify-between p-3 rounded-lg ${
+                            isPremiumOnly 
+                              ? 'bg-slate-700/50 opacity-60' 
+                              : 'bg-slate-700'
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm">{module.name}</p>
+                              {isPremiumOnly && (
+                                <Badge variant="outline" className="text-xs border-purple-500 text-purple-400">
+                                  Premium Only
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400">
+                              {isPremiumOnly ? 'Available in Premium Suite' : `$${parseFloat(String(module.monthly_price || 0)).toFixed(2)}/mo`}
+                            </p>
+                          </div>
+                          <Switch
+                            checked={isSelected}
+                            onCheckedChange={() => toggleModule(module.id)}
+                            disabled={isPremiumOnly}
+                            data-testid={`switch-module-${module.id}`}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Premium modules preview */}
+              {selectedPlan === 'premium' && (
+                <div>
+                  <Label className="text-slate-200 mb-3 block">Included Modules</Label>
+                  <div className="space-y-2">
+                    {modules.map((module) => (
+                      <div key={module.id} className="flex items-center gap-2 p-2 bg-slate-700 rounded-lg">
+                        <CheckCircle className="w-4 h-4 text-green-400" />
+                        <span className="text-sm">{module.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Monthly Total */}
+              <div className="flex items-center justify-between p-4 bg-slate-900 rounded-lg">
+                <span className="font-semibold">Monthly Total</span>
+                <span className="text-2xl font-bold text-green-400">
+                  ${calculateMonthlyTotal().toFixed(2)}
+                </span>
               </div>
 
               <Button 
