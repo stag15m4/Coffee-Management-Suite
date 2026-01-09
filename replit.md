@@ -22,7 +22,12 @@ Preferred communication style: Simple, everyday language.
 - Helper functions: `get_current_tenant_id()`, `get_current_user_role()`, `has_role_or_higher()`
 
 ### Role Hierarchy
-1. **Owner** - Full access, can manage users and branding
+
+#### Platform Level (SaaS Management)
+- **Platform Admin** - Superuser role for SaaS operations. Can manage all tenants, view usage stats, create new businesses, activate/deactivate subscriptions. Separate from tenant users.
+
+#### Tenant Level (Per-Business)
+1. **Owner** - Full access within their business, can manage users and branding
 2. **Manager** - Can manage recipes, ingredients, settings
 3. **Lead** - Access to Tip Payout and Bulk Ordering
 4. **Employee** - View-only access (future expansion)
@@ -42,6 +47,8 @@ SQL migration files in `supabase-migrations/`:
 6. `006_cash_activity_schema.sql` - Cash deposit tracking with auto-calculated fields
 7. `007_tip_payout_schema.sql` - Tip employees, weekly tips, and employee hours tables
 8. `008_coffee_order_schema.sql` - Coffee product prices and order history tables
+9. `009_fix_user_profile_read.sql` - Fixes RLS circular dependency bug
+10. `010_platform_admin_schema.sql` - Platform admin tables for SaaS management
 
 ### Implemented Modules
 
