@@ -3,6 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { sendOrderEmail, type OrderEmailData } from "./resend";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -61,6 +62,38 @@ export async function registerRoutes(
   app.delete(api.ingredients.delete.path, async (req, res) => {
     await storage.deleteIngredient(Number(req.params.id));
     res.status(204).end();
+  });
+
+  // Coffee Order Email Route
+  app.post('/api/coffee-order/send-email', async (req, res) => {
+    try {
+      const data = sendOrderEmailSchema.parse(req.body);
+      const result = await sendOrderEmail({
+        vendorEmail: data.vendorEmail,
+        ccEmail: data.ccEmail || undefined,
+        vendorName: data.vendorName,
+        orderItems: data.orderItems,
+        totalUnits: data.totalUnits,
+        totalCost: data.totalCost,
+        notes: data.notes,
+        tenantName: data.tenantName
+      });
+      
+      if (result.success) {
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ success: false, error: result.error });
+      }
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: err.errors[0].message
+        });
+      }
+      console.error('Email send error:', err);
+      res.status(500).json({ success: false, error: 'Failed to send email' });
+    }
   });
 
   // Recipes Routes
@@ -214,3 +247,20 @@ async function seedDatabase() {
 
 // Call seed
 seedDatabase().catch(console.error);
+
+// Coffee Order Email Route
+const sendOrderEmailSchema = z.object({
+  vendorEmail: z.string().email(),
+  ccEmail: z.string().email().optional().or(z.literal('')),
+  vendorName: z.string(),
+  orderItems: z.array(z.object({
+    name: z.string(),
+    size: z.string(),
+    quantity: z.number(),
+    price: z.number()
+  })),
+  totalUnits: z.number(),
+  totalCost: z.number(),
+  notes: z.string().optional(),
+  tenantName: z.string().optional()
+});
