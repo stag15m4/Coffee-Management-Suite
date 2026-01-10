@@ -156,7 +156,7 @@ export default function PlatformAdmin() {
 
   const calculateMonthlyTotal = (): number => {
     if (selectedPlan === 'premium') return 99.99;
-    if (selectedPlan === 'test_eval') return 49.99;
+    if (selectedPlan === 'test_eval') return 0;
     if (selectedPlan === 'free') return 0;
     return selectedModules.reduce((total, moduleId) => {
       const module = modules.find(m => m.id === moduleId);
@@ -621,7 +621,7 @@ export default function PlatformAdmin() {
                 />
               </div>
 
-              {/* Test & Eval Option */}
+              {/* Test & Eval Option (Internal/Unpublished) */}
               <div 
                 className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
                   selectedPlan === 'test_eval' 
@@ -635,10 +635,13 @@ export default function PlatformAdmin() {
                   <div>
                     <p className="font-semibold text-lg">Test & Eval</p>
                     <p className="text-sm text-slate-400">Full access for testing and evaluation</p>
+                    <Badge variant="outline" className="text-xs border-blue-500 text-blue-400 mt-1">
+                      Internal Only
+                    </Badge>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-bold text-blue-400">$49.99</p>
-                    <p className="text-xs text-slate-400">/month</p>
+                    <p className="text-xl font-bold text-green-400">FREE</p>
+                    <p className="text-xs text-slate-400">unpublished</p>
                   </div>
                 </div>
                 <Switch
