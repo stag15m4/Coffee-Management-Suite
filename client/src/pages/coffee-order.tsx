@@ -350,11 +350,61 @@ export default function CoffeeOrder() {
       return;
     }
 
-    toast({ 
-      title: 'Email sending not configured', 
-      description: 'Order saved to history. Email functionality requires server-side setup.',
-    });
-    await saveToHistory(false);
+    if (totalItems === 0) {
+      toast({ title: 'No items in order', variant: 'destructive' });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const orderItemsForEmail = Object.entries(orderItems)
+        .filter(([_, qty]) => qty > 0)
+        .map(([productId, qty]) => {
+          const product = products.find(p => p.id === productId);
+          return {
+            name: product?.name || 'Unknown',
+            size: product?.size || '',
+            quantity: qty,
+            price: product?.default_price || 0
+          };
+        });
+
+      const response = await fetch('/api/coffee-order/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendorEmail: vendor.contact_email,
+          ccEmail: vendor.cc_email || '',
+          vendorName: vendor.display_name,
+          orderItems: orderItemsForEmail,
+          totalUnits,
+          totalCost,
+          notes: orderNotes,
+          tenantName: tenant?.name || 'Customer'
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({ title: 'Order sent successfully!' });
+        await saveToHistory(true);
+      } else {
+        toast({ 
+          title: 'Failed to send email', 
+          description: result.error || 'Unknown error',
+          variant: 'destructive'
+        });
+      }
+    } catch (error: any) {
+      toast({ 
+        title: 'Failed to send order', 
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const loadOrder = (items: Record<string, number>) => {
