@@ -269,13 +269,11 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
   };
 
   const handleSave = async (id: string) => {
-    console.log('handleSave called with id:', id, 'editForm:', editForm);
     try {
       await onUpdate(id, editForm);
-      console.log('Save successful');
       setEditingId(null);
     } catch (error) {
-      console.error('Save failed:', error);
+      console.error('Error saving ingredient:', error);
     }
   };
 
