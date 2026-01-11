@@ -41,7 +41,7 @@ export interface Tenant {
   is_active?: boolean;
 }
 
-export type ModuleId = 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering';
+export type ModuleId = 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering' | 'equipment-maintenance';
 
 interface AuthContextType {
   user: User | null;
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           // Default to all modules only for free/trial plans
           if (plan === 'free' || !plan) {
-            setEnabledModules(['recipe-costing', 'tip-payout', 'cash-deposit', 'bulk-ordering']);
+            setEnabledModules(['recipe-costing', 'tip-payout', 'cash-deposit', 'bulk-ordering', 'equipment-maintenance']);
           } else {
             setEnabledModules([]);
           }
@@ -284,10 +284,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Then check if the user's role has access to this module type
     const moduleAccess: Record<string, UserRole> = {
-      'recipe-costing': 'manager',    // Managers and Owners
-      'tip-payout': 'lead',           // Leads, Managers, Owners
-      'cash-deposit': 'manager',       // Managers and Owners
-      'bulk-ordering': 'lead',         // Leads, Managers, Owners
+      'recipe-costing': 'manager',           // Managers and Owners
+      'tip-payout': 'lead',                  // Leads, Managers, Owners
+      'cash-deposit': 'manager',             // Managers and Owners
+      'bulk-ordering': 'lead',               // Leads, Managers, Owners
+      'equipment-maintenance': 'employee',   // All team members
     };
 
     return hasRole(moduleAccess[module]);
