@@ -52,6 +52,7 @@ SQL migration files in `supabase-migrations/`:
 10. `010_platform_admin_schema.sql` - Platform admin tables for SaaS management
 11. `011_subscription_modules.sql` - Subscription plans and module access control
 12. `013_equipment_maintenance_schema.sql` - Equipment, maintenance tasks, and logs tables
+13. `014_maintenance_cost_field.sql` - Adds cost field to maintenance logs
 
 ### Subscription & Module Access System
 - **Pricing Model**:
