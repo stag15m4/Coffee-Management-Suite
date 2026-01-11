@@ -358,6 +358,64 @@ export default function TipPayout() {
   };
 
   const exportPDF = () => {
+    const sortedEmployees = Object.entries(employeeHours).sort(([a], [b]) => a.localeCompare(b));
+    
+    const individualPaystubs = sortedEmployees.map(([name, hours]) => {
+      const payout = hours * hourlyRate;
+      return `
+        <div class="page-break"></div>
+        <div class="container paystub">
+          <div class="header">
+            <h1>Erwin Mills Coffee Co.</h1>
+            <h2>Employee Tip Paystub</h2>
+            <div class="week">Week: ${weekRange.start} - ${weekRange.end}</div>
+          </div>
+          
+          <div class="employee-name">${name}</div>
+          
+          <div class="summary">
+            <div class="summary-item">Total Tip Pool: ${formatCurrency(totalPool)}</div>
+            <div class="summary-item">Total Team Hours: ${formatHoursMinutes(totalTeamHours)} (${totalTeamHours.toFixed(2)}h)</div>
+            <div class="summary-item gold-text">Hourly Rate: ${formatCurrency(hourlyRate)}/hr</div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Hours Worked</td>
+                <td>${formatHoursMinutes(hours)} (${hours.toFixed(2)}h)</td>
+              </tr>
+              <tr>
+                <td>Hourly Tip Rate</td>
+                <td>${formatCurrency(hourlyRate)}</td>
+              </tr>
+              <tr class="total-row">
+                <td>TIP PAYOUT</td>
+                <td>${formatCurrency(payout)}</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div class="signature-section">
+            <div class="signature-line">
+              <span>Employee Signature:</span>
+              <div class="line"></div>
+            </div>
+            <div class="signature-line">
+              <span>Date:</span>
+              <div class="line short"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
     const printContent = `
       <!DOCTYPE html>
       <html>
@@ -443,8 +501,49 @@ export default function TipPayout() {
             border-bottom: none;
             padding: 10px 12px;
           }
+          .page-break {
+            page-break-before: always;
+            margin-top: 40px;
+          }
+          .employee-name {
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            color: #4A3728;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #F5F0E6;
+            border-radius: 5px;
+          }
+          .paystub table {
+            margin-top: 20px;
+          }
+          .signature-section {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #E5DDD0;
+          }
+          .signature-line {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            margin-bottom: 20px;
+          }
+          .signature-line span {
+            font-size: 13px;
+            white-space: nowrap;
+          }
+          .signature-line .line {
+            flex: 1;
+            border-bottom: 1px solid #4A3728;
+            min-width: 200px;
+          }
+          .signature-line .line.short {
+            max-width: 150px;
+          }
           @media print { 
-            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } 
+            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .page-break { page-break-before: always; margin-top: 0; }
           }
         </style>
       </head>
@@ -474,8 +573,7 @@ export default function TipPayout() {
               </tr>
             </thead>
             <tbody>
-              ${Object.entries(employeeHours)
-                .sort(([a], [b]) => a.localeCompare(b))
+              ${sortedEmployees
                 .map(([name, hours]) => `
                   <tr>
                     <td>${name}</td>
@@ -491,6 +589,8 @@ export default function TipPayout() {
             </tbody>
           </table>
         </div>
+        
+        ${individualPaystubs}
       </body>
       </html>
     `;
