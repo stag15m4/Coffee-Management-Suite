@@ -581,26 +581,33 @@ export function useLogMaintenance() {
         .single();
       
       if (taskData) {
-        let next_due_at: string | null = null;
-        let current_usage = taskData.current_usage || 0;
+        const existingLastCompleted = taskData.last_completed_at ? new Date(taskData.last_completed_at) : null;
+        const newCompletionDate = new Date(completionDate);
         
-        if (taskData.interval_type === 'time' && taskData.interval_days) {
-          const dueDate = new Date(completionDate);
-          dueDate.setDate(dueDate.getDate() + taskData.interval_days);
-          next_due_at = dueDate.toISOString();
-        } else if (taskData.interval_type === 'usage' && taskData.interval_units && usageAtCompletion !== undefined) {
-          current_usage = usageAtCompletion;
+        const isNewerThanExisting = !existingLastCompleted || newCompletionDate > existingLastCompleted;
+        
+        if (isNewerThanExisting) {
+          let next_due_at: string | null = null;
+          let current_usage = taskData.current_usage || 0;
+          
+          if (taskData.interval_type === 'time' && taskData.interval_days) {
+            const dueDate = new Date(completionDate);
+            dueDate.setDate(dueDate.getDate() + taskData.interval_days);
+            next_due_at = dueDate.toISOString();
+          } else if (taskData.interval_type === 'usage' && taskData.interval_units && usageAtCompletion !== undefined) {
+            current_usage = usageAtCompletion;
+          }
+          
+          await supabase
+            .from('maintenance_tasks')
+            .update({
+              last_completed_at: completionDate,
+              next_due_at,
+              current_usage,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', taskId);
         }
-        
-        await supabase
-          .from('maintenance_tasks')
-          .update({
-            last_completed_at: completionDate,
-            next_due_at,
-            current_usage,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', taskId);
       }
       
       return logData?.[0] as MaintenanceLog;

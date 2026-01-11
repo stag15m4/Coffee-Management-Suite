@@ -148,6 +148,9 @@ export default function EquipmentMaintenance() {
   
   const [completionNotes, setCompletionNotes] = useState('');
   const [completionUsage, setCompletionUsage] = useState('');
+  const [completionCost, setCompletionCost] = useState('');
+  const [completionDate, setCompletionDate] = useState('');
+  const [isHistoricalEntry, setIsHistoricalEntry] = useState(false);
   
   const overdueCount = tasks.filter(t => getTaskStatus(t) === 'overdue').length;
   const dueSoonCount = tasks.filter(t => getTaskStatus(t) === 'due-soon').length;
@@ -277,11 +280,16 @@ export default function EquipmentMaintenance() {
         usageAtCompletion: completingTask.interval_type === 'usage' && completionUsage 
           ? parseInt(completionUsage) 
           : undefined,
+        cost: completionCost ? parseFloat(completionCost) : undefined,
+        completedAt: isHistoricalEntry && completionDate ? new Date(completionDate).toISOString() : undefined,
       });
       
       setCompletingTask(null);
       setCompletionNotes('');
       setCompletionUsage('');
+      setCompletionCost('');
+      setCompletionDate('');
+      setIsHistoricalEntry(false);
       toast({ title: 'Maintenance logged successfully' });
     } catch (error: any) {
       toast({ title: 'Error logging maintenance', description: error.message, variant: 'destructive' });
@@ -878,7 +886,7 @@ export default function EquipmentMaintenance() {
                             {task.description && (
                               <p className="text-sm mt-2" style={{ color: colors.brownLight }}>{task.description}</p>
                             )}
-                            <div className="flex items-center gap-4 mt-3 text-xs" style={{ color: colors.brownLight }}>
+                            <div className="flex items-center gap-4 mt-3 text-xs flex-wrap" style={{ color: colors.brownLight }}>
                               {task.interval_type === 'time' ? (
                                 <>
                                   <span className="flex items-center gap-1">
@@ -896,6 +904,12 @@ export default function EquipmentMaintenance() {
                                   <span>Current: {task.current_usage || 0} {task.usage_unit_label}</span>
                                   <span>{formatDueInfo(task)}</span>
                                 </>
+                              )}
+                              {task.last_completed_at && (
+                                <span className="flex items-center gap-1">
+                                  <Check className="w-3 h-3" />
+                                  Last: {new Date(task.last_completed_at).toLocaleDateString()}
+                                </span>
                               )}
                             </div>
                           </div>
@@ -963,6 +977,19 @@ export default function EquipmentMaintenance() {
                 )}
                 
                 <div>
+                  <Label style={{ color: colors.brown }}>Cost (optional)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={completionCost}
+                    onChange={e => setCompletionCost(e.target.value)}
+                    placeholder="0.00"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                    data-testid="input-completion-cost"
+                  />
+                </div>
+                
+                <div>
                   <Label style={{ color: colors.brown }}>Notes (optional)</Label>
                   <Textarea
                     value={completionNotes}
@@ -972,6 +999,33 @@ export default function EquipmentMaintenance() {
                     data-testid="input-completion-notes"
                   />
                 </div>
+                
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="historical-entry"
+                    checked={isHistoricalEntry}
+                    onChange={e => setIsHistoricalEntry(e.target.checked)}
+                    className="w-4 h-4"
+                    data-testid="checkbox-historical-entry"
+                  />
+                  <Label htmlFor="historical-entry" style={{ color: colors.brown, cursor: 'pointer' }}>
+                    This is a past maintenance (enter date)
+                  </Label>
+                </div>
+                
+                {isHistoricalEntry && (
+                  <div>
+                    <Label style={{ color: colors.brown }}>Maintenance Date</Label>
+                    <Input
+                      type="date"
+                      value={completionDate}
+                      onChange={e => setCompletionDate(e.target.value)}
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                      data-testid="input-completion-date"
+                    />
+                  </div>
+                )}
                 
                 <div className="flex gap-2">
                   <Button
@@ -988,6 +1042,9 @@ export default function EquipmentMaintenance() {
                       setCompletingTask(null);
                       setCompletionNotes('');
                       setCompletionUsage('');
+                      setCompletionCost('');
+                      setCompletionDate('');
+                      setIsHistoricalEntry(false);
                     }}
                     style={{ borderColor: colors.creamDark, color: colors.brown }}
                     data-testid="button-cancel-completion"
