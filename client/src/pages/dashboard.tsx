@@ -2,7 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calculator, DollarSign, Coffee, Receipt } from 'lucide-react';
+import { Calculator, DollarSign, Coffee, Receipt, Wrench } from 'lucide-react';
 
 const colors = {
   gold: '#C9A227',
@@ -160,6 +160,15 @@ export default function Dashboard() {
               description="Manage wholesale coffee orders"
               icon={<Coffee className="w-6 h-6" style={{ color: colors.brown }} />}
               href="/coffee-order"
+            />
+          )}
+          
+          {canAccessModule('equipment-maintenance') && (
+            <ModuleCard
+              title="Equipment Maintenance"
+              description="Track and manage equipment upkeep"
+              icon={<Wrench className="w-6 h-6" style={{ color: colors.brown }} />}
+              href="/equipment-maintenance"
             />
           )}
         </div>

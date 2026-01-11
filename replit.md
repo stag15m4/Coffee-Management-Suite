@@ -7,6 +7,7 @@ This is a multi-tenant SaaS management suite for food service operations, design
 - **Tip Payout Calculator** - Calculate and distribute employee tips (Leads, Managers, Owners)
 - **Cash Deposit Record** - Track cash deposits and reconciliation (Managers, Owners)
 - **Bulk Coffee Ordering** - Manage wholesale coffee orders (Leads, Managers, Owners)
+- **Equipment Maintenance** - Track equipment maintenance schedules (All team members)
 
 Features role-based access control (Owner, Manager, Lead, Employee) with tenant-specific branding (logo, colors).
 
@@ -50,6 +51,7 @@ SQL migration files in `supabase-migrations/`:
 9. `009_fix_user_profile_read.sql` - Fixes RLS circular dependency bug
 10. `010_platform_admin_schema.sql` - Platform admin tables for SaaS management
 11. `011_subscription_modules.sql` - Subscription plans and module access control
+12. `013_equipment_maintenance_schema.sql` - Equipment, maintenance tasks, and logs tables
 
 ### Subscription & Module Access System
 - **Pricing Model**:
@@ -95,6 +97,21 @@ SQL migration files in `supabase-migrations/`:
 - Notes field for special instructions
 - Export to CSV and PDF
 - Tables: coffee_product_prices, coffee_order_history
+
+#### Equipment Maintenance (`/equipment-maintenance`)
+- Track equipment and maintenance schedules
+- Dashboard with status overview (overdue, due soon, good)
+- Equipment management (add/edit/delete equipment items with categories)
+- Maintenance tasks support two interval types:
+  - **Time-based**: Every X days (e.g., clean ice maker every 14 days)
+  - **Usage-based**: Every X units (e.g., change burrs every 1000 lbs)
+- Log completed maintenance with notes
+- Visual color-coded status indicators:
+  - Red: Overdue
+  - Yellow: Due soon (within 7 days or 90% usage)
+  - Green: Good
+- Accessible to all team members (Employees, Leads, Managers, Owners)
+- Tables: equipment, maintenance_tasks, maintenance_logs
 
 ### Authentication System
 - **AuthContext** (`client/src/contexts/AuthContext.tsx`) - Manages user session, profile, tenant, and branding state
