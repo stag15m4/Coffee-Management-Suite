@@ -12,19 +12,10 @@ ON CONFLICT (id) DO UPDATE SET
     monthly_price = EXCLUDED.monthly_price,
     is_premium_only = EXCLUDED.is_premium_only;
 
--- Add to Free Trial plan
-INSERT INTO subscription_plan_modules (plan_id, module_id) VALUES
-    ('free', 'equipment-maintenance')
-ON CONFLICT DO NOTHING;
-
--- Add to Test & Eval plan
-INSERT INTO subscription_plan_modules (plan_id, module_id) VALUES
-    ('test_eval', 'equipment-maintenance')
-ON CONFLICT DO NOTHING;
-
--- Add to Premium plan
-INSERT INTO subscription_plan_modules (plan_id, module_id) VALUES
-    ('premium', 'equipment-maintenance')
+-- Add to existing plans (only inserts if the plan exists)
+INSERT INTO subscription_plan_modules (plan_id, module_id)
+SELECT id, 'equipment-maintenance' FROM subscription_plans 
+WHERE id IN ('free', 'free_trial', 'test_eval', 'premium', 'a_la_carte')
 ON CONFLICT DO NOTHING;
 
 -- =====================================================
