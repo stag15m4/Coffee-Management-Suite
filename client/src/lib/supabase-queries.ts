@@ -549,24 +549,27 @@ export function useLogMaintenance() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ tenantId, taskId, completedBy, notes, usageAtCompletion }: {
+    mutationFn: async ({ tenantId, taskId, completedBy, notes, usageAtCompletion, cost, completedAt }: {
       tenantId: string;
       taskId: string;
       completedBy?: string;
       notes?: string;
       usageAtCompletion?: number;
+      cost?: number;
+      completedAt?: string;
     }) => {
-      const now = new Date();
+      const completionDate = completedAt || new Date().toISOString();
       
       const { data: logData, error: logError } = await supabase
         .from('maintenance_logs')
         .insert({
           tenant_id: tenantId,
           task_id: taskId,
-          completed_at: now.toISOString(),
+          completed_at: completionDate,
           completed_by: completedBy,
           notes,
           usage_at_completion: usageAtCompletion,
+          cost: cost || null,
         })
         .select();
       if (logError) throw logError;
@@ -582,7 +585,7 @@ export function useLogMaintenance() {
         let current_usage = taskData.current_usage || 0;
         
         if (taskData.interval_type === 'time' && taskData.interval_days) {
-          const dueDate = new Date(now);
+          const dueDate = new Date(completionDate);
           dueDate.setDate(dueDate.getDate() + taskData.interval_days);
           next_due_at = dueDate.toISOString();
         } else if (taskData.interval_type === 'usage' && taskData.interval_units && usageAtCompletion !== undefined) {
@@ -592,10 +595,10 @@ export function useLogMaintenance() {
         await supabase
           .from('maintenance_tasks')
           .update({
-            last_completed_at: now.toISOString(),
+            last_completed_at: completionDate,
             next_due_at,
             current_usage,
-            updated_at: now.toISOString(),
+            updated_at: new Date().toISOString(),
           })
           .eq('id', taskId);
       }
