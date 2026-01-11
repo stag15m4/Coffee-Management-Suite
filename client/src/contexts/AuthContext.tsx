@@ -73,78 +73,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [enabledModules, setEnabledModules] = useState<ModuleId[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchEnabledModules = useCallback(async (tenantId: string) => {
-    try {
-      const { data, error } = await supabase.rpc('get_tenant_enabled_modules', {
-        p_tenant_id: tenantId
-      });
-      
-      if (error) {
-        // If the function doesn't exist yet, query plan modules directly as fallback
-        console.warn('Module access function not available, using plan-based fallback:', error.message);
-        
-        // Query the tenant's plan and get default modules
-        const { data: tenantData } = await supabase
-          .from('tenants')
-          .select('subscription_plan')
-          .eq('id', tenantId)
-          .single();
-        
-        const plan = tenantData?.subscription_plan || 'free';
-        
-        const { data: planModules } = await supabase
-          .from('subscription_plan_modules')
-          .select('module_id')
-          .eq('plan_id', plan);
-        
-        if (planModules && planModules.length > 0) {
-          setEnabledModules(planModules.map(pm => pm.module_id as ModuleId));
-        } else {
-          // Default to all modules only for free/trial plans
-          if (plan === 'free' || !plan) {
-            setEnabledModules(['recipe-costing', 'tip-payout', 'cash-deposit', 'bulk-ordering', 'equipment-maintenance']);
-          } else {
-            setEnabledModules([]);
-          }
-        }
-        return;
-      }
-      
-      setEnabledModules((data || []) as ModuleId[]);
-    } catch (err) {
-      console.error('Error in fetchEnabledModules:', err);
-      // On complete failure, set empty to be safe (no access)
-      setEnabledModules([]);
-    }
-  }, []);
-
   const fetchUserData = useCallback(async (userId: string): Promise<boolean> => {
     try {
-      // First check if user is a platform admin
-      const { data: adminData, error: adminError } = await supabase
-        .from('platform_admins')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+      // Fetch platform admin AND user profile in parallel - only one will succeed
+      const [adminResult, profileResult] = await Promise.all([
+        supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle(),
+        supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle()
+      ]);
 
-      if (adminData && !adminError) {
-        // User is a platform admin - no need to fetch tenant/branding
-        setPlatformAdmin(adminData);
+      // Check if platform admin
+      if (adminResult.data && !adminResult.error) {
+        setPlatformAdmin(adminResult.data);
         setProfile(null);
         setTenant(null);
         setBranding(null);
+        setEnabledModules([]);
         return true;
       }
 
-      // Not a platform admin, check for regular user profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (profileError || !profileData) {
-        console.error('Error fetching profile:', profileError?.message);
+      // Check for regular user profile
+      const profileData = profileResult.data;
+      if (!profileData) {
+        console.error('No profile found for user');
         setProfile(null);
         setPlatformAdmin(null);
         return false;
@@ -153,29 +103,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(profileData);
       setPlatformAdmin(null);
 
-      // Fetch tenant, branding, and enabled modules in parallel (non-blocking for UI)
-      Promise.all([
+      // Fetch tenant, branding, and modules ALL in parallel
+      const [tenantResult, brandingResult, modulesResult] = await Promise.all([
         supabase.from('tenants').select('*').eq('id', profileData.tenant_id).single(),
-        supabase.from('tenant_branding').select('*').eq('tenant_id', profileData.tenant_id).single()
-      ]).then(([tenantResult, brandingResult]) => {
-        if (!tenantResult.error && tenantResult.data) {
-          setTenant(tenantResult.data);
-        }
-        if (!brandingResult.error && brandingResult.data) {
-          setBranding(brandingResult.data);
-        }
-      }).catch(err => {
-        console.error('Error fetching tenant/branding:', err);
-      });
+        supabase.from('tenant_branding').select('*').eq('tenant_id', profileData.tenant_id).maybeSingle(),
+        supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: profileData.tenant_id })
+      ]);
 
-      // Fetch enabled modules for this tenant
-      fetchEnabledModules(profileData.tenant_id);
+      if (!tenantResult.error && tenantResult.data) {
+        setTenant(tenantResult.data);
+      }
+      if (!brandingResult.error && brandingResult.data) {
+        setBranding(brandingResult.data);
+      }
+
+      // Handle modules - default to all if RPC fails (e.g., function not created yet)
+      if (modulesResult.error || !modulesResult.data?.length) {
+        setEnabledModules(['recipe-costing', 'tip-payout', 'cash-deposit', 'bulk-ordering', 'equipment-maintenance']);
+      } else {
+        setEnabledModules(modulesResult.data as ModuleId[]);
+      }
 
       return true;
     } catch (error: any) {
       console.error('Error fetching user data:', error?.message || error);
       setProfile(null);
       setPlatformAdmin(null);
+      // Default to all modules on error so users aren't locked out
+      setEnabledModules(['recipe-costing', 'tip-payout', 'cash-deposit', 'bulk-ordering', 'equipment-maintenance']);
       return false;
     }
   }, []);
@@ -256,10 +211,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshEnabledModules = useCallback(async () => {
-    if (profile?.tenant_id) {
-      await fetchEnabledModules(profile.tenant_id);
+    if (!profile?.tenant_id) return;
+    
+    try {
+      const { data, error } = await supabase.rpc('get_tenant_enabled_modules', {
+        p_tenant_id: profile.tenant_id
+      });
+      
+      if (error || !data?.length) {
+        setEnabledModules(['recipe-costing', 'tip-payout', 'cash-deposit', 'bulk-ordering', 'equipment-maintenance']);
+      } else {
+        setEnabledModules(data as ModuleId[]);
+      }
+    } catch (err) {
+      console.error('Error refreshing modules:', err);
     }
-  }, [profile?.tenant_id, fetchEnabledModules]);
+  }, [profile?.tenant_id]);
 
   const hasRole = (requiredRole: UserRole): boolean => {
     if (!profile) return false;
