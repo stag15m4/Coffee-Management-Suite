@@ -16,6 +16,9 @@ export const queryKeys = {
   overhead: ['overhead'] as const,
   recipePricing: ['recipe-pricing'] as const,
   recipeSizeBases: ['recipe-size-bases'] as const,
+  equipment: ['equipment'] as const,
+  maintenanceTasks: ['maintenance-tasks'] as const,
+  maintenanceLogs: ['maintenance-logs'] as const,
 };
 
 export function useIngredientCategories() {
@@ -304,6 +307,326 @@ export function useUpdateRecipeSizeBase() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.recipeSizeBases });
+    },
+  });
+}
+
+// =====================================================
+// EQUIPMENT MAINTENANCE HOOKS
+// =====================================================
+
+export interface Equipment {
+  id: string;
+  tenant_id: string;
+  name: string;
+  category: string | null;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MaintenanceTask {
+  id: string;
+  tenant_id: string;
+  equipment_id: string;
+  name: string;
+  description: string | null;
+  interval_type: 'time' | 'usage';
+  interval_days: number | null;
+  interval_units: number | null;
+  usage_unit_label: string | null;
+  current_usage: number;
+  last_completed_at: string | null;
+  next_due_at: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  equipment?: Equipment;
+}
+
+export interface MaintenanceLog {
+  id: string;
+  tenant_id: string;
+  task_id: string;
+  completed_at: string;
+  completed_by: string | null;
+  notes: string | null;
+  usage_at_completion: number | null;
+  created_at: string;
+}
+
+export function useEquipment() {
+  return useQuery({
+    queryKey: queryKeys.equipment,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('equipment')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return (data || []) as Equipment[];
+    },
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useMaintenanceTasks() {
+  return useQuery({
+    queryKey: queryKeys.maintenanceTasks,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('maintenance_tasks')
+        .select(`
+          *,
+          equipment(*)
+        `)
+        .eq('is_active', true)
+        .order('next_due_at', { ascending: true, nullsFirst: false });
+      if (error) throw error;
+      return (data || []) as MaintenanceTask[];
+    },
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useMaintenanceLogs(taskId?: string) {
+  return useQuery({
+    queryKey: [...queryKeys.maintenanceLogs, taskId],
+    queryFn: async () => {
+      let query = supabase
+        .from('maintenance_logs')
+        .select('*')
+        .order('completed_at', { ascending: false })
+        .limit(50);
+      
+      if (taskId) {
+        query = query.eq('task_id', taskId);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as MaintenanceLog[];
+    },
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useAddEquipment() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (equipment: { tenant_id: string; name: string; category?: string; notes?: string }) => {
+      const { data, error } = await supabase
+        .from('equipment')
+        .insert(equipment)
+        .select();
+      if (error) throw error;
+      return data?.[0] as Equipment;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.equipment });
+    },
+  });
+}
+
+export function useUpdateEquipment() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Equipment> }) => {
+      const { data, error } = await supabase
+        .from('equipment')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select();
+      if (error) throw error;
+      return data?.[0] as Equipment;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.equipment });
+    },
+  });
+}
+
+export function useDeleteEquipment() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('equipment')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.equipment });
+      queryClient.invalidateQueries({ queryKey: queryKeys.maintenanceTasks });
+    },
+  });
+}
+
+export function useAddMaintenanceTask() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (task: {
+      tenant_id: string;
+      equipment_id: string;
+      name: string;
+      description?: string;
+      interval_type: 'time' | 'usage';
+      interval_days?: number;
+      interval_units?: number;
+      usage_unit_label?: string;
+      current_usage?: number;
+    }) => {
+      const now = new Date();
+      let next_due_at: string | null = null;
+      
+      if (task.interval_type === 'time' && task.interval_days) {
+        const dueDate = new Date(now);
+        dueDate.setDate(dueDate.getDate() + task.interval_days);
+        next_due_at = dueDate.toISOString();
+      }
+      
+      const { data, error } = await supabase
+        .from('maintenance_tasks')
+        .insert({
+          ...task,
+          next_due_at,
+          last_completed_at: now.toISOString(),
+        })
+        .select();
+      if (error) throw error;
+      return data?.[0] as MaintenanceTask;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.maintenanceTasks });
+    },
+  });
+}
+
+export function useUpdateMaintenanceTask() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<MaintenanceTask> }) => {
+      const { data, error } = await supabase
+        .from('maintenance_tasks')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select();
+      if (error) throw error;
+      return data?.[0] as MaintenanceTask;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.maintenanceTasks });
+    },
+  });
+}
+
+export function useDeleteMaintenanceTask() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('maintenance_tasks')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.maintenanceTasks });
+    },
+  });
+}
+
+export function useLogMaintenance() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ tenantId, taskId, completedBy, notes, usageAtCompletion }: {
+      tenantId: string;
+      taskId: string;
+      completedBy?: string;
+      notes?: string;
+      usageAtCompletion?: number;
+    }) => {
+      const now = new Date();
+      
+      const { data: logData, error: logError } = await supabase
+        .from('maintenance_logs')
+        .insert({
+          tenant_id: tenantId,
+          task_id: taskId,
+          completed_at: now.toISOString(),
+          completed_by: completedBy,
+          notes,
+          usage_at_completion: usageAtCompletion,
+        })
+        .select();
+      if (logError) throw logError;
+      
+      const { data: taskData } = await supabase
+        .from('maintenance_tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single();
+      
+      if (taskData) {
+        let next_due_at: string | null = null;
+        let current_usage = taskData.current_usage || 0;
+        
+        if (taskData.interval_type === 'time' && taskData.interval_days) {
+          const dueDate = new Date(now);
+          dueDate.setDate(dueDate.getDate() + taskData.interval_days);
+          next_due_at = dueDate.toISOString();
+        } else if (taskData.interval_type === 'usage' && taskData.interval_units && usageAtCompletion !== undefined) {
+          current_usage = usageAtCompletion;
+        }
+        
+        await supabase
+          .from('maintenance_tasks')
+          .update({
+            last_completed_at: now.toISOString(),
+            next_due_at,
+            current_usage,
+            updated_at: now.toISOString(),
+          })
+          .eq('id', taskId);
+      }
+      
+      return logData?.[0] as MaintenanceLog;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.maintenanceTasks });
+      queryClient.invalidateQueries({ queryKey: queryKeys.maintenanceLogs });
+    },
+  });
+}
+
+export function useUpdateUsage() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ taskId, currentUsage }: { taskId: string; currentUsage: number }) => {
+      const { data, error } = await supabase
+        .from('maintenance_tasks')
+        .update({
+          current_usage: currentUsage,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', taskId)
+        .select();
+      if (error) throw error;
+      return data?.[0] as MaintenanceTask;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.maintenanceTasks });
     },
   });
 }
