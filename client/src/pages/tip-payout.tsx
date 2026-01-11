@@ -93,7 +93,9 @@ export default function TipPayout() {
   const [weeklyData, setWeeklyData] = useState<WeeklyTipData | null>(null);
   const [employeeHours, setEmployeeHours] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingTips, setSavingTips] = useState(false);
+  const [savingHours, setSavingHours] = useState(false);
+  const [addingEmployee, setAddingEmployee] = useState(false);
   
   const [newEmployeeName, setNewEmployeeName] = useState('');
   const [cashEntries, setCashEntries] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
@@ -189,7 +191,7 @@ export default function TipPayout() {
       return;
     }
     
-    setSaving(true);
+    setAddingEmployee(true);
     try {
       const { error } = await supabase
         .from('tip_employees')
@@ -212,7 +214,7 @@ export default function TipPayout() {
     } catch (error: any) {
       toast({ title: 'Error adding employee', description: error.message, variant: 'destructive' });
     } finally {
-      setSaving(false);
+      setAddingEmployee(false);
     }
   };
 
@@ -227,7 +229,7 @@ export default function TipPayout() {
       return;
     }
     
-    setSaving(true);
+    setSavingTips(true);
     try {
       const { error } = await supabase
         .from('tip_weekly_data')
@@ -247,7 +249,7 @@ export default function TipPayout() {
     } catch (error: any) {
       toast({ title: 'Error saving tips', description: error.message, variant: 'destructive' });
     } finally {
-      setSaving(false);
+      setSavingTips(false);
     }
   };
 
@@ -269,7 +271,7 @@ export default function TipPayout() {
     const employee = employees.find(e => e.name === selectedEmployee);
     if (!employee) return;
     
-    setSaving(true);
+    setSavingHours(true);
     try {
       const { data: existing } = await supabase
         .from('tip_employee_hours')
@@ -305,7 +307,7 @@ export default function TipPayout() {
     } catch (error: any) {
       toast({ title: 'Error saving hours', description: error.message, variant: 'destructive' });
     } finally {
-      setSaving(false);
+      setSavingHours(false);
     }
   };
 
@@ -561,7 +563,7 @@ export default function TipPayout() {
             />
             <Button
               onClick={addEmployee}
-              disabled={saving || !newEmployeeName.trim()}
+              disabled={addingEmployee || !newEmployeeName.trim()}
               className="w-full"
               style={{ backgroundColor: colors.gold, color: colors.brown }}
               data-testid="button-add-employee"
@@ -637,7 +639,7 @@ export default function TipPayout() {
 
             <Button
               onClick={saveTips}
-              disabled={saving}
+              disabled={savingTips}
               className="w-full"
               style={{ backgroundColor: colors.gold, color: colors.brown }}
               data-testid="button-save-tips"
@@ -698,7 +700,7 @@ export default function TipPayout() {
             
             <Button
               onClick={addHours}
-              disabled={saving || !selectedEmployee}
+              disabled={savingHours || !selectedEmployee}
               className="w-full"
               style={{ backgroundColor: colors.gold, color: colors.brown }}
               data-testid="button-add-hours"
