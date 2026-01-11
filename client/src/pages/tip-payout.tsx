@@ -402,16 +402,6 @@ export default function TipPayout() {
             </tbody>
           </table>
           
-          <div class="signature-section">
-            <div class="signature-line">
-              <span>Employee Signature:</span>
-              <div class="line"></div>
-            </div>
-            <div class="signature-line">
-              <span>Date:</span>
-              <div class="line short"></div>
-            </div>
-          </div>
         </div>
       `;
     }).join('');
@@ -517,29 +507,6 @@ export default function TipPayout() {
           }
           .paystub table {
             margin-top: 20px;
-          }
-          .signature-section {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #E5DDD0;
-          }
-          .signature-line {
-            display: flex;
-            align-items: flex-end;
-            gap: 10px;
-            margin-bottom: 20px;
-          }
-          .signature-line span {
-            font-size: 13px;
-            white-space: nowrap;
-          }
-          .signature-line .line {
-            flex: 1;
-            border-bottom: 1px solid #4A3728;
-            min-width: 200px;
-          }
-          .signature-line .line.short {
-            max-width: 150px;
           }
           @media print { 
             body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
