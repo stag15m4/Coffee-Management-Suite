@@ -27,6 +27,9 @@ export default function Login() {
 
   useEffect(() => {
     if (!loading && user) {
+      // Reset loading state once auth check is complete
+      setIsLoading(false);
+      
       if (isPlatformAdmin) {
         setLocation('/platform-admin');
       } else if (profile) {
