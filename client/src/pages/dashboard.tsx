@@ -173,8 +173,8 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Admin Section for Owners */}
-        {profile?.role === 'owner' && (
+        {/* Admin Section for Owners and Managers */}
+        {(profile?.role === 'owner' || profile?.role === 'manager') && (
           <div className="mt-12">
             <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>
               Admin Tools
@@ -192,18 +192,20 @@ export default function Dashboard() {
                   </CardHeader>
                 </Card>
               </Link>
-              <Link href="/admin/branding" data-testid="link-admin-branding">
-                <Card className="hover-elevate cursor-pointer" style={{ backgroundColor: colors.white }}>
-                  <CardHeader>
-                    <CardTitle className="text-base" style={{ color: colors.brown }}>
-                      Branding Settings
-                    </CardTitle>
-                    <CardDescription style={{ color: colors.brownLight }}>
-                      Customize logo and colors
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
+              {profile?.role === 'owner' && (
+                <Link href="/admin/branding" data-testid="link-admin-branding">
+                  <Card className="hover-elevate cursor-pointer" style={{ backgroundColor: colors.white }}>
+                    <CardHeader>
+                      <CardTitle className="text-base" style={{ color: colors.brown }}>
+                        Branding Settings
+                      </CardTitle>
+                      <CardDescription style={{ color: colors.brownLight }}>
+                        Customize logo and colors
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              )}
             </div>
           </div>
         )}

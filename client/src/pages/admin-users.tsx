@@ -117,13 +117,15 @@ export default function AdminUsers() {
     );
   }
 
-  if (profile.role !== 'owner') {
+  if (profile.role !== 'owner' && profile.role !== 'manager') {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
-        <p style={{ color: colors.brown }}>Access denied. Owner role required.</p>
+        <p style={{ color: colors.brown }}>Access denied. Owner or Manager role required.</p>
       </div>
     );
   }
+  
+  const canEditOwners = profile.role === 'owner';
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
@@ -186,7 +188,7 @@ export default function AdminUsers() {
                     </div>
                     
                     <div className="flex items-center gap-3">
-                      {user.id === profile?.id ? (
+                      {user.id === profile?.id || (user.role === 'owner' && !canEditOwners) ? (
                         <span 
                           className="px-3 py-1 rounded text-sm font-medium capitalize"
                           style={{ backgroundColor: colors.gold, color: colors.brown }}
@@ -207,6 +209,7 @@ export default function AdminUsers() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
+                              {canEditOwners && <SelectItem value="owner">Owner</SelectItem>}
                               <SelectItem value="manager">Manager</SelectItem>
                               <SelectItem value="lead">Lead</SelectItem>
                               <SelectItem value="employee">Employee</SelectItem>
@@ -250,19 +253,19 @@ export default function AdminUsers() {
               <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
                 <p className="font-medium" style={{ color: colors.brown }}>Manager</p>
                 <p className="text-sm" style={{ color: colors.brownLight }}>
-                  Access to Recipe Costing, Tip Payout, Cash Deposit, and Coffee Orders
+                  Access to Recipe Costing, Tip Payout, Cash Deposit, Coffee Orders, Equipment Maintenance, and user management
                 </p>
               </div>
               <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
                 <p className="font-medium" style={{ color: colors.brown }}>Lead</p>
                 <p className="text-sm" style={{ color: colors.brownLight }}>
-                  Access to Tip Payout and Coffee Orders only
+                  Access to Tip Payout, Coffee Orders, and Equipment Maintenance
                 </p>
               </div>
               <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
                 <p className="font-medium" style={{ color: colors.brown }}>Employee</p>
                 <p className="text-sm" style={{ color: colors.brownLight }}>
-                  View-only access (for future expansion)
+                  Access to Equipment Maintenance only
                 </p>
               </div>
             </div>
