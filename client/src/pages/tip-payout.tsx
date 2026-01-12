@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Download, Plus, UserPlus, Clock, DollarSign, CheckCircle, AlertCircle, FileText, Users, UserX, RotateCcw, History } from 'lucide-react';
+import { ArrowLeft, Download, Plus, UserPlus, Clock, DollarSign, CheckCircle, AlertCircle, FileText, Users, UserX, RotateCcw, History, Home } from 'lucide-react';
 import { Link } from 'wouter';
 import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
@@ -768,6 +768,12 @@ export default function TipPayout() {
               </p>
             </div>
           </div>
+          <Link href="/" data-testid="link-main-dashboard">
+            <Button variant="outline" style={{ borderColor: colors.gold, color: colors.brown }}>
+              <Home className="w-4 h-4 mr-2" />
+              Main Dashboard
+            </Button>
+          </Link>
         </div>
       </header>
 

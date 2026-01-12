@@ -182,8 +182,19 @@ export default function PlatformAdmin() {
         .delete()
         .eq('tenant_id', selectedTenant.id);
 
-      if (selectedPlan === 'alacarte' && selectedModules.length > 0) {
-        const subsToInsert = selectedModules.map(moduleId => ({
+      // For premium and test_eval plans, enable ALL modules
+      // For alacarte, enable only selected modules
+      let modulesToInsert: string[] = [];
+      
+      if (selectedPlan === 'premium' || selectedPlan === 'test_eval') {
+        // Enable all modules for premium and test_eval plans
+        modulesToInsert = modules.map(m => m.id);
+      } else if (selectedPlan === 'alacarte' && selectedModules.length > 0) {
+        modulesToInsert = selectedModules;
+      }
+
+      if (modulesToInsert.length > 0) {
+        const subsToInsert = modulesToInsert.map(moduleId => ({
           tenant_id: selectedTenant.id,
           module_id: moduleId
         }));

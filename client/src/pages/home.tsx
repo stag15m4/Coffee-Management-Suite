@@ -1956,9 +1956,15 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
 interface SettingsTabProps {
   overhead: OverheadSettings | null;
   onUpdateOverhead: (updates: Partial<OverheadSettings>) => Promise<void>;
+  ingredients: Ingredient[];
+  recipes: Recipe[];
+  drinkSizes: DrinkSize[];
+  baseTemplates: BaseTemplate[];
+  recipeSizeBases: RecipeSizeBase[];
+  recipePricing: RecipeSizePricing[];
 }
 
-const SettingsTab = ({ overhead, onUpdateOverhead }: SettingsTabProps) => {
+const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSizes, baseTemplates, recipeSizeBases, recipePricing }: SettingsTabProps) => {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     cost_per_minute: overhead?.cost_per_minute || 2.26,
@@ -2075,6 +2081,115 @@ const SettingsTab = ({ overhead, onUpdateOverhead }: SettingsTabProps) => {
               Edit Settings
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Export Section */}
+      <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
+        <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>Export Data</h3>
+        <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
+          Export your recipe costing data for backup, reporting, or sharing.
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button
+            onClick={() => {
+              let csv = 'Name,Category,Type,Cost,Quantity,Unit,Cost Per Unit,Usage Unit,Cost Per Usage,Vendor,Manufacturer,Item Number,Last Updated\n';
+              ingredients.forEach(ing => {
+                const ingQuantity = Number(ing.quantity) || 1;
+                const costPerUnit = (Number(ing.cost) || 0) / (ingQuantity > 0 ? ingQuantity : 1);
+                const usageUnit = ing.usage_unit || ing.unit;
+                const costPerUsage = calculateCostPerUsageUnit(
+                  Number(ing.cost) || 0,
+                  Number(ing.quantity) || 1,
+                  ing.unit,
+                  usageUnit
+                );
+                csv += `"${ing.name}","${ing.category_name || ''}","${ing.ingredient_type || ''}",${Number(ing.cost) || 0},${Number(ing.quantity) || 0},"${ing.unit}",${costPerUnit.toFixed(4)},"${usageUnit}",${costPerUsage?.toFixed(4) || ''},`
+                csv += `"${ing.vendor || ''}","${ing.manufacturer || ''}","${ing.item_number || ''}","${ing.updated_at || ''}"\n`;
+              });
+              const blob = new Blob([csv], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              window.open(url, '_blank');
+            }}
+            className="px-4 py-3 font-semibold rounded-lg flex items-center justify-center gap-2"
+            style={{ backgroundColor: colors.cream, color: colors.brown, border: `1px solid ${colors.gold}` }}
+            data-testid="button-export-ingredients"
+          >
+            Export Ingredients CSV
+          </button>
+          
+          <button
+            onClick={() => {
+              let csv = 'Recipe Name,Category,Size,Base Template,Ingredient Cost,Overhead,Total Cost,Sale Price,Margin %,Profit\n';
+              const overheadCost = (overhead?.cost_per_minute || 0) * (overhead?.minutes_per_drink || 1);
+              
+              recipes.forEach(recipe => {
+                const category = recipe.category_name || '';
+                
+                drinkSizes.forEach(size => {
+                  const sizeBase = recipeSizeBases.find(rsb => rsb.recipe_id === recipe.id && rsb.size_id === size.id);
+                  const baseTemplate = sizeBase ? baseTemplates.find(bt => bt.id === sizeBase.base_template_id) : 
+                    (recipe.base_template_id ? baseTemplates.find(bt => bt.id === recipe.base_template_id) : null);
+                  
+                  // Calculate ingredient cost from recipe ingredients for this size
+                  const recipeIngredients = (recipe.recipe_ingredients || []).filter((ri: RecipeIngredient) => ri.size_id === size.id);
+                  let ingredientCost = 0;
+                  
+                  recipeIngredients.forEach((ri: RecipeIngredient) => {
+                    if (ri.ingredient_id) {
+                      const ing = ingredients.find(i => i.id === ri.ingredient_id);
+                      if (ing) {
+                        const usageUnit = ing.usage_unit || ing.unit;
+                        const costPerUsage = calculateCostPerUsageUnit(
+                          Number(ing.cost) || 0,
+                          Number(ing.quantity) || 1,
+                          ing.unit,
+                          usageUnit
+                        );
+                        ingredientCost += (costPerUsage || 0) * (Number(ri.quantity) || 0);
+                      }
+                    }
+                  });
+                  
+                  // Add base template costs
+                  if (baseTemplate) {
+                    const baseIngredients = (baseTemplate.ingredients || []).filter((bi: any) => bi.size_id === size.id);
+                    baseIngredients.forEach((bi: any) => {
+                      const ing = ingredients.find(i => i.id === bi.ingredient_id);
+                      if (ing) {
+                        const usageUnit = ing.usage_unit || ing.unit;
+                        const costPerUsage = calculateCostPerUsageUnit(
+                          Number(ing.cost) || 0,
+                          Number(ing.quantity) || 1,
+                          ing.unit,
+                          usageUnit
+                        );
+                        ingredientCost += (costPerUsage || 0) * (Number(bi.quantity) || 0);
+                      }
+                    });
+                  }
+                  
+                  const totalCost = ingredientCost + overheadCost;
+                  const pricing = recipePricing.find(rp => rp.recipe_id === recipe.id && rp.size_id === size.id);
+                  const salePrice = pricing ? Number(pricing.sale_price) || 0 : 0;
+                  const margin = salePrice > 0 ? ((salePrice - totalCost) / salePrice) * 100 : 0;
+                  const profit = salePrice - totalCost;
+                  
+                  csv += `"${recipe.name}","${category}","${size.name}","${baseTemplate?.name || 'None'}",${ingredientCost.toFixed(2)},${overheadCost.toFixed(2)},${totalCost.toFixed(2)},${salePrice.toFixed(2)},${margin.toFixed(1)},${profit.toFixed(2)}\n`;
+                });
+              });
+              
+              const blob = new Blob([csv], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              window.open(url, '_blank');
+            }}
+            className="px-4 py-3 font-semibold rounded-lg flex items-center justify-center gap-2"
+            style={{ backgroundColor: colors.cream, color: colors.brown, border: `1px solid ${colors.gold}` }}
+            data-testid="button-export-recipes"
+          >
+            Export Recipes & Pricing CSV
+          </button>
         </div>
       </div>
     </div>
@@ -2980,6 +3095,12 @@ export default function Home() {
           <SettingsTab
             overhead={overhead}
             onUpdateOverhead={handleUpdateOverhead}
+            ingredients={ingredients}
+            recipes={recipes}
+            drinkSizes={drinkSizes}
+            baseTemplates={baseTemplates}
+            recipeSizeBases={recipeSizeBases}
+            recipePricing={pricingData}
           />
         )}
       </main>
