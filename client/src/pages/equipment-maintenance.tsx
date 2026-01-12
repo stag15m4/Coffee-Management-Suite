@@ -538,17 +538,41 @@ export default function EquipmentMaintenance() {
                   </div>
                   <div>
                     <Label style={{ color: colors.brown }}>Category</Label>
-                    <Input
-                      value={newEquipmentCategory}
-                      onChange={e => setNewEquipmentCategory(e.target.value)}
-                      placeholder="e.g., Grinders, Espresso Machines"
-                      list="categories"
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                      data-testid="input-equipment-category"
-                    />
-                    <datalist id="categories">
-                      {categories.map(cat => <option key={cat} value={cat} />)}
-                    </datalist>
+                    {categories.length > 0 && (
+                      <Select
+                        value={categories.includes(newEquipmentCategory) ? newEquipmentCategory : ''}
+                        onValueChange={(value) => {
+                          if (value === '__new__') {
+                            setNewEquipmentCategory('');
+                          } else {
+                            setNewEquipmentCategory(value);
+                          }
+                        }}
+                      >
+                        <SelectTrigger 
+                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                          data-testid="select-equipment-category"
+                        >
+                          <SelectValue placeholder="Select or add new" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map(cat => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                          <SelectItem value="__new__">+ Add new category...</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {(categories.length === 0 || !categories.includes(newEquipmentCategory)) && (
+                      <Input
+                        value={newEquipmentCategory}
+                        onChange={e => setNewEquipmentCategory(e.target.value)}
+                        placeholder="e.g., Grinders, Espresso Machines"
+                        className={categories.length > 0 ? 'mt-2' : ''}
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                        data-testid="input-equipment-category"
+                      />
+                    )}
                   </div>
                   <div>
                     <Label style={{ color: colors.brown }}>Notes</Label>
@@ -614,13 +638,43 @@ export default function EquipmentMaintenance() {
                             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                             data-testid="input-edit-equipment-name"
                           />
-                          <Input
-                            value={editingEquipment.category || ''}
-                            onChange={e => setEditingEquipment({ ...editingEquipment, category: e.target.value })}
-                            placeholder="Category"
-                            style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                            data-testid="input-edit-equipment-category"
-                          />
+                          <div>
+                            {categories.length > 0 && (
+                              <Select
+                                value={categories.includes(editingEquipment.category || '') ? editingEquipment.category || '' : ''}
+                                onValueChange={(value) => {
+                                  if (value === '__new__') {
+                                    setEditingEquipment({ ...editingEquipment, category: '' });
+                                  } else {
+                                    setEditingEquipment({ ...editingEquipment, category: value });
+                                  }
+                                }}
+                              >
+                                <SelectTrigger 
+                                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                                  data-testid="select-edit-equipment-category"
+                                >
+                                  <SelectValue placeholder="Select or add new" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {categories.map(cat => (
+                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                  ))}
+                                  <SelectItem value="__new__">+ Add new category...</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                            {(categories.length === 0 || !categories.includes(editingEquipment.category || '')) && (
+                              <Input
+                                value={editingEquipment.category || ''}
+                                onChange={e => setEditingEquipment({ ...editingEquipment, category: e.target.value })}
+                                placeholder="Category (e.g., Grinders)"
+                                className={categories.length > 0 ? 'mt-2' : ''}
+                                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                                data-testid="input-edit-equipment-category"
+                              />
+                            )}
+                          </div>
                           <Textarea
                             value={editingEquipment.notes || ''}
                             onChange={e => setEditingEquipment({ ...editingEquipment, notes: e.target.value })}
