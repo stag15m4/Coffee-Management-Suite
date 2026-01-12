@@ -9,12 +9,12 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole, module }: ProtectedRouteProps) {
-  const { user, profile, loading, hasRole, canAccessModule, signOut } = useAuth();
+  const { user, profile, isPlatformAdmin, loading, hasRole, canAccessModule, signOut } = useAuth();
   const [profileTimeout, setProfileTimeout] = useState(false);
 
-  // If profile doesn't load within 5 seconds, show error
+  // If profile doesn't load within 5 seconds (and not a platform admin), show error
   useEffect(() => {
-    if (user && !profile && !loading) {
+    if (user && !profile && !isPlatformAdmin && !loading) {
       const timer = setTimeout(() => {
         setProfileTimeout(true);
       }, 5000);
@@ -22,7 +22,7 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
     } else {
       setProfileTimeout(false);
     }
-  }, [user, profile, loading]);
+  }, [user, profile, isPlatformAdmin, loading]);
 
   if (loading) {
     return (
@@ -40,6 +40,11 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
 
   if (!user) {
     return <Redirect to="/login" />;
+  }
+  
+  // Platform admins should go to platform admin page
+  if (isPlatformAdmin) {
+    return <Redirect to="/platform-admin" />;
   }
   
   // Show loading state while profile is being fetched (but user is authenticated)
