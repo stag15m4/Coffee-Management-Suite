@@ -77,11 +77,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const MAX_RETRIES = 3;
     
     try {
+      console.log('Fetching user data for:', userId);
+      
       // Fetch platform admin AND user profile in parallel - only one will succeed
       const [adminResult, profileResult] = await Promise.all([
         supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle(),
         supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle()
       ]);
+      
+      console.log('Admin result:', adminResult);
+      console.log('Profile result:', profileResult);
 
       // Check if platform admin
       if (adminResult.data && !adminResult.error) {
