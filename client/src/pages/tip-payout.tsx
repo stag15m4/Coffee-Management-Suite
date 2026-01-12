@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Download, Plus, UserPlus, Clock, DollarSign, CheckCircle, AlertCircle, FileText } from 'lucide-react';
+import { ArrowLeft, Download, Plus, UserPlus, Clock, DollarSign, CheckCircle, AlertCircle, FileText, Users, UserX, RotateCcw, History } from 'lucide-react';
 import { Link } from 'wouter';
 import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
@@ -106,6 +106,19 @@ export default function TipPayout() {
   const [teamHoursCheck, setTeamHoursCheck] = useState('');
   const [teamMinutesCheck, setTeamMinutesCheck] = useState('');
   const [hoursVerifyResult, setHoursVerifyResult] = useState<{ match: boolean; message: string } | null>(null);
+  
+  // Employee management
+  const [showEmployeeManagement, setShowEmployeeManagement] = useState(false);
+  const [allEmployees, setAllEmployees] = useState<TipEmployee[]>([]);
+  const [showInactive, setShowInactive] = useState(false);
+  
+  // Historical export
+  const [showHistoricalExport, setShowHistoricalExport] = useState(false);
+  const [historyStartDate, setHistoryStartDate] = useState('');
+  const [historyEndDate, setHistoryEndDate] = useState('');
+  const [historyExportType, setHistoryExportType] = useState<'group' | 'individual'>('group');
+  const [historySelectedEmployee, setHistorySelectedEmployee] = useState('');
+  const [exportingHistory, setExportingHistory] = useState(false);
 
   const loadEmployees = useCallback(async () => {
     if (!tenant?.id) return;
@@ -124,6 +137,49 @@ export default function TipPayout() {
       console.error('Error loading employees:', error);
     }
   }, [tenant?.id]);
+
+  const loadAllEmployees = useCallback(async () => {
+    if (!tenant?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('tip_employees')
+        .select('*')
+        .eq('tenant_id', tenant.id)
+        .order('name');
+      
+      if (error) throw error;
+      setAllEmployees(data || []);
+    } catch (error: any) {
+      console.error('Error loading all employees:', error);
+    }
+  }, [tenant?.id]);
+
+  const toggleEmployeeActive = async (employeeId: string, newActiveStatus: boolean) => {
+    if (!tenant?.id) return;
+    
+    try {
+      const { error } = await supabase
+        .from('tip_employees')
+        .update({ is_active: newActiveStatus })
+        .eq('id', employeeId)
+        .eq('tenant_id', tenant.id);
+      
+      if (error) throw error;
+      
+      toast({ 
+        title: newActiveStatus ? 'Employee reactivated' : 'Employee deactivated',
+        description: newActiveStatus 
+          ? 'Employee can now receive tip hours.' 
+          : 'Employee will no longer appear in weekly hours entry. Historical data is preserved.'
+      });
+      
+      loadEmployees();
+      loadAllEmployees();
+    } catch (error: any) {
+      toast({ title: 'Error updating employee', description: error.message, variant: 'destructive' });
+    }
+  };
 
   const loadWeekData = useCallback(async () => {
     if (!tenant?.id) return;
@@ -179,7 +235,8 @@ export default function TipPayout() {
 
   useEffect(() => {
     loadEmployees();
-  }, [loadEmployees]);
+    loadAllEmployees();
+  }, [loadEmployees, loadAllEmployees]);
 
   useEffect(() => {
     loadWeekData();
@@ -570,6 +627,135 @@ export default function TipPayout() {
     }
   };
 
+  const exportHistorical = async () => {
+    if (!tenant?.id || !historyStartDate || !historyEndDate) {
+      toast({ title: 'Please select start and end dates', variant: 'destructive' });
+      return;
+    }
+
+    setExportingHistory(true);
+    try {
+      // Fetch all weekly data in range
+      const { data: weeklyData, error: weeklyError } = await supabase
+        .from('tip_weekly_data')
+        .select('*')
+        .eq('tenant_id', tenant.id)
+        .gte('week_key', historyStartDate)
+        .lte('week_key', historyEndDate)
+        .order('week_key');
+
+      if (weeklyError) throw weeklyError;
+
+      // Fetch all employee hours in range
+      const { data: hoursData, error: hoursError } = await supabase
+        .from('tip_employee_hours')
+        .select('*, tip_employees(id, name)')
+        .eq('tenant_id', tenant.id)
+        .gte('week_key', historyStartDate)
+        .lte('week_key', historyEndDate)
+        .order('week_key');
+
+      if (hoursError) throw hoursError;
+
+      if (!weeklyData?.length) {
+        toast({ title: 'No data found in selected date range', variant: 'destructive' });
+        setExportingHistory(false);
+        return;
+      }
+
+      // Build export data
+      const startRange = new Date(historyStartDate + 'T00:00:00').toLocaleDateString('en-US');
+      const endRange = new Date(historyEndDate + 'T00:00:00').toLocaleDateString('en-US');
+
+      if (historyExportType === 'group') {
+        // Group export - all employees, all weeks
+        let csv = `Tip Payout History Report\n`;
+        csv += `Date Range: ${startRange} - ${endRange}\n\n`;
+        csv += `Week,Employee,Hours,Hourly Rate,Payout\n`;
+
+        let grandTotalPayout = 0;
+
+        weeklyData.forEach((week: any) => {
+          const weekHours = hoursData?.filter((h: any) => h.week_key === week.week_key) || [];
+          const totalHours = weekHours.reduce((sum: number, h: any) => sum + (parseFloat(h.hours) || 0), 0);
+          const ccAfter = week.cc_tips * (1 - CC_FEE_RATE);
+          const pool = week.cash_tips + ccAfter;
+          const rate = totalHours > 0 ? pool / totalHours : 0;
+          const weekRange = getWeekRange(week.week_key);
+
+          weekHours.forEach((h: any) => {
+            const payout = (parseFloat(h.hours) || 0) * rate;
+            grandTotalPayout += payout;
+            csv += `"${weekRange.start}-${weekRange.end}","${h.tip_employees?.name || 'Unknown'}",${h.hours?.toFixed(2) || 0},${rate.toFixed(2)},${payout.toFixed(2)}\n`;
+          });
+        });
+
+        csv += `\nGrand Total Payouts,,,,$${grandTotalPayout.toFixed(2)}\n`;
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Tip_History_${historyStartDate}_to_${historyEndDate}.csv`;
+        link.click();
+        toast({ title: 'Historical export downloaded!' });
+
+      } else {
+        // Individual export - single employee
+        if (!historySelectedEmployee) {
+          toast({ title: 'Please select an employee', variant: 'destructive' });
+          setExportingHistory(false);
+          return;
+        }
+
+        const employeeHoursFiltered = hoursData?.filter((h: any) => h.tip_employees?.id === historySelectedEmployee) || [];
+        const employee = allEmployees.find(e => e.id === historySelectedEmployee);
+
+        let csv = `Tip Payout History - ${employee?.name || 'Employee'}\n`;
+        csv += `Date Range: ${startRange} - ${endRange}\n\n`;
+        csv += `Week,Hours,Hourly Rate,Payout\n`;
+
+        let totalEarnings = 0;
+        let totalHoursWorked = 0;
+
+        weeklyData.forEach((week: any) => {
+          const empHour = employeeHoursFiltered.find((h: any) => h.week_key === week.week_key);
+          if (!empHour) return;
+
+          const weekHours = hoursData?.filter((h: any) => h.week_key === week.week_key) || [];
+          const totalTeamHrs = weekHours.reduce((sum: number, h: any) => sum + (parseFloat(h.hours) || 0), 0);
+          const ccAfter = week.cc_tips * (1 - CC_FEE_RATE);
+          const pool = week.cash_tips + ccAfter;
+          const rate = totalTeamHrs > 0 ? pool / totalTeamHrs : 0;
+          const weekRange = getWeekRange(week.week_key);
+
+          const hours = parseFloat(empHour.hours) || 0;
+          const payout = hours * rate;
+          totalEarnings += payout;
+          totalHoursWorked += hours;
+
+          csv += `"${weekRange.start}-${weekRange.end}",${hours.toFixed(2)},${rate.toFixed(2)},${payout.toFixed(2)}\n`;
+        });
+
+        csv += `\nTotal Hours,${totalHoursWorked.toFixed(2)},,\n`;
+        csv += `Total Earnings,,,$${totalEarnings.toFixed(2)}\n`;
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Tip_History_${employee?.name || 'Employee'}_${historyStartDate}_to_${historyEndDate}.csv`;
+        link.click();
+        toast({ title: `${employee?.name}'s history exported!` });
+      }
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast({ title: 'Error exporting history', description: error.message, variant: 'destructive' });
+    } finally {
+      setExportingHistory(false);
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
       <header 
@@ -637,6 +823,85 @@ export default function TipPayout() {
             >
               Add Employee
             </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEmployeeManagement(!showEmployeeManagement);
+                if (!showEmployeeManagement) loadAllEmployees();
+              }}
+              className="w-full"
+              style={{ borderColor: colors.gold, color: colors.brown }}
+              data-testid="button-manage-employees"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              {showEmployeeManagement ? 'Hide' : 'Manage'} Employees
+            </Button>
+            
+            {showEmployeeManagement && (
+              <div className="space-y-3 pt-2 border-t" style={{ borderColor: colors.creamDark }}>
+                <div className="flex items-center justify-between">
+                  <Label style={{ color: colors.brown }}>Employee List</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowInactive(!showInactive)}
+                    style={{ color: colors.brownLight }}
+                    data-testid="button-toggle-inactive"
+                  >
+                    {showInactive ? 'Hide Inactive' : 'Show Inactive'}
+                  </Button>
+                </div>
+                
+                {allEmployees
+                  .filter(e => showInactive || e.is_active)
+                  .map(emp => (
+                    <div 
+                      key={emp.id}
+                      className="flex items-center justify-between p-2 rounded-md"
+                      style={{ 
+                        backgroundColor: emp.is_active ? colors.inputBg : '#f0f0f0',
+                        opacity: emp.is_active ? 1 : 0.7
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        {!emp.is_active && <UserX className="w-4 h-4" style={{ color: colors.red }} />}
+                        <span style={{ color: colors.brown }}>{emp.name}</span>
+                        {!emp.is_active && (
+                          <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: colors.creamDark, color: colors.brownLight }}>
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleEmployeeActive(emp.id, !emp.is_active)}
+                        style={{ color: emp.is_active ? colors.red : colors.green }}
+                        data-testid={`button-toggle-employee-${emp.id}`}
+                      >
+                        {emp.is_active ? (
+                          <>
+                            <UserX className="w-4 h-4 mr-1" />
+                            Deactivate
+                          </>
+                        ) : (
+                          <>
+                            <RotateCcw className="w-4 h-4 mr-1" />
+                            Reactivate
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                
+                {allEmployees.length === 0 && (
+                  <p className="text-center text-sm py-2" style={{ color: colors.brownLight }}>
+                    No employees yet
+                  </p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -903,7 +1168,7 @@ export default function TipPayout() {
         <Card style={{ backgroundColor: colors.white }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-center" style={{ color: colors.brown }}>
-              Export
+              Export This Week
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-2">
@@ -926,6 +1191,97 @@ export default function TipPayout() {
             >
               <FileText className="w-4 h-4" />
               Export PDF
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card style={{ backgroundColor: colors.white, borderColor: colors.gold }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center justify-center gap-2" style={{ color: colors.brown }}>
+              <History className="w-5 h-5" />
+              Historical Export
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-center" style={{ color: colors.brownLight }}>
+              Export tip payout history for payroll or audit purposes
+            </p>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-sm" style={{ color: colors.brownLight }}>Start Date</Label>
+                <Input
+                  type="date"
+                  value={historyStartDate}
+                  onChange={(e) => setHistoryStartDate(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  data-testid="input-history-start"
+                />
+              </div>
+              <div>
+                <Label className="text-sm" style={{ color: colors.brownLight }}>End Date</Label>
+                <Input
+                  type="date"
+                  value={historyEndDate}
+                  onChange={(e) => setHistoryEndDate(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  data-testid="input-history-end"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm" style={{ color: colors.brownLight }}>Export Type</Label>
+              <Select
+                value={historyExportType}
+                onValueChange={(value: 'group' | 'individual') => setHistoryExportType(value)}
+              >
+                <SelectTrigger 
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  data-testid="select-export-type"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="group">All Employees (Group Report)</SelectItem>
+                  <SelectItem value="individual">Individual Employee</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {historyExportType === 'individual' && (
+              <div>
+                <Label className="text-sm" style={{ color: colors.brownLight }}>Select Employee</Label>
+                <Select
+                  value={historySelectedEmployee}
+                  onValueChange={setHistorySelectedEmployee}
+                >
+                  <SelectTrigger 
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                    data-testid="select-history-employee"
+                  >
+                    <SelectValue placeholder="Select an employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allEmployees.map(emp => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.name} {!emp.is_active && '(Inactive)'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <Button
+              onClick={exportHistorical}
+              disabled={exportingHistory || !historyStartDate || !historyEndDate}
+              className="w-full gap-2"
+              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              data-testid="button-export-history"
+            >
+              <Download className="w-4 h-4" />
+              {exportingHistory ? 'Exporting...' : 'Export Historical Data'}
             </Button>
           </CardContent>
         </Card>
