@@ -3,11 +3,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Trash2, UserPlus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Home } from 'lucide-react';
 import { Link } from 'wouter';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 const colors = {
   gold: '#C9A227',
@@ -33,11 +42,14 @@ export default function AdminUsers() {
   
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
+  
+  // Add user form state
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'manager' | 'lead' | 'employee'>('employee');
-  const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (profile?.tenant_id) {
@@ -94,6 +106,55 @@ export default function AdminUsers() {
     }
   };
 
+  const handleCreateUser = async () => {
+    if (!newEmail || !newPassword || !profile?.tenant_id) {
+      toast({ title: 'Email and password are required', variant: 'destructive' });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({ title: 'Password must be at least 6 characters', variant: 'destructive' });
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newEmail,
+        password: newPassword,
+      });
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: authData.user.id,
+            tenant_id: profile.tenant_id,
+            email: newEmail,
+            full_name: newName || newEmail.split('@')[0],
+            role: newRole,
+            is_active: true,
+          });
+
+        if (profileError) throw profileError;
+      }
+
+      toast({ title: 'User created successfully!' });
+      setShowAddDialog(false);
+      setNewEmail('');
+      setNewName('');
+      setNewPassword('');
+      setNewRole('employee');
+      loadUsers();
+    } catch (error: any) {
+      toast({ title: 'Error creating user', description: error.message, variant: 'destructive' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const getRoleOrder = (role: string) => {
     switch (role) {
       case 'owner': return 1;
@@ -133,32 +194,115 @@ export default function AdminUsers() {
         className="sticky top-0 z-50 border-b px-4 py-3"
         style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
       >
-        <div className="max-w-4xl mx-auto flex items-center gap-4">
-          <Link href="/" data-testid="link-back-dashboard">
-            <Button variant="ghost" size="icon" style={{ color: colors.brown }}>
-              <ArrowLeft className="w-5 h-5" />
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link href="/" data-testid="link-back-dashboard">
+              <Button variant="ghost" size="icon" style={{ color: colors.brown }}>
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="font-bold text-lg" style={{ color: colors.brown }}>Manage Users</h1>
+              <p className="text-sm" style={{ color: colors.brownLight }}>Add, edit, or remove team members</p>
+            </div>
+          </div>
+          <Link href="/" data-testid="link-main-dashboard">
+            <Button variant="outline" style={{ borderColor: colors.gold, color: colors.brown }}>
+              <Home className="w-4 h-4 mr-2" />
+              Main Dashboard
             </Button>
           </Link>
-          <div>
-            <h1 className="font-bold text-lg" style={{ color: colors.brown }}>Manage Users</h1>
-            <p className="text-sm" style={{ color: colors.brownLight }}>Add, edit, or remove team members</p>
-          </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto p-6">
         <Card style={{ backgroundColor: colors.white }} className="mb-6">
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
             <CardTitle style={{ color: colors.brown }}>Team Members</CardTitle>
+            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              <DialogTrigger asChild>
+                <Button style={{ backgroundColor: colors.gold, color: colors.brown }} data-testid="button-add-user">
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Add New User
+                </Button>
+              </DialogTrigger>
+              <DialogContent style={{ backgroundColor: colors.white }}>
+                <DialogHeader>
+                  <DialogTitle style={{ color: colors.brown }}>Add New Team Member</DialogTitle>
+                  <DialogDescription style={{ color: colors.brownLight }}>
+                    Create a new user account for your team
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <Label style={{ color: colors.brown }}>Email *</Label>
+                    <Input
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="team@example.com"
+                      style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                      data-testid="input-new-user-email"
+                    />
+                  </div>
+                  <div>
+                    <Label style={{ color: colors.brown }}>Full Name</Label>
+                    <Input
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      placeholder="John Doe"
+                      style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                      data-testid="input-new-user-name"
+                    />
+                  </div>
+                  <div>
+                    <Label style={{ color: colors.brown }}>Password * (min 6 characters)</Label>
+                    <Input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Secure password"
+                      style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                      data-testid="input-new-user-password"
+                    />
+                  </div>
+                  <div>
+                    <Label style={{ color: colors.brown }}>Role</Label>
+                    <Select value={newRole} onValueChange={(v: any) => setNewRole(v)}>
+                      <SelectTrigger 
+                        style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                        data-testid="select-new-user-role"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="lead">Lead</SelectItem>
+                        <SelectItem value="employee">Employee</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={handleCreateUser}
+                    disabled={creating}
+                    className="w-full"
+                    style={{ backgroundColor: colors.gold, color: colors.brown }}
+                    data-testid="button-create-user"
+                  >
+                    {creating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      'Create User'
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </CardHeader>
           <CardContent>
-            <div className="p-4 rounded-lg mb-6" style={{ backgroundColor: colors.cream }}>
-              <p className="text-sm" style={{ color: colors.brownLight }}>
-                <strong>Note:</strong> To add new users, they must first sign up through Supabase Auth. 
-                Once they sign up, you can assign them to your tenant and set their role here.
-                For now, you can manage existing team members below.
-              </p>
-            </div>
 
             {loading ? (
               <p style={{ color: colors.brownLight }}>Loading...</p>

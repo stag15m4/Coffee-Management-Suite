@@ -35,7 +35,8 @@ import {
   Edit2,
   Check,
   X,
-  RotateCcw
+  RotateCcw,
+  Home
 } from 'lucide-react';
 import { Link } from 'wouter';
 import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
@@ -333,7 +334,7 @@ export default function EquipmentMaintenance() {
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {overdueCount > 0 && (
               <Badge 
                 style={{ backgroundColor: colors.red, color: 'white' }}
@@ -350,6 +351,12 @@ export default function EquipmentMaintenance() {
                 {dueSoonCount} Due Soon
               </Badge>
             )}
+            <Link href="/" data-testid="link-main-dashboard">
+              <Button variant="outline" size="sm" style={{ borderColor: colors.gold, color: colors.brown }}>
+                <Home className="w-4 h-4 mr-2" />
+                Dashboard
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
