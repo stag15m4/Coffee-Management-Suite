@@ -1,5 +1,6 @@
 import { useAuth, UserRole, ModuleId } from '@/contexts/AuthContext';
 import { Redirect } from 'wouter';
+import { useState, useEffect } from 'react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,7 +9,20 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole, module }: ProtectedRouteProps) {
-  const { user, profile, loading, hasRole, canAccessModule } = useAuth();
+  const { user, profile, loading, hasRole, canAccessModule, signOut } = useAuth();
+  const [profileTimeout, setProfileTimeout] = useState(false);
+
+  // If profile doesn't load within 5 seconds, show error
+  useEffect(() => {
+    if (user && !profile && !loading) {
+      const timer = setTimeout(() => {
+        setProfileTimeout(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else {
+      setProfileTimeout(false);
+    }
+  }, [user, profile, loading]);
 
   if (loading) {
     return (
@@ -30,6 +44,25 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
   
   // Show loading state while profile is being fetched (but user is authenticated)
   if (!profile) {
+    if (profileTimeout) {
+      return (
+        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F0E1' }}>
+          <div className="text-center p-8 rounded-lg" style={{ backgroundColor: '#FFFDF7' }}>
+            <h2 className="text-xl font-bold mb-2" style={{ color: '#4A3728' }}>Profile Not Found</h2>
+            <p className="mb-4" style={{ color: '#6B5344' }}>
+              Unable to load your profile. This may be a permissions issue.
+            </p>
+            <button
+              onClick={() => signOut()}
+              className="px-4 py-2 rounded-lg font-semibold"
+              style={{ backgroundColor: '#C9A227', color: '#FFFDF7' }}
+            >
+              Sign Out & Try Again
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F0E1' }}>
         <div className="text-center">
