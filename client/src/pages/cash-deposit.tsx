@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText } from 'lucide-react';
+import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText, Home } from 'lucide-react';
 import { Link } from 'wouter';
 import * as XLSX from 'xlsx';
 import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
@@ -516,10 +516,16 @@ export default function CashDeposit() {
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
       <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4">
         {/* Header with logo and back button */}
-        <div className="flex items-start gap-2">
+        <div className="flex items-center justify-between gap-2">
           <Link href="/">
             <Button variant="ghost" size="icon" style={{ color: colors.brown }} data-testid="button-back">
               <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <Link href="/" data-testid="link-main-dashboard">
+            <Button variant="outline" style={{ borderColor: colors.gold, color: colors.brown }}>
+              <Home className="w-4 h-4 mr-2" />
+              Main Dashboard
             </Button>
           </Link>
         </div>
