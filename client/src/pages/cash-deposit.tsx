@@ -314,10 +314,8 @@ export default function CashDeposit() {
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `cash-activity-${dateRange.start}-to-${dateRange.end}.csv`;
-    link.click();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
   };
 
   const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
