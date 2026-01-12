@@ -29,9 +29,9 @@ Preferred communication style: Simple, everyday language.
 
 #### Tenant Level (Per-Business)
 1. **Owner** - Full access within their business, can manage users and branding
-2. **Manager** - Can manage recipes, ingredients, settings
-3. **Lead** - Access to Tip Payout and Bulk Ordering
-4. **Employee** - View-only access (future expansion)
+2. **Manager** - Can manage recipes, ingredients, settings, and user management (cannot change owner roles)
+3. **Lead** - Access to Tip Payout, Bulk Ordering, and Equipment Maintenance
+4. **Employee** - Access to Equipment Maintenance only
 
 ### Branding System
 - `tenant_branding` table stores logo URL and color scheme per tenant
@@ -78,7 +78,11 @@ SQL migration files in `supabase-migrations/`:
 - Week-based system (Monday-Sunday) with week picker
 - Daily tip entry grid (7 days) for Cash and CC tips
 - Automatic 3.5% CC fee deduction
-- Employee management (add new employees)
+- Employee management with deactivation:
+  - Add new employees
+  - Deactivate employees (preserves historical data for tax/audit)
+  - Reactivate previously deactivated employees
+  - Toggle to show/hide inactive employees
 - Hours entry per employee with hours/minutes inputs
 - Team hours verification check
 - Payout summary showing:
@@ -86,8 +90,12 @@ SQL migration files in `supabase-migrations/`:
   - Total team hours
   - Calculated hourly rate
   - Per-employee payouts
-- CSV export functionality
-- Tables: tip_employees, tip_weekly_data, tip_employee_hours
+- Export functionality:
+  - **Weekly export**: CSV and PDF with summary + individual paystubs
+  - **Historical export**: Date range picker for payroll/audit purposes
+    - Group report: All employees across multiple weeks
+    - Individual report: Single employee history
+- Tables: tip_employees (with is_active flag), tip_weekly_data, tip_employee_hours
 
 #### Coffee Order (`/coffee-order`)
 - Bulk coffee ordering from Five Star Coffee Roasters
