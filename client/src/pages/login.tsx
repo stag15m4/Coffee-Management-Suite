@@ -31,14 +31,17 @@ export default function Login() {
       setIsLoading(false);
       
       if (isPlatformAdmin) {
-        setLocation('/platform-admin');
+        window.location.href = '/platform-admin';
       } else if (profile) {
-        setLocation('/');
+        window.location.href = '/';
       }
       // If user exists but no profile or platform admin found,
-      // they may be a new user without a proper setup - stay on login
+      // redirect to home anyway - ProtectedRoute will show the error
+      else {
+        window.location.href = '/';
+      }
     }
-  }, [loading, user, isPlatformAdmin, profile, setLocation]);
+  }, [loading, user, isPlatformAdmin, profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
