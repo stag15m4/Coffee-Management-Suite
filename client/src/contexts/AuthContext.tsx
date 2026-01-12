@@ -117,11 +117,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setBranding(brandingResult.data);
       }
 
-      // Handle modules - default to all if RPC fails (e.g., function not created yet)
-      if (modulesResult.error || !modulesResult.data?.length) {
-        setEnabledModules(['recipe-costing', 'tip-payout', 'cash-deposit', 'bulk-ordering', 'equipment-maintenance']);
+      // Handle modules - on failure, default to NO access for security
+      if (modulesResult.error) {
+        console.warn('Module access RPC failed, defaulting to no modules:', modulesResult.error.message);
+        setEnabledModules([]);
       } else {
-        setEnabledModules(modulesResult.data as ModuleId[]);
+        setEnabledModules((modulesResult.data || []) as ModuleId[]);
       }
 
       return true;
@@ -129,8 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error fetching user data:', error?.message || error);
       setProfile(null);
       setPlatformAdmin(null);
-      // Default to all modules on error so users aren't locked out
-      setEnabledModules(['recipe-costing', 'tip-payout', 'cash-deposit', 'bulk-ordering', 'equipment-maintenance']);
+      setEnabledModules([]);
       return false;
     }
   }, []);
@@ -218,13 +218,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         p_tenant_id: profile.tenant_id
       });
       
-      if (error || !data?.length) {
-        setEnabledModules(['recipe-costing', 'tip-payout', 'cash-deposit', 'bulk-ordering', 'equipment-maintenance']);
+      if (error) {
+        console.warn('Module access RPC failed:', error.message);
+        setEnabledModules([]);
       } else {
-        setEnabledModules(data as ModuleId[]);
+        setEnabledModules((data || []) as ModuleId[]);
       }
     } catch (err) {
       console.error('Error refreshing modules:', err);
+      setEnabledModules([]);
     }
   }, [profile?.tenant_id]);
 

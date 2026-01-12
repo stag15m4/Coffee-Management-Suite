@@ -44,23 +44,39 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await signIn(email, password);
+    try {
+      const { error } = await signIn(email, password);
 
-    if (error) {
+      if (error) {
+        let errorMessage = error.message;
+        
+        if (error.message.includes('Invalid login')) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+          errorMessage = 'Connection error. Please check your internet and try again.';
+        }
+        
+        toast({
+          title: 'Login Failed',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+
       toast({
-        title: 'Login Failed',
-        description: error.message,
+        title: 'Welcome back!',
+        description: 'You have been logged in successfully.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Connection Error',
+        description: 'Unable to connect. Please check your internet connection and try again.',
         variant: 'destructive',
       });
       setIsLoading(false);
-      return;
     }
-
-    toast({
-      title: 'Welcome back!',
-      description: 'You have been logged in successfully.',
-    });
-    // Redirect handled by useEffect after auth state updates
   };
 
   return (
