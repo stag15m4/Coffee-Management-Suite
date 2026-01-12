@@ -45,15 +45,25 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const { error } = await signIn(email, password);
+      // Add timeout to prevent infinite hang
+      const timeoutPromise = new Promise<{ error: Error }>((_, reject) => 
+        setTimeout(() => reject(new Error('Connection timed out')), 15000)
+      );
+      
+      const result = await Promise.race([
+        signIn(email, password),
+        timeoutPromise
+      ]);
 
-      if (error) {
-        let errorMessage = error.message;
+      if (result.error) {
+        let errorMessage = result.error.message;
         
-        if (error.message.includes('Invalid login')) {
+        if (result.error.message.includes('Invalid login')) {
           errorMessage = 'Invalid email or password. Please try again.';
-        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+        } else if (result.error.message.includes('fetch') || result.error.message.includes('network')) {
           errorMessage = 'Connection error. Please check your internet and try again.';
+        } else if (result.error.message.includes('timed out')) {
+          errorMessage = 'Connection is slow. Please try again.';
         }
         
         toast({
@@ -72,7 +82,9 @@ export default function Login() {
     } catch (err: any) {
       toast({
         title: 'Connection Error',
-        description: 'Unable to connect. Please check your internet connection and try again.',
+        description: err.message?.includes('timed out') 
+          ? 'Connection is slow. Please try again.' 
+          : 'Unable to connect. Please check your internet connection.',
         variant: 'destructive',
       });
       setIsLoading(false);
