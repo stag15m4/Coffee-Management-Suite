@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase-queries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Download, FileText, Plus, Trash2, Edit2, Save, X } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Plus, Trash2, Edit2, Save, X, Home } from 'lucide-react';
 import { Link } from 'wouter';
 
 const colors = {
@@ -549,10 +549,16 @@ export default function CoffeeOrder() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <div className="absolute top-4 left-4 z-10">
+      <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-center">
         <Link href="/" data-testid="link-back-dashboard">
           <Button variant="ghost" size="icon" style={{ color: colors.brown }}>
             <ArrowLeft className="w-5 h-5" />
+          </Button>
+        </Link>
+        <Link href="/" data-testid="link-main-dashboard">
+          <Button variant="outline" style={{ borderColor: colors.gold, color: colors.brown, backgroundColor: colors.white }}>
+            <Home className="w-4 h-4 mr-2" />
+            Main Dashboard
           </Button>
         </Link>
       </div>
