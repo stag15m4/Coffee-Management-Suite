@@ -92,9 +92,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Check for regular user profile
+      if (profileResult.error) {
+        console.error('Profile query error:', profileResult.error.message);
+      }
       const profileData = profileResult.data;
       if (!profileData) {
-        console.error('No profile found for user');
+        console.error('No profile found for user:', userId);
         setProfile(null);
         setPlatformAdmin(null);
         return false;
