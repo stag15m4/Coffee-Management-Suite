@@ -79,6 +79,12 @@ export default function Login() {
         title: 'Welcome back!',
         description: 'You have been logged in successfully.',
       });
+      
+      // Force navigation after successful login
+      // The useEffect should handle this, but as a fallback we'll redirect directly
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 500);
     } catch (err: any) {
       toast({
         title: 'Connection Error',
