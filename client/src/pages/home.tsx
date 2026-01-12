@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Home as HomeIcon } from 'lucide-react';
 import {
   supabase,
   queryKeys,
@@ -2998,7 +2999,16 @@ export default function Home() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <header className="px-6 py-6">
+      <header className="px-6 py-6 relative">
+        <a
+          href="/dashboard"
+          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm"
+          style={{ backgroundColor: colors.gold, color: colors.white }}
+          data-testid="link-dashboard"
+        >
+          <HomeIcon className="w-4 h-4" />
+          Main Dashboard
+        </a>
         <div className="max-w-7xl mx-auto text-center">
           <img
             src="/logo.png"
