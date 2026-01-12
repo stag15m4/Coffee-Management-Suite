@@ -73,7 +73,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [enabledModules, setEnabledModules] = useState<ModuleId[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserData = useCallback(async (userId: string): Promise<boolean> => {
+  const fetchUserData = useCallback(async (userId: string, retryCount = 0): Promise<boolean> => {
+    const MAX_RETRIES = 3;
+    
     try {
       // Fetch platform admin AND user profile in parallel - only one will succeed
       const [adminResult, profileResult] = await Promise.all([
@@ -94,6 +96,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Check for regular user profile
       if (profileResult.error) {
         console.error('Profile query error:', profileResult.error.message);
+        // Retry on network errors
+        if (profileResult.error.message?.includes('Load failed') || 
+            profileResult.error.message?.includes('fetch') ||
+            profileResult.error.message?.includes('network')) {
+          if (retryCount < MAX_RETRIES) {
+            console.log(`Retrying profile fetch (attempt ${retryCount + 2}/${MAX_RETRIES + 1})...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+            return fetchUserData(userId, retryCount + 1);
+          }
+        }
       }
       const profileData = profileResult.data;
       if (!profileData) {

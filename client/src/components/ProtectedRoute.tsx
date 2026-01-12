@@ -52,18 +52,32 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
     if (profileTimeout) {
       return (
         <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F0E1' }}>
-          <div className="text-center p-8 rounded-lg" style={{ backgroundColor: '#FFFDF7' }}>
-            <h2 className="text-xl font-bold mb-2" style={{ color: '#4A3728' }}>Profile Not Found</h2>
+          <div className="text-center p-8 rounded-lg max-w-md" style={{ backgroundColor: '#FFFDF7' }}>
+            <h2 className="text-xl font-bold mb-2" style={{ color: '#4A3728' }}>Connection Issue</h2>
             <p className="mb-4" style={{ color: '#6B5344' }}>
-              Unable to load your profile. This may be a permissions issue.
+              Unable to load your profile. This could be:
             </p>
-            <button
-              onClick={() => signOut()}
-              className="px-4 py-2 rounded-lg font-semibold"
-              style={{ backgroundColor: '#C9A227', color: '#FFFDF7' }}
-            >
-              Sign Out & Try Again
-            </button>
+            <ul className="text-left mb-4 text-sm space-y-1" style={{ color: '#6B5344' }}>
+              <li>• Network connectivity issue</li>
+              <li>• Supabase project may be paused</li>
+              <li>• Database permissions need updating</li>
+            </ul>
+            <div className="space-y-2">
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full px-4 py-2 rounded-lg font-semibold"
+                style={{ backgroundColor: '#C9A227', color: '#FFFDF7' }}
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => signOut()}
+                className="w-full px-4 py-2 rounded-lg font-semibold border"
+                style={{ borderColor: '#C9A227', color: '#4A3728', backgroundColor: 'transparent' }}
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       );
