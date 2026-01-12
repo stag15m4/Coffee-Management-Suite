@@ -434,12 +434,8 @@ export default function CoffeeOrder() {
 
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `coffee-orders-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: 'CSV exported' });
+    window.open(url, '_blank');
+    toast({ title: 'CSV opened in new tab' });
   };
 
   const exportPDF = () => {

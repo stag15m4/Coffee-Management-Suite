@@ -408,10 +408,7 @@ export default function TipPayout() {
     
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Tips_${weekKey}.csv`;
-    link.click();
+    window.open(url, '_blank');
   };
 
   const exportPDF = () => {
@@ -694,11 +691,8 @@ export default function TipPayout() {
 
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Tip_History_${historyStartDate}_to_${historyEndDate}.csv`;
-        link.click();
-        toast({ title: 'Historical export downloaded!' });
+        window.open(url, '_blank');
+        toast({ title: 'Historical export opened!' });
 
       } else {
         // Individual export - single employee
@@ -742,11 +736,8 @@ export default function TipPayout() {
 
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Tip_History_${employee?.name || 'Employee'}_${historyStartDate}_to_${historyEndDate}.csv`;
-        link.click();
-        toast({ title: `${employee?.name}'s history exported!` });
+        window.open(url, '_blank');
+        toast({ title: `${employee?.name}'s history opened!` });
       }
     } catch (error: any) {
       console.error('Export error:', error);
