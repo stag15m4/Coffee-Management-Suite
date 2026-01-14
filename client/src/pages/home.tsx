@@ -2661,15 +2661,15 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('pricing');
   const queryClient = useQueryClient();
 
-  const { data: ingredientCategories = [], isLoading: loadingCategories } = useIngredientCategories();
-  const { data: ingredients = [], isLoading: loadingIngredients } = useIngredients();
-  const { data: productCategories = [], isLoading: loadingProductCategories } = useProductCategories();
-  const { data: baseTemplates = [], isLoading: loadingBaseTemplates } = useBaseTemplates();
-  const { data: drinkSizes = [], isLoading: loadingDrinkSizes } = useDrinkSizes();
-  const { data: recipes = [], isLoading: loadingRecipes } = useRecipes();
-  const { data: overhead, isLoading: loadingOverhead } = useOverhead();
-  const { data: pricingData = [], isLoading: loadingPricing } = useRecipePricing();
-  const { data: recipeSizeBases = [], isLoading: loadingRecipeSizeBases } = useRecipeSizeBases();
+  const { data: ingredientCategories = [], isLoading: loadingCategories, isError: errorCategories } = useIngredientCategories();
+  const { data: ingredients = [], isLoading: loadingIngredients, isError: errorIngredients } = useIngredients();
+  const { data: productCategories = [], isLoading: loadingProductCategories, isError: errorProductCategories } = useProductCategories();
+  const { data: baseTemplates = [], isLoading: loadingBaseTemplates, isError: errorBaseTemplates } = useBaseTemplates();
+  const { data: drinkSizes = [], isLoading: loadingDrinkSizes, isError: errorDrinkSizes } = useDrinkSizes();
+  const { data: recipes = [], isLoading: loadingRecipes, isError: errorRecipes } = useRecipes();
+  const { data: overhead, isLoading: loadingOverhead, isError: errorOverhead } = useOverhead();
+  const { data: pricingData = [], isLoading: loadingPricing, isError: errorPricing } = useRecipePricing();
+  const { data: recipeSizeBases = [], isLoading: loadingRecipeSizeBases, isError: errorRecipeSizeBases } = useRecipeSizeBases();
 
   const updateIngredientMutation = useUpdateIngredient();
   const addIngredientMutation = useAddIngredient();
@@ -2680,6 +2680,10 @@ export default function Home() {
   const loading = loadingCategories || loadingIngredients || loadingProductCategories || 
                   loadingBaseTemplates || loadingDrinkSizes || loadingRecipes || 
                   loadingOverhead || loadingPricing || loadingRecipeSizeBases;
+
+  const hasError = errorCategories || errorIngredients || errorProductCategories || 
+                   errorBaseTemplates || errorDrinkSizes || errorRecipes || 
+                   errorOverhead || errorPricing || errorRecipeSizeBases;
 
   const handleUpdateIngredient = async (id: string, updates: Partial<Ingredient>) => {
     try {
@@ -2994,7 +2998,41 @@ export default function Home() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
-        <div style={{ color: colors.brownLight }}>Loading...</div>
+        <div className="text-center">
+          <div 
+            className="w-12 h-12 rounded-full mx-auto mb-4 animate-spin border-4"
+            style={{ 
+              borderColor: colors.creamDark, 
+              borderTopColor: colors.gold 
+            }}
+          />
+          <p style={{ color: colors.brownLight }}>Loading Recipe Cost Manager...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
+        <div className="text-center p-8 rounded-lg max-w-md" style={{ backgroundColor: colors.white }}>
+          <h2 className="text-xl font-bold mb-2" style={{ color: colors.brown }}>Connection Issue</h2>
+          <p className="mb-4" style={{ color: colors.brownLight }}>
+            Unable to load Recipe Cost Manager data. This could be:
+          </p>
+          <ul className="text-left mb-4 text-sm space-y-1" style={{ color: colors.brownLight }}>
+            <li>• Recipe Costing tables may not exist in database</li>
+            <li>• Network connectivity issue</li>
+            <li>• Supabase project may need configuration</li>
+          </ul>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full px-4 py-2 rounded-lg font-semibold"
+            style={{ backgroundColor: colors.gold, color: colors.white }}
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
