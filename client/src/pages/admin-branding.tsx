@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Save, RotateCcw, Home } from 'lucide-react';
 import { Link } from 'wouter';
 import { Footer } from '@/components/Footer';
 
@@ -109,31 +109,36 @@ export default function AdminBranding() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <header 
-        className="sticky top-0 z-50 border-b px-4 py-3"
-        style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-      >
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Link href="/" data-testid="link-back-dashboard">
-              <Button variant="ghost" size="icon" style={{ color: colors.brown }}>
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="font-bold text-lg" style={{ color: colors.brown }}>Branding Settings</h1>
-              <p className="text-sm" style={{ color: colors.brownLight }}>Customize your company's appearance</p>
-            </div>
-          </div>
-          <Button
-            onClick={saveBranding}
-            disabled={saving}
-            style={{ backgroundColor: colors.gold, color: colors.brown }}
-            data-testid="button-save-branding"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
+      <header className="px-6 py-6 relative">
+        <Link
+          href="/"
+          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm"
+          style={{ backgroundColor: colors.gold, color: colors.white }}
+          data-testid="link-dashboard"
+        >
+          <Home className="w-4 h-4" />
+          Main Dashboard
+        </Link>
+        <Button
+          onClick={saveBranding}
+          disabled={saving}
+          className="absolute top-4 right-4"
+          style={{ backgroundColor: colors.gold, color: colors.brown }}
+          data-testid="button-save-branding"
+        >
+          <Save className="w-4 h-4 mr-2" />
+          {saving ? 'Saving...' : 'Save Changes'}
+        </Button>
+        <div className="max-w-7xl mx-auto text-center">
+          <img
+            src="/logo.png"
+            alt="Erwin Mills Coffee Co."
+            className="h-20 mx-auto mb-3"
+            data-testid="img-logo"
+          />
+          <h2 className="text-xl font-semibold" style={{ color: colors.brown }}>
+            Branding Settings
+          </h2>
         </div>
       </header>
 
