@@ -75,15 +75,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserData = useCallback(async (userId: string, retryCount = 0): Promise<boolean> => {
     const MAX_RETRIES = 3;
+    const TIMEOUT_MS = 10000;
     
     try {
       console.log('Fetching user data for:', userId);
+      console.log('DEBUG: Starting Supabase queries...');
+      
+      // Add timeout wrapper
+      const withTimeout = <T,>(thenable: PromiseLike<T>, label: string): Promise<T> => {
+        return Promise.race([
+          Promise.resolve(thenable),
+          new Promise<T>((_, reject) => 
+            setTimeout(() => reject(new Error(`${label} timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+          )
+        ]);
+      };
+      
+      // Test basic connectivity first
+      console.log('DEBUG: Testing Supabase connectivity...');
+      try {
+        const testResult = await withTimeout(
+          supabase.from('tenants').select('count').limit(1),
+          'Connectivity test'
+        );
+        console.log('DEBUG: Connectivity test result:', (testResult as any).error ? (testResult as any).error.message : 'OK');
+      } catch (e: any) {
+        console.error('DEBUG: Connectivity test failed:', e.message);
+      }
       
       // Fetch platform admin AND user profile in parallel - only one will succeed
+      console.log('DEBUG: Fetching admin and profile...');
       const [adminResult, profileResult] = await Promise.all([
-        supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle(),
-        supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle()
-      ]);
+        withTimeout(supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle(), 'Admin query'),
+        withTimeout(supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle(), 'Profile query')
+      ]) as [any, any];
       
       console.log('Admin result:', adminResult);
       console.log('Profile result:', profileResult);
