@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calculator, DollarSign, Coffee, Receipt, Wrench } from 'lucide-react';
+import { Footer } from '@/components/Footer';
 
 const colors = {
   gold: '#C9A227',
@@ -210,6 +211,7 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 }
