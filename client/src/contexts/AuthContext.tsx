@@ -81,23 +81,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Skip if already fetching for this user (deduplication)
     if (fetchInProgress === userId && !force) {
-      console.log('DEBUG: Fetch already in progress for user, skipping');
       return true;
     }
     
     // Skip if we already have data for this user (caching)
     if (lastFetchedUserId === userId && (profile || platformAdmin) && !force) {
-      console.log('DEBUG: Already have data for this user, skipping fetch');
       return true;
     }
     
     setFetchInProgress(userId);
     
     try {
-      console.log('Fetching user data for:', userId);
-      console.log('DEBUG: Starting Supabase queries...');
-      
-      // Add timeout wrapper
+      // Add timeout wrapper for network resilience
       const withTimeout = <T,>(thenable: PromiseLike<T>, label: string): Promise<T> => {
         return Promise.race([
           Promise.resolve(thenable),
@@ -107,27 +102,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ]);
       };
       
-      // Test basic connectivity first
-      console.log('DEBUG: Testing Supabase connectivity...');
-      try {
-        const testResult = await withTimeout(
-          supabase.from('tenants').select('count').limit(1),
-          'Connectivity test'
-        );
-        console.log('DEBUG: Connectivity test result:', (testResult as any).error ? (testResult as any).error.message : 'OK');
-      } catch (e: any) {
-        console.error('DEBUG: Connectivity test failed:', e.message);
-      }
-      
       // Fetch platform admin AND user profile in parallel - only one will succeed
-      console.log('DEBUG: Fetching admin and profile...');
       const [adminResult, profileResult] = await Promise.all([
         withTimeout(supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle(), 'Admin query'),
         withTimeout(supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle(), 'Profile query')
       ]) as [any, any];
-      
-      console.log('Admin result:', adminResult);
-      console.log('Profile result:', profileResult);
 
       // Check if platform admin
       if (adminResult.data && !adminResult.error) {
@@ -138,7 +117,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setEnabledModules([]);
         setLastFetchedUserId(userId);
         setFetchInProgress(null);
-        console.log('DEBUG: Platform admin fetch completed successfully');
         return true;
       }
 
@@ -168,13 +146,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPlatformAdmin(null);
 
       // Fetch tenant, branding, and modules ALL in parallel with timeouts
-      console.log('DEBUG: Fetching tenant, branding, and modules...');
       const [tenantResult, brandingResult, modulesResult] = await Promise.all([
         withTimeout(supabase.from('tenants').select('*').eq('id', profileData.tenant_id).single(), 'Tenant query'),
         withTimeout(supabase.from('tenant_branding').select('*').eq('tenant_id', profileData.tenant_id).maybeSingle(), 'Branding query'),
         withTimeout(supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: profileData.tenant_id }), 'Modules query')
       ]) as [any, any, any];
-      console.log('DEBUG: Tenant/branding/modules fetch complete');
 
       if (!tenantResult.error && tenantResult.data) {
         setTenant(tenantResult.data);
@@ -193,7 +169,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setLastFetchedUserId(userId);
       setFetchInProgress(null);
-      console.log('DEBUG: User data fetch completed successfully');
       return true;
     } catch (error: any) {
       console.error('Error fetching user data:', error?.message || error);
