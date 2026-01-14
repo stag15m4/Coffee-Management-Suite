@@ -168,11 +168,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setBranding(brandingResult.data);
       }
 
-      // Handle modules - on failure, default to NO access for security
+      // Handle modules - log results for debugging
+      console.log('DEBUG: Modules RPC result:', JSON.stringify(modulesResult));
+      
       if (modulesResult.error) {
-        console.warn('Module access RPC failed, defaulting to no modules:', modulesResult.error.message);
+        console.warn('Module access RPC failed:', modulesResult.error.message, 'Code:', modulesResult.error.code);
+        // Security: Any error defaults to no modules - do not grant access on failure
         setEnabledModules([]);
       } else {
+        // RPC succeeded - use the result (empty array is legitimate)
+        console.log('DEBUG: Modules loaded:', modulesResult.data || []);
         setEnabledModules((modulesResult.data || []) as ModuleId[]);
       }
 
@@ -275,14 +280,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         p_tenant_id: profile.tenant_id
       });
       
+      console.log('DEBUG: Refresh modules result:', JSON.stringify({ data, error }));
+      
       if (error) {
-        console.warn('Module access RPC failed:', error.message);
+        console.warn('Module refresh RPC failed:', error.message);
+        // Security: Any error defaults to no modules
         setEnabledModules([]);
       } else {
+        // Accept empty array as legitimate response
         setEnabledModules((data || []) as ModuleId[]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error refreshing modules:', err);
+      // Security: Any error defaults to no modules
       setEnabledModules([]);
     }
   }, [profile?.tenant_id]);
