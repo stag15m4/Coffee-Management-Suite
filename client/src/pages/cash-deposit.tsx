@@ -98,7 +98,10 @@ export default function CashDeposit() {
   });
 
   const loadEntries = useCallback(async () => {
-    if (!tenant?.id) return;
+    if (!tenant?.id) {
+      setLoading(false);
+      return;
+    }
     
     try {
       let query = supabase
