@@ -800,12 +800,12 @@ export default function TipPayout() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
               <UserPlus className="w-5 h-5" />
-              Add New Employee
+              Employee Manager
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <Input
-              placeholder="Employee name"
+              placeholder="New Employee Name"
               value={newEmployeeName}
               onChange={(e) => setNewEmployeeName(e.target.value)}
               style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
