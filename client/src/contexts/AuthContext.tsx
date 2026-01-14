@@ -84,8 +84,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return true;
     }
     
-    // Skip if we already have data for this user (caching)
+    // Skip if we already have data for this user (caching) - but always refetch modules
     if (lastFetchedUserId === userId && (profile || platformAdmin) && !force) {
+      // Even when using cache, always refresh modules to ensure they're current
+      if (profile?.tenant_id) {
+        const { data, error } = await supabase.rpc('get_tenant_enabled_modules', {
+          p_tenant_id: profile.tenant_id
+        });
+        if (!error && data) {
+          setEnabledModules(data as ModuleId[]);
+        }
+      }
       return true;
     }
     

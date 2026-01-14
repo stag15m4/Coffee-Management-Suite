@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calculator, DollarSign, Coffee, Receipt, Wrench } from 'lucide-react';
+import { Calculator, DollarSign, Coffee, Receipt, Wrench, RefreshCw } from 'lucide-react';
 import { Footer } from '@/components/Footer';
+import { useToast } from '@/hooks/use-toast';
 
 const colors = {
   gold: '#C9A227',
@@ -62,9 +64,25 @@ function ModuleCard({ title, description, icon, href, disabled }: ModuleCardProp
 }
 
 export default function Dashboard() {
-  const { profile, tenant, branding, signOut, canAccessModule } = useAuth();
+  const { profile, tenant, branding, signOut, canAccessModule, refreshEnabledModules, enabledModules } = useAuth();
+  const { toast } = useToast();
+  const [refreshing, setRefreshing] = useState(false);
 
   const companyName = branding?.company_name || tenant?.name || 'Management Suite';
+  
+  const handleRefreshModules = async () => {
+    setRefreshing(true);
+    try {
+      await refreshEnabledModules();
+      toast({ title: 'Modules refreshed' });
+    } catch (error) {
+      toast({ title: 'Failed to refresh modules', variant: 'destructive' });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  
+  const hasAnyModules = enabledModules.length > 0;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
@@ -118,14 +136,38 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto p-6">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-2" style={{ color: colors.brown }}>
-            Welcome, {profile?.full_name?.split(' ')[0] || 'User'}
-          </h2>
-          <p style={{ color: colors.brownLight }}>
-            Select a module to get started
-          </p>
+        <div className="mb-8 flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-2xl font-bold mb-2" style={{ color: colors.brown }}>
+              Welcome, {profile?.full_name?.split(' ')[0] || 'User'}
+            </h2>
+            <p style={{ color: colors.brownLight }}>
+              Select a module to get started
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshModules}
+            disabled={refreshing}
+            style={{ borderColor: colors.creamDark, color: colors.brown }}
+            data-testid="button-refresh-modules"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
+
+        {!hasAnyModules && profile?.role === 'owner' && (
+          <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.gold }}>
+            <CardContent className="py-4">
+              <p style={{ color: colors.brown }}>
+                No modules are currently loaded. Try clicking the Refresh button above.
+                If this persists, please sign out and sign back in.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {canAccessModule('recipe-costing') && (
