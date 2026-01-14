@@ -156,7 +156,7 @@ export default function PlatformAdmin() {
   };
 
   const calculateMonthlyTotal = (): number => {
-    if (selectedPlan === 'premium') return 99.99;
+    if (selectedPlan === 'premium') return 125.00;
     if (selectedPlan === 'test_eval') return 0;
     if (selectedPlan === 'free') return 0;
     return selectedModules.reduce((total, moduleId) => {
@@ -621,7 +621,7 @@ export default function PlatformAdmin() {
                     <p className="text-sm text-slate-400">All {modules.length} modules including Recipe Costing</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-bold text-purple-400">$99.99</p>
+                    <p className="text-xl font-bold text-purple-400">$125.00</p>
                     <p className="text-xs text-slate-400">/month</p>
                   </div>
                 </div>
