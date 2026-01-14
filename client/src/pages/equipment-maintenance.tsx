@@ -38,6 +38,7 @@ import {
   RotateCcw,
   Home
 } from 'lucide-react';
+import { Footer } from '@/components/Footer';
 import { Link } from 'wouter';
 import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
@@ -1118,6 +1119,7 @@ export default function EquipmentMaintenance() {
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 }

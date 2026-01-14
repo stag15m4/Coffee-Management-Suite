@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Footer } from '@/components/Footer';
 
 const colors = {
   gold: '#C9A227',
@@ -416,6 +417,7 @@ export default function AdminUsers() {
           </CardContent>
         </Card>
       </main>
+      <Footer />
     </div>
   );
 }

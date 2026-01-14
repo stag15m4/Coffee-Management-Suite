@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Download, FileText, Plus, Trash2, Edit2, Save, X, Home } from 'lucide-react';
 import { Link } from 'wouter';
+import { Footer } from '@/components/Footer';
 
 const colors = {
   gold: '#D4A84B',
@@ -1000,6 +1001,7 @@ export default function CoffeeOrder() {
           )}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

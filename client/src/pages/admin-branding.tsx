@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, RotateCcw } from 'lucide-react';
 import { Link } from 'wouter';
+import { Footer } from '@/components/Footer';
 
 const colors = {
   gold: '#C9A227',
@@ -343,6 +344,7 @@ export default function AdminBranding() {
           </CardContent>
         </Card>
       </main>
+      <Footer />
     </div>
   );
 }
