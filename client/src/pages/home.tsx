@@ -97,7 +97,7 @@ interface Ingredient {
   updated_at?: string;
 }
 
-const INGREDIENT_TYPES = ['Drink Ingredient', 'Kitchen Ingredient', 'Disposable', 'Supply'] as const;
+const INGREDIENT_TYPES = ['FOH Ingredient', 'BOH Ingredient', 'Disposable', 'Supply'] as const;
 
 const pluralizeType = (type: string) => {
   if (type === 'Supply') return 'Supplies';
@@ -228,7 +228,7 @@ interface IngredientsTabProps {
 }
 
 const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: IngredientsTabProps) => {
-  const [selectedType, setSelectedType] = useState<string>('Drink Ingredient');
+  const [selectedType, setSelectedType] = useState<string>('FOH Ingredient');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Ingredient>>({});
@@ -238,7 +238,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
   const [newIngredient, setNewIngredient] = useState({
     name: '',
     category_id: '',
-    ingredient_type: 'Drink Ingredient',
+    ingredient_type: 'FOH Ingredient',
     cost: '',
     quantity: '',
     unit: 'oz',
@@ -248,7 +248,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
     item_number: '',
   });
 
-  const normalizeType = (type: string | null | undefined) => (type || 'Drink Ingredient').toLowerCase();
+  const normalizeType = (type: string | null | undefined) => (type || 'FOH Ingredient').toLowerCase();
   
   const filteredIngredients = ingredients
     .filter(i => normalizeType(i.ingredient_type) === selectedType.toLowerCase())
@@ -260,7 +260,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
     setEditForm({
       name: ingredient.name,
       category_id: ingredient.category_id,
-      ingredient_type: ingredient.ingredient_type || 'Drink Ingredient',
+      ingredient_type: ingredient.ingredient_type || 'FOH Ingredient',
       cost: ingredient.cost,
       quantity: ingredient.quantity,
       unit: ingredient.unit,
@@ -628,7 +628,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                           <div>
                             <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Type</label>
                             <select
-                              value={String(editForm.ingredient_type || 'Drink Ingredient')}
+                              value={String(editForm.ingredient_type || 'FOH Ingredient')}
                               onChange={(e) => setEditForm({ ...editForm, ingredient_type: e.target.value })}
                               className="w-full px-2 py-1 rounded border"
                               style={{ borderColor: colors.gold }}
@@ -1486,7 +1486,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                       {ingredients
                                         .sort((a, b) => a.name.localeCompare(b.name))
                                         .map(ing => (
-                                        <option key={ing.id} value={ing.id}>{ing.name} ({ing.ingredient_type || 'Drink Ingredient'})</option>
+                                        <option key={ing.id} value={ing.id}>{ing.name} ({ing.ingredient_type || 'FOH Ingredient'})</option>
                                       ))}
                                     </optgroup>
                                     {recipes.filter(r => r.is_bulk_recipe && r.id !== recipe.id).length > 0 && (
@@ -1504,7 +1504,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                   <>
                                     <optgroup label="Ingredients">
                                       {ingredients
-                                        .filter(ing => (ing.ingredient_type || 'Drink Ingredient').toLowerCase() === 'drink ingredient')
+                                        .filter(ing => (ing.ingredient_type || 'FOH Ingredient').toLowerCase() === 'foh ingredient')
                                         .sort((a, b) => a.name.localeCompare(b.name))
                                         .map(ing => (
                                         <option key={ing.id} value={ing.id}>{ing.name}</option>
