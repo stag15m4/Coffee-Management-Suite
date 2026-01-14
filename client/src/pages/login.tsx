@@ -103,64 +103,66 @@ export default function Login() {
 
   return (
     <div 
-      className="min-h-screen flex items-center justify-center p-4"
+      className="min-h-screen flex flex-col"
       style={{ backgroundColor: colors.cream }}
     >
-      <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }}>
-        <CardHeader className="text-center">
-          <div 
-            className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4"
-            style={{ backgroundColor: colors.gold }}
-          >
-            <span className="text-2xl font-bold" style={{ color: colors.brown }}>EM</span>
-          </div>
-          <CardTitle className="text-2xl" style={{ color: colors.brown }}>
-            Welcome Back
-          </CardTitle>
-          <CardDescription style={{ color: colors.brownLight }}>
-            Sign in to access the management suite
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" style={{ color: colors.brown }}>Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                data-testid="input-email"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" style={{ color: colors.brown }}>Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                data-testid="input-password"
-              />
-            </div>
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-              style={{ backgroundColor: colors.gold, color: colors.brown }}
-              data-testid="button-login"
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }}>
+          <CardHeader className="text-center">
+            <div 
+              className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4"
+              style={{ backgroundColor: colors.gold }}
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              <span className="text-2xl font-bold" style={{ color: colors.brown }}>EM</span>
+            </div>
+            <CardTitle className="text-2xl" style={{ color: colors.brown }}>
+              Welcome Back
+            </CardTitle>
+            <CardDescription style={{ color: colors.brownLight }}>
+              Sign in to access the management suite
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email" style={{ color: colors.brown }}>Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                  data-testid="input-email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password" style={{ color: colors.brown }}>Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                  data-testid="input-password"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading}
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                data-testid="button-login"
+              >
+                {isLoading ? 'Signing in...' : 'Sign In'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
       <Footer />
     </div>
   );
