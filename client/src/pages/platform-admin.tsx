@@ -618,7 +618,7 @@ export default function PlatformAdmin() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-lg">Premium Suite</p>
-                    <p className="text-sm text-slate-400">All 4 modules including Recipe Costing</p>
+                    <p className="text-sm text-slate-400">All {modules.length} modules including Recipe Costing</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xl font-bold text-purple-400">$99.99</p>
