@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText, Home } from 'lucide-react';
 import { Link } from 'wouter';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
 import { Footer } from '@/components/Footer';
 
@@ -325,10 +325,18 @@ export default function CashDeposit() {
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+      const worksheet = workbook.worksheets[0];
+      
+      const jsonData: any[][] = [];
+      worksheet.eachRow((row, rowNumber) => {
+        const rowData: any[] = [];
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          rowData[colNumber - 1] = cell.value;
+        });
+        jsonData[rowNumber - 1] = rowData;
+      });
 
       const parsedEntries: any[] = [];
       
@@ -375,11 +383,12 @@ export default function CashDeposit() {
         if (!dateValue) continue;
 
         let parsedDate: string | undefined;
-        if (typeof dateValue === 'number') {
-          const excelDate = XLSX.SSF.parse_date_code(dateValue);
-          if (excelDate) {
-            parsedDate = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
-          }
+        if (dateValue instanceof Date) {
+          parsedDate = dateValue.toISOString().split('T')[0];
+        } else if (typeof dateValue === 'number') {
+          const excelEpoch = new Date(1899, 11, 30);
+          const date = new Date(excelEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
+          parsedDate = date.toISOString().split('T')[0];
         } else {
           const dateObj = new Date(String(dateValue));
           if (!isNaN(dateObj.getTime())) {
