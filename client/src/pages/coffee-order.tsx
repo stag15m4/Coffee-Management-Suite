@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Download, FileText, Plus, Trash2, Edit2, Save, X, Home } from 'lucide-react';
 import { Link } from 'wouter';
 import { Footer } from '@/components/Footer';
+import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
   gold: '#D4A84B',
@@ -550,38 +551,30 @@ export default function CoffeeOrder() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-center">
-        <Link href="/" data-testid="link-back-dashboard">
-          <Button variant="ghost" size="icon" style={{ color: colors.brown }}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </Link>
-        <Link href="/" data-testid="link-main-dashboard">
-          <Button variant="outline" style={{ borderColor: colors.gold, color: colors.brown, backgroundColor: colors.white }}>
-            <Home className="w-4 h-4 mr-2" />
-            Main Dashboard
-          </Button>
-        </Link>
-      </div>
-
-      <header className="text-center py-8 border-b-4" style={{ backgroundColor: colors.cream, borderColor: colors.gold }}>
-        <div 
-          className="inline-block p-3 rounded-lg mb-3"
-          style={{ border: `3px solid ${colors.gold}`, backgroundColor: colors.white }}
+      <header className="px-6 py-6 relative">
+        <Link
+          href="/"
+          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm"
+          style={{ backgroundColor: colors.gold, color: colors.white }}
+          data-testid="link-dashboard"
         >
-          <div className="h-16 w-auto flex items-center justify-center px-4">
-            <span className="text-xl font-bold" style={{ color: colors.brown }}>{vendorName}</span>
-          </div>
+          <Home className="w-4 h-4" />
+          Main Dashboard
+        </Link>
+        <div className="max-w-7xl mx-auto text-center">
+          <img
+            src={logoUrl}
+            alt="Erwin Mills Coffee Co."
+            className="h-20 mx-auto mb-3"
+            data-testid="img-logo"
+          />
+          <h2 className="text-xl font-semibold" style={{ color: colors.brown }}>
+            Bulk Coffee Ordering
+          </h2>
+          <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
+            Vendor: {vendorName}
+          </p>
         </div>
-        <p 
-          className="text-sm tracking-widest uppercase font-semibold mb-2"
-          style={{ color: colors.brown }}
-        >
-          {tenant?.name || 'Coffee Company'}
-        </p>
-        <h1 className="text-2xl font-semibold" style={{ color: colors.brown }}>
-          Bulk Order App
-        </h1>
       </header>
 
       <main className="max-w-3xl mx-auto px-5 py-8">
