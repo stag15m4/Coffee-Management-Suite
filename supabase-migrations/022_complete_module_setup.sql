@@ -10,7 +10,7 @@ RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
         SELECT 1 FROM platform_admins 
-        WHERE user_id = auth.uid() AND is_active = true
+        WHERE id = auth.uid() AND is_active = true
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
