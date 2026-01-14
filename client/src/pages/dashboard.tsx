@@ -158,7 +158,7 @@ export default function Dashboard() {
           </Button>
         </div>
 
-        {!hasAnyModules && profile?.role === 'owner' && (
+        {!hasAnyModules && (profile?.role === 'owner' || profile?.role === 'manager') && (
           <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.gold }}>
             <CardContent className="py-4">
               <p style={{ color: colors.brown }}>
