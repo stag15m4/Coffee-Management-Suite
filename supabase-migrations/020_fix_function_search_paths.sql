@@ -20,28 +20,46 @@ $$;
 -- Fix get_tenant_enabled_modules function
 CREATE OR REPLACE FUNCTION get_tenant_enabled_modules(p_tenant_id UUID)
 RETURNS TEXT[]
-LANGUAGE sql
-STABLE
+LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT COALESCE(
-    ARRAY_AGG(DISTINCT m.module_key),
-    ARRAY[]::TEXT[]
-  )
-  FROM tenant_module_subscriptions tms
-  JOIN subscription_plans sp ON tms.plan_id = sp.id
-  JOIN subscription_plan_modules spm ON sp.id = spm.plan_id
-  JOIN modules m ON spm.module_id = m.id
-  WHERE tms.tenant_id = p_tenant_id
-    AND tms.is_active = true
-    AND (tms.expires_at IS NULL OR tms.expires_at > NOW())
-  UNION
-  SELECT m.module_key
-  FROM tenant_module_overrides tmo
-  JOIN modules m ON tmo.module_id = m.id
-  WHERE tmo.tenant_id = p_tenant_id
-    AND tmo.is_enabled = true;
+DECLARE
+    tenant_plan TEXT;
+    result TEXT[];
+BEGIN
+    -- Get the tenant's subscription plan
+    SELECT subscription_plan INTO tenant_plan
+    FROM tenants
+    WHERE id = p_tenant_id;
+
+    -- If no plan, default to 'free'
+    IF tenant_plan IS NULL THEN
+        tenant_plan := 'free';
+    END IF;
+
+    -- For free trial, test & eval, and premium: get all modules from plan
+    IF tenant_plan IN ('free', 'test_eval', 'premium') THEN
+        SELECT ARRAY_AGG(m.id) INTO result
+        FROM modules m
+        LEFT JOIN subscription_plan_modules spm ON spm.module_id = m.id AND spm.plan_id = tenant_plan
+        LEFT JOIN tenant_module_overrides tmo ON tmo.module_id = m.id AND tmo.tenant_id = p_tenant_id
+        WHERE 
+            (tmo.is_enabled = true) OR 
+            (tmo.is_enabled IS NULL AND spm.plan_id IS NOT NULL);
+    ELSE
+        -- For à la carte: get modules from tenant_module_subscriptions + overrides
+        SELECT ARRAY_AGG(m.id) INTO result
+        FROM modules m
+        LEFT JOIN tenant_module_subscriptions tms ON tms.module_id = m.id AND tms.tenant_id = p_tenant_id
+        LEFT JOIN tenant_module_overrides tmo ON tmo.module_id = m.id AND tmo.tenant_id = p_tenant_id
+        WHERE 
+            (tmo.is_enabled = true) OR 
+            (tmo.is_enabled IS NULL AND tms.tenant_id IS NOT NULL);
+    END IF;
+
+    RETURN COALESCE(result, ARRAY[]::TEXT[]);
+END;
 $$;
 
 -- Grant execute permissions
