@@ -183,7 +183,10 @@ export default function TipPayout() {
   };
 
   const loadWeekData = useCallback(async () => {
-    if (!tenant?.id) return;
+    if (!tenant?.id) {
+      setLoading(false);
+      return;
+    }
     
     setLoading(true);
     try {

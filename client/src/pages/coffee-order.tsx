@@ -77,6 +77,8 @@ export default function CoffeeOrder() {
   useEffect(() => {
     if (tenant?.id) {
       loadData();
+    } else {
+      setLoading(false);
     }
   }, [tenant?.id]);
 
