@@ -70,6 +70,8 @@ export default function AdminUsers() {
   useEffect(() => {
     if (profile?.tenant_id) {
       loadUsers();
+    } else {
+      setLoading(false);
     }
   }, [profile?.tenant_id]);
 
