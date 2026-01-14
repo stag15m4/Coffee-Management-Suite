@@ -13,7 +13,7 @@ SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM platform_admins 
-    WHERE user_id = auth.uid()
+    WHERE id = auth.uid()
   );
 $$;
 
