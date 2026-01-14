@@ -270,6 +270,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTenant(null);
     setBranding(null);
     setEnabledModules([]);
+    // Navigate to login page
+    window.location.href = '/login';
   };
 
   const refreshEnabledModules = useCallback(async () => {
