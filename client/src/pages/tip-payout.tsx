@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Download, Plus, UserPlus, Clock, DollarSign, CheckCircle, AlertCircle, FileText, Users, UserX, RotateCcw, History, Home } from 'lucide-react';
 import { Link } from 'wouter';
 import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
+import { Footer } from '@/components/Footer';
 
 const colors = {
   gold: '#C9A227',
@@ -1283,6 +1284,7 @@ export default function TipPayout() {
           </CardContent>
         </Card>
       </main>
+      <Footer />
     </div>
   );
 }
