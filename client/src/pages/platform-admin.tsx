@@ -36,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Footer } from '@/components/Footer';
 
 interface TenantWithStats {
   id: string;
@@ -764,6 +765,7 @@ export default function PlatformAdmin() {
           </DialogContent>
         </Dialog>
       </main>
+      <Footer />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText, Home } fro
 import { Link } from 'wouter';
 import * as XLSX from 'xlsx';
 import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
+import { Footer } from '@/components/Footer';
 
 const colors = {
   gold: '#C9A227',
@@ -1003,6 +1004,7 @@ export default function CashDeposit() {
         </CardContent>
       </Card>
       </div>
+      <Footer />
     </div>
   );
 }
