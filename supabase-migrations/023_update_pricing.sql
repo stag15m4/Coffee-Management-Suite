@@ -88,6 +88,14 @@ CREATE TRIGGER on_auth_user_created
 -- WHERE up.id IS NULL;
 
 -- =====================================================
+-- PART 4: RENAME INGREDIENT TYPES
+-- =====================================================
+-- Update existing ingredients from old names to new names
+
+UPDATE ingredients SET ingredient_type = 'FOH Ingredient' WHERE ingredient_type = 'Drink Ingredient';
+UPDATE ingredients SET ingredient_type = 'BOH Ingredient' WHERE ingredient_type = 'Kitchen Ingredient';
+
+-- =====================================================
 -- VERIFICATION QUERIES
 -- =====================================================
 
@@ -101,3 +109,6 @@ SELECT '=== TRIGGER STATUS ===' as info;
 SELECT tgname, tgrelid::regclass, tgenabled 
 FROM pg_trigger 
 WHERE tgname = 'on_auth_user_created';
+
+SELECT '=== INGREDIENT TYPES UPDATED ===' as info;
+SELECT ingredient_type, COUNT(*) as count FROM ingredients GROUP BY ingredient_type;
