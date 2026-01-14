@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Home, Copy, Check, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Home, Mail } from 'lucide-react';
 import { Link } from 'wouter';
 import {
   Dialog,
@@ -60,30 +60,12 @@ export default function AdminUsers() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'manager' | 'lead' | 'employee'>('employee');
   const [creating, setCreating] = useState(false);
   
-  // Password result dialog
-  const [showPasswordResult, setShowPasswordResult] = useState(false);
+  // Success dialog
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [createdUserEmail, setCreatedUserEmail] = useState('');
-  const [createdPassword, setCreatedPassword] = useState('');
-  const [copied, setCopied] = useState(false);
-
-  const handleGeneratePassword = () => {
-    const newPass = generateSecurePassword();
-    setNewPassword(newPass);
-  };
-  
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      toast({ title: 'Failed to copy', variant: 'destructive' });
-    }
-  };
 
   useEffect(() => {
     if (profile?.tenant_id) {
@@ -141,13 +123,8 @@ export default function AdminUsers() {
   };
 
   const handleCreateUser = async () => {
-    if (!newEmail || !newPassword || !profile?.tenant_id) {
-      toast({ title: 'Email and password are required', variant: 'destructive' });
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      toast({ title: 'Password must be at least 6 characters', variant: 'destructive' });
+    if (!newEmail || !profile?.tenant_id) {
+      toast({ title: 'Email is required', variant: 'destructive' });
       return;
     }
 
@@ -157,10 +134,13 @@ export default function AdminUsers() {
       const { data: sessionData } = await supabase.auth.getSession();
       const currentSession = sessionData?.session;
       
-      // Create auth user (this may trigger a session switch)
+      // Generate a temporary random password (user will set their own via password reset)
+      const tempPassword = generateSecurePassword() + generateSecurePassword();
+      
+      // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newEmail,
-        password: newPassword,
+        password: tempPassword,
         options: {
           data: {
             full_name: newName || newEmail.split('@')[0],
@@ -184,6 +164,16 @@ export default function AdminUsers() {
           });
 
         if (profileError) throw profileError;
+        
+        // Send password reset email so user can set their own password
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(newEmail, {
+          redirectTo: `${window.location.origin}/login`
+        });
+        
+        if (resetError) {
+          console.warn('Password reset email failed:', resetError.message);
+          // Don't throw - user is created, they can request reset manually
+        }
       }
 
       // IMPORTANT: Restore the original session if it was switched
@@ -194,16 +184,14 @@ export default function AdminUsers() {
         });
       }
 
-      // Show password result dialog
+      // Show success dialog
       setCreatedUserEmail(newEmail);
-      setCreatedPassword(newPassword);
       setShowAddDialog(false);
-      setShowPasswordResult(true);
+      setShowSuccessDialog(true);
       
       // Reset form
       setNewEmail('');
       setNewName('');
-      setNewPassword('');
       setNewRole('employee');
       loadUsers();
     } catch (error: any) {
@@ -312,33 +300,6 @@ export default function AdminUsers() {
                     />
                   </div>
                   <div>
-                    <Label style={{ color: colors.brown }}>Password *</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="text"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Click Generate"
-                        style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
-                        data-testid="input-new-user-password"
-                        readOnly
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleGeneratePassword}
-                        style={{ borderColor: colors.gold, color: colors.brown }}
-                        data-testid="button-generate-password"
-                      >
-                        <RefreshCw className="w-4 h-4 mr-1" />
-                        Generate
-                      </Button>
-                    </div>
-                    <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
-                      Click Generate to create a secure password
-                    </p>
-                  </div>
-                  <div>
                     <Label style={{ color: colors.brown }}>Role</Label>
                     <Select value={newRole} onValueChange={(v: any) => setNewRole(v)}>
                       <SelectTrigger 
@@ -354,9 +315,14 @@ export default function AdminUsers() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
+                    <p className="text-sm" style={{ color: colors.brownLight }}>
+                      An email will be sent to this address. The user will click a link to confirm their email and set their own password.
+                    </p>
+                  </div>
                   <Button
                     onClick={handleCreateUser}
-                    disabled={creating}
+                    disabled={creating || !newEmail}
                     className="w-full"
                     style={{ backgroundColor: colors.gold, color: colors.brown }}
                     data-testid="button-create-user"
@@ -364,57 +330,43 @@ export default function AdminUsers() {
                     {creating ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Creating...
+                        Sending Invite...
                       </>
                     ) : (
-                      'Create User'
+                      'Send Invite'
                     )}
                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
             
-            {/* Password Result Dialog */}
-            <Dialog open={showPasswordResult} onOpenChange={setShowPasswordResult}>
+            {/* Success Dialog */}
+            <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
               <DialogContent style={{ backgroundColor: colors.white }}>
                 <DialogHeader>
-                  <DialogTitle style={{ color: colors.brown }}>User Created Successfully</DialogTitle>
+                  <DialogTitle style={{ color: colors.brown }}>Invitation Sent</DialogTitle>
                   <DialogDescription style={{ color: colors.brownLight }}>
-                    Share these login credentials with the new team member
+                    A confirmation email has been sent to the new team member
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 mt-4">
                   <div className="p-4 rounded-lg" style={{ backgroundColor: colors.cream }}>
-                    <div className="mb-3">
-                      <Label className="text-xs" style={{ color: colors.brownLight }}>Email</Label>
-                      <p className="font-medium" style={{ color: colors.brown }}>{createdUserEmail}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs" style={{ color: colors.brownLight }}>Temporary Password</Label>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 p-2 rounded text-lg font-mono" style={{ backgroundColor: colors.white, color: colors.brown }}>
-                          {createdPassword}
-                        </code>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => copyToClipboard(createdPassword)}
-                          style={{ borderColor: colors.gold }}
-                          data-testid="button-copy-password"
-                        >
-                          {copied ? <Check className="w-4 h-4" style={{ color: colors.gold }} /> : <Copy className="w-4 h-4" />}
-                        </Button>
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-8 h-8" style={{ color: colors.gold }} />
+                      <div>
+                        <Label className="text-xs" style={{ color: colors.brownLight }}>Email sent to</Label>
+                        <p className="font-medium" style={{ color: colors.brown }}>{createdUserEmail}</p>
                       </div>
                     </div>
                   </div>
                   <p className="text-sm" style={{ color: colors.brownLight }}>
-                    Recommend that the user change their password after first login.
+                    The user will receive a password reset email. They can click the link in the email to set their own password, then log in.
                   </p>
                   <Button
-                    onClick={() => setShowPasswordResult(false)}
+                    onClick={() => setShowSuccessDialog(false)}
                     className="w-full"
                     style={{ backgroundColor: colors.gold, color: colors.brown }}
-                    data-testid="button-close-password-dialog"
+                    data-testid="button-close-success-dialog"
                   >
                     Done
                   </Button>
