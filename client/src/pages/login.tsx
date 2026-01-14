@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase-queries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Footer } from '@/components/Footer';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const colors = {
   gold: '#C9A227',
@@ -22,9 +30,44 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
   const { signIn, user, loading, isPlatformAdmin, profile } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      toast({ title: 'Please enter your email', variant: 'destructive' });
+      return;
+    }
+    
+    setIsResetting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/login`
+      });
+      
+      if (error) throw error;
+      
+      toast({ 
+        title: 'Reset email sent', 
+        description: 'Check your email for a link to reset your password.' 
+      });
+      setShowResetDialog(false);
+      setResetEmail('');
+    } catch (err: any) {
+      toast({ 
+        title: 'Error', 
+        description: err.message || 'Unable to send reset email', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading && user) {
@@ -159,10 +202,62 @@ export default function Login() {
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
+              
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetEmail(email);
+                    setShowResetDialog(true);
+                  }}
+                  className="text-sm underline hover:no-underline"
+                  style={{ color: colors.brownLight }}
+                  data-testid="button-forgot-password"
+                >
+                  Forgot your password?
+                </button>
+              </div>
             </form>
           </CardContent>
         </Card>
       </div>
+      
+      {/* Password Reset Dialog */}
+      <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <DialogContent style={{ backgroundColor: colors.white }}>
+          <DialogHeader>
+            <DialogTitle style={{ color: colors.brown }}>Reset Password</DialogTitle>
+            <DialogDescription style={{ color: colors.brownLight }}>
+              Enter your email address and we'll send you a link to reset your password.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePasswordReset} className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email" style={{ color: colors.brown }}>Email</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                placeholder="you@example.com"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                required
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                data-testid="input-reset-email"
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isResetting}
+              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              data-testid="button-send-reset"
+            >
+              {isResetting ? 'Sending...' : 'Send Reset Link'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
       <Footer />
     </div>
   );
