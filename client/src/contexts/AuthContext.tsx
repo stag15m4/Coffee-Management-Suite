@@ -72,10 +72,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [branding, setBranding] = useState<TenantBranding | null>(null);
   const [enabledModules, setEnabledModules] = useState<ModuleId[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchInProgress, setFetchInProgress] = useState<string | null>(null);
+  const [lastFetchedUserId, setLastFetchedUserId] = useState<string | null>(null);
 
-  const fetchUserData = useCallback(async (userId: string, retryCount = 0): Promise<boolean> => {
+  const fetchUserData = useCallback(async (userId: string, retryCount = 0, force = false): Promise<boolean> => {
     const MAX_RETRIES = 3;
-    const TIMEOUT_MS = 10000;
+    const TIMEOUT_MS = 15000;
+    
+    // Skip if already fetching for this user (deduplication)
+    if (fetchInProgress === userId && !force) {
+      console.log('DEBUG: Fetch already in progress for user, skipping');
+      return true;
+    }
+    
+    // Skip if we already have data for this user (caching)
+    if (lastFetchedUserId === userId && (profile || platformAdmin) && !force) {
+      console.log('DEBUG: Already have data for this user, skipping fetch');
+      return true;
+    }
+    
+    setFetchInProgress(userId);
     
     try {
       console.log('Fetching user data for:', userId);
@@ -120,6 +136,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTenant(null);
         setBranding(null);
         setEnabledModules([]);
+        setLastFetchedUserId(userId);
+        setFetchInProgress(null);
+        console.log('DEBUG: Platform admin fetch completed successfully');
         return true;
       }
 
@@ -148,12 +167,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(profileData);
       setPlatformAdmin(null);
 
-      // Fetch tenant, branding, and modules ALL in parallel
+      // Fetch tenant, branding, and modules ALL in parallel with timeouts
+      console.log('DEBUG: Fetching tenant, branding, and modules...');
       const [tenantResult, brandingResult, modulesResult] = await Promise.all([
-        supabase.from('tenants').select('*').eq('id', profileData.tenant_id).single(),
-        supabase.from('tenant_branding').select('*').eq('tenant_id', profileData.tenant_id).maybeSingle(),
-        supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: profileData.tenant_id })
-      ]);
+        withTimeout(supabase.from('tenants').select('*').eq('id', profileData.tenant_id).single(), 'Tenant query'),
+        withTimeout(supabase.from('tenant_branding').select('*').eq('tenant_id', profileData.tenant_id).maybeSingle(), 'Branding query'),
+        withTimeout(supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: profileData.tenant_id }), 'Modules query')
+      ]) as [any, any, any];
+      console.log('DEBUG: Tenant/branding/modules fetch complete');
 
       if (!tenantResult.error && tenantResult.data) {
         setTenant(tenantResult.data);
@@ -170,15 +191,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setEnabledModules((modulesResult.data || []) as ModuleId[]);
       }
 
+      setLastFetchedUserId(userId);
+      setFetchInProgress(null);
+      console.log('DEBUG: User data fetch completed successfully');
       return true;
     } catch (error: any) {
       console.error('Error fetching user data:', error?.message || error);
-      setProfile(null);
-      setPlatformAdmin(null);
-      setEnabledModules([]);
+      setFetchInProgress(null);
+      // Don't clear profile/admin on timeout - keep trying
+      if (!error?.message?.includes('timed out')) {
+        setProfile(null);
+        setPlatformAdmin(null);
+        setEnabledModules([]);
+      }
       return false;
     }
-  }, []);
+  }, [fetchInProgress, lastFetchedUserId, profile, platformAdmin]);
 
   useEffect(() => {
     // Get initial session
