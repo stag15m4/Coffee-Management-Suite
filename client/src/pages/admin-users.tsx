@@ -120,14 +120,25 @@ export default function AdminUsers() {
 
     setCreating(true);
     try {
+      // Save current session tokens before creating new user
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentSession = sessionData?.session;
+      
+      // Create auth user (this may trigger a session switch)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newEmail,
         password: newPassword,
+        options: {
+          data: {
+            full_name: newName || newEmail.split('@')[0],
+          }
+        }
       });
 
       if (authError) throw authError;
 
       if (authData.user) {
+        // Create user profile in database
         const { error: profileError } = await supabase
           .from('user_profiles')
           .insert({
@@ -140,6 +151,14 @@ export default function AdminUsers() {
           });
 
         if (profileError) throw profileError;
+      }
+
+      // IMPORTANT: Restore the original session if it was switched
+      if (currentSession) {
+        await supabase.auth.setSession({
+          access_token: currentSession.access_token,
+          refresh_token: currentSession.refresh_token,
+        });
       }
 
       toast({ title: 'User created successfully!' });
