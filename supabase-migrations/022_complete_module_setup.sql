@@ -128,7 +128,7 @@ SELECT id, tenant_id, email, role, is_active FROM user_profiles LIMIT 10;
 
 -- Check 7: View platform admins
 SELECT '=== PLATFORM ADMINS ===' as section;
-SELECT user_id, email, is_active FROM platform_admins;
+SELECT id, email, is_active FROM platform_admins;
 
 -- =====================================================
 -- IF MODULES ARE STILL NOT SHOWING FOR A TENANT:
