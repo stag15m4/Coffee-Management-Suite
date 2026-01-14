@@ -515,29 +515,30 @@ export default function CashDeposit() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4">
-        {/* Header with logo and back button */}
-        <div className="flex items-center justify-between gap-2">
-          <Link href="/">
-            <Button variant="ghost" size="icon" style={{ color: colors.brown }} data-testid="button-back">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link href="/" data-testid="link-main-dashboard">
-            <Button variant="outline" style={{ borderColor: colors.gold, color: colors.brown }}>
-              <Home className="w-4 h-4 mr-2" />
-              Main Dashboard
-            </Button>
-          </Link>
-        </div>
-
-        {/* Logo and Title */}
-        <div className="flex flex-col items-center mb-4">
-          <img src={logoUrl} alt="Erwin Mills" className="h-20 md:h-24 mb-2" />
-          <h1 className="text-xl md:text-2xl font-semibold" style={{ color: colors.brown }} data-testid="text-page-title">
+      <header className="px-6 py-6 relative">
+        <Link
+          href="/"
+          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm"
+          style={{ backgroundColor: colors.gold, color: colors.white }}
+          data-testid="link-dashboard"
+        >
+          <Home className="w-4 h-4" />
+          Main Dashboard
+        </Link>
+        <div className="max-w-7xl mx-auto text-center">
+          <img
+            src={logoUrl}
+            alt="Erwin Mills Coffee Co."
+            className="h-20 mx-auto mb-3"
+            data-testid="img-logo"
+          />
+          <h2 className="text-xl font-semibold" style={{ color: colors.brown }} data-testid="text-page-title">
             Cash Activity Tracker
-          </h1>
+          </h2>
         </div>
+      </header>
+
+      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4">
 
         {/* Date Range Section */}
         <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
