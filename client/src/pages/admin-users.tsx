@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Home } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Home, Copy, Check, RefreshCw } from 'lucide-react';
 import { Link } from 'wouter';
 import {
   Dialog,
@@ -18,6 +18,18 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Footer } from '@/components/Footer';
+
+function generateSecurePassword(): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const symbols = '!@#$%&*';
+  let password = '';
+  for (let i = 0; i < 10; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  password += symbols.charAt(Math.floor(Math.random() * symbols.length));
+  password += Math.floor(Math.random() * 100);
+  return password;
+}
 
 const colors = {
   gold: '#C9A227',
@@ -51,6 +63,27 @@ export default function AdminUsers() {
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'manager' | 'lead' | 'employee'>('employee');
   const [creating, setCreating] = useState(false);
+  
+  // Password result dialog
+  const [showPasswordResult, setShowPasswordResult] = useState(false);
+  const [createdUserEmail, setCreatedUserEmail] = useState('');
+  const [createdPassword, setCreatedPassword] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const handleGeneratePassword = () => {
+    const newPass = generateSecurePassword();
+    setNewPassword(newPass);
+  };
+  
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast({ title: 'Failed to copy', variant: 'destructive' });
+    }
+  };
 
   useEffect(() => {
     if (profile?.tenant_id) {
@@ -161,8 +194,13 @@ export default function AdminUsers() {
         });
       }
 
-      toast({ title: 'User created successfully!' });
+      // Show password result dialog
+      setCreatedUserEmail(newEmail);
+      setCreatedPassword(newPassword);
       setShowAddDialog(false);
+      setShowPasswordResult(true);
+      
+      // Reset form
       setNewEmail('');
       setNewName('');
       setNewPassword('');
@@ -274,15 +312,31 @@ export default function AdminUsers() {
                     />
                   </div>
                   <div>
-                    <Label style={{ color: colors.brown }}>Password * (min 6 characters)</Label>
-                    <Input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Secure password"
-                      style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
-                      data-testid="input-new-user-password"
-                    />
+                    <Label style={{ color: colors.brown }}>Password *</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Click Generate"
+                        style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                        data-testid="input-new-user-password"
+                        readOnly
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleGeneratePassword}
+                        style={{ borderColor: colors.gold, color: colors.brown }}
+                        data-testid="button-generate-password"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-1" />
+                        Generate
+                      </Button>
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                      Click Generate to create a secure password
+                    </p>
                   </div>
                   <div>
                     <Label style={{ color: colors.brown }}>Role</Label>
@@ -315,6 +369,54 @@ export default function AdminUsers() {
                     ) : (
                       'Create User'
                     )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
+            {/* Password Result Dialog */}
+            <Dialog open={showPasswordResult} onOpenChange={setShowPasswordResult}>
+              <DialogContent style={{ backgroundColor: colors.white }}>
+                <DialogHeader>
+                  <DialogTitle style={{ color: colors.brown }}>User Created Successfully</DialogTitle>
+                  <DialogDescription style={{ color: colors.brownLight }}>
+                    Share these login credentials with the new team member
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div className="p-4 rounded-lg" style={{ backgroundColor: colors.cream }}>
+                    <div className="mb-3">
+                      <Label className="text-xs" style={{ color: colors.brownLight }}>Email</Label>
+                      <p className="font-medium" style={{ color: colors.brown }}>{createdUserEmail}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs" style={{ color: colors.brownLight }}>Temporary Password</Label>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 p-2 rounded text-lg font-mono" style={{ backgroundColor: colors.white, color: colors.brown }}>
+                          {createdPassword}
+                        </code>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => copyToClipboard(createdPassword)}
+                          style={{ borderColor: colors.gold }}
+                          data-testid="button-copy-password"
+                        >
+                          {copied ? <Check className="w-4 h-4" style={{ color: colors.gold }} /> : <Copy className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm" style={{ color: colors.brownLight }}>
+                    Recommend that the user change their password after first login.
+                  </p>
+                  <Button
+                    onClick={() => setShowPasswordResult(false)}
+                    className="w-full"
+                    style={{ backgroundColor: colors.gold, color: colors.brown }}
+                    data-testid="button-close-password-dialog"
+                  >
+                    Done
                   </Button>
                 </div>
               </DialogContent>
