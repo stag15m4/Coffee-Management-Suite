@@ -2765,6 +2765,7 @@ export default function Home() {
           category_id: recipe.category_id,
           base_template_id: recipe.base_template_id || null,
           is_active: true,
+          is_bulk_recipe: recipe.is_bulk_recipe || false,
         })
         .select()
         .single();
@@ -2774,7 +2775,8 @@ export default function Home() {
       if (recipe.recipe_ingredients && recipe.recipe_ingredients.length > 0) {
         const ingredientInserts = recipe.recipe_ingredients.map(ri => ({
           recipe_id: newRecipe.id,
-          ingredient_id: ri.ingredient_id,
+          ingredient_id: ri.ingredient_id || null,
+          syrup_recipe_id: ri.syrup_recipe_id || null,
           size_id: ri.size_id,
           quantity: ri.quantity,
           unit: ri.unit,
@@ -2809,8 +2811,13 @@ export default function Home() {
       return;
     }
     try {
+      // Delete recipe ingredients where this recipe IS the recipe
       const { error: ingError } = await supabase.from('recipe_ingredients').delete().eq('recipe_id', recipeId);
       if (ingError) throw ingError;
+      
+      // Also delete recipe ingredients where this recipe is used AS a syrup/bulk ingredient in other recipes
+      const { error: syrupIngError } = await supabase.from('recipe_ingredients').delete().eq('syrup_recipe_id', recipeId);
+      if (syrupIngError) throw syrupIngError;
       
       const { error: baseError } = await supabase.from('recipe_size_bases').delete().eq('recipe_id', recipeId);
       if (baseError) throw baseError;
