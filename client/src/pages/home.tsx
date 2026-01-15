@@ -1445,6 +1445,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                   
                                   const ing = ingredients.find(i => i.id === ri.ingredient_id);
                                   const itemCost = ing ? ri.quantity * getIngredientCostPerUnit(ing) : 0;
+                                  const displayUnit = ing?.usage_unit || ri.unit || ing?.unit;
                                   return (
                                     <div
                                       key={ri.id}
@@ -1452,7 +1453,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                       style={{ backgroundColor: colors.white }}
                                     >
                                       <span style={{ color: colors.brown }}>{ing?.name || 'Unknown'}</span>
-                                      <span style={{ color: colors.brownLight }}>({ri.quantity} {ri.unit || ing?.unit})</span>
+                                      <span style={{ color: colors.brownLight }}>({ri.quantity} {displayUnit})</span>
                                       <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
                                       <button
                                         onClick={() => onDeleteRecipeIngredient(ri.id)}
@@ -1533,7 +1534,8 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                 data-testid={`input-ri-qty-${size.id}`}
                               />
                               <select
-                                value={newIngredient.unit || (() => {
+                                value={(() => {
+                                  if (newIngredient.unit) return newIngredient.unit;
                                   const sel = ingredients.find(i => i.id === newIngredient.ingredient_id);
                                   return sel?.usage_unit || sel?.unit || 'oz';
                                 })()}
@@ -1542,11 +1544,16 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                 style={{ borderColor: colors.creamDark }}
                                 data-testid={`select-ri-unit-${size.id}`}
                               >
-                                <option value="oz">oz</option>
-                                <option value="lb">lb</option>
-                                <option value="gram">gram</option>
-                                <option value="ml">ml</option>
-                                <option value="each">each</option>
+                                {(() => {
+                                  const sel = ingredients.find(i => i.id === newIngredient.ingredient_id);
+                                  const defaultUnit = sel?.usage_unit || sel?.unit || 'oz';
+                                  const units = ['oz', 'lb', 'gram', 'ml', 'each'];
+                                  // Put the default unit first in the list
+                                  const sortedUnits = [defaultUnit, ...units.filter(u => u !== defaultUnit)];
+                                  return sortedUnits.map(u => (
+                                    <option key={u} value={u}>{u}</option>
+                                  ));
+                                })()}
                               </select>
                               <button
                                 onClick={() => handleAddIngredient(recipe.id, size.id)}
