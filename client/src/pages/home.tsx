@@ -170,6 +170,7 @@ interface Recipe {
   base_template_name?: string;
   is_active: boolean;
   is_bulk_recipe?: boolean;
+  tenant_id: string;
   products?: Product[];
   recipe_ingredients?: RecipeIngredient[];
 }
@@ -2766,6 +2767,7 @@ export default function Home() {
           base_template_id: recipe.base_template_id || null,
           is_active: true,
           is_bulk_recipe: recipe.is_bulk_recipe || false,
+          tenant_id: recipe.tenant_id,
         })
         .select()
         .single();
