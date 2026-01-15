@@ -129,7 +129,7 @@ export default function AdminBranding() {
           <Save className="w-4 h-4 mr-2" />
           {saving ? 'Saving...' : 'Save Changes'}
         </Button>
-        <div className="max-w-7xl mx-auto text-center">
+        <div className="max-w-7xl mx-auto text-center pt-10">
           <img
             src="/logo.png"
             alt="Erwin Mills Coffee Co."

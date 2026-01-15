@@ -343,7 +343,7 @@ export default function EquipmentMaintenance() {
             </Badge>
           )}
         </div>
-        <div className="max-w-7xl mx-auto text-center">
+        <div className="max-w-7xl mx-auto text-center pt-10">
           <img
             src={logoUrl}
             alt="Erwin Mills Coffee Co."
