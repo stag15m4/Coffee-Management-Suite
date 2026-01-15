@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Home as HomeIcon } from 'lucide-react';
 import { Link } from 'wouter';
 import { Footer } from '@/components/Footer';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   supabase,
   queryKeys,
@@ -2668,6 +2669,7 @@ import { Fragment } from 'react';
 export default function Home() {
   const [activeTab, setActiveTab] = useState('pricing');
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
 
   const { data: ingredientCategories = [], isLoading: loadingCategories, isError: errorCategories } = useIngredientCategories();
   const { data: ingredients = [], isLoading: loadingIngredients, isError: errorIngredients } = useIngredients();
@@ -2767,7 +2769,7 @@ export default function Home() {
           base_template_id: recipe.base_template_id || null,
           is_active: true,
           is_bulk_recipe: recipe.is_bulk_recipe || false,
-          tenant_id: recipe.tenant_id,
+          tenant_id: profile?.tenant_id,
         })
         .select()
         .single();
@@ -2845,6 +2847,7 @@ export default function Home() {
           base_template_id: recipe.base_template_id || null,
           is_active: true,
           is_bulk_recipe: recipe.is_bulk_recipe || false,
+          tenant_id: profile?.tenant_id,
         });
 
       if (error) throw error;
