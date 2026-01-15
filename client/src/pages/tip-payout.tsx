@@ -763,7 +763,7 @@ export default function TipPayout() {
           <Home className="w-4 h-4" />
           Main Dashboard
         </Link>
-        <div className="max-w-7xl mx-auto text-center">
+        <div className="max-w-7xl mx-auto text-center pt-10">
           <img
             src={logoUrl}
             alt="Erwin Mills Coffee Co."
