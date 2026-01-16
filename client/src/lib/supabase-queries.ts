@@ -482,22 +482,30 @@ export function useAddMaintenanceTask() {
       interval_units?: number;
       usage_unit_label?: string;
       current_usage?: number;
+      last_completed_at?: string;
+      next_due_at?: string;
     }) => {
-      const now = new Date();
-      let next_due_at: string | null = null;
+      // Only auto-calculate if last_completed_at not provided
+      let next_due_at: string | null = task.next_due_at || null;
+      let last_completed_at: string | null = task.last_completed_at || null;
       
-      if (task.interval_type === 'time' && task.interval_days) {
-        const dueDate = new Date(now);
-        dueDate.setDate(dueDate.getDate() + task.interval_days);
-        next_due_at = dueDate.toISOString();
-      }
+      // If no last serviced date provided, don't set one (task has never been done)
+      // If time-based and no next_due_at calculated yet, leave it null until first service
       
       const { data, error } = await supabase
         .from('maintenance_tasks')
         .insert({
-          ...task,
+          tenant_id: task.tenant_id,
+          equipment_id: task.equipment_id,
+          name: task.name,
+          description: task.description,
+          interval_type: task.interval_type,
+          interval_days: task.interval_days,
+          interval_units: task.interval_units,
+          usage_unit_label: task.usage_unit_label,
+          current_usage: task.current_usage,
           next_due_at,
-          last_completed_at: now.toISOString(),
+          last_completed_at,
         })
         .select();
       if (error) throw error;
