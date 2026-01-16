@@ -418,15 +418,23 @@ export function useAddEquipment() {
   
   return useMutation({
     mutationFn: async (equipment: { tenant_id: string; name: string; category?: string; notes?: string }) => {
-      const { data, error } = await supabase
+      console.log('Adding equipment:', equipment);
+      const { data, error, status, statusText } = await supabase
         .from('equipment')
         .insert(equipment)
         .select();
+      console.log('Add equipment response:', { data, error, status, statusText });
       if (error) throw error;
-      return data?.[0] as Equipment;
+      if (!data || data.length === 0) {
+        throw new Error('Insert failed - no data returned. Check RLS policies in Supabase.');
+      }
+      return data[0] as Equipment;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.equipment });
+    },
+    onError: (error) => {
+      console.error('Add equipment error:', error);
     },
   });
 }
@@ -492,7 +500,8 @@ export function useAddMaintenanceTask() {
       // If no last serviced date provided, don't set one (task has never been done)
       // If time-based and no next_due_at calculated yet, leave it null until first service
       
-      const { data, error } = await supabase
+      console.log('Adding maintenance task:', task);
+      const { data, error, status, statusText } = await supabase
         .from('maintenance_tasks')
         .insert({
           tenant_id: task.tenant_id,
@@ -508,11 +517,18 @@ export function useAddMaintenanceTask() {
           last_completed_at,
         })
         .select();
+      console.log('Add task response:', { data, error, status, statusText });
       if (error) throw error;
-      return data?.[0] as MaintenanceTask;
+      if (!data || data.length === 0) {
+        throw new Error('Insert failed - no data returned. Check RLS policies in Supabase.');
+      }
+      return data[0] as MaintenanceTask;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.maintenanceTasks });
+    },
+    onError: (error) => {
+      console.error('Add task error:', error);
     },
   });
 }
