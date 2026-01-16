@@ -32,6 +32,7 @@ import {
   CheckCircle, 
   Calendar,
   CalendarPlus,
+  Download,
   Trash2,
   Edit2,
   Check,
@@ -151,10 +152,46 @@ function generateOutlookCalendarUrl(task: MaintenanceTask, equipmentName: string
   
   const title = encodeURIComponent(`${task.name} - ${equipmentName}`);
   const body = encodeURIComponent(
-    `Maintenance Task: ${task.name}\nEquipment: ${equipmentName}${task.description ? `\n\nDescription: ${task.description}` : ''}\n\nInterval: Every ${task.interval_days} days`
+    `Maintenance Task: ${task.name}\nEquipment: ${equipmentName}${task.description ? `\n\nDescription: ${task.description}` : ''}\n\nInterval: Every ${task.interval_days || 'N/A'} days`
   );
   
   return `https://outlook.live.com/calendar/0/deeplink/compose?subject=${title}&body=${body}&startdt=${startDate.toISOString()}&enddt=${endDate.toISOString()}`;
+}
+
+function downloadICalFile(task: MaintenanceTask, equipmentName: string): void {
+  if (!task.next_due_at) return;
+  
+  const startDate = new Date(task.next_due_at);
+  const endDate = new Date(startDate);
+  endDate.setHours(endDate.getHours() + 1);
+  
+  const title = `${task.name} - ${equipmentName}`;
+  const description = `Maintenance Task: ${task.name}\\nEquipment: ${equipmentName}${task.description ? `\\n\\nDescription: ${task.description}` : ''}\\n\\nInterval: Every ${task.interval_days || 'N/A'} days`;
+  
+  const icalContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Erwin Mills CMS//Equipment Maintenance//EN',
+    'BEGIN:VEVENT',
+    `UID:${task.id}@erwinmills.cms`,
+    `DTSTAMP:${formatDateForCalendar(new Date())}`,
+    `DTSTART:${formatDateForCalendar(startDate)}`,
+    `DTEND:${formatDateForCalendar(endDate)}`,
+    `SUMMARY:${title}`,
+    `DESCRIPTION:${description}`,
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+  
+  const blob = new Blob([icalContent], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${task.name.replace(/[^a-z0-9]/gi, '_')}_maintenance.ics`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export default function EquipmentMaintenance() {
@@ -1128,6 +1165,13 @@ export default function EquipmentMaintenance() {
                                   >
                                     <Calendar className="w-4 h-4 mr-2" />
                                     Add to Outlook Calendar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => downloadICalFile(task, task.equipment?.name || '')}
+                                    data-testid={`menu-ical-download-${task.id}`}
+                                  >
+                                    <Download className="w-4 h-4 mr-2" />
+                                    Download for Apple/Other
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
