@@ -135,6 +135,8 @@ export default function EquipmentMaintenance() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
   const [completingTask, setCompletingTask] = useState<MaintenanceTask | null>(null);
+  const [editingTaskLastServiced, setEditingTaskLastServiced] = useState<MaintenanceTask | null>(null);
+  const [editLastServicedDate, setEditLastServicedDate] = useState('');
   
   const [newEquipmentName, setNewEquipmentName] = useState('');
   const [newEquipmentCategory, setNewEquipmentCategory] = useState('');
@@ -147,6 +149,7 @@ export default function EquipmentMaintenance() {
   const [newTaskIntervalDays, setNewTaskIntervalDays] = useState('');
   const [newTaskIntervalUnits, setNewTaskIntervalUnits] = useState('');
   const [newTaskUsageLabel, setNewTaskUsageLabel] = useState('');
+  const [newTaskLastServiced, setNewTaskLastServiced] = useState('');
   
   const [completionNotes, setCompletionNotes] = useState('');
   const [completionUsage, setCompletionUsage] = useState('');
@@ -239,6 +242,18 @@ export default function EquipmentMaintenance() {
     }
     
     try {
+      // Calculate next_due_at and last_completed_at if Last Serviced date is provided
+      let last_completed_at: string | undefined;
+      let next_due_at: string | undefined;
+      
+      if (newTaskLastServiced && newTaskIntervalType === 'time') {
+        const lastServiced = new Date(newTaskLastServiced);
+        last_completed_at = lastServiced.toISOString();
+        const dueDate = new Date(lastServiced);
+        dueDate.setDate(dueDate.getDate() + parseInt(newTaskIntervalDays));
+        next_due_at = dueDate.toISOString();
+      }
+      
       await addTaskMutation.mutateAsync({
         tenant_id: tenant.id,
         equipment_id: newTaskEquipmentId,
@@ -249,6 +264,8 @@ export default function EquipmentMaintenance() {
         interval_units: newTaskIntervalType === 'usage' ? parseInt(newTaskIntervalUnits) : undefined,
         usage_unit_label: newTaskIntervalType === 'usage' ? newTaskUsageLabel.trim() : undefined,
         current_usage: 0,
+        last_completed_at,
+        next_due_at,
       });
       
       setNewTaskEquipmentId('');
@@ -258,6 +275,7 @@ export default function EquipmentMaintenance() {
       setNewTaskIntervalDays('');
       setNewTaskIntervalUnits('');
       setNewTaskUsageLabel('');
+      setNewTaskLastServiced('');
       setShowAddTask(false);
       toast({ title: 'Maintenance task added successfully' });
     } catch (error: any) {
@@ -306,6 +324,39 @@ export default function EquipmentMaintenance() {
       toast({ title: 'Task removed successfully' });
     } catch (error: any) {
       toast({ title: 'Error removing task', description: error.message, variant: 'destructive' });
+    }
+  };
+  
+  const handleUpdateLastServiced = async () => {
+    if (!editingTaskLastServiced || !editLastServicedDate) {
+      toast({ title: 'Please enter a date', variant: 'destructive' });
+      return;
+    }
+    
+    try {
+      const lastServiced = new Date(editLastServicedDate);
+      let next_due_at: string | null = null;
+      
+      // Calculate next due date for time-based tasks
+      if (editingTaskLastServiced.interval_type === 'time' && editingTaskLastServiced.interval_days) {
+        const dueDate = new Date(lastServiced);
+        dueDate.setDate(dueDate.getDate() + editingTaskLastServiced.interval_days);
+        next_due_at = dueDate.toISOString();
+      }
+      
+      await updateTaskMutation.mutateAsync({
+        id: editingTaskLastServiced.id,
+        updates: {
+          last_completed_at: lastServiced.toISOString(),
+          next_due_at,
+        }
+      });
+      
+      setEditingTaskLastServiced(null);
+      setEditLastServicedDate('');
+      toast({ title: 'Last serviced date updated' });
+    } catch (error: any) {
+      toast({ title: 'Error updating date', description: error.message, variant: 'destructive' });
     }
   };
   
@@ -829,20 +880,35 @@ export default function EquipmentMaintenance() {
                   </div>
                   
                   {newTaskIntervalType === 'time' ? (
-                    <div>
-                      <Label style={{ color: colors.brown }}>Interval (days) *</Label>
-                      <Input
-                        type="number"
-                        value={newTaskIntervalDays}
-                        onChange={e => setNewTaskIntervalDays(e.target.value)}
-                        placeholder="e.g., 180 for 6 months"
-                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                        data-testid="input-interval-days"
-                      />
-                      <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
-                        Common: 14 days (2 weeks), 30 days (1 month), 90 days (3 months), 180 days (6 months), 365 days (1 year)
-                      </p>
-                    </div>
+                    <>
+                      <div>
+                        <Label style={{ color: colors.brown }}>Interval (days) *</Label>
+                        <Input
+                          type="number"
+                          value={newTaskIntervalDays}
+                          onChange={e => setNewTaskIntervalDays(e.target.value)}
+                          placeholder="e.g., 180 for 6 months"
+                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                          data-testid="input-interval-days"
+                        />
+                        <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                          Common: 14 days (2 weeks), 30 days (1 month), 90 days (3 months), 180 days (6 months), 365 days (1 year)
+                        </p>
+                      </div>
+                      <div>
+                        <Label style={{ color: colors.brown }}>Last Serviced Date (optional)</Label>
+                        <Input
+                          type="date"
+                          value={newTaskLastServiced}
+                          onChange={e => setNewTaskLastServiced(e.target.value)}
+                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                          data-testid="input-last-serviced"
+                        />
+                        <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                          When was this last done? The next due date will be calculated from this.
+                        </p>
+                      </div>
+                    </>
                   ) : (
                     <>
                       <div>
@@ -961,12 +1027,23 @@ export default function EquipmentMaintenance() {
                                   <span>{formatDueInfo(task)}</span>
                                 </>
                               )}
-                              {task.last_completed_at && (
-                                <span className="flex items-center gap-1">
-                                  <Check className="w-3 h-3" />
-                                  Last: {new Date(task.last_completed_at).toLocaleDateString()}
-                                </span>
-                              )}
+                              <button
+                                onClick={() => {
+                                  setEditingTaskLastServiced(task);
+                                  setEditLastServicedDate(task.last_completed_at 
+                                    ? new Date(task.last_completed_at).toISOString().split('T')[0] 
+                                    : '');
+                                }}
+                                className="flex items-center gap-1 hover:underline cursor-pointer"
+                                style={{ color: colors.gold }}
+                                data-testid={`button-edit-last-serviced-${task.id}`}
+                              >
+                                <Calendar className="w-3 h-3" />
+                                {task.last_completed_at 
+                                  ? `Last: ${new Date(task.last_completed_at).toLocaleDateString()}`
+                                  : 'Set Last Serviced'}
+                                <Edit2 className="w-3 h-3" />
+                              </button>
                             </div>
                           </div>
                           <div className="flex gap-2">
@@ -1104,6 +1181,72 @@ export default function EquipmentMaintenance() {
                     }}
                     style={{ borderColor: colors.creamDark, color: colors.brown }}
                     data-testid="button-cancel-completion"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {editingTaskLastServiced && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }} className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle style={{ color: colors.brown }}>Edit Last Serviced Date</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="font-medium" style={{ color: colors.brown }}>{editingTaskLastServiced.name}</p>
+                  <p className="text-sm" style={{ color: colors.brownLight }}>{editingTaskLastServiced.equipment?.name}</p>
+                </div>
+                
+                <div>
+                  <Label style={{ color: colors.brown }}>Last Serviced Date</Label>
+                  <Input
+                    type="date"
+                    value={editLastServicedDate}
+                    onChange={e => setEditLastServicedDate(e.target.value)}
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                    data-testid="input-edit-last-serviced-date"
+                  />
+                  <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                    The next due date will be calculated as: Last Serviced + {editingTaskLastServiced.interval_days} days
+                  </p>
+                </div>
+                
+                {editLastServicedDate && editingTaskLastServiced.interval_days && (
+                  <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
+                    <p className="text-sm" style={{ color: colors.brown }}>
+                      <strong>Next Due:</strong>{' '}
+                      {(() => {
+                        const lastServiced = new Date(editLastServicedDate);
+                        const dueDate = new Date(lastServiced);
+                        dueDate.setDate(dueDate.getDate() + editingTaskLastServiced.interval_days);
+                        return dueDate.toLocaleDateString();
+                      })()}
+                    </p>
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleUpdateLastServiced}
+                    disabled={updateTaskMutation.isPending}
+                    style={{ backgroundColor: colors.gold, color: colors.brown }}
+                    data-testid="button-save-last-serviced"
+                  >
+                    {updateTaskMutation.isPending ? 'Saving...' : 'Save'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditingTaskLastServiced(null);
+                      setEditLastServicedDate('');
+                    }}
+                    style={{ borderColor: colors.creamDark, color: colors.brown }}
+                    data-testid="button-cancel-edit-last-serviced"
                   >
                     Cancel
                   </Button>
