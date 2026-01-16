@@ -31,6 +31,7 @@ import {
   AlertTriangle, 
   CheckCircle, 
   Calendar,
+  CalendarPlus,
   Trash2,
   Edit2,
   Check,
@@ -38,6 +39,13 @@ import {
   RotateCcw,
   Home
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { SiGooglecalendar } from 'react-icons/si';
 import { Footer } from '@/components/Footer';
 import { Link } from 'wouter';
 import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
@@ -112,6 +120,41 @@ function formatDueInfo(task: MaintenanceTask): string {
     if (remaining <= 0) return `${Math.abs(remaining)} ${task.usage_unit_label || 'units'} overdue`;
     return `${remaining} ${task.usage_unit_label || 'units'} remaining`;
   }
+}
+
+function formatDateForCalendar(date: Date): string {
+  return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+}
+
+function generateGoogleCalendarUrl(task: MaintenanceTask, equipmentName: string): string {
+  if (!task.next_due_at) return '';
+  
+  const startDate = new Date(task.next_due_at);
+  const endDate = new Date(startDate);
+  endDate.setHours(endDate.getHours() + 1);
+  
+  const title = encodeURIComponent(`${task.name} - ${equipmentName}`);
+  const details = encodeURIComponent(
+    `Maintenance Task: ${task.name}\nEquipment: ${equipmentName}${task.description ? `\n\nDescription: ${task.description}` : ''}\n\nInterval: Every ${task.interval_days} days`
+  );
+  const dates = `${formatDateForCalendar(startDate)}/${formatDateForCalendar(endDate)}`;
+  
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}`;
+}
+
+function generateOutlookCalendarUrl(task: MaintenanceTask, equipmentName: string): string {
+  if (!task.next_due_at) return '';
+  
+  const startDate = new Date(task.next_due_at);
+  const endDate = new Date(startDate);
+  endDate.setHours(endDate.getHours() + 1);
+  
+  const title = encodeURIComponent(`${task.name} - ${equipmentName}`);
+  const body = encodeURIComponent(
+    `Maintenance Task: ${task.name}\nEquipment: ${equipmentName}${task.description ? `\n\nDescription: ${task.description}` : ''}\n\nInterval: Every ${task.interval_days} days`
+  );
+  
+  return `https://outlook.live.com/calendar/0/deeplink/compose?subject=${title}&body=${body}&startdt=${startDate.toISOString()}&enddt=${endDate.toISOString()}`;
 }
 
 export default function EquipmentMaintenance() {
@@ -1059,6 +1102,36 @@ export default function EquipmentMaintenance() {
                               <Check className="w-4 h-4 mr-1" />
                               Log
                             </Button>
+                            {task.next_due_at && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    style={{ color: colors.brown }}
+                                    data-testid={`button-add-to-calendar-${task.id}`}
+                                  >
+                                    <CalendarPlus className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={() => window.open(generateGoogleCalendarUrl(task, task.equipment?.name || ''), '_blank')}
+                                    data-testid={`menu-google-calendar-${task.id}`}
+                                  >
+                                    <SiGooglecalendar className="w-4 h-4 mr-2" />
+                                    Add to Google Calendar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => window.open(generateOutlookCalendarUrl(task, task.equipment?.name || ''), '_blank')}
+                                    data-testid={`menu-outlook-calendar-${task.id}`}
+                                  >
+                                    <Calendar className="w-4 h-4 mr-2" />
+                                    Add to Outlook Calendar
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                             <Button
                               size="icon"
                               variant="ghost"
