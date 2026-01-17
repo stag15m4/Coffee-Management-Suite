@@ -54,7 +54,7 @@ BEGIN
     WHERE tenant_id = source_tenant_id;
     
     -- Copy maintenance tasks (need to map equipment IDs)
-    INSERT INTO maintenance_tasks (id, tenant_id, equipment_id, name, description, interval_type, interval_days, interval_units, last_completed, current_usage, created_at)
+    INSERT INTO maintenance_tasks (id, tenant_id, equipment_id, name, description, interval_type, interval_days, interval_units, usage_unit_label, next_due_at, created_at)
     SELECT 
         gen_random_uuid(),
         demo_tenant_id,
@@ -64,8 +64,8 @@ BEGIN
         mt.interval_type,
         mt.interval_days,
         mt.interval_units,
-        mt.last_completed,
-        mt.current_usage,
+        mt.usage_unit_label,
+        mt.next_due_at,
         NOW()
     FROM maintenance_tasks mt
     JOIN equipment old_eq ON mt.equipment_id = old_eq.id AND old_eq.tenant_id = source_tenant_id
