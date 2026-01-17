@@ -13,9 +13,8 @@ DECLARE
     demo_tenant_id UUID := gen_random_uuid();
     demo_user_id UUID := gen_random_uuid();
 BEGIN
-    -- Set your source tenant ID here (your current company)
-    -- Run this first to find it: SELECT DISTINCT tenant_id FROM user_profiles;
-    source_tenant_id := 'REPLACE_WITH_YOUR_TENANT_ID'::UUID;
+    -- Your Erwin Mills tenant ID
+    source_tenant_id := '00000000-0000-0000-0000-000000000001'::UUID;
     
     -- Create the demo tenant
     INSERT INTO tenants (id, name, slug, created_at)
