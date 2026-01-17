@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { 
   ArrowLeft, 
@@ -38,7 +39,9 @@ import {
   Check,
   X,
   RotateCcw,
-  Home
+  Home,
+  Shield,
+  ShieldOff
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -125,6 +128,45 @@ function formatDueInfo(task: MaintenanceTask): string {
 
 function formatDateForCalendar(date: Date): string {
   return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+}
+
+type WarrantyStatus = 'covered' | 'expired' | 'none';
+
+function getWarrantyStatus(equipment: Equipment): WarrantyStatus {
+  if (!equipment.has_warranty) return 'none';
+  if (!equipment.purchase_date || !equipment.warranty_duration_months) return 'none';
+  
+  const purchaseDate = new Date(equipment.purchase_date);
+  const expirationDate = new Date(purchaseDate);
+  expirationDate.setMonth(expirationDate.getMonth() + equipment.warranty_duration_months);
+  
+  const now = new Date();
+  return now <= expirationDate ? 'covered' : 'expired';
+}
+
+function getWarrantyExpirationDate(equipment: Equipment): Date | null {
+  if (!equipment.has_warranty || !equipment.purchase_date || !equipment.warranty_duration_months) return null;
+  
+  const purchaseDate = new Date(equipment.purchase_date);
+  const expirationDate = new Date(purchaseDate);
+  expirationDate.setMonth(expirationDate.getMonth() + equipment.warranty_duration_months);
+  return expirationDate;
+}
+
+function formatWarrantyInfo(equipment: Equipment): string {
+  const status = getWarrantyStatus(equipment);
+  if (status === 'none') return '';
+  
+  const expiration = getWarrantyExpirationDate(equipment);
+  if (!expiration) return '';
+  
+  const now = new Date();
+  if (status === 'covered') {
+    const monthsRemaining = Math.ceil((expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30));
+    return `Expires ${expiration.toLocaleDateString()} (~${monthsRemaining} mo)`;
+  } else {
+    return `Expired ${expiration.toLocaleDateString()}`;
+  }
 }
 
 function generateGoogleCalendarUrl(task: MaintenanceTask, equipmentName: string): string {
@@ -221,6 +263,10 @@ export default function EquipmentMaintenance() {
   const [newEquipmentName, setNewEquipmentName] = useState('');
   const [newEquipmentCategory, setNewEquipmentCategory] = useState('');
   const [newEquipmentNotes, setNewEquipmentNotes] = useState('');
+  const [newEquipmentHasWarranty, setNewEquipmentHasWarranty] = useState(false);
+  const [newEquipmentPurchaseDate, setNewEquipmentPurchaseDate] = useState('');
+  const [newEquipmentWarrantyMonths, setNewEquipmentWarrantyMonths] = useState('');
+  const [newEquipmentWarrantyNotes, setNewEquipmentWarrantyNotes] = useState('');
   
   const [newTaskEquipmentId, setNewTaskEquipmentId] = useState('');
   const [newTaskName, setNewTaskName] = useState('');
@@ -251,17 +297,36 @@ export default function EquipmentMaintenance() {
       return;
     }
     
+    if (newEquipmentHasWarranty) {
+      if (!newEquipmentPurchaseDate) {
+        toast({ title: 'Please enter purchase date for warranty tracking', variant: 'destructive' });
+        return;
+      }
+      if (!newEquipmentWarrantyMonths || parseInt(newEquipmentWarrantyMonths) <= 0) {
+        toast({ title: 'Please enter warranty duration in months', variant: 'destructive' });
+        return;
+      }
+    }
+    
     try {
       await addEquipmentMutation.mutateAsync({
         tenant_id: tenant.id,
         name: newEquipmentName.trim(),
         category: newEquipmentCategory.trim() || undefined,
         notes: newEquipmentNotes.trim() || undefined,
+        has_warranty: newEquipmentHasWarranty,
+        purchase_date: newEquipmentHasWarranty && newEquipmentPurchaseDate ? newEquipmentPurchaseDate : undefined,
+        warranty_duration_months: newEquipmentHasWarranty && newEquipmentWarrantyMonths ? parseInt(newEquipmentWarrantyMonths) : undefined,
+        warranty_notes: newEquipmentHasWarranty && newEquipmentWarrantyNotes.trim() ? newEquipmentWarrantyNotes.trim() : undefined,
       });
       
       setNewEquipmentName('');
       setNewEquipmentCategory('');
       setNewEquipmentNotes('');
+      setNewEquipmentHasWarranty(false);
+      setNewEquipmentPurchaseDate('');
+      setNewEquipmentWarrantyMonths('');
+      setNewEquipmentWarrantyNotes('');
       setShowAddEquipment(false);
       toast({ title: 'Equipment added successfully' });
     } catch (error: any) {
@@ -272,6 +337,17 @@ export default function EquipmentMaintenance() {
   const handleUpdateEquipment = async () => {
     if (!editingEquipment) return;
     
+    if (editingEquipment.has_warranty) {
+      if (!editingEquipment.purchase_date) {
+        toast({ title: 'Please enter purchase date for warranty tracking', variant: 'destructive' });
+        return;
+      }
+      if (!editingEquipment.warranty_duration_months || editingEquipment.warranty_duration_months <= 0) {
+        toast({ title: 'Please enter warranty duration in months', variant: 'destructive' });
+        return;
+      }
+    }
+    
     try {
       await updateEquipmentMutation.mutateAsync({
         id: editingEquipment.id,
@@ -279,6 +355,10 @@ export default function EquipmentMaintenance() {
           name: editingEquipment.name,
           category: editingEquipment.category,
           notes: editingEquipment.notes,
+          has_warranty: editingEquipment.has_warranty,
+          purchase_date: editingEquipment.has_warranty ? editingEquipment.purchase_date : null,
+          warranty_duration_months: editingEquipment.has_warranty ? editingEquipment.warranty_duration_months : null,
+          warranty_notes: editingEquipment.has_warranty ? editingEquipment.warranty_notes : null,
         }
       });
       
@@ -717,6 +797,55 @@ export default function EquipmentMaintenance() {
                       data-testid="input-equipment-notes"
                     />
                   </div>
+                  
+                  <div className="pt-2 border-t" style={{ borderColor: colors.creamDark }}>
+                    <div className="flex items-center justify-between">
+                      <Label style={{ color: colors.brown }}>Has Warranty?</Label>
+                      <Switch
+                        checked={newEquipmentHasWarranty}
+                        onCheckedChange={setNewEquipmentHasWarranty}
+                        data-testid="switch-equipment-warranty"
+                      />
+                    </div>
+                  </div>
+                  
+                  {newEquipmentHasWarranty && (
+                    <div className="space-y-3 pl-2 border-l-2" style={{ borderColor: colors.gold }}>
+                      <div>
+                        <Label style={{ color: colors.brown }}>Purchase Date *</Label>
+                        <Input
+                          type="date"
+                          value={newEquipmentPurchaseDate}
+                          onChange={e => setNewEquipmentPurchaseDate(e.target.value)}
+                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                          data-testid="input-equipment-purchase-date"
+                        />
+                      </div>
+                      <div>
+                        <Label style={{ color: colors.brown }}>Warranty Duration (months) *</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={newEquipmentWarrantyMonths}
+                          onChange={e => setNewEquipmentWarrantyMonths(e.target.value)}
+                          placeholder="e.g., 12, 24, 36"
+                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                          data-testid="input-equipment-warranty-months"
+                        />
+                      </div>
+                      <div>
+                        <Label style={{ color: colors.brown }}>Warranty Notes</Label>
+                        <Textarea
+                          value={newEquipmentWarrantyNotes}
+                          onChange={e => setNewEquipmentWarrantyNotes(e.target.value)}
+                          placeholder="Coverage details, exclusions, claim info..."
+                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                          data-testid="input-equipment-warranty-notes"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="flex gap-2">
                     <Button
                       onClick={handleAddEquipment}
@@ -733,6 +862,10 @@ export default function EquipmentMaintenance() {
                         setNewEquipmentName('');
                         setNewEquipmentCategory('');
                         setNewEquipmentNotes('');
+                        setNewEquipmentHasWarranty(false);
+                        setNewEquipmentPurchaseDate('');
+                        setNewEquipmentWarrantyMonths('');
+                        setNewEquipmentWarrantyNotes('');
                       }}
                       style={{ borderColor: colors.creamDark, color: colors.brown }}
                       data-testid="button-cancel-equipment"
@@ -815,6 +948,55 @@ export default function EquipmentMaintenance() {
                             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                             data-testid="input-edit-equipment-notes"
                           />
+                          
+                          <div className="pt-2 border-t" style={{ borderColor: colors.creamDark }}>
+                            <div className="flex items-center justify-between">
+                              <Label style={{ color: colors.brown }}>Has Warranty?</Label>
+                              <Switch
+                                checked={editingEquipment.has_warranty || false}
+                                onCheckedChange={(checked) => setEditingEquipment({ ...editingEquipment, has_warranty: checked })}
+                                data-testid="switch-edit-equipment-warranty"
+                              />
+                            </div>
+                          </div>
+                          
+                          {editingEquipment.has_warranty && (
+                            <div className="space-y-3 pl-2 border-l-2" style={{ borderColor: colors.gold }}>
+                              <div>
+                                <Label style={{ color: colors.brown }}>Purchase Date *</Label>
+                                <Input
+                                  type="date"
+                                  value={editingEquipment.purchase_date || ''}
+                                  onChange={e => setEditingEquipment({ ...editingEquipment, purchase_date: e.target.value || null })}
+                                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                                  data-testid="input-edit-equipment-purchase-date"
+                                />
+                              </div>
+                              <div>
+                                <Label style={{ color: colors.brown }}>Warranty Duration (months) *</Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={editingEquipment.warranty_duration_months || ''}
+                                  onChange={e => setEditingEquipment({ ...editingEquipment, warranty_duration_months: e.target.value ? parseInt(e.target.value) : null })}
+                                  placeholder="e.g., 12, 24, 36"
+                                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                                  data-testid="input-edit-equipment-warranty-months"
+                                />
+                              </div>
+                              <div>
+                                <Label style={{ color: colors.brown }}>Warranty Notes</Label>
+                                <Textarea
+                                  value={editingEquipment.warranty_notes || ''}
+                                  onChange={e => setEditingEquipment({ ...editingEquipment, warranty_notes: e.target.value || null })}
+                                  placeholder="Coverage details, exclusions, claim info..."
+                                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                                  data-testid="input-edit-equipment-warranty-notes"
+                                />
+                              </div>
+                            </div>
+                          )}
+                          
                           <div className="flex gap-2">
                             <Button
                               size="sm"
@@ -840,15 +1022,48 @@ export default function EquipmentMaintenance() {
                         </div>
                       ) : (
                         <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <div className="font-medium" style={{ color: colors.brown }}>{item.name}</div>
-                            {item.category && (
-                              <Badge variant="outline" className="mt-1" style={{ borderColor: colors.gold, color: colors.brownLight }}>
-                                {item.category}
-                              </Badge>
-                            )}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium" style={{ color: colors.brown }}>{item.name}</span>
+                              {item.category && (
+                                <Badge variant="outline" style={{ borderColor: colors.gold, color: colors.brownLight }}>
+                                  {item.category}
+                                </Badge>
+                              )}
+                              {getWarrantyStatus(item) === 'covered' && (
+                                <Badge 
+                                  className="gap-1"
+                                  style={{ backgroundColor: colors.green, color: 'white' }}
+                                  data-testid={`badge-warranty-covered-${item.id}`}
+                                >
+                                  <Shield className="w-3 h-3" />
+                                  Under Warranty
+                                </Badge>
+                              )}
+                              {getWarrantyStatus(item) === 'expired' && (
+                                <Badge 
+                                  className="gap-1"
+                                  style={{ backgroundColor: colors.red, color: 'white' }}
+                                  data-testid={`badge-warranty-expired-${item.id}`}
+                                >
+                                  <ShieldOff className="w-3 h-3" />
+                                  Warranty Expired
+                                </Badge>
+                              )}
+                            </div>
                             {item.notes && (
                               <p className="text-sm mt-2" style={{ color: colors.brownLight }}>{item.notes}</p>
+                            )}
+                            {item.has_warranty && item.purchase_date && (
+                              <div className="mt-2 text-xs space-y-1" style={{ color: colors.brownLight }}>
+                                <p>Purchased: {new Date(item.purchase_date).toLocaleDateString()}</p>
+                                {item.warranty_duration_months && (
+                                  <p>{formatWarrantyInfo(item)}</p>
+                                )}
+                                {item.warranty_notes && (
+                                  <p className="italic">{item.warranty_notes}</p>
+                                )}
+                              </div>
                             )}
                             <p className="text-xs mt-2" style={{ color: colors.brownLight }}>
                               {tasks.filter(t => t.equipment_id === item.id).length} maintenance tasks
