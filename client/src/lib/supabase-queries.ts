@@ -324,6 +324,10 @@ export interface Equipment {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  has_warranty: boolean;
+  purchase_date: string | null;
+  warranty_duration_months: number | null;
+  warranty_notes: string | null;
 }
 
 export interface MaintenanceTask {
@@ -417,7 +421,16 @@ export function useAddEquipment() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (equipment: { tenant_id: string; name: string; category?: string; notes?: string }) => {
+    mutationFn: async (equipment: { 
+      tenant_id: string; 
+      name: string; 
+      category?: string; 
+      notes?: string;
+      has_warranty?: boolean;
+      purchase_date?: string;
+      warranty_duration_months?: number;
+      warranty_notes?: string;
+    }) => {
       const { data, error } = await supabase
         .from('equipment')
         .insert(equipment)
