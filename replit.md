@@ -111,16 +111,25 @@ SQL migration files in `supabase-migrations/`:
 - Track equipment and maintenance schedules
 - Dashboard with status overview (overdue, due soon, good)
 - Equipment management (add/edit/delete equipment items with categories)
+- **Warranty tracking**:
+  - Toggle warranty on/off per equipment
+  - Purchase date and warranty duration (months)
+  - Auto-calculated expiration date
+  - Visual status badges (Under Warranty/Expired)
+  - Warranty notes for coverage details
+  - **Document upload** for invoices/receipts (stored in Replit Object Storage)
+    - Accepts: PDF, JPG, PNG, DOC, DOCX
+    - Documents linked from equipment cards with download
 - Maintenance tasks support two interval types:
   - **Time-based**: Every X days (e.g., clean ice maker every 14 days)
   - **Usage-based**: Every X units (e.g., change burrs every 1000 lbs)
-- Log completed maintenance with notes
+- Log completed maintenance with notes and optional cost tracking
 - Visual color-coded status indicators:
   - Red: Overdue
   - Yellow: Due soon (within 7 days or 90% usage)
   - Green: Good
 - Accessible to all team members (Employees, Leads, Managers, Owners)
-- Tables: equipment, maintenance_tasks, maintenance_logs
+- Tables: equipment (with warranty fields + document_url/document_name), maintenance_tasks, maintenance_logs
 
 ### Authentication System
 - **AuthContext** (`client/src/contexts/AuthContext.tsx`) - Manages user session, profile, tenant, and branding state
