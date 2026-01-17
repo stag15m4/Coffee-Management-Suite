@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { sendOrderEmail, type OrderEmailData } from "./resend";
+import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -177,6 +178,9 @@ export async function registerRoutes(
     await storage.deleteRecipeIngredient(Number(req.params.id));
     res.status(204).end();
   });
+
+  // Register object storage routes for file uploads
+  registerObjectStorageRoutes(app);
 
   return httpServer;
 }

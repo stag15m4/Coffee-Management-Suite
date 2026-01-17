@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   useEquipment, 
@@ -14,6 +14,7 @@ import {
   type Equipment,
   type MaintenanceTask
 } from '@/lib/supabase-queries';
+import { useUpload } from '@/hooks/use-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,7 +42,10 @@ import {
   RotateCcw,
   Home,
   Shield,
-  ShieldOff
+  ShieldOff,
+  Upload,
+  FileText,
+  ExternalLink
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -267,6 +271,31 @@ export default function EquipmentMaintenance() {
   const [newEquipmentPurchaseDate, setNewEquipmentPurchaseDate] = useState('');
   const [newEquipmentWarrantyMonths, setNewEquipmentWarrantyMonths] = useState('');
   const [newEquipmentWarrantyNotes, setNewEquipmentWarrantyNotes] = useState('');
+  const [newEquipmentDocumentUrl, setNewEquipmentDocumentUrl] = useState('');
+  const [newEquipmentDocumentName, setNewEquipmentDocumentName] = useState('');
+  
+  const newEquipmentFileInputRef = useRef<HTMLInputElement>(null);
+  const editEquipmentFileInputRef = useRef<HTMLInputElement>(null);
+  
+  const { uploadFile, isUploading: isUploadingNew } = useUpload({
+    onSuccess: (response) => {
+      setNewEquipmentDocumentUrl(response.objectPath);
+    },
+    onError: (error) => {
+      toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+    }
+  });
+  
+  const { uploadFile: uploadEditFile, isUploading: isUploadingEdit } = useUpload({
+    onSuccess: (response) => {
+      if (editingEquipment) {
+        setEditingEquipment({ ...editingEquipment, document_url: response.objectPath });
+      }
+    },
+    onError: (error) => {
+      toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+    }
+  });
   
   const [newTaskEquipmentId, setNewTaskEquipmentId] = useState('');
   const [newTaskName, setNewTaskName] = useState('');
@@ -318,6 +347,8 @@ export default function EquipmentMaintenance() {
         purchase_date: newEquipmentHasWarranty && newEquipmentPurchaseDate ? newEquipmentPurchaseDate : undefined,
         warranty_duration_months: newEquipmentHasWarranty && newEquipmentWarrantyMonths ? parseInt(newEquipmentWarrantyMonths) : undefined,
         warranty_notes: newEquipmentHasWarranty && newEquipmentWarrantyNotes.trim() ? newEquipmentWarrantyNotes.trim() : undefined,
+        document_url: newEquipmentDocumentUrl || undefined,
+        document_name: newEquipmentDocumentName || undefined,
       });
       
       setNewEquipmentName('');
@@ -327,10 +358,30 @@ export default function EquipmentMaintenance() {
       setNewEquipmentPurchaseDate('');
       setNewEquipmentWarrantyMonths('');
       setNewEquipmentWarrantyNotes('');
+      setNewEquipmentDocumentUrl('');
+      setNewEquipmentDocumentName('');
       setShowAddEquipment(false);
       toast({ title: 'Equipment added successfully' });
     } catch (error: any) {
       toast({ title: 'Error adding equipment', description: error.message, variant: 'destructive' });
+    }
+  };
+  
+  const handleNewEquipmentFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setNewEquipmentDocumentName(file.name);
+      await uploadFile(file);
+    }
+  };
+  
+  const handleEditEquipmentFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (editingEquipment) {
+        setEditingEquipment({ ...editingEquipment, document_name: file.name });
+      }
+      await uploadEditFile(file);
     }
   };
   
@@ -359,6 +410,8 @@ export default function EquipmentMaintenance() {
           purchase_date: editingEquipment.has_warranty ? editingEquipment.purchase_date : null,
           warranty_duration_months: editingEquipment.has_warranty ? editingEquipment.warranty_duration_months : null,
           warranty_notes: editingEquipment.has_warranty ? editingEquipment.warranty_notes : null,
+          document_url: editingEquipment.document_url,
+          document_name: editingEquipment.document_name,
         }
       });
       
@@ -843,6 +896,50 @@ export default function EquipmentMaintenance() {
                           data-testid="input-equipment-warranty-notes"
                         />
                       </div>
+                      <div>
+                        <Label style={{ color: colors.brown }}>Warranty Document (Invoice, Receipt)</Label>
+                        <input
+                          type="file"
+                          ref={newEquipmentFileInputRef}
+                          onChange={handleNewEquipmentFileChange}
+                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                          className="hidden"
+                          data-testid="input-equipment-document"
+                        />
+                        <div className="flex items-center gap-2 mt-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => newEquipmentFileInputRef.current?.click()}
+                            disabled={isUploadingNew}
+                            style={{ borderColor: colors.creamDark, color: colors.brown }}
+                            data-testid="button-upload-document"
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            {isUploadingNew ? 'Uploading...' : 'Upload Document'}
+                          </Button>
+                          {newEquipmentDocumentName && (
+                            <div className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
+                              <FileText className="w-4 h-4" style={{ color: colors.gold }} />
+                              <span>{newEquipmentDocumentName}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setNewEquipmentDocumentUrl('');
+                                  setNewEquipmentDocumentName('');
+                                }}
+                                className="h-6 w-6 p-0"
+                                data-testid="button-remove-document"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                   
@@ -866,6 +963,8 @@ export default function EquipmentMaintenance() {
                         setNewEquipmentPurchaseDate('');
                         setNewEquipmentWarrantyMonths('');
                         setNewEquipmentWarrantyNotes('');
+                        setNewEquipmentDocumentUrl('');
+                        setNewEquipmentDocumentName('');
                       }}
                       style={{ borderColor: colors.creamDark, color: colors.brown }}
                       data-testid="button-cancel-equipment"
@@ -994,6 +1093,47 @@ export default function EquipmentMaintenance() {
                                   data-testid="input-edit-equipment-warranty-notes"
                                 />
                               </div>
+                              <div>
+                                <Label style={{ color: colors.brown }}>Warranty Document</Label>
+                                <input
+                                  type="file"
+                                  ref={editEquipmentFileInputRef}
+                                  onChange={handleEditEquipmentFileChange}
+                                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                  className="hidden"
+                                  data-testid="input-edit-equipment-document"
+                                />
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => editEquipmentFileInputRef.current?.click()}
+                                    disabled={isUploadingEdit}
+                                    style={{ borderColor: colors.creamDark, color: colors.brown }}
+                                    data-testid="button-edit-upload-document"
+                                  >
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    {isUploadingEdit ? 'Uploading...' : editingEquipment.document_url ? 'Replace Document' : 'Upload Document'}
+                                  </Button>
+                                  {editingEquipment.document_name && (
+                                    <div className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
+                                      <FileText className="w-4 h-4" style={{ color: colors.gold }} />
+                                      <span>{editingEquipment.document_name}</span>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setEditingEquipment({ ...editingEquipment, document_url: null, document_name: null })}
+                                        className="h-6 w-6 p-0"
+                                        data-testid="button-edit-remove-document"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           )}
                           
@@ -1001,7 +1141,7 @@ export default function EquipmentMaintenance() {
                             <Button
                               size="sm"
                               onClick={handleUpdateEquipment}
-                              disabled={updateEquipmentMutation.isPending}
+                              disabled={updateEquipmentMutation.isPending || isUploadingEdit}
                               style={{ backgroundColor: colors.gold, color: colors.brown }}
                               data-testid="button-save-edit-equipment"
                             >
@@ -1062,6 +1202,20 @@ export default function EquipmentMaintenance() {
                                 )}
                                 {item.warranty_notes && (
                                   <p className="italic">{item.warranty_notes}</p>
+                                )}
+                                {item.document_url && item.document_name && (
+                                  <a
+                                    href={item.document_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 hover:underline"
+                                    style={{ color: colors.gold }}
+                                    data-testid={`link-document-${item.id}`}
+                                  >
+                                    <FileText className="w-3 h-3" />
+                                    {item.document_name}
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
                                 )}
                               </div>
                             )}
