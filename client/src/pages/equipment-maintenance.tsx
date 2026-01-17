@@ -286,13 +286,21 @@ export default function EquipmentMaintenance() {
     }
   });
   
+  const [pendingEditFileName, setPendingEditFileName] = useState<string | null>(null);
+  
   const { uploadFile: uploadEditFile, isUploading: isUploadingEdit } = useUpload({
     onSuccess: (response) => {
-      if (editingEquipment) {
-        setEditingEquipment({ ...editingEquipment, document_url: response.objectPath });
+      if (editingEquipment && pendingEditFileName) {
+        setEditingEquipment({ 
+          ...editingEquipment, 
+          document_url: response.objectPath,
+          document_name: pendingEditFileName
+        });
       }
+      setPendingEditFileName(null);
     },
     onError: (error) => {
+      setPendingEditFileName(null);
       toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
     }
   });
@@ -377,10 +385,8 @@ export default function EquipmentMaintenance() {
   
   const handleEditEquipmentFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (editingEquipment) {
-        setEditingEquipment({ ...editingEquipment, document_name: file.name });
-      }
+    if (file && editingEquipment) {
+      setPendingEditFileName(file.name);
       await uploadEditFile(file);
     }
   };
@@ -1116,20 +1122,22 @@ export default function EquipmentMaintenance() {
                                     <Upload className="w-4 h-4 mr-2" />
                                     {isUploadingEdit ? 'Uploading...' : editingEquipment.document_url ? 'Replace Document' : 'Upload Document'}
                                   </Button>
-                                  {editingEquipment.document_name && (
+                                  {(editingEquipment.document_name || (isUploadingEdit && pendingEditFileName)) && (
                                     <div className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
                                       <FileText className="w-4 h-4" style={{ color: colors.gold }} />
-                                      <span>{editingEquipment.document_name}</span>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setEditingEquipment({ ...editingEquipment, document_url: null, document_name: null })}
-                                        className="h-6 w-6 p-0"
-                                        data-testid="button-edit-remove-document"
-                                      >
-                                        <X className="w-4 h-4" />
-                                      </Button>
+                                      <span>{isUploadingEdit ? pendingEditFileName : editingEquipment.document_name}</span>
+                                      {!isUploadingEdit && (
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => setEditingEquipment({ ...editingEquipment, document_url: null, document_name: null })}
+                                          className="h-6 w-6 p-0"
+                                          data-testid="button-edit-remove-document"
+                                        >
+                                          <X className="w-4 h-4" />
+                                        </Button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
