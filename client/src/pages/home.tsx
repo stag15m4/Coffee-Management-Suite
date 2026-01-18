@@ -2931,7 +2931,8 @@ export default function Home() {
 
   const handleAddBaseTemplate = async (template: { name: string; drink_type: string; description?: string }) => {
     try {
-      const { error } = await supabase
+      console.log('Adding base template:', template, 'tenant_id:', profile?.tenant_id);
+      const { data, error } = await supabase
         .from('base_templates')
         .insert({
           name: template.name,
@@ -2939,11 +2940,14 @@ export default function Home() {
           description: template.description || null,
           is_active: true,
           tenant_id: profile?.tenant_id,
-        });
+        })
+        .select();
 
+      console.log('Insert result:', { data, error });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
     } catch (error: any) {
+      console.error('Error adding base template:', error);
       alert('Error adding base template: ' + error.message);
     }
   };
