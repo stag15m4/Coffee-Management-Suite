@@ -2706,7 +2706,7 @@ export default function Home() {
 
   const handleAddIngredient = async (ingredient: Partial<Ingredient>) => {
     try {
-      await addIngredientMutation.mutateAsync(ingredient as Record<string, any>);
+      await addIngredientMutation.mutateAsync({ ...ingredient, tenant_id: profile?.tenant_id } as Record<string, any>);
     } catch (error: any) {
       alert('Error adding ingredient: ' + error.message);
     }
@@ -2882,7 +2882,7 @@ export default function Home() {
       
       const { error } = await supabase
         .from('drink_sizes')
-        .insert({ name, size_oz: oz, display_order: nextOrder, drink_type: 'bulk' });
+        .insert({ name, size_oz: oz, display_order: nextOrder, drink_type: 'bulk', tenant_id: profile?.tenant_id });
 
       if (error) {
         console.error('Supabase error adding bulk size:', error);
@@ -2938,6 +2938,7 @@ export default function Home() {
           drink_type: template.drink_type,
           description: template.description || null,
           is_active: true,
+          tenant_id: profile?.tenant_id,
         });
 
       if (error) throw error;
@@ -2951,7 +2952,7 @@ export default function Home() {
     try {
       const { error } = await supabase
         .from('base_template_ingredients')
-        .insert(ingredient);
+        .insert({ ...ingredient, tenant_id: profile?.tenant_id });
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
@@ -2981,6 +2982,7 @@ export default function Home() {
         size_id: ingredient.size_id,
         quantity: ingredient.quantity,
         unit: ingredient.unit,
+        tenant_id: profile?.tenant_id,
       };
       if (ingredient.ingredient_id) {
         insertData.ingredient_id = ingredient.ingredient_id;
