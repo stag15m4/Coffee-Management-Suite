@@ -109,14 +109,14 @@ DROP POLICY IF EXISTS "Allow authenticated users to delete tenant_coffee_product
 CREATE POLICY "Allow authenticated users to delete tenant_coffee_products" ON tenant_coffee_products
     FOR DELETE USING (auth.uid() IS NOT NULL);
 
--- coffee_order_history table
-DROP POLICY IF EXISTS "Allow authenticated users to read coffee_order_history" ON coffee_order_history;
-CREATE POLICY "Allow authenticated users to read coffee_order_history" ON coffee_order_history
-    FOR SELECT USING (auth.uid() IS NOT NULL);
+-- coffee_order_history table (SKIP if doesn't exist - run 008_coffee_order_schema.sql first)
+-- DROP POLICY IF EXISTS "Allow authenticated users to read coffee_order_history" ON coffee_order_history;
+-- CREATE POLICY "Allow authenticated users to read coffee_order_history" ON coffee_order_history
+--     FOR SELECT USING (auth.uid() IS NOT NULL);
 
-DROP POLICY IF EXISTS "Allow authenticated users to insert coffee_order_history" ON coffee_order_history;
-CREATE POLICY "Allow authenticated users to insert coffee_order_history" ON coffee_order_history
-    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+-- DROP POLICY IF EXISTS "Allow authenticated users to insert coffee_order_history" ON coffee_order_history;
+-- CREATE POLICY "Allow authenticated users to insert coffee_order_history" ON coffee_order_history
+--     FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
 -- =====================================================
 -- EQUIPMENT MAINTENANCE MODULE
