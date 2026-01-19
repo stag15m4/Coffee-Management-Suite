@@ -1654,14 +1654,50 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
     return costPerUnit || (cost / quantity);
   };
 
+  // Calculate cost per oz for a bulk/additive recipe (syrups, etc.)
+  const getBulkRecipeCostPerOz = (bulkRecipeId: string): number => {
+    const bulkRecipe = recipes.find(r => r.id === bulkRecipeId);
+    if (!bulkRecipe || !bulkRecipe.is_bulk_recipe) return 0;
+    
+    // Find the bulk size for this recipe
+    const bulkSizes = drinkSizes.filter(s => s.name.toLowerCase().includes('bulk'));
+    let totalCost = 0;
+    let batchSizeOz = 0;
+    
+    for (const size of bulkSizes) {
+      const sizeIngredients = bulkRecipe.recipe_ingredients?.filter((ri: RecipeIngredient) => ri.size_id === size.id) || [];
+      if (sizeIngredients.length > 0) {
+        batchSizeOz = size.size_oz;
+        for (const ri of sizeIngredients) {
+          const ing = ingredients.find(i => i.id === ri.ingredient_id);
+          if (ing) {
+            totalCost += ri.quantity * getIngredientCostPerUnit(ing);
+          }
+        }
+        break; // Use first bulk size found with ingredients
+      }
+    }
+    
+    if (batchSizeOz > 0) {
+      return totalCost / batchSizeOz;
+    }
+    return 0;
+  };
+
   const calculateSizeCost = (recipe: Recipe, sizeId: string): number => {
     let totalCost = 0;
     
     const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === sizeId) || [];
     for (const ri of sizeIngredients) {
-      const ing = ingredients.find(i => i.id === ri.ingredient_id);
-      if (ing) {
-        totalCost += ri.quantity * getIngredientCostPerUnit(ing);
+      // Check if this is a bulk recipe ingredient (syrup, etc.)
+      if (ri.syrup_recipe_id) {
+        const bulkCostPerOz = getBulkRecipeCostPerOz(ri.syrup_recipe_id);
+        totalCost += ri.quantity * bulkCostPerOz;
+      } else if (ri.ingredient_id) {
+        const ing = ingredients.find(i => i.id === ri.ingredient_id);
+        if (ing) {
+          totalCost += ri.quantity * getIngredientCostPerUnit(ing);
+        }
       }
     }
     
