@@ -8,6 +8,7 @@ This is a multi-tenant SaaS management suite for food service operations, design
 - **Cash Deposit Record** - Track cash deposits and reconciliation (Managers, Owners)
 - **Bulk Coffee Ordering** - Manage wholesale coffee orders (Leads, Managers, Owners)
 - **Equipment Maintenance** - Track equipment maintenance schedules (All team members)
+- **Administrative Tasks** - Task management with delegation, categories, and tracking (Managers, Owners)
 
 Features role-based access control (Owner, Manager, Lead, Employee) with tenant-specific branding (logo, colors).
 
@@ -53,6 +54,8 @@ SQL migration files in `supabase-migrations/`:
 11. `011_subscription_modules.sql` - Subscription plans and module access control
 12. `013_equipment_maintenance_schema.sql` - Equipment, maintenance tasks, and logs tables
 13. `014_maintenance_cost_field.sql` - Adds cost field to maintenance logs
+14. `035_fix_user_profiles_circular_dependency.sql` - Fixes RLS circular dependency with get_my_profile_info() function
+15. `036_admin_tasks_schema.sql` - Admin task categories, tasks, comments, and history tables
 
 ### Subscription & Module Access System
 - **Pricing Model**:
@@ -130,6 +133,32 @@ SQL migration files in `supabase-migrations/`:
   - Green: Good
 - Accessible to all team members (Employees, Leads, Managers, Owners)
 - Tables: equipment (with warranty fields + document_url/document_name), maintenance_tasks, maintenance_logs
+
+#### Administrative Tasks (`/admin-tasks`)
+- Task management with full CRUD operations
+- **Categories**:
+  - Default categories: Tax (red), Compliance (blue), Financial (green)
+  - Custom categories: Add/edit/delete with color picker
+- **Task features**:
+  - Title, description, priority (low/medium/high/urgent)
+  - Status workflow: pending → in_progress → completed
+  - Due dates with visual indicators (overdue=red, due soon=yellow)
+  - Assignee delegation from tenant users
+  - File attachments (stored in Object Storage)
+- **Recurring tasks**:
+  - Patterns: daily, weekly, monthly, quarterly, yearly
+  - Auto-creates new task when marked complete
+- **Collaboration**:
+  - Comments section for each task
+  - Full audit history tracking all changes
+- **Dashboard view**:
+  - Overdue tasks section with count
+  - Due soon tasks (next 7 days)
+  - All tasks with filtering/sorting
+- **Filtering**: By category, status, priority, assignee
+- **Sorting**: By due date, priority, created date, title
+- Access: Managers and Owners only
+- Tables: admin_task_categories, admin_tasks, admin_task_comments, admin_task_history
 
 ### Authentication System
 - **AuthContext** (`client/src/contexts/AuthContext.tsx`) - Manages user session, profile, tenant, and branding state

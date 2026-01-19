@@ -12,6 +12,7 @@ import CashDeposit from "@/pages/cash-deposit";
 import TipPayout from "@/pages/tip-payout";
 import CoffeeOrder from "@/pages/coffee-order";
 import EquipmentMaintenance from "@/pages/equipment-maintenance";
+import AdminTasks from "@/pages/admin-tasks";
 import AdminUsers from "@/pages/admin-users";
 import AdminBranding from "@/pages/admin-branding";
 import PlatformAdmin from "@/pages/platform-admin";
@@ -54,6 +55,11 @@ function Router() {
       <Route path="/equipment-maintenance">
         <ProtectedRoute module="equipment-maintenance">
           <EquipmentMaintenance />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin-tasks">
+        <ProtectedRoute module="admin-tasks">
+          <AdminTasks />
         </ProtectedRoute>
       </Route>
       <Route path="/">
