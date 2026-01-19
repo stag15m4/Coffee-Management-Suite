@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { sendOrderEmail, type OrderEmailData } from "./resend";
+import { sendOrderEmail, sendFeedbackEmail, type OrderEmailData, type FeedbackEmailData } from "./resend";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
 export async function registerRoutes(
@@ -94,6 +94,74 @@ export async function registerRoutes(
       }
       console.error('Email send error:', err);
       res.status(500).json({ success: false, error: 'Failed to send email' });
+    }
+  });
+
+  // Feedback Submit Route with basic rate limiting
+  const feedbackRateLimit: Map<string, { count: number; resetTime: number }> = new Map();
+  const FEEDBACK_LIMIT = 5; // max 5 submissions per hour
+  const FEEDBACK_WINDOW = 60 * 60 * 1000; // 1 hour in ms
+
+  app.post('/api/feedback/submit', async (req, res) => {
+    try {
+      const data = sendFeedbackEmailSchema.parse(req.body);
+      
+      // Require user email and tenant ID (only authenticated users have these)
+      if (!data.userEmail || !data.tenantId) {
+        return res.status(401).json({ 
+          success: false, 
+          error: 'Authentication required to submit feedback' 
+        });
+      }
+      
+      // Rate limiting by IP + email
+      const clientIP = req.ip || req.socket.remoteAddress || 'unknown';
+      const rateLimitKey = `${clientIP}:${data.userEmail}`;
+      const now = Date.now();
+      
+      const rateData = feedbackRateLimit.get(rateLimitKey);
+      if (rateData) {
+        if (now < rateData.resetTime) {
+          if (rateData.count >= FEEDBACK_LIMIT) {
+            return res.status(429).json({ 
+              success: false, 
+              error: 'Too many feedback submissions. Please try again later.' 
+            });
+          }
+          rateData.count++;
+        } else {
+          feedbackRateLimit.set(rateLimitKey, { count: 1, resetTime: now + FEEDBACK_WINDOW });
+        }
+      } else {
+        feedbackRateLimit.set(rateLimitKey, { count: 1, resetTime: now + FEEDBACK_WINDOW });
+      }
+      
+      const result = await sendFeedbackEmail({
+        feedbackType: data.feedbackType,
+        subject: data.subject,
+        description: data.description,
+        pageUrl: data.pageUrl,
+        browserInfo: data.browserInfo,
+        userEmail: data.userEmail,
+        userName: data.userName,
+        tenantId: data.tenantId,
+        tenantName: data.tenantName
+      });
+      
+      if (result.success) {
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ success: false, error: result.error });
+      }
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: err.errors[0].message
+        });
+      }
+      console.error('Feedback send error:', err);
+      res.status(500).json({ success: false, error: 'Failed to submit feedback' });
     }
   });
 
@@ -266,5 +334,18 @@ const sendOrderEmailSchema = z.object({
   totalUnits: z.number(),
   totalCost: z.number(),
   notes: z.string().optional(),
+  tenantName: z.string().optional()
+});
+
+// Feedback Email Schema
+const sendFeedbackEmailSchema = z.object({
+  feedbackType: z.enum(['bug', 'suggestion', 'general']),
+  subject: z.string(),
+  description: z.string().min(1, 'Description is required'),
+  pageUrl: z.string().optional(),
+  browserInfo: z.string().optional(),
+  userEmail: z.string().email().optional(),
+  userName: z.string().optional(),
+  tenantId: z.string().optional(),
   tenantName: z.string().optional()
 });

@@ -1,4 +1,4 @@
-// Resend email integration for Coffee Order module
+// Resend email integration for Coffee Order module and Feedback
 import { Resend } from 'resend';
 
 let connectionSettings: any;
@@ -117,6 +117,107 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
     return { success: true };
   } catch (error: any) {
     console.error('Error sending order email:', error);
+    return { success: false, error: error.message || 'Failed to send email' };
+  }
+}
+
+// Feedback Email Data Interface
+export interface FeedbackEmailData {
+  feedbackType: 'bug' | 'suggestion' | 'general';
+  subject: string;
+  description: string;
+  pageUrl?: string;
+  browserInfo?: string;
+  userEmail?: string;
+  userName?: string;
+  tenantId?: string;
+  tenantName?: string;
+}
+
+// Send feedback email to CMS@erwinmills.com
+export async function sendFeedbackEmail(data: FeedbackEmailData): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+    
+    const typeLabels: Record<string, string> = {
+      bug: 'Bug Report',
+      suggestion: 'Suggestion',
+      general: 'General Feedback'
+    };
+    
+    const typeColors: Record<string, string> = {
+      bug: '#dc2626',
+      suggestion: '#2563eb',
+      general: '#16a34a'
+    };
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #C9A227; padding: 20px; text-align: center;">
+          <h1 style="color: white; margin: 0;">CMS Feedback</h1>
+        </div>
+        
+        <div style="padding: 20px; background-color: #f9f9f9;">
+          <div style="background-color: ${typeColors[data.feedbackType]}; color: white; display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-bottom: 16px;">
+            ${typeLabels[data.feedbackType]}
+          </div>
+          
+          <h2 style="color: #4A3728; margin-top: 0;">${data.subject}</h2>
+          
+          <div style="background-color: white; padding: 16px; border-radius: 8px; border-left: 4px solid ${typeColors[data.feedbackType]};">
+            <p style="margin: 0; white-space: pre-wrap; color: #333;">${data.description}</p>
+          </div>
+          
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+          
+          <h3 style="color: #6B5344; font-size: 14px; margin-bottom: 8px;">Submitted By</h3>
+          <table style="font-size: 13px; color: #666;">
+            <tr>
+              <td style="padding: 4px 12px 4px 0; font-weight: bold;">Name:</td>
+              <td>${data.userName || 'Not provided'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 12px 4px 0; font-weight: bold;">Email:</td>
+              <td>${data.userEmail || 'Not provided'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 12px 4px 0; font-weight: bold;">Tenant:</td>
+              <td>${data.tenantName || 'Unknown'} ${data.tenantId ? `(${data.tenantId})` : ''}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 12px 4px 0; font-weight: bold;">Page:</td>
+              <td>${data.pageUrl || 'Not provided'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 12px 4px 0; font-weight: bold;">Browser:</td>
+              <td style="font-size: 11px; max-width: 400px; word-break: break-all;">${data.browserInfo || 'Not provided'}</td>
+            </tr>
+          </table>
+        </div>
+        
+        <div style="background-color: #4A3728; padding: 12px; text-align: center;">
+          <p style="color: #C9A227; margin: 0; font-size: 12px;">
+            Coffee Management Suite - Erwin Mills
+          </p>
+        </div>
+      </div>
+    `;
+
+    const result = await client.emails.send({
+      from: fromEmail,
+      to: 'CMS@erwinmills.com',
+      subject: `[CMS ${typeLabels[data.feedbackType]}] ${data.subject}`,
+      html,
+      replyTo: data.userEmail || undefined
+    });
+    
+    if (result.error) {
+      return { success: false, error: result.error.message };
+    }
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending feedback email:', error);
     return { success: false, error: error.message || 'Failed to send email' };
   }
 }
