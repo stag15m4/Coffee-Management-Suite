@@ -83,7 +83,10 @@ export default function CoffeeOrder() {
   }, [tenant?.id]);
 
   const loadData = async () => {
-    if (!tenant?.id) return;
+    if (!tenant?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [vendorRes, productsRes, historyRes] = await Promise.all([
@@ -91,7 +94,7 @@ export default function CoffeeOrder() {
           .from('tenant_coffee_vendors')
           .select('*')
           .eq('tenant_id', tenant.id)
-          .single(),
+          .maybeSingle(),
         supabase
           .from('tenant_coffee_products')
           .select('*')
@@ -105,6 +108,11 @@ export default function CoffeeOrder() {
           .order('order_date', { ascending: false })
           .limit(50)
       ]);
+
+      // Log any errors for debugging
+      if (vendorRes.error) console.error('Vendor query error:', vendorRes.error);
+      if (productsRes.error) console.error('Products query error:', productsRes.error);
+      if (historyRes.error) console.error('History query error:', historyRes.error);
 
       if (vendorRes.data) {
         setVendor(vendorRes.data);
@@ -126,7 +134,7 @@ export default function CoffeeOrder() {
         setOrderHistory(historyRes.data);
       }
     } catch (error: any) {
-      console.error('Error loading data:', error);
+      console.error('Error loading coffee data:', error);
       toast({ title: 'Error loading data', description: error.message, variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -543,7 +551,14 @@ export default function CoffeeOrder() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
+      <div className="min-h-screen flex flex-col items-center justify-center" style={{ backgroundColor: colors.cream }}>
+        <div 
+          className="w-12 h-12 rounded-full mx-auto mb-4 animate-spin border-4"
+          style={{ 
+            borderColor: colors.creamDark, 
+            borderTopColor: colors.gold 
+          }}
+        />
         <p style={{ color: colors.brown }}>Loading...</p>
       </div>
     );
