@@ -327,6 +327,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       'cash-deposit': 'manager',             // Managers and Owners
       'bulk-ordering': 'lead',               // Leads, Managers, Owners
       'equipment-maintenance': 'employee',   // All team members
+      'admin-tasks': 'manager',              // Managers and Owners
     };
 
     return hasRole(moduleAccess[module]);
