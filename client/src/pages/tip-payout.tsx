@@ -919,6 +919,7 @@ export default function TipPayout() {
                       type="number"
                       step="0.01"
                       placeholder="0"
+                      tabIndex={i * 2 + 1}
                       value={cashEntries[i] || ''}
                       onChange={(e) => {
                         const newEntries = [...cashEntries];
@@ -947,6 +948,7 @@ export default function TipPayout() {
                       type="number"
                       step="0.01"
                       placeholder="0"
+                      tabIndex={i * 2 + 2}
                       value={ccEntries[i] || ''}
                       onChange={(e) => {
                         const newEntries = [...ccEntries];
