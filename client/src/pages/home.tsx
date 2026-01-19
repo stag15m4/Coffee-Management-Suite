@@ -2670,9 +2670,6 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('pricing');
   const queryClient = useQueryClient();
   const { profile } = useAuth();
-  
-  // Debug: Log profile on load
-  console.log('Recipe Costing - Current profile:', profile);
 
   const { data: ingredientCategories = [], isLoading: loadingCategories, isError: errorCategories } = useIngredientCategories();
   const { data: ingredients = [], isLoading: loadingIngredients, isError: errorIngredients } = useIngredients();
