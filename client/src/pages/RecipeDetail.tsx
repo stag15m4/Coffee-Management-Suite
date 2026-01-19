@@ -39,7 +39,7 @@ export default function RecipeDetail() {
 
   const form = useForm<AddIngredientForm>({
     resolver: zodResolver(addIngredientSchema),
-    defaultValues: { quantity: 0 },
+    defaultValues: { quantity: 1, ingredientId: 0 },
   });
 
   if (isLoading) return <div className="flex h-screen items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
@@ -150,8 +150,9 @@ export default function RecipeDetail() {
                       <TableCell>
                         <Button 
                           variant="ghost" size="icon" 
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
                           onClick={() => deleteIngredient.mutate({ recipeId: id, id: ri.id })}
+                          data-testid={`button-delete-ingredient-${ri.id}`}
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -197,6 +198,7 @@ export default function RecipeDetail() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -208,6 +210,7 @@ export default function RecipeDetail() {
                         <FormControl>
                           <Input type="number" step="any" placeholder="Qty" {...field} className="bg-background" />
                         </FormControl>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
