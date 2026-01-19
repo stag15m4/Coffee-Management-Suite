@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calculator, DollarSign, Coffee, Receipt, Wrench, RefreshCw } from 'lucide-react';
+import { Calculator, DollarSign, Coffee, Receipt, Wrench, RefreshCw, ListTodo } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { useToast } from '@/hooks/use-toast';
 
@@ -212,6 +212,15 @@ export default function Dashboard() {
               description="Track and manage equipment upkeep"
               icon={<Wrench className="w-6 h-6" style={{ color: colors.brown }} />}
               href="/equipment-maintenance"
+            />
+          )}
+          
+          {canAccessModule('admin-tasks') && (
+            <ModuleCard
+              title="Administrative Tasks"
+              description="Task management with delegation and tracking"
+              icon={<ListTodo className="w-6 h-6" style={{ color: colors.brown }} />}
+              href="/admin-tasks"
             />
           )}
         </div>
