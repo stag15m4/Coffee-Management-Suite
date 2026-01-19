@@ -56,6 +56,13 @@ SQL migration files in `supabase-migrations/`:
 13. `014_maintenance_cost_field.sql` - Adds cost field to maintenance logs
 14. `035_fix_user_profiles_circular_dependency.sql` - Fixes RLS circular dependency with get_my_profile_info() function
 15. `036_admin_tasks_schema.sql` - Admin task categories, tasks, comments, and history tables
+16. `038_fix_recipe_tenant_isolation.sql` - **CRITICAL**: Fixes Recipe Costing tenant isolation with proper RLS policies including WITH CHECK clauses
+
+### Recipe Costing Module Architecture (Updated Jan 2026)
+- **Frontend hooks** (`use-recipes.ts`, `use-ingredients.ts`) query Supabase directly with tenant filtering
+- **Pattern**: Matches other modules (Cash Deposit, Tip Payout, Coffee Orders) - all use Supabase direct queries
+- **Security**: RLS policies use `tenant_id = get_current_tenant_id()` with both USING and WITH CHECK clauses
+- **Tables**: recipes, ingredients, recipe_ingredients, ingredient_categories, overhead_settings, base_templates, drink_sizes
 
 ### Subscription & Module Access System
 - **Pricing Model**:
