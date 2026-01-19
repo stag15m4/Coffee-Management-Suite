@@ -12,11 +12,10 @@ import { ArrowLeft, Trash2, Plus, DollarSign, Users, Scale, AlertCircle } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { insertRecipeIngredientSchema } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 
-const addIngredientSchema = insertRecipeIngredientSchema.omit({ recipeId: true, id: true }).extend({
+const addIngredientSchema = z.object({
   quantity: z.coerce.number().positive("Quantity must be positive"),
   ingredientId: z.coerce.number().positive("Select an ingredient"),
 });
