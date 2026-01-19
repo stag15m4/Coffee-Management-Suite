@@ -829,7 +829,7 @@ export default function CashDeposit() {
                   style={{ 
                     backgroundColor: colors.inputBg, 
                     borderColor: 'hsl(var(--input))',
-                    color: diff >= 0 ? '#22c55e' : '#dc2626'
+                    color: diff === 0 ? '#22c55e' : diff > 0 ? '#eab308' : '#dc2626'
                   }}
                 >
                   {formatCurrency(diff)}
