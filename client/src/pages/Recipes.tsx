@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RecipeForm } from "@/components/RecipeForm";
 import { Plus, Search, ChefHat, ArrowRight } from "lucide-react";
-import { type InsertRecipe } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Recipes() {
@@ -20,9 +19,13 @@ export default function Recipes() {
     recipe.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleCreate = async (data: InsertRecipe) => {
+  const handleCreate = async (data: { name: string; servings?: number; instructions?: string | null }) => {
     try {
-      await createMutation.mutateAsync(data);
+      await createMutation.mutateAsync({
+        name: data.name,
+        servings: data.servings || 1,
+        instructions: data.instructions || undefined
+      });
       setIsCreateOpen(false);
       toast({ title: "Success", description: "Recipe created!" });
     } catch (error) {
