@@ -178,7 +178,14 @@ export function FeedbackButton() {
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-4">
+            <p 
+              className="text-sm italic text-center px-2 py-3 rounded-md"
+              style={{ backgroundColor: colors.cream, color: colors.brownLight }}
+            >
+              Your feedback goes to a real person who will quickly work to address your reported issue. Thank You!
+            </p>
+
+            <div className="flex justify-end gap-3 pt-2">
               <Button
                 type="button"
                 variant="outline"
