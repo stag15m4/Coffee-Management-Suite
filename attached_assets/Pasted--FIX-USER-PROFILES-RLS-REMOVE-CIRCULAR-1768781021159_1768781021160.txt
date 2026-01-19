@@ -1,0 +1,38 @@
+-- =====================================================
+-- FIX USER_PROFILES RLS - REMOVE CIRCULAR DEPENDENCIES
+-- =====================================================
+
+-- Drop ALL existing user_profiles policies
+DROP POLICY IF EXISTS "user_profiles_select_policy" ON user_profiles;
+DROP POLICY IF EXISTS "user_profiles_insert_policy" ON user_profiles;
+DROP POLICY IF EXISTS "user_profiles_update_policy" ON user_profiles;
+DROP POLICY IF EXISTS "Users can read own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Users can read own profile by auth uid" ON user_profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Users can update own name" ON user_profiles;
+DROP POLICY IF EXISTS "Managers can read tenant profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Owners and managers can read tenant profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Platform admins can read all profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Platform admins can insert profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Platform admins can update profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Allow authenticated users to read user_profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Allow users to update own profile" ON user_profiles;
+
+-- Ensure RLS is enabled
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- SIMPLE policies that don't cause circular dependencies
+CREATE POLICY "Users can read own profile" ON user_profiles
+    FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile" ON user_profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Authenticated users can read all profiles" ON user_profiles
+    FOR SELECT USING (auth.uid() IS NOT NULL);
+
+-- Also fix platform_admins
+DROP POLICY IF EXISTS "Platform admins can read themselves" ON platform_admins;
+DROP POLICY IF EXISTS "Allow authenticated users to read platform_admins" ON platform_admins;
+CREATE POLICY "Users can check if they are platform admin" ON platform_admins
+    FOR SELECT USING (auth.uid() = id);
