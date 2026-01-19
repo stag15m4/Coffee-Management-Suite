@@ -20,6 +20,9 @@ AS $$
 $$;
 
 -- Step 2: Drop all existing user_profiles policies
+DROP POLICY IF EXISTS "user_profiles_select" ON user_profiles;
+DROP POLICY IF EXISTS "user_profiles_insert" ON user_profiles;
+DROP POLICY IF EXISTS "user_profiles_update" ON user_profiles;
 DROP POLICY IF EXISTS "user_profiles_select_policy" ON user_profiles;
 DROP POLICY IF EXISTS "user_profiles_insert_policy" ON user_profiles;
 DROP POLICY IF EXISTS "user_profiles_update_policy" ON user_profiles;
