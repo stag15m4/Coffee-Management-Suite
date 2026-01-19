@@ -41,7 +41,7 @@ export interface Tenant {
   is_active?: boolean;
 }
 
-export type ModuleId = 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering' | 'equipment-maintenance';
+export type ModuleId = 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering' | 'equipment-maintenance' | 'admin-tasks';
 
 interface AuthContextType {
   user: User | null;
