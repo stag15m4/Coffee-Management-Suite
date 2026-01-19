@@ -572,43 +572,47 @@ export default function AdminTasks() {
   
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.cream }}>
-      <header className="border-b p-4" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="icon" data-testid="button-back">
-                <ArrowLeft className="w-5 h-5" style={{ color: colors.brown }} />
-              </Button>
-            </Link>
-            <div className="flex items-center gap-3">
-              <img src={logoUrl} alt="Logo" className="w-10 h-10 object-contain" />
-              <div>
-                <h1 className="text-xl font-bold" style={{ color: colors.brown }}>Administrative Tasks</h1>
-                <p className="text-sm" style={{ color: colors.brownLight }}>Task management & delegation</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSettings(!showSettings)}
-              style={{ borderColor: colors.gold, color: colors.brown }}
-              data-testid="button-settings"
-            >
-              <Settings className="w-4 h-4 mr-1" />
-              Settings
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => { resetTaskForm(); setShowTaskForm(true); }}
-              style={{ backgroundColor: colors.gold, color: colors.brown }}
-              data-testid="button-new-task"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              New Task
-            </Button>
-          </div>
+      <header className="px-6 py-6 relative">
+        <Link
+          href="/"
+          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm"
+          style={{ backgroundColor: colors.gold, color: colors.white }}
+          data-testid="link-dashboard"
+        >
+          <Home className="w-4 h-4" />
+          Main Dashboard
+        </Link>
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSettings(!showSettings)}
+            style={{ borderColor: colors.gold, color: colors.brown }}
+            data-testid="button-settings"
+          >
+            <Settings className="w-4 h-4 mr-1" />
+            Settings
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => { resetTaskForm(); setShowTaskForm(true); }}
+            style={{ backgroundColor: colors.gold, color: colors.brown }}
+            data-testid="button-new-task"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            New Task
+          </Button>
+        </div>
+        <div className="max-w-7xl mx-auto text-center pt-10">
+          <img
+            src={logoUrl}
+            alt="Erwin Mills Coffee Co."
+            className="mx-auto mb-3"
+            style={{ height: 80, width: 'auto' }}
+          />
+          <h2 className="text-xl font-bold" style={{ color: colors.gold }}>
+            Administrative Tasks
+          </h2>
         </div>
       </header>
       
