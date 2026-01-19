@@ -2934,19 +2934,31 @@ export default function Home() {
 
   const handleAddBaseTemplate = async (template: { name: string; drink_type: string; description?: string }) => {
     try {
-      console.log('Adding base template:', template, 'tenant_id:', profile?.tenant_id);
-      const { data, error } = await supabase
+      // Get tenant_id from an existing base_template since profile may not be loaded
+      let tenantId = profile?.tenant_id;
+      if (!tenantId) {
+        const { data: existingTemplates } = await supabase
+          .from('base_templates')
+          .select('tenant_id')
+          .limit(1);
+        tenantId = existingTemplates?.[0]?.tenant_id;
+      }
+      
+      if (!tenantId) {
+        alert('Unable to determine your tenant. Please refresh the page and try again.');
+        return;
+      }
+
+      const { error } = await supabase
         .from('base_templates')
         .insert({
           name: template.name,
           drink_type: template.drink_type,
           description: template.description || null,
           is_active: true,
-          tenant_id: profile?.tenant_id,
-        })
-        .select();
+          tenant_id: tenantId,
+        });
 
-      console.log('Insert result:', { data, error });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
     } catch (error: any) {
