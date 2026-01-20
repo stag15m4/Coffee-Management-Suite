@@ -241,6 +241,220 @@ function downloadICalFile(task: MaintenanceTask, equipmentName: string): void {
   URL.revokeObjectURL(url);
 }
 
+async function exportEquipmentRecords(
+  equipment: Equipment, 
+  supabaseClient: typeof supabase
+): Promise<void> {
+  // Open the window FIRST before async calls to avoid popup blocker
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Please allow pop-ups to download the equipment record.');
+    return;
+  }
+  
+  // Show loading state
+  printWindow.document.write(`
+    <html>
+    <head><title>Loading Equipment Record...</title></head>
+    <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+      <h2>Generating Maintenance Record</h2>
+      <p>Loading all maintenance history for ${equipment.name}...</p>
+    </body>
+    </html>
+  `);
+  
+  // Fetch ALL maintenance tasks for this equipment (including inactive for complete history)
+  const { data: equipmentTasks } = await supabaseClient
+    .from('maintenance_tasks')
+    .select('*')
+    .eq('equipment_id', equipment.id)
+    .order('created_at', { ascending: true });
+  
+  const allTasks = (equipmentTasks || []) as MaintenanceTask[];
+  
+  // Fetch all maintenance logs for all tasks of this equipment
+  const taskLogs: { task: MaintenanceTask; logs: any[] }[] = [];
+  for (const task of allTasks) {
+    const { data: logs } = await supabaseClient
+      .from('maintenance_logs')
+      .select('*')
+      .eq('task_id', task.id)
+      .order('completed_at', { ascending: false });
+    taskLogs.push({ task, logs: logs || [] });
+  }
+  
+  // Calculate total maintenance costs
+  let totalCost = 0;
+  taskLogs.forEach(({ logs }) => {
+    logs.forEach(log => {
+      if (log.cost) totalCost += Number(log.cost);
+    });
+  });
+  
+  // Build PDF content
+  const warrantyStatus = getWarrantyStatus(equipment);
+  const warrantyExpiration = getWarrantyExpirationDate(equipment);
+  
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Equipment Maintenance Record - ${equipment.name}</title>
+      <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; }
+        h1 { color: #4A3728; border-bottom: 3px solid #C9A227; padding-bottom: 10px; }
+        h2 { color: #4A3728; margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        h3 { color: #6B5344; margin-top: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .export-date { color: #666; font-size: 12px; }
+        .info-grid { display: grid; grid-template-columns: 150px 1fr; gap: 8px; margin: 15px 0; }
+        .info-label { font-weight: bold; color: #6B5344; }
+        .info-value { color: #333; }
+        .warranty-covered { background: #22c55e; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .warranty-expired { background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .task-card { background: #f9f9f9; border-left: 4px solid #C9A227; padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .log-entry { background: white; border: 1px solid #ddd; padding: 10px; margin: 8px 0; border-radius: 4px; }
+        .log-date { font-weight: bold; color: #4A3728; }
+        .log-cost { color: #C9A227; font-weight: bold; }
+        .summary { background: #FDF8E8; padding: 15px; border-radius: 8px; margin-top: 30px; border: 1px solid #C9A227; }
+        .summary h2 { margin-top: 0; border: none; }
+        .no-logs { color: #999; font-style: italic; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f5f5f5; color: #4A3728; }
+        @media print { 
+          body { padding: 0; } 
+          .task-card { break-inside: avoid; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>Equipment Maintenance Record</h1>
+        <div class="export-date">Exported: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+      </div>
+      
+      <h2>Equipment Information</h2>
+      <div class="info-grid">
+        <span class="info-label">Name:</span>
+        <span class="info-value">${equipment.name}</span>
+        
+        ${equipment.category ? `
+        <span class="info-label">Category:</span>
+        <span class="info-value">${equipment.category}</span>
+        ` : ''}
+        
+        ${equipment.notes ? `
+        <span class="info-label">Notes:</span>
+        <span class="info-value">${equipment.notes}</span>
+        ` : ''}
+        
+        <span class="info-label">Added:</span>
+        <span class="info-value">${new Date(equipment.created_at).toLocaleDateString()}</span>
+      </div>
+      
+      ${equipment.has_warranty ? `
+      <h2>Warranty Information</h2>
+      <div class="info-grid">
+        <span class="info-label">Status:</span>
+        <span class="info-value">
+          <span class="${warrantyStatus === 'covered' ? 'warranty-covered' : 'warranty-expired'}">
+            ${warrantyStatus === 'covered' ? 'Under Warranty' : 'Warranty Expired'}
+          </span>
+        </span>
+        
+        <span class="info-label">Purchase Date:</span>
+        <span class="info-value">${equipment.purchase_date ? new Date(equipment.purchase_date).toLocaleDateString() : 'N/A'}</span>
+        
+        <span class="info-label">Duration:</span>
+        <span class="info-value">${equipment.warranty_duration_months} months</span>
+        
+        <span class="info-label">Expiration:</span>
+        <span class="info-value">${warrantyExpiration ? warrantyExpiration.toLocaleDateString() : 'N/A'}</span>
+        
+        ${equipment.warranty_notes ? `
+        <span class="info-label">Warranty Notes:</span>
+        <span class="info-value">${equipment.warranty_notes}</span>
+        ` : ''}
+      </div>
+      ` : ''}
+      
+      <h2>Maintenance Tasks (${equipmentTasks.length})</h2>
+      ${taskLogs.length === 0 ? '<p class="no-logs">No maintenance tasks configured.</p>' : ''}
+      
+      ${taskLogs.map(({ task, logs }) => `
+        <div class="task-card">
+          <h3>${task.name}</h3>
+          ${task.description ? `<p>${task.description}</p>` : ''}
+          <div class="info-grid">
+            <span class="info-label">Type:</span>
+            <span class="info-value">${task.interval_type === 'time' ? 
+              `Every ${task.interval_days} days` : 
+              `Every ${task.interval_units} ${task.usage_unit_label || 'units'}`
+            }</span>
+            
+            ${task.estimated_cost ? `
+            <span class="info-label">Est. Cost:</span>
+            <span class="info-value">$${Number(task.estimated_cost).toFixed(2)}</span>
+            ` : ''}
+            
+            <span class="info-label">Last Serviced:</span>
+            <span class="info-value">${task.last_completed_at ? new Date(task.last_completed_at).toLocaleDateString() : 'Never'}</span>
+          </div>
+          
+          <h4>Service History (${logs.length} entries)</h4>
+          ${logs.length === 0 ? '<p class="no-logs">No service records yet.</p>' : `
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Completed By</th>
+                <th>Notes</th>
+                <th>Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${logs.map(log => `
+                <tr>
+                  <td>${new Date(log.completed_at).toLocaleDateString()}</td>
+                  <td>${log.completed_by || '-'}</td>
+                  <td>${log.notes || '-'}</td>
+                  <td class="log-cost">${log.cost ? '$' + Number(log.cost).toFixed(2) : '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          `}
+        </div>
+      `).join('')}
+      
+      <div class="summary">
+        <h2>Maintenance Summary</h2>
+        <div class="info-grid">
+          <span class="info-label">Total Tasks:</span>
+          <span class="info-value">${equipmentTasks.length}</span>
+          
+          <span class="info-label">Total Service Entries:</span>
+          <span class="info-value">${taskLogs.reduce((sum, { logs }) => sum + logs.length, 0)}</span>
+          
+          <span class="info-label">Total Maintenance Cost:</span>
+          <span class="info-value" style="color: #C9A227; font-weight: bold;">$${totalCost.toFixed(2)}</span>
+        </div>
+      </div>
+      
+      <script>
+        window.onload = function() { 
+          window.print(); 
+        }
+      </script>
+    </body>
+    </html>
+  `;
+  
+  printWindow.document.write(htmlContent);
+  printWindow.document.close();
+}
+
 export default function EquipmentMaintenance() {
   const { profile, tenant } = useAuth();
   const { toast } = useToast();
@@ -1303,6 +1517,21 @@ export default function EquipmentMaintenance() {
                             </p>
                           </div>
                           <div className="flex gap-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                toast({ title: 'Generating record...' });
+                                exportEquipmentRecords(item, supabase)
+                                  .then(() => toast({ title: 'Equipment record ready for download' }))
+                                  .catch((err) => toast({ title: 'Export failed', description: err.message, variant: 'destructive' }));
+                              }}
+                              title="Export maintenance records"
+                              style={{ color: colors.gold }}
+                              data-testid={`button-export-equipment-${item.id}`}
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
                             <Button
                               size="icon"
                               variant="ghost"
