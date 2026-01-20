@@ -229,6 +229,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchUserData]);
 
+  // Handle visibility change (iPad app switching, tab switching)
+  // Refresh session when app returns to foreground
+  useEffect(() => {
+    let isMounted = true;
+    
+    const handleVisibilityChange = async () => {
+      // Check visibility and that we have a user and component is still mounted
+      if (document.visibilityState === 'visible' && user && isMounted) {
+        console.log('[Session] App returned to foreground, refreshing session...');
+        try {
+          // Refresh the Supabase session
+          const { data, error } = await supabase.auth.refreshSession();
+          
+          // Guard against state updates after unmount
+          if (!isMounted) return;
+          
+          if (error) {
+            console.warn('[Session] Session refresh failed:', error.message);
+            // If refresh fails, try to get current session
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData.session && isMounted) {
+              setSession(sessionData.session);
+              setUser(sessionData.session.user);
+            }
+          } else if (data.session) {
+            console.log('[Session] Session refreshed successfully');
+            setSession(data.session);
+            setUser(data.session.user);
+          }
+        } catch (err) {
+          console.error('[Session] Error during visibility refresh:', err);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      isMounted = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user]);
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error as Error | null };

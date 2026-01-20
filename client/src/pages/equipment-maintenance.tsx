@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase-queries';
 import { 
   useEquipment, 
   useMaintenanceTasks, 
@@ -256,6 +257,48 @@ export default function EquipmentMaintenance() {
   const logMaintenanceMutation = useLogMaintenance();
   const updateUsageMutation = useUpdateUsage();
   
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  
+  const withRetry = useCallback(async <T,>(
+    operationFn: () => PromiseLike<T>,
+    timeoutMs: number = 30000,
+    retries: number = 2
+  ): Promise<T> => {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Request timed out. Please try again.')), timeoutMs);
+        });
+        
+        const result = await Promise.race([
+          Promise.resolve(operationFn()),
+          timeoutPromise
+        ]);
+        if (timeoutId) clearTimeout(timeoutId);
+        return result;
+      } catch (err) {
+        if (timeoutId) clearTimeout(timeoutId);
+        lastError = err as Error;
+        const msg = lastError.message?.toLowerCase() || '';
+        const isNetworkError = msg.includes('network') || msg.includes('fetch') || 
+          msg.includes('load failed') || msg.includes('timeout') || msg.includes('connection');
+        
+        if (isNetworkError && attempt < retries) {
+          console.log(`[Save] Retry attempt ${attempt + 1}/${retries}...`);
+          await supabase.auth.refreshSession();
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          continue;
+        }
+        throw lastError;
+      }
+    }
+    throw lastError;
+  }, []);
+  
   const [activeTab, setActiveTab] = useState<'dashboard' | 'equipment' | 'tasks'>('dashboard');
   const [showAddEquipment, setShowAddEquipment] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -345,8 +388,10 @@ export default function EquipmentMaintenance() {
       }
     }
     
+    setIsSaving(true);
+    setSaveError(null);
     try {
-      await addEquipmentMutation.mutateAsync({
+      await withRetry(() => addEquipmentMutation.mutateAsync({
         tenant_id: tenant.id,
         name: newEquipmentName.trim(),
         category: newEquipmentCategory.trim() || undefined,
@@ -357,7 +402,7 @@ export default function EquipmentMaintenance() {
         warranty_notes: newEquipmentHasWarranty && newEquipmentWarrantyNotes.trim() ? newEquipmentWarrantyNotes.trim() : undefined,
         document_url: newEquipmentDocumentUrl || undefined,
         document_name: newEquipmentDocumentName || undefined,
-      });
+      }));
       
       setNewEquipmentName('');
       setNewEquipmentCategory('');
@@ -371,7 +416,10 @@ export default function EquipmentMaintenance() {
       setShowAddEquipment(false);
       toast({ title: 'Equipment added successfully' });
     } catch (error: any) {
+      setSaveError(error.message);
       toast({ title: 'Error adding equipment', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
     }
   };
   
@@ -405,8 +453,10 @@ export default function EquipmentMaintenance() {
       }
     }
     
+    setIsSaving(true);
+    setSaveError(null);
     try {
-      await updateEquipmentMutation.mutateAsync({
+      await withRetry(() => updateEquipmentMutation.mutateAsync({
         id: editingEquipment.id,
         updates: {
           name: editingEquipment.name,
@@ -419,12 +469,15 @@ export default function EquipmentMaintenance() {
           document_url: editingEquipment.document_url,
           document_name: editingEquipment.document_name,
         }
-      });
+      }));
       
       setEditingEquipment(null);
       toast({ title: 'Equipment updated successfully' });
     } catch (error: any) {
+      setSaveError(error.message);
       toast({ title: 'Error updating equipment', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
     }
   };
   
@@ -460,6 +513,8 @@ export default function EquipmentMaintenance() {
       return;
     }
     
+    setIsSaving(true);
+    setSaveError(null);
     try {
       // Calculate next_due_at and last_completed_at if Last Serviced date is provided
       let last_completed_at: string | undefined;
@@ -473,7 +528,7 @@ export default function EquipmentMaintenance() {
         next_due_at = dueDate.toISOString();
       }
       
-      await addTaskMutation.mutateAsync({
+      await withRetry(() => addTaskMutation.mutateAsync({
         tenant_id: tenant.id,
         equipment_id: newTaskEquipmentId,
         name: newTaskName.trim(),
@@ -485,7 +540,7 @@ export default function EquipmentMaintenance() {
         current_usage: 0,
         last_completed_at,
         next_due_at,
-      });
+      }));
       
       setNewTaskEquipmentId('');
       setNewTaskName('');
@@ -498,7 +553,10 @@ export default function EquipmentMaintenance() {
       setShowAddTask(false);
       toast({ title: 'Maintenance task added successfully' });
     } catch (error: any) {
+      setSaveError(error.message);
       toast({ title: 'Error adding task', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
     }
   };
   
@@ -510,8 +568,10 @@ export default function EquipmentMaintenance() {
       return;
     }
     
+    setIsSaving(true);
+    setSaveError(null);
     try {
-      await logMaintenanceMutation.mutateAsync({
+      await withRetry(() => logMaintenanceMutation.mutateAsync({
         tenantId: tenant.id,
         taskId: completingTask.id,
         completedBy: profile?.full_name || profile?.email,
@@ -521,7 +581,7 @@ export default function EquipmentMaintenance() {
           : undefined,
         cost: completionCost ? parseFloat(completionCost) : undefined,
         completedAt: isHistoricalEntry && completionDate ? new Date(completionDate).toISOString() : undefined,
-      });
+      }));
       
       setCompletingTask(null);
       setCompletionNotes('');
@@ -531,7 +591,10 @@ export default function EquipmentMaintenance() {
       setIsHistoricalEntry(false);
       toast({ title: 'Maintenance logged successfully' });
     } catch (error: any) {
+      setSaveError(error.message);
       toast({ title: 'Error logging maintenance', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
     }
   };
   
@@ -552,6 +615,8 @@ export default function EquipmentMaintenance() {
       return;
     }
     
+    setIsSaving(true);
+    setSaveError(null);
     try {
       const lastServiced = new Date(editLastServicedDate);
       let next_due_at: string | null = null;
@@ -563,19 +628,22 @@ export default function EquipmentMaintenance() {
         next_due_at = dueDate.toISOString();
       }
       
-      await updateTaskMutation.mutateAsync({
+      await withRetry(() => updateTaskMutation.mutateAsync({
         id: editingTaskLastServiced.id,
         updates: {
           last_completed_at: lastServiced.toISOString(),
           next_due_at,
         }
-      });
+      }));
       
       setEditingTaskLastServiced(null);
       setEditLastServicedDate('');
       toast({ title: 'Last serviced date updated' });
     } catch (error: any) {
+      setSaveError(error.message);
       toast({ title: 'Error updating date', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
     }
   };
   
