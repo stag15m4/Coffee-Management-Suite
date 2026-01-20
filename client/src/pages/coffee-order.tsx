@@ -445,9 +445,95 @@ export default function CoffeeOrder() {
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    toast({ title: 'CSV opened in new tab' });
+    const csvUrl = URL.createObjectURL(blob);
+    
+    const dates = orderHistory.map(o => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
+    const startDate = dates[0].toLocaleDateString('en-US');
+    const endDate = dates[dates.length - 1].toLocaleDateString('en-US');
+    
+    const downloadPage = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Coffee Order CSV Export</title>
+        <style>
+          body { 
+            font-family: Arial, sans-serif; 
+            padding: 40px; 
+            color: #2C2416; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            text-align: center;
+          }
+          .container { 
+            border: 1px solid #D4A84B; 
+            border-radius: 12px; 
+            padding: 40px; 
+            background: #FFFFFF; 
+          }
+          h1 { color: #2C2416; margin-bottom: 10px; }
+          p { color: #666; margin: 10px 0; }
+          .button { 
+            display: inline-block; 
+            padding: 14px 28px; 
+            background-color: #D4A84B; 
+            color: #2C2416; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            font-weight: bold;
+            margin: 10px;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+          }
+          .button:hover { background-color: #c49a42; }
+          .button.secondary { 
+            background-color: #f5f5f5; 
+            border: 1px solid #ddd;
+          }
+          .button.secondary:hover { background-color: #e5e5e5; }
+          .info { 
+            background: #FDF8F0; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 20px 0;
+            text-align: left;
+          }
+          .info p { margin: 5px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>CSV Export Ready</h1>
+          <p>Coffee Order History</p>
+          
+          <div class="info">
+            <p><strong>Date Range:</strong> ${startDate} - ${endDate}</p>
+            <p><strong>Total Orders:</strong> ${orderHistory.length}</p>
+          </div>
+          
+          <div style="margin: 30px 0;">
+            <a href="${csvUrl}" download="coffee-orders.csv" class="button">
+              Download CSV File
+            </a>
+          </div>
+          
+          <div>
+            <button class="button secondary" onclick="window.close()">
+              Close & Return to App
+            </button>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    const downloadWindow = window.open('', '_blank');
+    if (downloadWindow) {
+      downloadWindow.document.write(downloadPage);
+      downloadWindow.document.close();
+    }
+    toast({ title: 'CSV export ready' });
   };
 
   const exportPDF = () => {
@@ -458,14 +544,41 @@ export default function CoffeeOrder() {
 
     let grandTotalUnits = 0;
     let grandTotalCost = 0;
+    
+    // Calculate product totals across all orders
+    const productTotals: Record<string, { name: string; size: string; qty: number; totalCost: number; unitPrice: number }> = {};
+    
     orderHistory.forEach(order => {
       grandTotalUnits += order.units || 0;
       grandTotalCost += order.total_cost || 0;
+      
+      Object.entries(order.items).forEach(([id, qty]) => {
+        const product = products.find(p => p.id === id);
+        const unitPrice = product?.default_price || 0;
+        const lineTotal = unitPrice * (qty as number);
+        
+        if (!productTotals[id]) {
+          productTotals[id] = {
+            name: product?.name || 'Unknown',
+            size: product?.size || '',
+            qty: 0,
+            totalCost: 0,
+            unitPrice: unitPrice
+          };
+        }
+        productTotals[id].qty += qty as number;
+        productTotals[id].totalCost += lineTotal;
+      });
     });
 
     const dates = orderHistory.map(o => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
     const startDate = dates[0].toLocaleDateString('en-US');
     const endDate = dates[dates.length - 1].toLocaleDateString('en-US');
+    
+    // Sort orders by date (newest first)
+    const sortedOrders = [...orderHistory].sort((a, b) => 
+      new Date(b.order_date).getTime() - new Date(a.order_date).getTime()
+    );
 
     const printContent = `
       <!DOCTYPE html>
@@ -473,39 +586,173 @@ export default function CoffeeOrder() {
       <head>
         <title>Coffee Order History</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 30px; color: #2C2416; max-width: 700px; margin: 0 auto; }
-          .container { border: 1px solid #D4A84B; border-radius: 8px; padding: 25px; background: #FFFFFF; }
+          body { font-family: Arial, sans-serif; padding: 20px; color: #2C2416; max-width: 800px; margin: 0 auto; }
+          .back-button { 
+            display: inline-block; 
+            padding: 12px 24px; 
+            background-color: #D4A84B; 
+            color: #2C2416; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            font-weight: bold;
+            margin-bottom: 20px;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+          }
+          .back-button:hover { background-color: #c49a42; }
+          @media print { .back-button, .no-print { display: none !important; } }
+          .page { 
+            border: 1px solid #D4A84B; 
+            border-radius: 8px; 
+            padding: 25px; 
+            background: #FFFFFF; 
+            margin-bottom: 30px;
+            page-break-after: always;
+          }
+          .page:last-child { page-break-after: avoid; }
           .header { text-align: center; margin-bottom: 20px; }
-          .header h1 { margin: 0; font-size: 24px; }
-          .header h2 { margin: 5px 0; font-size: 16px; font-weight: normal; color: #666; }
-          .summary { display: flex; flex-wrap: wrap; gap: 10px 40px; margin: 20px 0; padding: 15px 0; border-bottom: 1px solid #E8DFD0; }
-          .summary-item { font-size: 13px; }
-          .summary-item.highlight { background-color: #D4A84B; padding: 3px 8px; border-radius: 3px; }
+          .header h1 { margin: 0; font-size: 24px; color: #2C2416; }
+          .header h2 { margin: 5px 0; font-size: 18px; font-weight: normal; color: #666; }
+          .header p { margin: 5px 0; font-size: 14px; color: #888; }
+          .summary-grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 15px; 
+            margin: 20px 0; 
+            padding: 20px; 
+            background: #FDF8F0; 
+            border-radius: 8px;
+          }
+          .summary-item { font-size: 14px; }
+          .summary-item strong { display: block; font-size: 20px; color: #2C2416; }
+          .summary-item.highlight { 
+            grid-column: span 2; 
+            text-align: center; 
+            background: #D4A84B; 
+            padding: 15px; 
+            border-radius: 8px;
+            font-size: 18px;
+          }
+          .summary-item.highlight strong { font-size: 28px; }
           table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th { background-color: #D4A84B; color: #2C2416; padding: 10px; text-align: left; font-weight: bold; }
-          td { padding: 8px; border-bottom: 1px solid #E8DFD0; }
+          th { background-color: #D4A84B; color: #2C2416; padding: 12px 10px; text-align: left; font-weight: bold; }
+          td { padding: 10px; border-bottom: 1px solid #E8DFD0; }
           .total-row { background-color: #D4A84B; font-weight: bold; }
-          @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+          .order-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #D4A84B;
+          }
+          .order-header h3 { margin: 0; font-size: 18px; }
+          .order-header .order-total { font-size: 16px; color: #D4A84B; font-weight: bold; }
+          .section-title { 
+            font-size: 16px; 
+            font-weight: bold; 
+            color: #D4A84B; 
+            margin: 25px 0 15px; 
+            padding-bottom: 5px;
+            border-bottom: 1px solid #E8DFD0;
+          }
+          @media print { 
+            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; padding: 0; }
+            .page { border: none; box-shadow: none; margin-bottom: 0; }
+          }
         </style>
       </head>
       <body>
-        <div class="container">
+        <div class="no-print" style="margin-bottom: 20px;">
+          <button class="back-button" onclick="window.close()">
+            Close & Return to App
+          </button>
+          <button class="back-button" onclick="window.print()" style="margin-left: 10px;">
+            Print / Save as PDF
+          </button>
+        </div>
+        
+        <!-- SUMMARY PAGE -->
+        <div class="page">
           <div class="header">
             <h1>${tenant?.name || 'Coffee Order'}</h1>
-            <h2>Coffee Order History</h2>
+            <h2>Order Summary Report</h2>
             <p>${startDate} - ${endDate}</p>
           </div>
-          <div class="summary">
-            <div class="summary-item">Total Orders: ${orderHistory.length}</div>
-            <div class="summary-item">Total Units: ${grandTotalUnits}</div>
-            <div class="summary-item highlight">Total Cost: ${formatCurrency(grandTotalCost)}</div>
-            <div class="summary-item">Vendor: ${vendorName}</div>
+          
+          <div class="summary-grid">
+            <div class="summary-item">
+              Total Orders
+              <strong>${orderHistory.length}</strong>
+            </div>
+            <div class="summary-item">
+              Total Units Ordered
+              <strong>${grandTotalUnits}</strong>
+            </div>
+            <div class="summary-item">
+              Vendor
+              <strong>${vendorName}</strong>
+            </div>
+            <div class="summary-item">
+              Report Generated
+              <strong>${new Date().toLocaleDateString('en-US')}</strong>
+            </div>
+            <div class="summary-item highlight">
+              Total Spent
+              <strong>${formatCurrency(grandTotalCost)}</strong>
+            </div>
           </div>
-          ${orderHistory.map(order => `
-            <h3 style="margin-top: 20px; font-size: 14px;">Order: ${new Date(order.order_date).toLocaleDateString('en-US')}</h3>
+          
+          <div class="section-title">Product Breakdown (All Orders)</div>
+          <table>
+            <thead>
+              <tr><th>Product</th><th>Size</th><th>Total Qty</th><th>Unit Price</th><th>Total Cost</th></tr>
+            </thead>
+            <tbody>
+              ${Object.values(productTotals)
+                .sort((a, b) => b.qty - a.qty)
+                .map(p => `
+                  <tr>
+                    <td>${p.name}</td>
+                    <td>${p.size}</td>
+                    <td>${p.qty}</td>
+                    <td>${p.unitPrice > 0 ? formatCurrency(p.unitPrice) : '-'}</td>
+                    <td>${p.totalCost > 0 ? formatCurrency(p.totalCost) : '-'}</td>
+                  </tr>
+                `).join('')}
+              <tr class="total-row">
+                <td colspan="2">GRAND TOTAL</td>
+                <td>${grandTotalUnits}</td>
+                <td></td>
+                <td>${formatCurrency(grandTotalCost)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- INDIVIDUAL ORDER PAGES -->
+        ${sortedOrders.map((order, index) => `
+          <div class="page">
+            <div class="header">
+              <h1>${tenant?.name || 'Coffee Order'}</h1>
+              <h2>Order Details</h2>
+              <p>Order ${index + 1} of ${orderHistory.length}</p>
+            </div>
+            
+            <div class="order-header">
+              <h3>Order Date: ${new Date(order.order_date).toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}</h3>
+              <div class="order-total">Total: ${order.total_cost ? formatCurrency(order.total_cost) : '-'}</div>
+            </div>
+            
             <table>
               <thead>
-                <tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
+                <tr><th>Product</th><th>Size</th><th>Qty</th><th>Unit Price</th><th>Line Total</th></tr>
               </thead>
               <tbody>
                 ${Object.entries(order.items).map(([id, qty]) => {
@@ -514,7 +761,8 @@ export default function CoffeeOrder() {
                   const lineTotal = unitPrice * (qty as number);
                   return `
                     <tr>
-                      <td>${product ? `${product.name} (${product.size})` : 'Unknown Product'}</td>
+                      <td>${product?.name || 'Unknown Product'}</td>
+                      <td>${product?.size || '-'}</td>
                       <td>${qty}</td>
                       <td>${unitPrice > 0 ? formatCurrency(unitPrice) : '-'}</td>
                       <td>${lineTotal > 0 ? formatCurrency(lineTotal) : '-'}</td>
@@ -522,15 +770,22 @@ export default function CoffeeOrder() {
                   `;
                 }).join('')}
                 <tr class="total-row">
-                  <td>TOTAL</td>
+                  <td colspan="2">ORDER TOTAL</td>
                   <td>${order.units}</td>
                   <td></td>
                   <td>${order.total_cost ? formatCurrency(order.total_cost) : '-'}</td>
                 </tr>
               </tbody>
             </table>
-          `).join('')}
-        </div>
+            
+            ${order.notes ? `
+              <div class="section-title">Order Notes</div>
+              <p style="padding: 15px; background: #FDF8F0; border-radius: 8px; font-style: italic;">
+                ${order.notes}
+              </p>
+            ` : ''}
+          </div>
+        `).join('')}
       </body>
       </html>
     `;
@@ -539,7 +794,6 @@ export default function CoffeeOrder() {
     if (printWindow) {
       printWindow.document.write(printContent);
       printWindow.document.close();
-      printWindow.print();
     }
   };
 
