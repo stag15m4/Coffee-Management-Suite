@@ -345,6 +345,7 @@ export interface MaintenanceTask {
   current_usage: number;
   last_completed_at: string | null;
   next_due_at: string | null;
+  estimated_cost: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -504,6 +505,7 @@ export function useAddMaintenanceTask() {
       current_usage?: number;
       last_completed_at?: string;
       next_due_at?: string;
+      estimated_cost?: number;
     }) => {
       // Only auto-calculate if last_completed_at not provided
       let next_due_at: string | null = task.next_due_at || null;
@@ -526,6 +528,7 @@ export function useAddMaintenanceTask() {
           current_usage: task.current_usage,
           next_due_at,
           last_completed_at,
+          estimated_cost: task.estimated_cost,
         })
         .select();
       if (error) throw error;

@@ -356,6 +356,7 @@ export default function EquipmentMaintenance() {
   const [newTaskIntervalUnits, setNewTaskIntervalUnits] = useState('');
   const [newTaskUsageLabel, setNewTaskUsageLabel] = useState('');
   const [newTaskLastServiced, setNewTaskLastServiced] = useState('');
+  const [newTaskEstimatedCost, setNewTaskEstimatedCost] = useState('');
   
   const [completionNotes, setCompletionNotes] = useState('');
   const [completionUsage, setCompletionUsage] = useState('');
@@ -540,6 +541,7 @@ export default function EquipmentMaintenance() {
         current_usage: 0,
         last_completed_at,
         next_due_at,
+        estimated_cost: newTaskEstimatedCost ? parseFloat(newTaskEstimatedCost) : undefined,
       }));
       
       setNewTaskEquipmentId('');
@@ -550,6 +552,7 @@ export default function EquipmentMaintenance() {
       setNewTaskIntervalUnits('');
       setNewTaskUsageLabel('');
       setNewTaskLastServiced('');
+      setNewTaskEstimatedCost('');
       setShowAddTask(false);
       toast({ title: 'Maintenance task added successfully' });
     } catch (error: any) {
@@ -1460,6 +1463,27 @@ export default function EquipmentMaintenance() {
                     </>
                   )}
                   
+                  <div>
+                    <Label style={{ color: colors.brown }}>Estimated Cost</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: colors.brownLight }}>$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newTaskEstimatedCost}
+                        onChange={e => setNewTaskEstimatedCost(e.target.value)}
+                        placeholder="0.00"
+                        className="pl-7"
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                        data-testid="input-estimated-cost"
+                      />
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                      Approximate cost for expense forecasting
+                    </p>
+                  </div>
+                  
                   <div className="flex gap-2">
                     <Button
                       onClick={handleAddTask}
@@ -1518,6 +1542,19 @@ export default function EquipmentMaintenance() {
                           <div className="flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium" style={{ color: colors.brown }}>{task.name}</span>
+                              {task.estimated_cost != null && task.estimated_cost > 0 && (
+                                <Badge 
+                                  variant="outline"
+                                  className="font-semibold"
+                                  style={{ 
+                                    borderColor: colors.gold, 
+                                    color: colors.brown,
+                                    backgroundColor: colors.creamLight 
+                                  }}
+                                >
+                                  ~${task.estimated_cost.toFixed(2)}
+                                </Badge>
+                              )}
                               <Badge 
                                 style={{ 
                                   backgroundColor: statusColor, 
