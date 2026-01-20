@@ -86,6 +86,7 @@ interface AdminTask {
   parent_task_id: string | null;
   document_url: string | null;
   document_name: string | null;
+  estimated_cost: number | null;
   created_at: string;
   updated_at: string;
   category?: TaskCategory;
@@ -201,6 +202,7 @@ export default function AdminTasks() {
     recurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
     document_url: string;
     document_name: string;
+    estimated_cost: string;
   }>({
     title: '',
     description: '',
@@ -210,7 +212,8 @@ export default function AdminTasks() {
     due_date: '',
     recurrence: 'none',
     document_url: '',
-    document_name: ''
+    document_name: '',
+    estimated_cost: ''
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -367,6 +370,7 @@ export default function AdminTasks() {
         recurrence: taskForm.recurrence,
         document_url: taskForm.document_url || null,
         document_name: taskForm.document_name || null,
+        estimated_cost: taskForm.estimated_cost ? parseFloat(taskForm.estimated_cost) : null,
         created_by: editingTask ? editingTask.created_by : profile.id
       };
       
@@ -533,7 +537,8 @@ export default function AdminTasks() {
       due_date: '',
       recurrence: 'none',
       document_url: '',
-      document_name: ''
+      document_name: '',
+      estimated_cost: ''
     });
     setEditingTask(null);
     setShowTaskForm(false);
@@ -550,7 +555,8 @@ export default function AdminTasks() {
       due_date: task.due_date || '',
       recurrence: task.recurrence,
       document_url: task.document_url || '',
-      document_name: task.document_name || ''
+      document_name: task.document_name || '',
+      estimated_cost: task.estimated_cost?.toString() || ''
     });
     setShowTaskForm(true);
   };
@@ -931,6 +937,27 @@ export default function AdminTasks() {
                   </div>
                   
                   <div>
+                    <Label style={{ color: colors.brown }}>Estimated Cost</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: colors.brownLight }}>$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={taskForm.estimated_cost}
+                        onChange={(e) => setTaskForm(prev => ({ ...prev, estimated_cost: e.target.value }))}
+                        placeholder="0.00"
+                        className="pl-7"
+                        style={{ backgroundColor: colors.inputBg }}
+                        data-testid="input-estimated-cost"
+                      />
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                      Approximate cost for expense forecasting
+                    </p>
+                  </div>
+                  
+                  <div>
                     <Label style={{ color: colors.brown }}>Attachment</Label>
                     <div className="flex gap-2">
                       <Input
@@ -1071,6 +1098,19 @@ export default function AdminTasks() {
                             >
                               {task.title}
                             </span>
+                            {task.estimated_cost != null && Number(task.estimated_cost) > 0 && (
+                              <Badge 
+                                variant="outline"
+                                className="text-xs font-semibold"
+                                style={{ 
+                                  borderColor: colors.gold, 
+                                  color: colors.brown,
+                                  backgroundColor: colors.cream 
+                                }}
+                              >
+                                ~${Number(task.estimated_cost).toFixed(2)}
+                              </Badge>
+                            )}
                             <Badge 
                               variant="outline" 
                               className="text-xs"
