@@ -1542,17 +1542,17 @@ export default function EquipmentMaintenance() {
                           <div className="flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium" style={{ color: colors.brown }}>{task.name}</span>
-                              {task.estimated_cost != null && task.estimated_cost > 0 && (
+                              {task.estimated_cost != null && Number(task.estimated_cost) > 0 && (
                                 <Badge 
                                   variant="outline"
                                   className="font-semibold"
                                   style={{ 
                                     borderColor: colors.gold, 
                                     color: colors.brown,
-                                    backgroundColor: colors.creamLight 
+                                    backgroundColor: colors.cream 
                                   }}
                                 >
-                                  ~${task.estimated_cost.toFixed(2)}
+                                  ~${Number(task.estimated_cost).toFixed(2)}
                                 </Badge>
                               )}
                               <Badge 
