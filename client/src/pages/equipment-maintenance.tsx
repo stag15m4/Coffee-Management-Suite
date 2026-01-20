@@ -302,6 +302,21 @@ async function exportEquipmentRecords(
       <title>Equipment Maintenance Record - ${equipment.name}</title>
       <style>
         body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; }
+        .back-button { 
+          display: inline-block; 
+          padding: 12px 24px; 
+          background-color: #C9A227; 
+          color: #4A3728; 
+          text-decoration: none; 
+          border-radius: 8px; 
+          font-weight: bold;
+          margin-bottom: 20px;
+          cursor: pointer;
+          border: none;
+          font-size: 16px;
+        }
+        .back-button:hover { background-color: #b8921f; }
+        @media print { .back-button, .no-print { display: none !important; } }
         h1 { color: #4A3728; border-bottom: 3px solid #C9A227; padding-bottom: 10px; }
         h2 { color: #4A3728; margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
         h3 { color: #6B5344; margin-top: 20px; }
@@ -329,6 +344,15 @@ async function exportEquipmentRecords(
       </style>
     </head>
     <body>
+      <div class="no-print" style="margin-bottom: 20px;">
+        <button class="back-button" onclick="window.close()">
+          Close & Return to App
+        </button>
+        <button class="back-button" onclick="window.print()" style="margin-left: 10px;">
+          Print / Save as PDF
+        </button>
+      </div>
+      
       <div class="header">
         <h1>Equipment Maintenance Record</h1>
         <div class="export-date">Exported: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
@@ -442,12 +466,7 @@ async function exportEquipmentRecords(
         </div>
       </div>
       
-      <script>
-        window.onload = function() { 
-          window.print(); 
-        }
-      </script>
-    </body>
+      </body>
     </html>
   `;
   
