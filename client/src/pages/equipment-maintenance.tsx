@@ -520,6 +520,14 @@ export default function EquipmentMaintenance() {
   const [completingTask, setCompletingTask] = useState<MaintenanceTask | null>(null);
   const [editingTaskLastServiced, setEditingTaskLastServiced] = useState<MaintenanceTask | null>(null);
   const [editLastServicedDate, setEditLastServicedDate] = useState('');
+  const [editingTask, setEditingTask] = useState<MaintenanceTask | null>(null);
+  const [editTaskName, setEditTaskName] = useState('');
+  const [editTaskDescription, setEditTaskDescription] = useState('');
+  const [editTaskIntervalType, setEditTaskIntervalType] = useState<'time' | 'usage'>('time');
+  const [editTaskIntervalDays, setEditTaskIntervalDays] = useState('');
+  const [editTaskIntervalUnits, setEditTaskIntervalUnits] = useState('');
+  const [editTaskUsageLabel, setEditTaskUsageLabel] = useState('');
+  const [editTaskEstimatedCost, setEditTaskEstimatedCost] = useState('');
   
   const [newEquipmentName, setNewEquipmentName] = useState('');
   const [newEquipmentCategory, setNewEquipmentCategory] = useState('');
@@ -859,6 +867,97 @@ export default function EquipmentMaintenance() {
     } catch (error: any) {
       setSaveError(error.message);
       toast({ title: 'Error updating date', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  const openEditTask = (task: MaintenanceTask) => {
+    setEditingTask(task);
+    setEditTaskName(task.name);
+    setEditTaskDescription(task.description || '');
+    setEditTaskIntervalType(task.interval_type as 'time' | 'usage');
+    setEditTaskIntervalDays(task.interval_days?.toString() || '');
+    setEditTaskIntervalUnits(task.interval_units?.toString() || '');
+    setEditTaskUsageLabel(task.usage_unit_label || '');
+    setEditTaskEstimatedCost(task.estimated_cost != null ? Number(task.estimated_cost).toString() : '');
+  };
+  
+  const handleSaveEditedTask = async () => {
+    if (!editingTask) return;
+    
+    if (!editTaskName.trim()) {
+      toast({ title: 'Please enter a task name', variant: 'destructive' });
+      return;
+    }
+    
+    if (editTaskIntervalType === 'time' && !editTaskIntervalDays) {
+      toast({ title: 'Please enter the interval in days', variant: 'destructive' });
+      return;
+    }
+    
+    if (editTaskIntervalType === 'usage' && (!editTaskIntervalUnits || !editTaskUsageLabel)) {
+      toast({ title: 'Please enter both usage interval and unit label', variant: 'destructive' });
+      return;
+    }
+    
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      // Calculate new due date if interval changed for time-based tasks
+      let next_due_at: string | undefined | null = undefined;
+      const originalIntervalDays = editingTask.interval_days;
+      const newIntervalDays = parseInt(editTaskIntervalDays);
+      
+      if (editTaskIntervalType === 'time') {
+        // If task has a last completion date, calculate from that
+        if (editingTask.last_completed_at) {
+          const lastServiced = new Date(editingTask.last_completed_at);
+          const dueDate = new Date(lastServiced);
+          dueDate.setDate(dueDate.getDate() + newIntervalDays);
+          next_due_at = dueDate.toISOString();
+        } 
+        // If no last completion but has existing next_due_at and interval changed, recalculate
+        else if (editingTask.next_due_at && originalIntervalDays && originalIntervalDays !== newIntervalDays) {
+          // Calculate the original start date (next_due - old interval)
+          const oldNextDue = new Date(editingTask.next_due_at);
+          const startDate = new Date(oldNextDue);
+          startDate.setDate(startDate.getDate() - originalIntervalDays);
+          // Calculate new due date from start date
+          const newDueDate = new Date(startDate);
+          newDueDate.setDate(newDueDate.getDate() + newIntervalDays);
+          next_due_at = newDueDate.toISOString();
+        }
+        // If neither exists, set due date from today
+        else if (!editingTask.next_due_at) {
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + newIntervalDays);
+          next_due_at = dueDate.toISOString();
+        }
+      } else {
+        // Usage-based tasks don't have time-based due dates
+        next_due_at = null;
+      }
+      
+      await withRetry(() => updateTaskMutation.mutateAsync({
+        id: editingTask.id,
+        updates: {
+          name: editTaskName.trim(),
+          description: editTaskDescription.trim() || null,
+          interval_type: editTaskIntervalType,
+          interval_days: editTaskIntervalType === 'time' ? parseInt(editTaskIntervalDays) : null,
+          interval_units: editTaskIntervalType === 'usage' ? parseInt(editTaskIntervalUnits) : null,
+          usage_unit_label: editTaskIntervalType === 'usage' ? editTaskUsageLabel.trim() : null,
+          estimated_cost: editTaskEstimatedCost ? parseFloat(editTaskEstimatedCost) : null,
+          next_due_at,
+        }
+      }));
+      
+      setEditingTask(null);
+      toast({ title: 'Task updated successfully' });
+    } catch (error: any) {
+      setSaveError(error.message);
+      toast({ title: 'Error updating task', description: error.message, variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
@@ -1890,6 +1989,16 @@ export default function EquipmentMaintenance() {
                             <Button
                               size="icon"
                               variant="ghost"
+                              onClick={() => openEditTask(task)}
+                              title="Edit task"
+                              style={{ color: colors.brown }}
+                              data-testid={`button-edit-task-${task.id}`}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
                               onClick={() => handleDeleteTask(task.id)}
                               style={{ color: colors.red }}
                               data-testid={`button-delete-task-${task.id}`}
@@ -2075,6 +2184,128 @@ export default function EquipmentMaintenance() {
                     }}
                     style={{ borderColor: colors.creamDark, color: colors.brown }}
                     data-testid="button-cancel-edit-last-serviced"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {editingTask && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }} className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle style={{ color: colors.brown }}>Edit Maintenance Task</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm" style={{ color: colors.brownLight }}>
+                    Equipment: {editingTask.equipment?.name}
+                  </p>
+                </div>
+                
+                <div>
+                  <Label style={{ color: colors.brown }}>Task Name *</Label>
+                  <Input
+                    value={editTaskName}
+                    onChange={e => setEditTaskName(e.target.value)}
+                    placeholder="e.g., Clean burrs, Descale"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                    data-testid="input-edit-task-name"
+                  />
+                </div>
+                
+                <div>
+                  <Label style={{ color: colors.brown }}>Description</Label>
+                  <Input
+                    value={editTaskDescription}
+                    onChange={e => setEditTaskDescription(e.target.value)}
+                    placeholder="Optional details"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                    data-testid="input-edit-task-description"
+                  />
+                </div>
+                
+                <div>
+                  <Label style={{ color: colors.brown }}>Interval Type</Label>
+                  <Select value={editTaskIntervalType} onValueChange={(v: 'time' | 'usage') => setEditTaskIntervalType(v)}>
+                    <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} data-testid="select-edit-task-interval-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="time">Time-based (every X days)</SelectItem>
+                      <SelectItem value="usage">Usage-based (every X units)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {editTaskIntervalType === 'time' ? (
+                  <div>
+                    <Label style={{ color: colors.brown }}>Interval (days) *</Label>
+                    <Input
+                      type="number"
+                      value={editTaskIntervalDays}
+                      onChange={e => setEditTaskIntervalDays(e.target.value)}
+                      placeholder="e.g., 14"
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                      data-testid="input-edit-task-interval-days"
+                    />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label style={{ color: colors.brown }}>Unit Label *</Label>
+                      <Input
+                        value={editTaskUsageLabel}
+                        onChange={e => setEditTaskUsageLabel(e.target.value)}
+                        placeholder="e.g., lbs, shots"
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                        data-testid="input-edit-task-usage-label"
+                      />
+                    </div>
+                    <div>
+                      <Label style={{ color: colors.brown }}>Interval *</Label>
+                      <Input
+                        type="number"
+                        value={editTaskIntervalUnits}
+                        onChange={e => setEditTaskIntervalUnits(e.target.value)}
+                        placeholder="e.g., 1000"
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                        data-testid="input-edit-task-interval-units"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                <div>
+                  <Label style={{ color: colors.brown }}>Estimated Cost ($)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editTaskEstimatedCost}
+                    onChange={e => setEditTaskEstimatedCost(e.target.value)}
+                    placeholder="e.g., 25.00"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                    data-testid="input-edit-task-estimated-cost"
+                  />
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSaveEditedTask}
+                    disabled={isSaving}
+                    style={{ backgroundColor: colors.gold, color: colors.brown }}
+                    data-testid="button-save-edit-task"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditingTask(null)}
+                    style={{ borderColor: colors.creamDark, color: colors.brown }}
+                    data-testid="button-cancel-edit-task"
                   >
                     Cancel
                   </Button>
