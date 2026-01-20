@@ -360,6 +360,7 @@ export interface MaintenanceLog {
   completed_by: string | null;
   notes: string | null;
   usage_at_completion: number | null;
+  cost: number | null;
   created_at: string;
 }
 
