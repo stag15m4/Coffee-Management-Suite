@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useUpload } from '@/hooks/use-upload';
@@ -213,6 +213,48 @@ export default function AdminTasks() {
     document_name: ''
   });
   
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  
+  const withRetry = useCallback(async <T,>(
+    operationFn: () => PromiseLike<T>,
+    timeoutMs: number = 30000,
+    retries: number = 2
+  ): Promise<T> => {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Request timed out. Please try again.')), timeoutMs);
+        });
+        
+        const result = await Promise.race([
+          Promise.resolve(operationFn()),
+          timeoutPromise
+        ]);
+        if (timeoutId) clearTimeout(timeoutId);
+        return result;
+      } catch (err) {
+        if (timeoutId) clearTimeout(timeoutId);
+        lastError = err as Error;
+        const msg = lastError.message?.toLowerCase() || '';
+        const isNetworkError = msg.includes('network') || msg.includes('fetch') || 
+          msg.includes('load failed') || msg.includes('timeout') || msg.includes('connection');
+        
+        if (isNetworkError && attempt < retries) {
+          console.log(`[AdminTasks] Retry attempt ${attempt + 1}/${retries}...`);
+          await supabase.auth.refreshSession();
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          continue;
+        }
+        throw lastError;
+      }
+    }
+    throw lastError;
+  }, []);
+  
   useEffect(() => {
     if (tenant?.id) {
       loadData();
@@ -311,6 +353,8 @@ export default function AdminTasks() {
     e.preventDefault();
     if (!tenant?.id || !profile?.id || !taskForm.title.trim()) return;
     
+    setIsSaving(true);
+    setSaveError(null);
     try {
       const taskData = {
         tenant_id: tenant.id,
@@ -327,18 +371,18 @@ export default function AdminTasks() {
       };
       
       if (editingTask) {
-        const { error } = await supabase.from('admin_tasks')
+        const { error } = await withRetry(() => supabase.from('admin_tasks')
           .update({ ...taskData, updated_at: new Date().toISOString() })
-          .eq('id', editingTask.id);
+          .eq('id', editingTask.id));
         if (error) throw error;
         
         await logTaskHistory(editingTask.id, 'updated', null, null);
         toast({ title: 'Task updated' });
       } else {
-        const { data, error } = await supabase.from('admin_tasks')
+        const { data, error } = await withRetry(() => supabase.from('admin_tasks')
           .insert(taskData)
           .select()
-          .single();
+          .single());
         if (error) throw error;
         
         await logTaskHistory(data.id, 'created', null, null);
@@ -348,11 +392,16 @@ export default function AdminTasks() {
       resetTaskForm();
       loadData();
     } catch (error: any) {
+      setSaveError(error.message);
       toast({ title: 'Error saving task', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
     }
   };
   
   const handleStatusChange = async (task: AdminTask, newStatus: string) => {
+    setIsSaving(true);
+    setSaveError(null);
     try {
       const updates: any = { 
         status: newStatus, 
@@ -365,7 +414,7 @@ export default function AdminTasks() {
         
         if (task.recurrence !== 'none' && task.due_date) {
           const nextDate = calculateNextRecurrence(task.due_date, task.recurrence);
-          const { error: insertError } = await supabase.from('admin_tasks').insert({
+          const { error: insertError } = await withRetry(() => supabase.from('admin_tasks').insert({
             tenant_id: task.tenant_id,
             title: task.title,
             description: task.description,
@@ -376,14 +425,14 @@ export default function AdminTasks() {
             recurrence: task.recurrence,
             parent_task_id: task.id,
             created_by: task.created_by
-          });
+          }));
           if (insertError) console.error('Error creating recurring task:', insertError);
         }
       }
       
-      const { error } = await supabase.from('admin_tasks')
+      const { error } = await withRetry(() => supabase.from('admin_tasks')
         .update(updates)
-        .eq('id', task.id);
+        .eq('id', task.id));
       
       if (error) throw error;
       
@@ -395,7 +444,10 @@ export default function AdminTasks() {
         loadTaskDetails(task.id);
       }
     } catch (error: any) {
+      setSaveError(error.message);
       toast({ title: 'Error updating status', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
     }
   };
   
