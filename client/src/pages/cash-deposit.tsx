@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
+import { useAppResume } from '@/hooks/use-app-resume';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -134,6 +135,14 @@ export default function CashDeposit() {
   useEffect(() => {
     loadEntries();
   }, [loadEntries]);
+
+  // Refresh data when app resumes from background (iPad multitasking)
+  useAppResume(() => {
+    if (tenant?.id) {
+      console.log('[CashDeposit] Refreshing data after app resume');
+      loadEntries();
+    }
+  }, [tenant?.id, loadEntries]);
 
   useEffect(() => {
     if (editingEntry) {

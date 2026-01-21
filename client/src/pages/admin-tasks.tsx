@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useUpload } from '@/hooks/use-upload';
+import { useAppResume } from '@/hooks/use-app-resume';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +10,16 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { 
   ArrowLeft, 
@@ -177,6 +188,7 @@ export default function AdminTasks() {
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editingTask, setEditingTask] = useState<AdminTask | null>(null);
   const [selectedTask, setSelectedTask] = useState<AdminTask | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<AdminTask | null>(null);
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [history, setHistory] = useState<TaskHistory[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -264,7 +276,7 @@ export default function AdminTasks() {
     }
   }, [tenant?.id]);
   
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!tenant?.id) return;
     setLoading(true);
     
@@ -287,7 +299,15 @@ export default function AdminTasks() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tenant?.id, toast]);
+  
+  // Refresh data when app resumes from background (iPad multitasking)
+  useAppResume(() => {
+    if (tenant?.id) {
+      console.log('[AdminTasks] Refreshing data after app resume');
+      loadData();
+    }
+  }, [tenant?.id, loadData]);
   
   const loadTaskDetails = async (taskId: string) => {
     try {
@@ -1225,7 +1245,7 @@ export default function AdminTasks() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => handleDeleteTask(selectedTask.id)}
+                    onClick={() => setTaskToDelete(selectedTask)}
                     data-testid="button-delete-task"
                   >
                     <Trash2 className="w-4 h-4" style={{ color: colors.red }} />
@@ -1330,6 +1350,38 @@ export default function AdminTasks() {
           </Card>
         )}
       </main>
+      
+      <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
+        <AlertDialogContent style={{ backgroundColor: colors.cream }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle style={{ color: colors.brown }}>Delete Task</AlertDialogTitle>
+            <AlertDialogDescription style={{ color: colors.brownLight }}>
+              Are you sure you want to delete "{taskToDelete?.title}"? This action cannot be undone. 
+              All comments and history for this task will also be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              style={{ borderColor: colors.gold, color: colors.brown }}
+              data-testid="button-cancel-delete"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (taskToDelete) {
+                  handleDeleteTask(taskToDelete.id);
+                  setTaskToDelete(null);
+                }
+              }}
+              style={{ backgroundColor: colors.red, color: 'white' }}
+              data-testid="button-confirm-delete"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <Footer />
     </div>

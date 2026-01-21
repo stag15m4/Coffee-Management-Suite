@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
+import { useAppResume } from '@/hooks/use-app-resume';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -81,8 +82,7 @@ export default function CoffeeOrder() {
       setLoading(false);
     }
   }, [tenant?.id]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!tenant?.id) {
       setLoading(false);
       return;
@@ -139,7 +139,15 @@ export default function CoffeeOrder() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tenant?.id, toast]);
+
+  // Refresh data when app resumes from background (iPad multitasking)
+  useAppResume(() => {
+    if (tenant?.id) {
+      console.log('[CoffeeOrder] Refreshing data after app resume');
+      loadData();
+    }
+  }, [tenant?.id, loadData]);
 
   const saveVendor = async () => {
     if (!tenant?.id) return;
