@@ -752,7 +752,17 @@ export default function TipPayout() {
       toast({ title: 'Please allow popups to export', variant: 'destructive' });
       return;
     }
-    exportWindow.document.write('<html><body><h2 style="font-family: Arial; color: #2C2416; text-align: center; padding-top: 100px;">Loading historical data...</h2></body></html>');
+    exportWindow.document.write(`
+      <html>
+      <body style="font-family: Arial; text-align: center; padding-top: 80px;">
+        <h2 style="color: #2C2416;">Loading historical data...</h2>
+        <p style="color: #666;">Please wait while we retrieve your tip payout history.</p>
+        <button onclick="window.close()" style="margin-top: 30px; padding: 8px 16px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 14px;">
+          Cancel & Close
+        </button>
+      </body>
+      </html>
+    `);
 
     setExportingHistory(true);
     try {
@@ -838,13 +848,15 @@ export default function TipPayout() {
             margin-bottom: 20px; 
           }
           .button { 
-            display: inline-block; 
-            padding: 12px 24px; 
+            display: inline-flex; 
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px; 
             background-color: #D4A84B; 
             color: #2C2416; 
             text-decoration: none; 
             border-radius: 8px; 
-            font-weight: bold;
+            font-weight: 600;
             cursor: pointer;
             border: none;
             font-size: 14px;

@@ -303,17 +303,19 @@ async function exportEquipmentRecords(
       <style>
         body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; }
         .back-button { 
-          display: inline-block; 
-          padding: 12px 24px; 
+          display: inline-flex; 
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px; 
           background-color: #C9A227; 
           color: #4A3728; 
           text-decoration: none; 
           border-radius: 8px; 
-          font-weight: bold;
+          font-weight: 600;
           margin-bottom: 20px;
           cursor: pointer;
           border: none;
-          font-size: 16px;
+          font-size: 14px;
         }
         .back-button:hover { background-color: #b8921f; }
         @media print { .back-button, .no-print { display: none !important; } }
