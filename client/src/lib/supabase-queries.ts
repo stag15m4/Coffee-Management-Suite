@@ -368,15 +368,18 @@ export function useEquipment() {
   return useQuery({
     queryKey: queryKeys.equipment,
     queryFn: async () => {
+      console.log('DEBUG: useEquipment queryFn starting...');
       const { data, error } = await supabase
         .from('equipment')
         .select('*')
         .eq('is_active', true)
         .order('name');
+      console.log('DEBUG: useEquipment result:', { data: data?.length, error: error?.message });
       if (error) throw error;
       return (data || []) as Equipment[];
     },
     staleTime: 30 * 1000,
+    retry: 2,
   });
 }
 
@@ -384,6 +387,7 @@ export function useMaintenanceTasks() {
   return useQuery({
     queryKey: queryKeys.maintenanceTasks,
     queryFn: async () => {
+      console.log('DEBUG: useMaintenanceTasks queryFn starting...');
       const { data, error } = await supabase
         .from('maintenance_tasks')
         .select(`
@@ -392,10 +396,12 @@ export function useMaintenanceTasks() {
         `)
         .eq('is_active', true)
         .order('next_due_at', { ascending: true, nullsFirst: false });
+      console.log('DEBUG: useMaintenanceTasks result:', { data: data?.length, error: error?.message });
       if (error) throw error;
       return (data || []) as MaintenanceTask[];
     },
     staleTime: 30 * 1000,
+    retry: 2,
   });
 }
 
