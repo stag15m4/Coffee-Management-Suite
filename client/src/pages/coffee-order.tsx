@@ -474,17 +474,19 @@ export default function CoffeeOrder() {
           h1 { color: #2C2416; margin-bottom: 10px; }
           p { color: #666; margin: 10px 0; }
           .button { 
-            display: inline-block; 
-            padding: 14px 28px; 
+            display: inline-flex; 
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px; 
             background-color: #D4A84B; 
             color: #2C2416; 
             text-decoration: none; 
             border-radius: 8px; 
-            font-weight: bold;
-            margin: 10px;
+            font-weight: 600;
+            margin: 8px;
             cursor: pointer;
             border: none;
-            font-size: 16px;
+            font-size: 14px;
           }
           .button:hover { background-color: #c49a42; }
           .button.secondary { 
@@ -588,17 +590,19 @@ export default function CoffeeOrder() {
         <style>
           body { font-family: Arial, sans-serif; padding: 20px; color: #2C2416; max-width: 800px; margin: 0 auto; }
           .back-button { 
-            display: inline-block; 
-            padding: 12px 24px; 
+            display: inline-flex; 
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px; 
             background-color: #D4A84B; 
             color: #2C2416; 
             text-decoration: none; 
             border-radius: 8px; 
-            font-weight: bold;
+            font-weight: 600;
             margin-bottom: 20px;
             cursor: pointer;
             border: none;
-            font-size: 16px;
+            font-size: 14px;
           }
           .back-button:hover { background-color: #c49a42; }
           @media print { .back-button, .no-print { display: none !important; } }
