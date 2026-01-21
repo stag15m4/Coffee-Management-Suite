@@ -761,6 +761,9 @@ export default function TipPayout() {
         let grandTotalPayout = 0;
         let grandTotalHours = 0;
         let tableRows = '';
+        
+        // Track per-employee totals for summary page
+        const employeeTotals: Record<string, { name: string; hours: number; payout: number; isActive: boolean }> = {};
 
         weeklyData.forEach((week: any) => {
           const weekHours = hoursData?.filter((h: any) => h.week_key === week.week_key) || [];
@@ -775,6 +778,19 @@ export default function TipPayout() {
             const payout = hours * rate;
             grandTotalPayout += payout;
             grandTotalHours += hours;
+            
+            // Track employee totals
+            const empId = h.tip_employees?.id || 'unknown';
+            const empName = h.tip_employees?.name || 'Unknown';
+            const empRecord = allEmployees.find(e => e.id === empId);
+            const isActive = empRecord?.is_active !== false;
+            
+            if (!employeeTotals[empId]) {
+              employeeTotals[empId] = { name: empName, hours: 0, payout: 0, isActive };
+            }
+            employeeTotals[empId].hours += hours;
+            employeeTotals[empId].payout += payout;
+            
             tableRows += `
               <tr>
                 <td>${weekRange.start} - ${weekRange.end}</td>
@@ -787,28 +803,83 @@ export default function TipPayout() {
           });
         });
 
+        // Build employee summary rows sorted by payout (highest first)
+        const sortedEmployees = Object.values(employeeTotals).sort((a, b) => b.payout - a.payout);
+        let employeeSummaryRows = '';
+        sortedEmployees.forEach(emp => {
+          const statusBadge = emp.isActive 
+            ? '' 
+            : '<span style="background: #f0f0f0; color: #666; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px;">Inactive</span>';
+          employeeSummaryRows += `
+            <tr>
+              <td>${emp.name}${statusBadge}</td>
+              <td>${emp.hours.toFixed(2)}</td>
+              <td>$${emp.payout.toFixed(2)}</td>
+            </tr>
+          `;
+        });
+
         const html = `
           <!DOCTYPE html>
           <html>
           <head>
             <title>Tip Payout History Report</title>
             ${baseStyles}
+            <style>
+              .page-break { page-break-after: always; }
+              .summary-section { margin-bottom: 30px; }
+              .section-title { 
+                font-size: 18px; 
+                font-weight: bold; 
+                color: #2C2416; 
+                margin: 30px 0 15px 0;
+                border-bottom: 2px solid #D4A84B;
+                padding-bottom: 5px;
+              }
+            </style>
           </head>
           <body>
             <div class="button-row no-print">
               <button class="button secondary" onclick="window.close()">Close & Return to App</button>
               <button class="button" onclick="window.print()">Print / Save as PDF</button>
             </div>
-            <div class="container">
-              <h1>Tip Payout History Report</h1>
+            
+            <!-- SUMMARY PAGE -->
+            <div class="container page-break">
+              <h1>Tip Payout Summary</h1>
               <h2>All Employees</h2>
               <p class="date-range">${startRange} - ${endRange}</p>
               
               <div class="summary-box">
-                <h3>Grand Total</h3>
+                <h3>Grand Total Payouts</h3>
                 <div class="summary-value">$${grandTotalPayout.toFixed(2)}</div>
                 <p style="margin: 10px 0 0 0; color: #666;">${grandTotalHours.toFixed(2)} total hours across ${weeklyData.length} weeks</p>
               </div>
+              
+              <div class="section-title">Payout by Employee</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Total Hours</th>
+                    <th>Total Payout</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${employeeSummaryRows}
+                  <tr class="total-row">
+                    <td>GRAND TOTAL</td>
+                    <td>${grandTotalHours.toFixed(2)}</td>
+                    <td>$${grandTotalPayout.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            
+            <!-- DETAILED BREAKDOWN PAGE -->
+            <div class="container">
+              <h1>Detailed Weekly Breakdown</h1>
+              <p class="date-range">${startRange} - ${endRange}</p>
               
               <table>
                 <thead>
