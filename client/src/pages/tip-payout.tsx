@@ -238,9 +238,11 @@ export default function TipPayout() {
   }, [tenant?.id, weekKey, toast]);
 
   useEffect(() => {
-    loadEmployees();
-    loadAllEmployees();
-  }, [loadEmployees, loadAllEmployees]);
+    if (tenant?.id) {
+      loadEmployees();
+      loadAllEmployees();
+    }
+  }, [tenant?.id, loadEmployees, loadAllEmployees]);
 
   useEffect(() => {
     loadWeekData();
@@ -1648,11 +1650,16 @@ export default function TipPayout() {
                     <SelectValue placeholder="Select an employee" />
                   </SelectTrigger>
                   <SelectContent>
-                    {allEmployees.map(emp => (
+                    {(allEmployees.length > 0 ? allEmployees : employees).map(emp => (
                       <SelectItem key={emp.id} value={emp.id}>
                         {emp.name} {!emp.is_active && '(Inactive)'}
                       </SelectItem>
                     ))}
+                    {allEmployees.length === 0 && employees.length === 0 && (
+                      <div className="p-2 text-sm text-center" style={{ color: colors.brownLight }}>
+                        No employees found. Add employees first.
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
