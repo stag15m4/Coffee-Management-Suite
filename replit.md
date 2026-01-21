@@ -228,3 +228,16 @@ Three main entities:
 - `@radix-ui/*` - Accessible UI primitives
 - `react-hook-form` - Form state management
 - `wouter` - Client-side routing
+
+## iPad/Mobile Optimization
+
+### App Resume Handling
+- **useAppResume hook** (`client/src/hooks/use-app-resume.ts`) - Custom hook that listens for 'app-resumed' events
+- **AuthContext visibility tracking** - Dispatches 'app-resumed' after 30+ seconds of app being hidden (iPad multitasking)
+- All main pages use useAppResume to refresh data when returning from background:
+  - admin-tasks, coffee-order: loadData wrapped in useCallback
+  - tip-payout, cash-deposit: loader functions in dependency arrays
+  - equipment-maintenance: uses queryClient.invalidateQueries
+
+### Delete Confirmation
+- Administrative Tasks uses AlertDialog for delete confirmation to prevent accidental deletions
