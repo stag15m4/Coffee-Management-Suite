@@ -31,8 +31,11 @@ interface TipEmployee {
   id: string;
   tenant_id: string;
   name: string;
-  is_active: boolean;
+  is_active: boolean | null;
 }
+
+// Helper to treat null as active (true)
+const isEmployeeActive = (emp: TipEmployee) => emp.is_active !== false;
 
 interface WeeklyTipData {
   id?: string;
@@ -1239,46 +1242,49 @@ export default function TipPayout() {
                 </div>
                 
                 {allEmployees
-                  .filter(e => showInactive || e.is_active !== false)
-                  .map(emp => (
-                    <div 
-                      key={emp.id}
-                      className="flex items-center justify-between p-2 rounded-md"
-                      style={{ 
-                        backgroundColor: emp.is_active ? colors.inputBg : '#f0f0f0',
-                        opacity: emp.is_active ? 1 : 0.7
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        {!emp.is_active && <UserX className="w-4 h-4" style={{ color: colors.red }} />}
-                        <span style={{ color: colors.brown }}>{emp.name}</span>
-                        {!emp.is_active && (
-                          <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: colors.creamDark, color: colors.brownLight }}>
-                            Inactive
-                          </span>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleEmployeeActive(emp.id, !emp.is_active)}
-                        style={{ color: emp.is_active ? colors.red : colors.green }}
-                        data-testid={`button-toggle-employee-${emp.id}`}
+                  .filter(e => showInactive || isEmployeeActive(e))
+                  .map(emp => {
+                    const active = isEmployeeActive(emp);
+                    return (
+                      <div 
+                        key={emp.id}
+                        className="flex items-center justify-between p-2 rounded-md"
+                        style={{ 
+                          backgroundColor: active ? colors.inputBg : '#f0f0f0',
+                          opacity: active ? 1 : 0.7
+                        }}
                       >
-                        {emp.is_active ? (
-                          <>
-                            <UserX className="w-4 h-4 mr-1" />
-                            Deactivate
-                          </>
-                        ) : (
-                          <>
-                            <RotateCcw className="w-4 h-4 mr-1" />
-                            Reactivate
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  ))}
+                        <div className="flex items-center gap-2">
+                          {!active && <UserX className="w-4 h-4" style={{ color: colors.red }} />}
+                          <span style={{ color: colors.brown }}>{emp.name}</span>
+                          {!active && (
+                            <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: colors.creamDark, color: colors.brownLight }}>
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleEmployeeActive(emp.id, !active)}
+                          style={{ color: active ? colors.red : colors.green }}
+                          data-testid={`button-toggle-employee-${emp.id}`}
+                        >
+                          {active ? (
+                            <>
+                              <UserX className="w-4 h-4 mr-1" />
+                              Deactivate
+                            </>
+                          ) : (
+                            <>
+                              <RotateCcw className="w-4 h-4 mr-1" />
+                              Reactivate
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })}
                 
                 {allEmployees.length === 0 && (
                   <p className="text-center text-sm py-2" style={{ color: colors.brownLight }}>
@@ -1652,7 +1658,7 @@ export default function TipPayout() {
                   <SelectContent>
                     {(allEmployees.length > 0 ? allEmployees : employees).map(emp => (
                       <SelectItem key={emp.id} value={emp.id}>
-                        {emp.name} {!emp.is_active && '(Inactive)'}
+                        {emp.name} {!isEmployeeActive(emp) && '(Inactive)'}
                       </SelectItem>
                     ))}
                     {allEmployees.length === 0 && employees.length === 0 && (
