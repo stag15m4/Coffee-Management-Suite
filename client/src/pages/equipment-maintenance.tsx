@@ -301,14 +301,14 @@ async function exportEquipmentRecords(
     <head>
       <title>Equipment Maintenance Record - ${equipment.name}</title>
       <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; }
+        body { font-family: Arial, sans-serif; padding: 20px; color: #2C2416; max-width: 800px; margin: 0 auto; }
         .back-button { 
           display: inline-flex; 
           align-items: center;
           gap: 8px;
           padding: 8px 12px; 
-          background-color: #C9A227; 
-          color: #4A3728; 
+          background-color: #D4A84B; 
+          color: #2C2416; 
           text-decoration: none; 
           border-radius: 8px; 
           font-weight: 600;
@@ -317,30 +317,51 @@ async function exportEquipmentRecords(
           border: none;
           font-size: 14px;
         }
-        .back-button:hover { background-color: #b8921f; }
+        .back-button:hover { background-color: #c49a42; }
         @media print { .back-button, .no-print { display: none !important; } }
-        h1 { color: #4A3728; border-bottom: 3px solid #C9A227; padding-bottom: 10px; }
-        h2 { color: #4A3728; margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-        h3 { color: #6B5344; margin-top: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .export-date { color: #666; font-size: 12px; }
+        .page { 
+          border: 1px solid #D4A84B; 
+          border-radius: 8px; 
+          padding: 25px; 
+          background: #FFFFFF; 
+          margin-bottom: 30px;
+        }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 24px; color: #2C2416; }
+        .header h2 { margin: 5px 0; font-size: 18px; font-weight: normal; color: #666; }
+        .header p { margin: 5px 0; font-size: 14px; color: #888; }
+        .section-title { 
+          font-size: 16px; 
+          font-weight: bold; 
+          color: #D4A84B; 
+          margin: 25px 0 15px; 
+          padding-bottom: 5px;
+          border-bottom: 1px solid #E8DFD0;
+        }
         .info-grid { display: grid; grid-template-columns: 150px 1fr; gap: 8px; margin: 15px 0; }
-        .info-label { font-weight: bold; color: #6B5344; }
-        .info-value { color: #333; }
+        .info-label { font-weight: bold; color: #666; font-size: 14px; }
+        .info-value { color: #2C2416; font-size: 14px; }
         .warranty-covered { background: #22c55e; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
         .warranty-expired { background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
-        .task-card { background: #f9f9f9; border-left: 4px solid #C9A227; padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
-        .log-entry { background: white; border: 1px solid #ddd; padding: 10px; margin: 8px 0; border-radius: 4px; }
-        .log-date { font-weight: bold; color: #4A3728; }
-        .log-cost { color: #C9A227; font-weight: bold; }
-        .summary { background: #FDF8E8; padding: 15px; border-radius: 8px; margin-top: 30px; border: 1px solid #C9A227; }
-        .summary h2 { margin-top: 0; border: none; }
+        .task-card { background: #FDF8F0; padding: 15px; margin: 15px 0; border-radius: 8px; }
+        .task-card h3 { margin: 0 0 10px 0; color: #2C2416; font-size: 16px; }
         .no-logs { color: #999; font-style: italic; }
-        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background: #f5f5f5; color: #4A3728; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th { background-color: #D4A84B; color: #2C2416; padding: 12px 10px; text-align: left; font-weight: bold; }
+        td { padding: 10px; border-bottom: 1px solid #E8DFD0; }
+        .summary-box { 
+          background: #FDF8F0; 
+          padding: 20px; 
+          border-radius: 8px;
+          margin-top: 20px;
+        }
+        .summary-box h2 { margin: 0 0 15px 0; font-size: 18px; color: #D4A84B; }
+        .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center; }
+        .summary-item { font-size: 14px; color: #666; }
+        .summary-item strong { display: block; font-size: 20px; color: #2C2416; margin-bottom: 5px; }
         @media print { 
-          body { padding: 0; } 
+          body { print-color-adjust: exact; -webkit-print-color-adjust: exact; padding: 0; }
+          .page { border: none; box-shadow: none; margin-bottom: 0; }
           .task-card { break-inside: avoid; }
         }
       </style>
@@ -355,120 +376,127 @@ async function exportEquipmentRecords(
         </button>
       </div>
       
-      <div class="header">
-        <h1>Equipment Maintenance Record</h1>
-        <div class="export-date">Exported: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
-      </div>
+      <div class="page">
+        <div class="header">
+          <h1>Equipment Maintenance Record</h1>
+          <h2>${equipment.name}</h2>
+          <p>Exported: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+        </div>
       
-      <h2>Equipment Information</h2>
-      <div class="info-grid">
-        <span class="info-label">Name:</span>
-        <span class="info-value">${equipment.name}</span>
-        
-        ${equipment.category ? `
-        <span class="info-label">Category:</span>
-        <span class="info-value">${equipment.category}</span>
-        ` : ''}
-        
-        ${equipment.notes ? `
-        <span class="info-label">Notes:</span>
-        <span class="info-value">${equipment.notes}</span>
-        ` : ''}
-        
-        <span class="info-label">Added:</span>
-        <span class="info-value">${new Date(equipment.created_at).toLocaleDateString()}</span>
-      </div>
-      
-      ${equipment.has_warranty ? `
-      <h2>Warranty Information</h2>
-      <div class="info-grid">
-        <span class="info-label">Status:</span>
-        <span class="info-value">
-          <span class="${warrantyStatus === 'covered' ? 'warranty-covered' : 'warranty-expired'}">
-            ${warrantyStatus === 'covered' ? 'Under Warranty' : 'Warranty Expired'}
-          </span>
-        </span>
-        
-        <span class="info-label">Purchase Date:</span>
-        <span class="info-value">${equipment.purchase_date ? new Date(equipment.purchase_date).toLocaleDateString() : 'N/A'}</span>
-        
-        <span class="info-label">Duration:</span>
-        <span class="info-value">${equipment.warranty_duration_months} months</span>
-        
-        <span class="info-label">Expiration:</span>
-        <span class="info-value">${warrantyExpiration ? warrantyExpiration.toLocaleDateString() : 'N/A'}</span>
-        
-        ${equipment.warranty_notes ? `
-        <span class="info-label">Warranty Notes:</span>
-        <span class="info-value">${equipment.warranty_notes}</span>
-        ` : ''}
-      </div>
-      ` : ''}
-      
-      <h2>Maintenance Tasks (${equipmentTasks.length})</h2>
-      ${taskLogs.length === 0 ? '<p class="no-logs">No maintenance tasks configured.</p>' : ''}
-      
-      ${taskLogs.map(({ task, logs }) => `
-        <div class="task-card">
-          <h3>${task.name}</h3>
-          ${task.description ? `<p>${task.description}</p>` : ''}
-          <div class="info-grid">
-            <span class="info-label">Type:</span>
-            <span class="info-value">${task.interval_type === 'time' ? 
-              `Every ${task.interval_days} days` : 
-              `Every ${task.interval_units} ${task.usage_unit_label || 'units'}`
-            }</span>
-            
-            ${task.estimated_cost ? `
-            <span class="info-label">Est. Cost:</span>
-            <span class="info-value">$${Number(task.estimated_cost).toFixed(2)}</span>
-            ` : ''}
-            
-            <span class="info-label">Last Serviced:</span>
-            <span class="info-value">${task.last_completed_at ? new Date(task.last_completed_at).toLocaleDateString() : 'Never'}</span>
-          </div>
+      <div class="section-title">Equipment Information</div>
+        <div class="info-grid">
+          <span class="info-label">Name:</span>
+          <span class="info-value">${equipment.name}</span>
           
-          <h4>Service History (${logs.length} entries)</h4>
-          ${logs.length === 0 ? '<p class="no-logs">No service records yet.</p>' : `
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Completed By</th>
-                <th>Notes</th>
-                <th>Cost</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${logs.map(log => `
+          ${equipment.category ? `
+          <span class="info-label">Category:</span>
+          <span class="info-value">${equipment.category}</span>
+          ` : ''}
+          
+          ${equipment.notes ? `
+          <span class="info-label">Notes:</span>
+          <span class="info-value">${equipment.notes}</span>
+          ` : ''}
+          
+          <span class="info-label">Added:</span>
+          <span class="info-value">${new Date(equipment.created_at).toLocaleDateString()}</span>
+        </div>
+        
+        ${equipment.has_warranty ? `
+        <div class="section-title">Warranty Information</div>
+        <div class="info-grid">
+          <span class="info-label">Status:</span>
+          <span class="info-value">
+            <span class="${warrantyStatus === 'covered' ? 'warranty-covered' : 'warranty-expired'}">
+              ${warrantyStatus === 'covered' ? 'Under Warranty' : 'Warranty Expired'}
+            </span>
+          </span>
+          
+          <span class="info-label">Purchase Date:</span>
+          <span class="info-value">${equipment.purchase_date ? new Date(equipment.purchase_date).toLocaleDateString() : 'N/A'}</span>
+          
+          <span class="info-label">Duration:</span>
+          <span class="info-value">${equipment.warranty_duration_months} months</span>
+          
+          <span class="info-label">Expiration:</span>
+          <span class="info-value">${warrantyExpiration ? warrantyExpiration.toLocaleDateString() : 'N/A'}</span>
+          
+          ${equipment.warranty_notes ? `
+          <span class="info-label">Warranty Notes:</span>
+          <span class="info-value">${equipment.warranty_notes}</span>
+          ` : ''}
+        </div>
+        ` : ''}
+        
+        <div class="section-title">Maintenance Tasks (${allTasks.length})</div>
+        ${taskLogs.length === 0 ? '<p class="no-logs">No maintenance tasks configured.</p>' : ''}
+        
+        ${taskLogs.map(({ task, logs }) => `
+          <div class="task-card">
+            <h3>${task.name}</h3>
+            ${task.description ? `<p style="color: #666; margin: 0 0 10px 0; font-size: 14px;">${task.description}</p>` : ''}
+            <div class="info-grid">
+              <span class="info-label">Type:</span>
+              <span class="info-value">${task.interval_type === 'time' ? 
+                `Every ${task.interval_days} days` : 
+                `Every ${task.interval_units} ${task.usage_unit_label || 'units'}`
+              }</span>
+              
+              ${task.estimated_cost ? `
+              <span class="info-label">Est. Cost:</span>
+              <span class="info-value">$${Number(task.estimated_cost).toFixed(2)}</span>
+              ` : ''}
+              
+              <span class="info-label">Last Serviced:</span>
+              <span class="info-value">${task.last_completed_at ? new Date(task.last_completed_at).toLocaleDateString() : 'Never'}</span>
+            </div>
+            
+            <div style="font-weight: bold; margin-top: 15px; color: #D4A84B;">Service History (${logs.length} entries)</div>
+            ${logs.length === 0 ? '<p class="no-logs">No service records yet.</p>' : `
+            <table>
+              <thead>
                 <tr>
-                  <td>${new Date(log.completed_at).toLocaleDateString()}</td>
-                  <td>${log.completed_by || '-'}</td>
-                  <td>${log.notes || '-'}</td>
-                  <td class="log-cost">${log.cost ? '$' + Number(log.cost).toFixed(2) : '-'}</td>
+                  <th>Date</th>
+                  <th>Completed By</th>
+                  <th>Notes</th>
+                  <th>Cost</th>
                 </tr>
-              `).join('')}
-            </tbody>
+              </thead>
+              <tbody>
+                ${logs.map(log => `
+                  <tr>
+                    <td>${new Date(log.completed_at).toLocaleDateString()}</td>
+                    <td>${log.completed_by || '-'}</td>
+                    <td>${log.notes || '-'}</td>
+                    <td style="color: #D4A84B; font-weight: bold;">${log.cost ? '$' + Number(log.cost).toFixed(2) : '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
           </table>
           `}
         </div>
       `).join('')}
       
-      <div class="summary">
-        <h2>Maintenance Summary</h2>
-        <div class="info-grid">
-          <span class="info-label">Total Tasks:</span>
-          <span class="info-value">${equipmentTasks.length}</span>
-          
-          <span class="info-label">Total Service Entries:</span>
-          <span class="info-value">${taskLogs.reduce((sum, { logs }) => sum + logs.length, 0)}</span>
-          
-          <span class="info-label">Total Maintenance Cost:</span>
-          <span class="info-value" style="color: #C9A227; font-weight: bold;">$${totalCost.toFixed(2)}</span>
+      <div class="summary-box">
+          <h2>Maintenance Summary</h2>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <strong>${allTasks.length}</strong>
+              Total Tasks
+            </div>
+            <div class="summary-item">
+              <strong>${taskLogs.reduce((sum, { logs }) => sum + logs.length, 0)}</strong>
+              Service Entries
+            </div>
+            <div class="summary-item">
+              <strong style="color: #D4A84B;">$${totalCost.toFixed(2)}</strong>
+              Total Cost
+            </div>
+          </div>
         </div>
       </div>
       
-      </body>
+    </body>
     </html>
   `;
   
