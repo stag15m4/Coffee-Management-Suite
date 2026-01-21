@@ -411,8 +411,90 @@ export default function TipPayout() {
     csv += `\nTotal Tip Pool,,,${totalPool.toFixed(2)}\n`;
     
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    const csvUrl = URL.createObjectURL(blob);
+    
+    const downloadPage = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Tip Payout CSV Export</title>
+        <style>
+          body { 
+            font-family: Arial, sans-serif; 
+            padding: 40px; 
+            color: #2C2416; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            text-align: center;
+          }
+          .container { 
+            border: 1px solid #D4A84B; 
+            border-radius: 12px; 
+            padding: 40px; 
+            background: #FFFFFF; 
+          }
+          h1 { color: #2C2416; margin-bottom: 10px; }
+          p { color: #666; margin: 10px 0; }
+          .button { 
+            display: inline-flex; 
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px; 
+            background-color: #D4A84B; 
+            color: #2C2416; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            font-weight: 600;
+            margin: 8px;
+            cursor: pointer;
+            border: none;
+            font-size: 14px;
+          }
+          .button:hover { background-color: #c49a42; }
+          .button.secondary { 
+            background-color: #f5f5f5; 
+            border: 1px solid #ddd;
+          }
+          .button.secondary:hover { background-color: #e5e5e5; }
+          .info { 
+            background: #FDF8F0; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 20px 0;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>CSV Export Ready</h1>
+          <p>Weekly Tip Payout</p>
+          
+          <div class="info">
+            <p><strong>Week:</strong> ${weekRange.start} - ${weekRange.end}</p>
+            <p><strong>Total Pool:</strong> ${formatCurrency(totalPool)}</p>
+          </div>
+          
+          <div style="margin: 30px 0;">
+            <a href="${csvUrl}" download="tip-payout-weekly.csv" class="button">
+              Download CSV File
+            </a>
+          </div>
+          
+          <div>
+            <button class="button secondary" onclick="window.close()">
+              Close & Return to App
+            </button>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    const downloadWindow = window.open('', '_blank');
+    if (downloadWindow) {
+      downloadWindow.document.write(downloadPage);
+      downloadWindow.document.close();
+    }
   };
 
   const exportPDF = () => {
@@ -566,13 +648,44 @@ export default function TipPayout() {
           .paystub table {
             margin-top: 20px;
           }
+          .button-row { 
+            display: flex; 
+            gap: 10px; 
+            justify-content: center; 
+            margin-bottom: 20px; 
+          }
+          .button { 
+            display: inline-flex; 
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px; 
+            background-color: #C9A227; 
+            color: #4A3728; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-size: 14px;
+          }
+          .button:hover { background-color: #b8911f; }
+          .button.secondary { 
+            background-color: #f5f5f5; 
+            border: 1px solid #ddd;
+          }
+          .button.secondary:hover { background-color: #e5e5e5; }
           @media print { 
             body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
             .page-break { page-break-before: always; margin-top: 0; }
+            .no-print { display: none !important; }
           }
         </style>
       </head>
       <body>
+        <div class="button-row no-print">
+          <button class="button secondary" onclick="window.close()">Close & Return to App</button>
+          <button class="button" onclick="window.print()">Print / Save as PDF</button>
+        </div>
         <div class="container">
           <div class="header">
             <h1>Erwin Mills Coffee Co.</h1>
@@ -624,7 +737,6 @@ export default function TipPayout() {
     if (printWindow) {
       printWindow.document.write(printContent);
       printWindow.document.close();
-      printWindow.print();
     }
   };
 
