@@ -634,6 +634,14 @@ export default function TipPayout() {
       return;
     }
 
+    // Open window synchronously BEFORE async calls to prevent popup blocker
+    const exportWindow = window.open('', '_blank');
+    if (!exportWindow) {
+      toast({ title: 'Please allow popups to export', variant: 'destructive' });
+      return;
+    }
+    exportWindow.document.write('<html><body><h2 style="font-family: Arial; color: #2C2416; text-align: center; padding-top: 100px;">Loading historical data...</h2></body></html>');
+
     setExportingHistory(true);
     try {
       // Fetch all weekly data in range
@@ -659,6 +667,7 @@ export default function TipPayout() {
       if (hoursError) throw hoursError;
 
       if (!weeklyData?.length) {
+        exportWindow.close();
         toast({ title: 'No data found in selected date range', variant: 'destructive' });
         setExportingHistory(false);
         return;
@@ -668,13 +677,90 @@ export default function TipPayout() {
       const startRange = new Date(historyStartDate + 'T00:00:00').toLocaleDateString('en-US');
       const endRange = new Date(historyEndDate + 'T00:00:00').toLocaleDateString('en-US');
 
+      const baseStyles = `
+        <style>
+          @media print {
+            .no-print { display: none !important; }
+            body { padding: 0; margin: 0; }
+            .container { border: none !important; box-shadow: none !important; }
+          }
+          body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            color: #2C2416; 
+            max-width: 900px; 
+            margin: 0 auto;
+          }
+          .container { 
+            border: 1px solid #D4A84B; 
+            border-radius: 12px; 
+            padding: 30px; 
+            background: #FFFFFF; 
+          }
+          h1 { color: #2C2416; margin-bottom: 5px; text-align: center; }
+          h2 { color: #2C2416; margin-top: 0; text-align: center; font-size: 16px; font-weight: normal; }
+          .date-range { text-align: center; color: #666; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th { 
+            background: #D4A84B; 
+            color: #2C2416; 
+            padding: 10px; 
+            text-align: left; 
+            font-weight: bold;
+          }
+          td { 
+            padding: 10px; 
+            border-bottom: 1px solid #eee; 
+          }
+          tr:nth-child(even) { background: #FDF8F0; }
+          .total-row { 
+            background: #2C2416 !important; 
+            color: white; 
+            font-weight: bold;
+          }
+          .total-row td { border-bottom: none; }
+          .button-row { 
+            display: flex; 
+            gap: 10px; 
+            justify-content: center; 
+            margin-bottom: 20px; 
+          }
+          .button { 
+            display: inline-block; 
+            padding: 12px 24px; 
+            background-color: #D4A84B; 
+            color: #2C2416; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            font-size: 14px;
+          }
+          .button:hover { background-color: #c49a42; }
+          .button.secondary { 
+            background-color: #f5f5f5; 
+            border: 1px solid #ddd;
+          }
+          .button.secondary:hover { background-color: #e5e5e5; }
+          .summary-box {
+            background: #FDF8F0;
+            border: 1px solid #D4A84B;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+          }
+          .summary-box h3 { margin: 0 0 10px 0; color: #2C2416; }
+          .summary-value { font-size: 24px; font-weight: bold; color: #D4A84B; }
+        </style>
+      `;
+
       if (historyExportType === 'group') {
         // Group export - all employees, all weeks
-        let csv = `Tip Payout History Report\n`;
-        csv += `Date Range: ${startRange} - ${endRange}\n\n`;
-        csv += `Week,Employee,Hours,Hourly Rate,Payout\n`;
-
         let grandTotalPayout = 0;
+        let grandTotalHours = 0;
+        let tableRows = '';
 
         weeklyData.forEach((week: any) => {
           const weekHours = hoursData?.filter((h: any) => h.week_key === week.week_key) || [];
@@ -685,22 +771,79 @@ export default function TipPayout() {
           const weekRange = getWeekRange(week.week_key);
 
           weekHours.forEach((h: any) => {
-            const payout = (parseFloat(h.hours) || 0) * rate;
+            const hours = parseFloat(h.hours) || 0;
+            const payout = hours * rate;
             grandTotalPayout += payout;
-            csv += `"${weekRange.start}-${weekRange.end}","${h.tip_employees?.name || 'Unknown'}",${h.hours?.toFixed(2) || 0},${rate.toFixed(2)},${payout.toFixed(2)}\n`;
+            grandTotalHours += hours;
+            tableRows += `
+              <tr>
+                <td>${weekRange.start} - ${weekRange.end}</td>
+                <td>${h.tip_employees?.name || 'Unknown'}</td>
+                <td>${hours.toFixed(2)}</td>
+                <td>$${rate.toFixed(2)}</td>
+                <td>$${payout.toFixed(2)}</td>
+              </tr>
+            `;
           });
         });
 
-        csv += `\nGrand Total Payouts,,,,$${grandTotalPayout.toFixed(2)}\n`;
+        const html = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Tip Payout History Report</title>
+            ${baseStyles}
+          </head>
+          <body>
+            <div class="button-row no-print">
+              <button class="button secondary" onclick="window.close()">Close & Return to App</button>
+              <button class="button" onclick="window.print()">Print / Save as PDF</button>
+            </div>
+            <div class="container">
+              <h1>Tip Payout History Report</h1>
+              <h2>All Employees</h2>
+              <p class="date-range">${startRange} - ${endRange}</p>
+              
+              <div class="summary-box">
+                <h3>Grand Total</h3>
+                <div class="summary-value">$${grandTotalPayout.toFixed(2)}</div>
+                <p style="margin: 10px 0 0 0; color: #666;">${grandTotalHours.toFixed(2)} total hours across ${weeklyData.length} weeks</p>
+              </div>
+              
+              <table>
+                <thead>
+                  <tr>
+                    <th>Week</th>
+                    <th>Employee</th>
+                    <th>Hours</th>
+                    <th>Rate</th>
+                    <th>Payout</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tableRows}
+                  <tr class="total-row">
+                    <td colspan="2">GRAND TOTAL</td>
+                    <td>${grandTotalHours.toFixed(2)}</td>
+                    <td></td>
+                    <td>$${grandTotalPayout.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </body>
+          </html>
+        `;
 
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        toast({ title: 'Historical export opened!' });
+        exportWindow.document.open();
+        exportWindow.document.write(html);
+        exportWindow.document.close();
+        toast({ title: 'Historical report ready!' });
 
       } else {
         // Individual export - single employee
         if (!historySelectedEmployee) {
+          exportWindow.close();
           toast({ title: 'Please select an employee', variant: 'destructive' });
           setExportingHistory(false);
           return;
@@ -709,12 +852,9 @@ export default function TipPayout() {
         const employeeHoursFiltered = hoursData?.filter((h: any) => h.tip_employees?.id === historySelectedEmployee) || [];
         const employee = allEmployees.find(e => e.id === historySelectedEmployee);
 
-        let csv = `Tip Payout History - ${employee?.name || 'Employee'}\n`;
-        csv += `Date Range: ${startRange} - ${endRange}\n\n`;
-        csv += `Week,Hours,Hourly Rate,Payout\n`;
-
         let totalEarnings = 0;
         let totalHoursWorked = 0;
+        let tableRows = '';
 
         weeklyData.forEach((week: any) => {
           const empHour = employeeHoursFiltered.find((h: any) => h.week_key === week.week_key);
@@ -732,19 +872,71 @@ export default function TipPayout() {
           totalEarnings += payout;
           totalHoursWorked += hours;
 
-          csv += `"${weekRange.start}-${weekRange.end}",${hours.toFixed(2)},${rate.toFixed(2)},${payout.toFixed(2)}\n`;
+          tableRows += `
+            <tr>
+              <td>${weekRange.start} - ${weekRange.end}</td>
+              <td>${hours.toFixed(2)}</td>
+              <td>$${rate.toFixed(2)}</td>
+              <td>$${payout.toFixed(2)}</td>
+            </tr>
+          `;
         });
 
-        csv += `\nTotal Hours,${totalHoursWorked.toFixed(2)},,\n`;
-        csv += `Total Earnings,,,$${totalEarnings.toFixed(2)}\n`;
+        const html = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Tip Payout History - ${employee?.name || 'Employee'}</title>
+            ${baseStyles}
+          </head>
+          <body>
+            <div class="button-row no-print">
+              <button class="button secondary" onclick="window.close()">Close & Return to App</button>
+              <button class="button" onclick="window.print()">Print / Save as PDF</button>
+            </div>
+            <div class="container">
+              <h1>Tip Payout History</h1>
+              <h2>${employee?.name || 'Employee'}</h2>
+              <p class="date-range">${startRange} - ${endRange}</p>
+              
+              <div class="summary-box">
+                <h3>Total Earnings</h3>
+                <div class="summary-value">$${totalEarnings.toFixed(2)}</div>
+                <p style="margin: 10px 0 0 0; color: #666;">${totalHoursWorked.toFixed(2)} hours worked</p>
+              </div>
+              
+              <table>
+                <thead>
+                  <tr>
+                    <th>Week</th>
+                    <th>Hours</th>
+                    <th>Rate</th>
+                    <th>Payout</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tableRows}
+                  <tr class="total-row">
+                    <td>TOTAL</td>
+                    <td>${totalHoursWorked.toFixed(2)}</td>
+                    <td></td>
+                    <td>$${totalEarnings.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </body>
+          </html>
+        `;
 
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        toast({ title: `${employee?.name}'s history opened!` });
+        exportWindow.document.open();
+        exportWindow.document.write(html);
+        exportWindow.document.close();
+        toast({ title: `${employee?.name}'s history ready!` });
       }
     } catch (error: any) {
       console.error('Export error:', error);
+      exportWindow.close();
       toast({ title: 'Error exporting history', description: error.message, variant: 'destructive' });
     } finally {
       setExportingHistory(false);
