@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
+import { useAppResume } from '@/hooks/use-app-resume';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -250,6 +251,16 @@ export default function TipPayout() {
   useEffect(() => {
     loadWeekData();
   }, [loadWeekData]);
+
+  // Refresh data when app resumes from background (iPad multitasking)
+  useAppResume(() => {
+    if (tenant?.id) {
+      console.log('[TipPayout] Refreshing data after app resume');
+      loadEmployees();
+      loadAllEmployees();
+      loadWeekData();
+    }
+  }, [tenant?.id, loadEmployees, loadAllEmployees, loadWeekData]);
 
   const addEmployee = async () => {
     if (!tenant?.id || !newEmployeeName.trim()) {

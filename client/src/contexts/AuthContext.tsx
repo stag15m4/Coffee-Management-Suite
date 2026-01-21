@@ -245,14 +245,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUserData]);
 
   // Handle visibility change (iPad app switching, tab switching)
-  // Refresh session when app returns to foreground
+  // Refresh session and notify pages when app returns to foreground
   useEffect(() => {
     let isMounted = true;
+    let lastVisibilityTime = Date.now();
     
     const handleVisibilityChange = async () => {
       // Check visibility and that we have a user and component is still mounted
       if (document.visibilityState === 'visible' && user && isMounted) {
-        console.log('[Session] App returned to foreground, refreshing session...');
+        const timeSinceHidden = Date.now() - lastVisibilityTime;
+        console.log(`[Session] App returned to foreground after ${Math.round(timeSinceHidden / 1000)}s, refreshing session...`);
+        
         try {
           // Refresh the Supabase session
           const { data, error } = await supabase.auth.refreshSession();
@@ -273,9 +276,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSession(data.session);
             setUser(data.session.user);
           }
+          
+          // Dispatch custom event to notify pages to refresh their data
+          // Only refresh if app was hidden for more than 30 seconds
+          if (timeSinceHidden > 30000) {
+            console.log('[Session] Dispatching app-resumed event to refresh page data');
+            window.dispatchEvent(new CustomEvent('app-resumed'));
+          }
         } catch (err) {
           console.error('[Session] Error during visibility refresh:', err);
         }
+      } else if (document.visibilityState === 'hidden') {
+        lastVisibilityTime = Date.now();
       }
     };
 
