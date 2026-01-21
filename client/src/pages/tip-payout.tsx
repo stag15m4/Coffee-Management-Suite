@@ -129,7 +129,7 @@ export default function TipPayout() {
         .from('tip_employees')
         .select('*')
         .eq('tenant_id', tenant.id)
-        .eq('is_active', true)
+        .or('is_active.eq.true,is_active.is.null')
         .order('name');
       
       if (error) throw error;
@@ -1113,7 +1113,7 @@ export default function TipPayout() {
                 </div>
                 
                 {allEmployees
-                  .filter(e => showInactive || e.is_active)
+                  .filter(e => showInactive || e.is_active !== false)
                   .map(emp => (
                     <div 
                       key={emp.id}
