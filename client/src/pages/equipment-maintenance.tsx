@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
+import { useAppResume } from '@/hooks/use-app-resume';
+import { queryClient } from '@/lib/queryClient';
 import { 
   useEquipment, 
   useMaintenanceTasks, 
@@ -523,6 +525,15 @@ export default function EquipmentMaintenance() {
   const deleteTaskMutation = useDeleteMaintenanceTask();
   const logMaintenanceMutation = useLogMaintenance();
   const updateUsageMutation = useUpdateUsage();
+  
+  // Refresh data when app resumes from background (iPad multitasking)
+  useAppResume(() => {
+    if (tenant?.id) {
+      console.log('[EquipmentMaintenance] Refreshing data after app resume');
+      queryClient.invalidateQueries({ queryKey: ['equipment'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenance-tasks'] });
+    }
+  }, [tenant?.id]);
   
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
