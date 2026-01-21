@@ -101,25 +101,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setFetchInProgress(userId);
     
     try {
-      // Add timeout wrapper for network resilience
-      const withTimeout = <T,>(thenable: PromiseLike<T>, label: string): Promise<T> => {
-        return Promise.race([
-          Promise.resolve(thenable),
-          new Promise<T>((_, reject) => 
-            setTimeout(() => reject(new Error(`${label} timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
-          )
-        ]);
+      // Add timeout wrapper for network resilience - returns null on timeout instead of throwing
+      const withTimeout = async <T,>(thenable: PromiseLike<T>, label: string): Promise<T | null> => {
+        try {
+          return await Promise.race([
+            Promise.resolve(thenable),
+            new Promise<T>((_, reject) => 
+              setTimeout(() => reject(new Error(`${label} timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+            )
+          ]);
+        } catch (e) {
+          console.error(`Error fetching user data: ${e instanceof Error ? e.message : 'Unknown error'}`);
+          return null;
+        }
       };
       
-      // Fetch platform admin AND user profile in parallel - only one will succeed
-      const [adminResult, profileResult] = await Promise.all([
+      // Fetch platform admin AND user profile in parallel - use allSettled so one failure doesn't block the other
+      const [adminSettled, profileSettled] = await Promise.allSettled([
         withTimeout(supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle(), 'Admin query'),
         withTimeout(supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle(), 'Profile query')
-      ]) as [any, any];
+      ]);
+      
+      // Extract results safely
+      const adminResult = adminSettled.status === 'fulfilled' ? adminSettled.value : null;
+      const profileResult = profileSettled.status === 'fulfilled' ? profileSettled.value : null;
 
       // Check if platform admin
-      if (adminResult.data && !adminResult.error) {
-        setPlatformAdmin(adminResult.data);
+      if (adminResult && (adminResult as any).data && !(adminResult as any).error) {
+        setPlatformAdmin((adminResult as any).data);
         setProfile(null);
         setTenant(null);
         setBranding(null);
@@ -129,13 +138,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
 
-      // Check for regular user profile
-      if (profileResult.error) {
-        console.error('Profile query error:', profileResult.error.message);
+      // Check for regular user profile - handle null/error cases
+      const profileError = profileResult ? (profileResult as any).error : null;
+      if (profileError) {
+        console.error('Profile query error:', profileError.message);
         // Retry on network errors
-        if (profileResult.error.message?.includes('Load failed') || 
-            profileResult.error.message?.includes('fetch') ||
-            profileResult.error.message?.includes('network')) {
+        if (profileError.message?.includes('Load failed') || 
+            profileError.message?.includes('fetch') ||
+            profileError.message?.includes('network')) {
           if (retryCount < MAX_RETRIES) {
             console.log(`Retrying profile fetch (attempt ${retryCount + 2}/${MAX_RETRIES + 1})...`);
             await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
@@ -143,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       }
-      const profileData = profileResult.data;
+      const profileData = profileResult ? (profileResult as any).data : null;
       if (!profileData) {
         console.error('No profile found for user:', userId);
         setProfile(null);
@@ -154,31 +164,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(profileData);
       setPlatformAdmin(null);
 
-      // Fetch tenant, branding, and modules ALL in parallel with timeouts
-      const [tenantResult, brandingResult, modulesResult] = await Promise.all([
+      // Fetch tenant, branding, and modules ALL in parallel with timeouts - use allSettled for resilience
+      const [tenantSettled, brandingSettled, modulesSettled] = await Promise.allSettled([
         withTimeout(supabase.from('tenants').select('*').eq('id', profileData.tenant_id).single(), 'Tenant query'),
         withTimeout(supabase.from('tenant_branding').select('*').eq('tenant_id', profileData.tenant_id).maybeSingle(), 'Branding query'),
         withTimeout(supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: profileData.tenant_id }), 'Modules query')
-      ]) as [any, any, any];
+      ]);
+      
+      const tenantResult = tenantSettled.status === 'fulfilled' ? tenantSettled.value : null;
+      const brandingResult = brandingSettled.status === 'fulfilled' ? brandingSettled.value : null;
+      const modulesResult = modulesSettled.status === 'fulfilled' ? modulesSettled.value : null;
 
-      if (!tenantResult.error && tenantResult.data) {
-        setTenant(tenantResult.data);
+      if (tenantResult && !(tenantResult as any).error && (tenantResult as any).data) {
+        setTenant((tenantResult as any).data);
       }
-      if (!brandingResult.error && brandingResult.data) {
-        setBranding(brandingResult.data);
+      if (brandingResult && !(brandingResult as any).error && (brandingResult as any).data) {
+        setBranding((brandingResult as any).data);
       }
 
       // Handle modules - log results for debugging
       console.log('DEBUG: Modules RPC result:', JSON.stringify(modulesResult));
       
-      if (modulesResult.error) {
-        console.warn('Module access RPC failed:', modulesResult.error.message, 'Code:', modulesResult.error.code);
+      if (!modulesResult || (modulesResult as any).error) {
+        const errorMsg = modulesResult ? (modulesResult as any).error?.message : 'Query failed';
+        console.warn('Module access RPC failed:', errorMsg);
         // Security: Any error defaults to no modules - do not grant access on failure
         setEnabledModules([]);
       } else {
         // RPC succeeded - use the result (empty array is legitimate)
-        console.log('DEBUG: Modules loaded:', modulesResult.data || []);
-        setEnabledModules((modulesResult.data || []) as ModuleId[]);
+        console.log('DEBUG: Modules loaded:', (modulesResult as any).data || []);
+        setEnabledModules(((modulesResult as any).data || []) as ModuleId[]);
       }
 
       setLastFetchedUserId(userId);
