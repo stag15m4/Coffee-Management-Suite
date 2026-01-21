@@ -480,8 +480,12 @@ export default function EquipmentMaintenance() {
   const { profile, tenant } = useAuth();
   const { toast } = useToast();
   
-  const { data: equipment = [], isLoading: loadingEquipment } = useEquipment();
-  const { data: tasks = [], isLoading: loadingTasks } = useMaintenanceTasks();
+  const { data: equipment = [], isLoading: loadingEquipment, error: equipmentError, isError: equipmentHasError } = useEquipment();
+  const { data: tasks = [], isLoading: loadingTasks, error: tasksError, isError: tasksHasError } = useMaintenanceTasks();
+  
+  // Log any query errors for debugging
+  if (equipmentError) console.error('Equipment query error:', equipmentError);
+  if (tasksError) console.error('Tasks query error:', tasksError);
   
   const addEquipmentMutation = useAddEquipment();
   const updateEquipmentMutation = useUpdateEquipment();
@@ -986,7 +990,8 @@ export default function EquipmentMaintenance() {
   
   const categories = Array.from(new Set(equipment.map(e => e.category).filter(Boolean))) as string[];
   
-  const isLoading = loadingEquipment || loadingTasks;
+  // Don't stay in loading state if there's an error - show content anyway
+  const isLoading = (loadingEquipment && !equipmentHasError) || (loadingTasks && !tasksHasError);
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
