@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserData = useCallback(async (userId: string, retryCount = 0, force = false): Promise<boolean> => {
     const MAX_RETRIES = 3;
-    const TIMEOUT_MS = 15000;
+    const TIMEOUT_MS = 8000; // Reduced from 15s to fail faster and allow app to proceed
     
     // Skip if already fetching for this user (deduplication)
     if (fetchInProgress === userId && !force) {
