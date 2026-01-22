@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
+import { useLocationChange } from '@/hooks/use-location-change';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -148,6 +149,12 @@ export default function CoffeeOrder() {
       loadData();
     }
   }, [tenant?.id, loadData]);
+
+  // Refresh data when location changes
+  useLocationChange(() => {
+    console.log('[CoffeeOrder] Refreshing data after location change');
+    loadData();
+  }, [loadData]);
 
   const saveVendor = async () => {
     if (!tenant?.id) return;
