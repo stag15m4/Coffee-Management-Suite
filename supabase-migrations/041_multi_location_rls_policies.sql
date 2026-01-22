@@ -116,23 +116,46 @@ CREATE POLICY "Leads can update tip hours" ON tip_employee_hours
     WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('lead'::user_role));
 
 -- =====================================================
--- COFFEE PRODUCT PRICES - Allow access to accessible tenants
+-- TENANT COFFEE VENDORS - Allow access to accessible tenants
 -- =====================================================
-DROP POLICY IF EXISTS "Users can view coffee prices in their tenant" ON coffee_product_prices;
-DROP POLICY IF EXISTS "Users can view accessible coffee prices" ON coffee_product_prices;
-CREATE POLICY "Users can view accessible coffee prices" ON coffee_product_prices
+DROP POLICY IF EXISTS "Users can view own tenant vendor" ON tenant_coffee_vendors;
+DROP POLICY IF EXISTS "Leads+ can manage vendor" ON tenant_coffee_vendors;
+DROP POLICY IF EXISTS "Users can view accessible coffee vendors" ON tenant_coffee_vendors;
+DROP POLICY IF EXISTS "Leads can insert coffee vendors" ON tenant_coffee_vendors;
+DROP POLICY IF EXISTS "Leads can update coffee vendors" ON tenant_coffee_vendors;
+
+CREATE POLICY "Users can view accessible coffee vendors" ON tenant_coffee_vendors
     FOR SELECT USING (can_access_tenant(tenant_id));
 
-DROP POLICY IF EXISTS "Leads can manage coffee prices" ON coffee_product_prices;
-DROP POLICY IF EXISTS "Leads can insert coffee prices" ON coffee_product_prices;
-DROP POLICY IF EXISTS "Leads can update coffee prices" ON coffee_product_prices;
-
-CREATE POLICY "Leads can insert coffee prices" ON coffee_product_prices
+CREATE POLICY "Leads can insert coffee vendors" ON tenant_coffee_vendors
     FOR INSERT WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('lead'::user_role));
 
-CREATE POLICY "Leads can update coffee prices" ON coffee_product_prices
+CREATE POLICY "Leads can update coffee vendors" ON tenant_coffee_vendors
     FOR UPDATE USING (can_access_tenant(tenant_id) AND has_role_or_higher('lead'::user_role))
     WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('lead'::user_role));
+
+-- =====================================================
+-- TENANT COFFEE PRODUCTS - Allow access to accessible tenants
+-- =====================================================
+DROP POLICY IF EXISTS "Users can view own tenant products" ON tenant_coffee_products;
+DROP POLICY IF EXISTS "Leads+ can manage products" ON tenant_coffee_products;
+DROP POLICY IF EXISTS "Users can view accessible coffee products" ON tenant_coffee_products;
+DROP POLICY IF EXISTS "Leads can insert coffee products" ON tenant_coffee_products;
+DROP POLICY IF EXISTS "Leads can update coffee products" ON tenant_coffee_products;
+DROP POLICY IF EXISTS "Leads can delete coffee products" ON tenant_coffee_products;
+
+CREATE POLICY "Users can view accessible coffee products" ON tenant_coffee_products
+    FOR SELECT USING (can_access_tenant(tenant_id));
+
+CREATE POLICY "Leads can insert coffee products" ON tenant_coffee_products
+    FOR INSERT WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('lead'::user_role));
+
+CREATE POLICY "Leads can update coffee products" ON tenant_coffee_products
+    FOR UPDATE USING (can_access_tenant(tenant_id) AND has_role_or_higher('lead'::user_role))
+    WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('lead'::user_role));
+
+CREATE POLICY "Leads can delete coffee products" ON tenant_coffee_products
+    FOR DELETE USING (can_access_tenant(tenant_id) AND has_role_or_higher('lead'::user_role));
 
 -- =====================================================
 -- COFFEE ORDER HISTORY - Allow access to accessible tenants
