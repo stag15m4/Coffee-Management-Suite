@@ -402,7 +402,7 @@ CREATE POLICY "Managers can delete recipes" ON recipes
     FOR DELETE USING (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
 
 -- =====================================================
--- RECIPE INGREDIENTS - Allow access to accessible tenants
+-- RECIPE INGREDIENTS - Junction table (uses recipe's tenant_id via join)
 -- =====================================================
 DROP POLICY IF EXISTS "Users can view recipe ingredients" ON recipe_ingredients;
 DROP POLICY IF EXISTS "Managers can manage recipe ingredients" ON recipe_ingredients;
@@ -412,17 +412,46 @@ DROP POLICY IF EXISTS "Managers can update recipe ingredients" ON recipe_ingredi
 DROP POLICY IF EXISTS "Managers can delete recipe ingredients" ON recipe_ingredients;
 
 CREATE POLICY "Users can view accessible recipe ingredients" ON recipe_ingredients
-    FOR SELECT USING (can_access_tenant(tenant_id));
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_ingredients.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        )
+    );
 
 CREATE POLICY "Managers can insert recipe ingredients" ON recipe_ingredients
-    FOR INSERT WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_ingredients.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    );
 
 CREATE POLICY "Managers can update recipe ingredients" ON recipe_ingredients
-    FOR UPDATE USING (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role))
-    WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_ingredients.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    ) WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_ingredients.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    );
 
 CREATE POLICY "Managers can delete recipe ingredients" ON recipe_ingredients
-    FOR DELETE USING (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
+    FOR DELETE USING (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_ingredients.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    );
 
 -- =====================================================
 -- BASE TEMPLATES - Allow access to accessible tenants
@@ -448,7 +477,7 @@ CREATE POLICY "Managers can delete base templates" ON base_templates
     FOR DELETE USING (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
 
 -- =====================================================
--- BASE TEMPLATE INGREDIENTS - Allow access to accessible tenants
+-- BASE TEMPLATE INGREDIENTS - Junction table (uses base_template's tenant_id via join)
 -- =====================================================
 DROP POLICY IF EXISTS "Users can view base template ingredients" ON base_template_ingredients;
 DROP POLICY IF EXISTS "Managers can manage base template ingredients" ON base_template_ingredients;
@@ -458,17 +487,46 @@ DROP POLICY IF EXISTS "Managers can update base template ingredients" ON base_te
 DROP POLICY IF EXISTS "Managers can delete base template ingredients" ON base_template_ingredients;
 
 CREATE POLICY "Users can view accessible base template ingredients" ON base_template_ingredients
-    FOR SELECT USING (can_access_tenant(tenant_id));
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM base_templates 
+            WHERE base_templates.id = base_template_ingredients.base_template_id 
+            AND can_access_tenant(base_templates.tenant_id)
+        )
+    );
 
 CREATE POLICY "Managers can insert base template ingredients" ON base_template_ingredients
-    FOR INSERT WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM base_templates 
+            WHERE base_templates.id = base_template_ingredients.base_template_id 
+            AND can_access_tenant(base_templates.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    );
 
 CREATE POLICY "Managers can update base template ingredients" ON base_template_ingredients
-    FOR UPDATE USING (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role))
-    WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM base_templates 
+            WHERE base_templates.id = base_template_ingredients.base_template_id 
+            AND can_access_tenant(base_templates.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    ) WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM base_templates 
+            WHERE base_templates.id = base_template_ingredients.base_template_id 
+            AND can_access_tenant(base_templates.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    );
 
 CREATE POLICY "Managers can delete base template ingredients" ON base_template_ingredients
-    FOR DELETE USING (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
+    FOR DELETE USING (
+        EXISTS (
+            SELECT 1 FROM base_templates 
+            WHERE base_templates.id = base_template_ingredients.base_template_id 
+            AND can_access_tenant(base_templates.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    );
 
 -- =====================================================
 -- OVERHEAD SETTINGS - Allow access to accessible tenants
@@ -513,30 +571,64 @@ CREATE POLICY "Managers can delete drink sizes" ON drink_sizes
     FOR DELETE USING (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
 
 -- =====================================================
--- RECIPE SIZE PRICING - Allow access to accessible tenants
+-- RECIPE SIZE PRICING - Junction table (uses recipe's tenant_id via join)
 -- =====================================================
 DROP POLICY IF EXISTS "Users can view recipe size pricing" ON recipe_size_pricing;
+DROP POLICY IF EXISTS "Users can view recipe pricing" ON recipe_size_pricing;
 DROP POLICY IF EXISTS "Managers can manage recipe size pricing" ON recipe_size_pricing;
+DROP POLICY IF EXISTS "Managers can manage recipe pricing" ON recipe_size_pricing;
 DROP POLICY IF EXISTS "Users can view accessible recipe size pricing" ON recipe_size_pricing;
 DROP POLICY IF EXISTS "Managers can insert recipe size pricing" ON recipe_size_pricing;
+DROP POLICY IF EXISTS "Managers can insert recipe pricing" ON recipe_size_pricing;
 DROP POLICY IF EXISTS "Managers can update recipe size pricing" ON recipe_size_pricing;
+DROP POLICY IF EXISTS "Managers can update recipe pricing" ON recipe_size_pricing;
 DROP POLICY IF EXISTS "Managers can delete recipe size pricing" ON recipe_size_pricing;
+DROP POLICY IF EXISTS "Managers can delete recipe pricing" ON recipe_size_pricing;
 
 CREATE POLICY "Users can view accessible recipe size pricing" ON recipe_size_pricing
-    FOR SELECT USING (can_access_tenant(tenant_id));
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_size_pricing.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        )
+    );
 
 CREATE POLICY "Managers can insert recipe size pricing" ON recipe_size_pricing
-    FOR INSERT WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_size_pricing.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    );
 
 CREATE POLICY "Managers can update recipe size pricing" ON recipe_size_pricing
-    FOR UPDATE USING (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role))
-    WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_size_pricing.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    ) WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_size_pricing.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    );
 
 CREATE POLICY "Managers can delete recipe size pricing" ON recipe_size_pricing
-    FOR DELETE USING (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
+    FOR DELETE USING (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_size_pricing.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    );
 
 -- =====================================================
--- RECIPE SIZE BASES - Allow access to accessible tenants
+-- RECIPE SIZE BASES - Junction table (uses recipe's tenant_id via join)
 -- =====================================================
 DROP POLICY IF EXISTS "Users can view recipe size bases" ON recipe_size_bases;
 DROP POLICY IF EXISTS "Managers can manage recipe size bases" ON recipe_size_bases;
@@ -546,17 +638,46 @@ DROP POLICY IF EXISTS "Managers can update recipe size bases" ON recipe_size_bas
 DROP POLICY IF EXISTS "Managers can delete recipe size bases" ON recipe_size_bases;
 
 CREATE POLICY "Users can view accessible recipe size bases" ON recipe_size_bases
-    FOR SELECT USING (can_access_tenant(tenant_id));
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_size_bases.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        )
+    );
 
 CREATE POLICY "Managers can insert recipe size bases" ON recipe_size_bases
-    FOR INSERT WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_size_bases.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    );
 
 CREATE POLICY "Managers can update recipe size bases" ON recipe_size_bases
-    FOR UPDATE USING (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role))
-    WITH CHECK (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_size_bases.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    ) WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_size_bases.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    );
 
 CREATE POLICY "Managers can delete recipe size bases" ON recipe_size_bases
-    FOR DELETE USING (can_access_tenant(tenant_id) AND has_role_or_higher('manager'::user_role));
+    FOR DELETE USING (
+        EXISTS (
+            SELECT 1 FROM recipes 
+            WHERE recipes.id = recipe_size_bases.recipe_id 
+            AND can_access_tenant(recipes.tenant_id)
+        ) AND has_role_or_higher('manager'::user_role)
+    );
 
 -- =====================================================
 -- SUCCESS MESSAGE
