@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useUpload } from '@/hooks/use-upload';
 import { useAppResume } from '@/hooks/use-app-resume';
+import { useLocationChange } from '@/hooks/use-location-change';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -308,6 +309,12 @@ export default function AdminTasks() {
       loadData();
     }
   }, [tenant?.id, loadData]);
+  
+  // Refresh data when location changes
+  useLocationChange(() => {
+    console.log('[AdminTasks] Refreshing data after location change');
+    loadData();
+  }, [loadData]);
   
   const loadTaskDetails = async (taskId: string) => {
     try {
