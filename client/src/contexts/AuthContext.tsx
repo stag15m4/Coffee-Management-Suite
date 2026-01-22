@@ -39,6 +39,7 @@ export interface Tenant {
   subscription_status?: string;
   subscription_plan?: string;
   is_active?: boolean;
+  parent_tenant_id?: string | null;
 }
 
 export type ModuleId = 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering' | 'equipment-maintenance' | 'admin-tasks';
@@ -50,6 +51,9 @@ interface AuthContextType {
   platformAdmin: PlatformAdmin | null;
   isPlatformAdmin: boolean;
   tenant: Tenant | null;
+  primaryTenant: Tenant | null;
+  accessibleLocations: Tenant[];
+  activeLocationId: string | null;
   branding: TenantBranding | null;
   enabledModules: ModuleId[];
   loading: boolean;
@@ -59,6 +63,8 @@ interface AuthContextType {
   hasRole: (requiredRole: UserRole) => boolean;
   canAccessModule: (module: ModuleId) => boolean;
   refreshEnabledModules: () => Promise<void>;
+  switchLocation: (locationId: string) => Promise<void>;
+  isParentTenant: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -69,11 +75,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [platformAdmin, setPlatformAdmin] = useState<PlatformAdmin | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [primaryTenant, setPrimaryTenant] = useState<Tenant | null>(null);
+  const [accessibleLocations, setAccessibleLocations] = useState<Tenant[]>([]);
+  const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [branding, setBranding] = useState<TenantBranding | null>(null);
   const [enabledModules, setEnabledModules] = useState<ModuleId[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchInProgress, setFetchInProgress] = useState<string | null>(null);
   const [lastFetchedUserId, setLastFetchedUserId] = useState<string | null>(null);
+  const [isParentTenant, setIsParentTenant] = useState(false);
 
   const fetchUserData = useCallback(async (userId: string, retryCount = 0, force = false): Promise<boolean> => {
     const MAX_RETRIES = 3;
@@ -176,7 +186,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const modulesResult = modulesSettled.status === 'fulfilled' ? modulesSettled.value : null;
 
       if (tenantResult && !(tenantResult as any).error && (tenantResult as any).data) {
-        setTenant((tenantResult as any).data);
+        const tenantData = (tenantResult as any).data as Tenant;
+        setTenant(tenantData);
+        setPrimaryTenant(tenantData);
+        
+        // Load all accessible locations (parent/child for owners, plus any user_tenant_assignments)
+        let allLocations: Tenant[] = [tenantData];
+        
+        if (profileData.role === 'owner') {
+          // Owners get child locations of their primary tenant
+          const { data: childLocations } = await supabase
+            .from('tenants')
+            .select('*')
+            .eq('parent_tenant_id', tenantData.id)
+            .eq('is_active', true)
+            .order('name');
+          
+          allLocations = [tenantData, ...(childLocations || [])];
+          setIsParentTenant((childLocations?.length || 0) > 0);
+        } else {
+          setIsParentTenant(false);
+        }
+        
+        // Also load any additional locations from user_tenant_assignments for all users
+        const { data: assignments } = await supabase
+          .from('user_tenant_assignments')
+          .select('tenant:tenants!inner(*)')
+          .eq('user_id', userId)
+          .eq('is_active', true);
+        
+        if (assignments && assignments.length > 0) {
+          const assignedTenants = assignments
+            .map((a: any) => a.tenant as Tenant)
+            .filter((t: Tenant) => t.is_active && !allLocations.find(l => l.id === t.id));
+          allLocations = [...allLocations, ...assignedTenants];
+        }
+        
+        setAccessibleLocations(allLocations);
+        
+        // Check if there's a saved active location in session storage
+        const savedLocationId = sessionStorage.getItem('selected_location_id');
+        if (savedLocationId && savedLocationId !== tenantData.id) {
+          // Validate the saved location is in accessible locations list
+          const savedLocation = allLocations.find(loc => loc.id === savedLocationId);
+          
+          if (savedLocation) {
+            setTenant(savedLocation);
+            setActiveLocationId(savedLocationId);
+          } else {
+            sessionStorage.removeItem('selected_location_id');
+            setActiveLocationId(tenantData.id);
+          }
+        } else {
+          setActiveLocationId(tenantData.id);
+        }
       }
       if (brandingResult && !(brandingResult as any).error && (brandingResult as any).data) {
         setBranding((brandingResult as any).data);
@@ -402,6 +465,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return hasRole(moduleAccess[module]);
   };
 
+  const switchLocation = useCallback(async (locationId: string) => {
+    // Validate the location is in accessible locations
+    const targetLocation = accessibleLocations.find(loc => loc.id === locationId);
+    if (!targetLocation) {
+      console.error('Cannot switch to inaccessible location:', locationId);
+      return;
+    }
+
+    // Update tenant context
+    setTenant(targetLocation);
+    setActiveLocationId(locationId);
+    sessionStorage.setItem('selected_location_id', locationId);
+
+    // Load branding for the new location
+    const { data: newBranding } = await supabase
+      .from('tenant_branding')
+      .select('*')
+      .eq('tenant_id', locationId)
+      .maybeSingle();
+
+    if (newBranding) {
+      setBranding(newBranding);
+    }
+
+    // Refresh enabled modules for the new location
+    const { data: modules } = await supabase.rpc('get_tenant_enabled_modules', {
+      p_tenant_id: locationId
+    });
+    if (modules) {
+      setEnabledModules(modules as ModuleId[]);
+    }
+
+    // Dispatch location-changed event so pages can refresh their data
+    console.log('[AuthContext] Dispatching location-changed event for', locationId);
+    window.dispatchEvent(new CustomEvent('location-changed', { detail: { locationId } }));
+  }, [accessibleLocations]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -411,6 +511,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         platformAdmin,
         isPlatformAdmin: !!platformAdmin,
         tenant,
+        primaryTenant,
+        accessibleLocations,
+        activeLocationId,
         branding,
         enabledModules,
         loading,
@@ -420,6 +523,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasRole,
         canAccessModule,
         refreshEnabledModules,
+        switchLocation,
+        isParentTenant,
       }}
     >
       {children}

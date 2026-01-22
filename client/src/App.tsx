@@ -16,6 +16,8 @@ import EquipmentMaintenance from "@/pages/equipment-maintenance";
 import AdminTasks from "@/pages/admin-tasks";
 import AdminUsers from "@/pages/admin-users";
 import AdminBranding from "@/pages/admin-branding";
+import AdminLocations from "@/pages/admin-locations";
+import OrganizationDashboard from "@/pages/organization-dashboard";
 import PlatformAdmin from "@/pages/platform-admin";
 
 function Router() {
@@ -31,6 +33,16 @@ function Router() {
       <Route path="/admin/branding">
         <ProtectedRoute>
           <AdminBranding />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/locations">
+        <ProtectedRoute>
+          <AdminLocations />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/organization">
+        <ProtectedRoute>
+          <OrganizationDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/recipe-costing">

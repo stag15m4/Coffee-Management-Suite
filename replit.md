@@ -23,6 +23,20 @@ Preferred communication style: Simple, everyday language.
 - Tenant identified by `tenant_id` on all data tables
 - Helper functions: `get_current_tenant_id()`, `get_current_user_role()`, `has_role_or_higher()`
 
+### Multi-Location Hierarchy
+- Tenants support parent-child relationships via `parent_tenant_id` column
+- Owner of a parent tenant can view and manage all child locations
+- `user_tenant_assignments` table allows users to work at multiple locations
+- Helper functions for multi-location access:
+  - `get_user_accessible_tenants()` - Returns all tenant IDs user can access
+  - `can_access_tenant(tenant_id)` - Checks if user can access specific tenant
+  - `get_child_tenants(parent_id)` - Returns child locations of a parent
+  - `is_parent_tenant(tenant_id)` - Checks if tenant has child locations
+- AuthContext tracks `primaryTenant`, `accessibleLocations`, and `activeLocationId`
+- `switchLocation(locationId)` function switches active tenant context
+- Organization Dashboard (`/organization`) shows all locations with aggregated metrics
+- Location Management (`/admin/locations`) allows owners to add/edit/deactivate locations
+
 ### Role Hierarchy
 
 #### Platform Level (SaaS Management)
@@ -57,6 +71,7 @@ SQL migration files in `supabase-migrations/`:
 14. `035_fix_user_profiles_circular_dependency.sql` - Fixes RLS circular dependency with get_my_profile_info() function
 15. `036_admin_tasks_schema.sql` - Admin task categories, tasks, comments, and history tables
 16. `038_fix_recipe_tenant_isolation.sql` - **CRITICAL**: Fixes Recipe Costing tenant isolation with proper RLS policies including WITH CHECK clauses
+17. `040_multi_location_schema.sql` - Multi-location hierarchy with parent_tenant_id, user_tenant_assignments, and helper functions
 
 ### Recipe Costing Module Architecture (Updated Jan 2026)
 - **Frontend hooks** (`use-recipes.ts`, `use-ingredients.ts`) query Supabase directly with tenant filtering
