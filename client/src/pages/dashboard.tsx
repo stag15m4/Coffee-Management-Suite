@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calculator, DollarSign, Coffee, Receipt, Wrench, RefreshCw, ListTodo } from 'lucide-react';
+import { Calculator, DollarSign, Coffee, Receipt, Wrench, RefreshCw, ListTodo, Building2 } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { useToast } from '@/hooks/use-toast';
 
@@ -231,7 +231,31 @@ export default function Dashboard() {
             <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>
               Admin Tools
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {profile?.role === 'owner' && (
+                <Link href="/organization" data-testid="link-organization">
+                  <Card className="hover-elevate cursor-pointer" style={{ backgroundColor: colors.white }}>
+                    <CardHeader>
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-10 h-10 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: colors.gold }}
+                        >
+                          <Building2 className="w-5 h-5" style={{ color: colors.brown }} />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base" style={{ color: colors.brown }}>
+                            Manage Locations
+                          </CardTitle>
+                          <CardDescription style={{ color: colors.brownLight }}>
+                            View all locations and metrics
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              )}
               <Link href="/admin/users" data-testid="link-admin-users">
                 <Card className="hover-elevate cursor-pointer" style={{ backgroundColor: colors.white }}>
                   <CardHeader>
