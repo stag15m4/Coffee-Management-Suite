@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
+import { useLocationChange } from '@/hooks/use-location-change';
 import { queryClient } from '@/lib/queryClient';
 import { 
   useEquipment, 
@@ -534,6 +535,13 @@ export default function EquipmentMaintenance() {
       queryClient.invalidateQueries({ queryKey: ['maintenance-tasks'] });
     }
   }, [tenant?.id]);
+
+  // Refresh data when location changes
+  useLocationChange(() => {
+    console.log('[EquipmentMaintenance] Refreshing data after location change');
+    queryClient.invalidateQueries({ queryKey: ['equipment'] });
+    queryClient.invalidateQueries({ queryKey: ['maintenance-tasks'] });
+  }, []);
   
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);

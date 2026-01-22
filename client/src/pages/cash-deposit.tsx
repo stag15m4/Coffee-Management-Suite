@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
+import { useLocationChange } from '@/hooks/use-location-change';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -143,6 +144,12 @@ export default function CashDeposit() {
       loadEntries();
     }
   }, [tenant?.id, loadEntries]);
+
+  // Refresh data when location changes
+  useLocationChange(() => {
+    console.log('[CashDeposit] Refreshing data after location change');
+    loadEntries();
+  }, [loadEntries]);
 
   useEffect(() => {
     if (editingEntry) {
