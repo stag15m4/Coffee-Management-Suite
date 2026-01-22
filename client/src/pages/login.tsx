@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Footer } from '@/components/Footer';
+import { Building2, ChevronRight, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,11 @@ const colors = {
   inputBg: '#FDF8E8',
 };
 
+interface AccessibleLocation {
+  id: string;
+  name: string;
+}
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,7 +39,10 @@ export default function Login() {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [isResetting, setIsResetting] = useState(false);
-  const { signIn, user, loading, isPlatformAdmin, profile } = useAuth();
+  const [showLocationSelector, setShowLocationSelector] = useState(false);
+  const [availableLocations, setAvailableLocations] = useState<AccessibleLocation[]>([]);
+  const [selectingLocation, setSelectingLocation] = useState(false);
+  const { signIn, user, loading, isPlatformAdmin, profile, accessibleLocations, switchLocation, tenant } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -77,6 +86,13 @@ export default function Login() {
       if (isPlatformAdmin) {
         window.location.href = '/platform-admin';
       } else if (profile) {
+        // Check if user has multiple accessible locations
+        if (accessibleLocations && accessibleLocations.length > 1 && !showLocationSelector) {
+          // Show location selector for users with multiple locations
+          setAvailableLocations(accessibleLocations.map(loc => ({ id: loc.id, name: loc.name })));
+          setShowLocationSelector(true);
+          return;
+        }
         window.location.href = '/';
       }
       // If user exists but no profile or platform admin found,
@@ -85,7 +101,19 @@ export default function Login() {
         window.location.href = '/';
       }
     }
-  }, [loading, user, isPlatformAdmin, profile]);
+  }, [loading, user, isPlatformAdmin, profile, accessibleLocations, showLocationSelector]);
+
+  const handleLocationSelect = async (locationId: string) => {
+    setSelectingLocation(true);
+    try {
+      await switchLocation(locationId);
+      toast({ title: 'Location selected' });
+      window.location.href = '/';
+    } catch (error: any) {
+      toast({ title: 'Error selecting location', description: error.message, variant: 'destructive' });
+      setSelectingLocation(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,11 +155,8 @@ export default function Login() {
         description: 'You have been logged in successfully.',
       });
       
-      // Force navigation after successful login
-      // The useEffect should handle this, but as a fallback we'll redirect directly
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 500);
+      // Don't force redirect - let useEffect handle it
+      // It will either redirect directly or show location selector
     } catch (err: any) {
       toast({
         title: 'Connection Error',
@@ -255,6 +280,41 @@ export default function Login() {
               {isResetting ? 'Sending...' : 'Send Reset Link'}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Location Selector Dialog */}
+      <Dialog open={showLocationSelector} onOpenChange={() => {}}>
+        <DialogContent style={{ backgroundColor: colors.white }} className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle style={{ color: colors.brown }}>Select Location</DialogTitle>
+            <DialogDescription style={{ color: colors.brownLight }}>
+              You have access to multiple locations. Choose where you'd like to start today.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 mt-4 max-h-[300px] overflow-y-auto">
+            {availableLocations.map(location => (
+              <button
+                key={location.id}
+                onClick={() => handleLocationSelect(location.id)}
+                disabled={selectingLocation}
+                className="w-full flex items-center gap-3 p-4 rounded-lg text-left hover-elevate transition-colors"
+                style={{ backgroundColor: colors.cream }}
+                data-testid={`button-select-location-${location.id}`}
+              >
+                <Building2 className="w-5 h-5 flex-shrink-0" style={{ color: colors.gold }} />
+                <span className="flex-1 font-medium" style={{ color: colors.brown }}>{location.name}</span>
+                {selectingLocation ? (
+                  <Loader2 className="w-4 h-4 animate-spin" style={{ color: colors.brownLight }} />
+                ) : (
+                  <ChevronRight className="w-4 h-4" style={{ color: colors.brownLight }} />
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-center mt-4" style={{ color: colors.brownLight }}>
+            You can switch locations anytime from the dashboard
+          </p>
         </DialogContent>
       </Dialog>
       

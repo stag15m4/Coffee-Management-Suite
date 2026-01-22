@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Home, Mail } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Home, Mail, MapPin, Building2, Check, X } from 'lucide-react';
 import { Link } from 'wouter';
 import {
   Dialog,
@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Footer } from '@/components/Footer';
 
 function generateSecurePassword(): string {
@@ -49,12 +50,32 @@ interface UserProfile {
   is_active: boolean;
 }
 
+interface Location {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
+interface UserLocationAssignment {
+  user_id: string;
+  tenant_id: string;
+  is_active: boolean;
+}
+
 export default function AdminUsers() {
-  const { profile, tenant } = useAuth();
+  const { profile, tenant, accessibleLocations } = useAuth();
   const { toast } = useToast();
   
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Location management state
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [userAssignments, setUserAssignments] = useState<Record<string, string[]>>({});
+  const [showLocationDialog, setShowLocationDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [savingLocations, setSavingLocations] = useState(false);
+  const [pendingAssignments, setPendingAssignments] = useState<string[]>([]);
   
   // Add user form state
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -67,13 +88,68 @@ export default function AdminUsers() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [createdUserEmail, setCreatedUserEmail] = useState('');
 
+  // Check if current tenant has child locations (multi-location enabled)
+  const hasMultipleLocations = locations.length > 0;
+  const isOwner = profile?.role === 'owner';
+
+  // Load child locations for owners
+  const loadLocations = useCallback(async () => {
+    if (!profile?.tenant_id || profile.role !== 'owner') return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('tenants')
+        .select('id, name, is_active')
+        .eq('parent_tenant_id', profile.tenant_id)
+        .order('name');
+      
+      if (error) throw error;
+      setLocations(data || []);
+    } catch (error: any) {
+      console.error('Error loading locations:', error.message);
+    }
+  }, [profile?.tenant_id, profile?.role]);
+
+  // Load user location assignments
+  const loadUserAssignments = useCallback(async () => {
+    if (!profile?.tenant_id || locations.length === 0) return;
+    
+    try {
+      const locationIds = locations.map(l => l.id);
+      const { data, error } = await supabase
+        .from('user_tenant_assignments')
+        .select('user_id, tenant_id')
+        .in('tenant_id', locationIds)
+        .eq('is_active', true);
+      
+      if (error) throw error;
+      
+      // Group assignments by user
+      const grouped: Record<string, string[]> = {};
+      (data || []).forEach((a: { user_id: string; tenant_id: string }) => {
+        if (!grouped[a.user_id]) grouped[a.user_id] = [];
+        grouped[a.user_id].push(a.tenant_id);
+      });
+      setUserAssignments(grouped);
+    } catch (error: any) {
+      console.error('Error loading assignments:', error.message);
+    }
+  }, [profile?.tenant_id, locations]);
+
   useEffect(() => {
     if (profile?.tenant_id) {
       loadUsers();
+      loadLocations();
     } else {
       setLoading(false);
     }
-  }, [profile?.tenant_id]);
+  }, [profile?.tenant_id, loadLocations]);
+
+  useEffect(() => {
+    if (locations.length > 0) {
+      loadUserAssignments();
+    }
+  }, [locations, loadUserAssignments]);
 
   const loadUsers = async () => {
     if (!profile?.tenant_id) return;
@@ -200,6 +276,67 @@ export default function AdminUsers() {
       toast({ title: 'Error creating user', description: error.message, variant: 'destructive' });
     } finally {
       setCreating(false);
+    }
+  };
+
+  // Open location assignment dialog for a user
+  const openLocationDialog = (user: UserProfile) => {
+    setSelectedUser(user);
+    setPendingAssignments(userAssignments[user.id] || []);
+    setShowLocationDialog(true);
+  };
+
+  // Toggle a location assignment in pending state
+  const toggleLocationAssignment = (locationId: string) => {
+    setPendingAssignments(prev => 
+      prev.includes(locationId) 
+        ? prev.filter(id => id !== locationId)
+        : [...prev, locationId]
+    );
+  };
+
+  // Save location assignments for selected user
+  const saveLocationAssignments = async () => {
+    if (!selectedUser) return;
+    
+    setSavingLocations(true);
+    try {
+      const currentAssignments = userAssignments[selectedUser.id] || [];
+      const toAdd = pendingAssignments.filter(id => !currentAssignments.includes(id));
+      const toRemove = currentAssignments.filter(id => !pendingAssignments.includes(id));
+      
+      // Remove assignments
+      if (toRemove.length > 0) {
+        const { error } = await supabase
+          .from('user_tenant_assignments')
+          .delete()
+          .eq('user_id', selectedUser.id)
+          .in('tenant_id', toRemove);
+        
+        if (error) throw error;
+      }
+      
+      // Add new assignments
+      for (const tenantId of toAdd) {
+        const { error } = await supabase
+          .from('user_tenant_assignments')
+          .upsert({
+            user_id: selectedUser.id,
+            tenant_id: tenantId,
+            role: selectedUser.role,
+            is_active: true
+          }, { onConflict: 'user_id,tenant_id' });
+        
+        if (error) throw error;
+      }
+      
+      toast({ title: 'Location assignments updated' });
+      setShowLocationDialog(false);
+      loadUserAssignments();
+    } catch (error: any) {
+      toast({ title: 'Error updating assignments', description: error.message, variant: 'destructive' });
+    } finally {
+      setSavingLocations(false);
     }
   };
 
@@ -403,6 +540,14 @@ export default function AdminUsers() {
                         )}
                       </p>
                       <p className="text-sm" style={{ color: colors.brownLight }}>{user.email}</p>
+                      {hasMultipleLocations && userAssignments[user.id]?.length > 0 && (
+                        <div className="flex items-center gap-1 mt-1 flex-wrap">
+                          <MapPin className="w-3 h-3" style={{ color: colors.brownLight }} />
+                          <span className="text-xs" style={{ color: colors.brownLight }}>
+                            {userAssignments[user.id].length} location{userAssignments[user.id].length !== 1 ? 's' : ''} assigned
+                          </span>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-3">
@@ -434,6 +579,19 @@ export default function AdminUsers() {
                             </SelectContent>
                           </Select>
                           
+                          {hasMultipleLocations && isOwner && user.role !== 'owner' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openLocationDialog(user)}
+                              style={{ borderColor: colors.gold, color: colors.gold }}
+                              data-testid={`button-locations-${user.id}`}
+                            >
+                              <MapPin className="w-4 h-4 mr-1" />
+                              Locations
+                            </Button>
+                          )}
+                          
                           <Button
                             variant="outline"
                             size="sm"
@@ -455,6 +613,73 @@ export default function AdminUsers() {
             )}
           </CardContent>
         </Card>
+
+        {/* Location Assignment Dialog */}
+        <Dialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
+          <DialogContent style={{ backgroundColor: colors.white }}>
+            <DialogHeader>
+              <DialogTitle style={{ color: colors.brown }}>
+                Assign Locations
+              </DialogTitle>
+              <DialogDescription style={{ color: colors.brownLight }}>
+                Select which locations {selectedUser?.full_name || selectedUser?.email} can access
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {locations.filter(l => l.is_active).map(location => (
+                  <div
+                    key={location.id}
+                    className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover-elevate"
+                    style={{ backgroundColor: colors.cream }}
+                    onClick={() => toggleLocationAssignment(location.id)}
+                    data-testid={`location-option-${location.id}`}
+                  >
+                    <Checkbox
+                      checked={pendingAssignments.includes(location.id)}
+                      onCheckedChange={() => toggleLocationAssignment(location.id)}
+                      data-testid={`checkbox-location-${location.id}`}
+                    />
+                    <Building2 className="w-4 h-4" style={{ color: colors.gold }} />
+                    <span style={{ color: colors.brown }}>{location.name}</span>
+                  </div>
+                ))}
+                {locations.filter(l => l.is_active).length === 0 && (
+                  <p className="text-sm text-center py-4" style={{ color: colors.brownLight }}>
+                    No active locations available
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowLocationDialog(false)}
+                  className="flex-1"
+                  style={{ borderColor: colors.creamDark, color: colors.brown }}
+                  data-testid="button-cancel-locations"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={saveLocationAssignments}
+                  disabled={savingLocations}
+                  className="flex-1"
+                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  data-testid="button-save-locations"
+                >
+                  {savingLocations ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Assignments'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Card style={{ backgroundColor: colors.white }}>
           <CardHeader>
