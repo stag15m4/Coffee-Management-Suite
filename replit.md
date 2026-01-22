@@ -33,9 +33,11 @@ Preferred communication style: Simple, everyday language.
   - `get_child_tenants(parent_id)` - Returns child locations of a parent
   - `is_parent_tenant(tenant_id)` - Checks if tenant has child locations
 - AuthContext tracks `primaryTenant`, `accessibleLocations`, and `activeLocationId`
-- `switchLocation(locationId)` function switches active tenant context
+- `switchLocation(locationId)` function switches active tenant context and dispatches 'location-changed' event
+- `useLocationChange` hook (`client/src/hooks/use-location-change.ts`) allows pages to refresh data on location switch
 - Organization Dashboard (`/organization`) shows all locations with aggregated metrics
 - Location Management (`/admin/locations`) allows owners to add/edit/deactivate locations
+- **Pending**: RLS policies need to be updated to use `can_access_tenant()` for full cross-location data access
 
 ### Role Hierarchy
 
