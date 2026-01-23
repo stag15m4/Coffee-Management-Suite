@@ -19,6 +19,7 @@ import AdminBranding from "@/pages/admin-branding";
 import AdminLocations from "@/pages/admin-locations";
 import OrganizationDashboard from "@/pages/organization-dashboard";
 import PlatformAdmin from "@/pages/platform-admin";
+import Billing from "@/pages/billing";
 
 function Router() {
   return (
@@ -73,6 +74,11 @@ function Router() {
       <Route path="/admin-tasks">
         <ProtectedRoute module="admin-tasks">
           <AdminTasks />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/billing">
+        <ProtectedRoute>
+          <Billing />
         </ProtectedRoute>
       </Route>
       <Route path="/">

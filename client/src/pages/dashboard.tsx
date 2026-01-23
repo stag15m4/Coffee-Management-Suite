@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calculator, DollarSign, Coffee, Receipt, Wrench, RefreshCw, ListTodo, Building2, MapPin } from 'lucide-react';
+import { Calculator, DollarSign, Coffee, Receipt, Wrench, RefreshCw, ListTodo, Building2, MapPin, CreditCard } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { useToast } from '@/hooks/use-toast';
 
@@ -316,6 +316,30 @@ export default function Dashboard() {
                       <CardDescription style={{ color: colors.brownLight }}>
                         Customize logo and colors
                       </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              )}
+              {profile?.role === 'owner' && (
+                <Link href="/billing" data-testid="link-billing">
+                  <Card className="hover-elevate cursor-pointer" style={{ backgroundColor: colors.white }}>
+                    <CardHeader>
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-10 h-10 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: colors.gold }}
+                        >
+                          <CreditCard className="w-5 h-5" style={{ color: colors.brown }} />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base" style={{ color: colors.brown }}>
+                            Billing & Subscription
+                          </CardTitle>
+                          <CardDescription style={{ color: colors.brownLight }}>
+                            Manage your subscription
+                          </CardDescription>
+                        </div>
+                      </div>
                     </CardHeader>
                   </Card>
                 </Link>
