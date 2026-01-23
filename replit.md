@@ -96,6 +96,32 @@ Provides comprehensive task management with custom categories, priority levels, 
 ### Authentication System
 An `AuthContext` manages user sessions, profiles, and tenant information. `ProtectedRoute` ensures role-based access control for routes, and the dashboard dynamically displays accessible modules.
 
+### Stripe Payment Integration
+The platform integrates with Stripe for subscription billing and payment processing:
+
+**Architecture:**
+- `stripe-replit-sync` manages Stripe schema and webhook sync automatically
+- Products/prices stored in Stripe and synced to local `stripe.*` tables
+- Tenants table has `stripe_customer_id`, `stripe_subscription_id`, `stripe_subscription_status` fields
+
+**Subscription Products:**
+- Premium Suite: $99.99/month or $999.99/year (all 6 modules, 5 locations)
+- Test & Eval: $49.99/month (all modules, 3 locations)
+- Individual modules: $19.99/month each (Tip Payout, Cash Deposit, Coffee Ordering, Equipment Maintenance, Admin Tasks)
+
+**Key Files:**
+- `server/stripeClient.ts` - Stripe client initialization using Replit connector
+- `server/stripeService.ts` - Service layer for Stripe operations
+- `server/webhookHandlers.ts` - Webhook processing handler
+- `client/src/pages/billing.tsx` - Billing & subscription management UI
+- `scripts/seed-stripe-products.ts` - Creates products in Stripe
+
+**Security:**
+- Stripe routes verify user belongs to tenant via userId
+- Only owners can manage billing (role check)
+- Webhook route registered BEFORE express.json() for raw body access
+- **Note**: Currently userId is passed from client. For production, implement server-side Supabase JWT verification to extract userId from verified token rather than trusting client-supplied values.
+
 ## External Dependencies
 
 ### Database
@@ -104,6 +130,7 @@ An `AuthContext` manages user sessions, profiles, and tenant information. `Prote
 
 ### External Services
 - **Supabase**: Utilized for client-side SDK integration (`@supabase/supabase-js`) for authentication and real-time features.
+- **Stripe**: Payment processing for subscriptions via `stripe` and `stripe-replit-sync` packages.
 
 ### Key NPM Packages
 - `@tanstack/react-query`: For data fetching and caching.
