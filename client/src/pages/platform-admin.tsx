@@ -156,7 +156,7 @@ export default function PlatformAdmin() {
   };
 
   const calculateMonthlyTotal = (): number => {
-    if (selectedPlan === 'premium') return 125.00;
+    if (selectedPlan === 'premium') return 99.99;
     if (selectedPlan === 'test_eval') return 0;
     if (selectedPlan === 'free') return 0;
     return selectedModules.reduce((total, moduleId) => {
@@ -597,7 +597,7 @@ export default function PlatformAdmin() {
 
         {/* Subscription Management Dialog */}
         <Dialog open={showSubscriptionDialog} onOpenChange={setShowSubscriptionDialog}>
-          <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+          <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Manage Subscription</DialogTitle>
               <DialogDescription className="text-slate-400">
@@ -621,7 +621,7 @@ export default function PlatformAdmin() {
                     <p className="text-sm text-slate-400">All {modules.length} modules including Recipe Costing</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-bold text-purple-400">$125.00</p>
+                    <p className="text-xl font-bold text-purple-400">$99.99</p>
                     <p className="text-xs text-slate-400">/month</p>
                   </div>
                 </div>
@@ -688,7 +688,7 @@ export default function PlatformAdmin() {
               {/* À La Carte Modules */}
               {selectedPlan !== 'premium' && selectedPlan !== 'test_eval' && selectedPlan !== 'free' && (
                 <div>
-                  <Label className="text-slate-200 mb-3 block">À La Carte Modules ($19.99 each)</Label>
+                  <Label className="text-slate-200 mb-3 block">À La Carte Modules</Label>
                   <div className="space-y-3">
                     {modules.map((module) => {
                       const isSelected = selectedModules.includes(module.id);
