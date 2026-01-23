@@ -45,10 +45,12 @@ The platform implements a robust multi-tenant architecture with data isolation a
 Tenant-specific branding (logo, color scheme) is managed via the `tenant_branding` table and applied dynamically through a `ThemeProvider` using CSS variables.
 
 ### Location Context Indicator
-When working in a child location, the dashboard header displays:
-- The location's own logo (if one exists in branding) OR a MapPin icon placeholder
+When working in a child location, all module headers display:
+- The location's own logo (if one exists in branding) OR the default Erwin Mills logo
 - The location name (e.g., "Coffee on Broad")
 - "Part of [Organization Name]" subtitle to show parent relationship
+
+This branding is consistent across all modules: Dashboard, Recipe Cost Manager, Tip Payout Calculator, Cash Deposit Record, Coffee Order, Equipment Maintenance, and Administrative Tasks.
 
 When working in the parent organization, the standard organization branding is shown.
 
