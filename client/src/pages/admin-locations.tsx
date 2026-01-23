@@ -466,7 +466,7 @@ export default function AdminLocations() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent style={{ backgroundColor: colors.white }}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto" style={{ backgroundColor: colors.white }}>
           <DialogHeader>
             <DialogTitle style={{ color: colors.brown }}>
               {editingLocation ? 'Edit Location' : 'Add New Location'}
