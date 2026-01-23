@@ -194,12 +194,11 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }}>
           <CardHeader className="text-center">
-            <div 
-              className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4"
-              style={{ backgroundColor: colors.gold }}
-            >
-              <span className="text-2xl font-bold" style={{ color: colors.brown }}>EM</span>
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="Erwin Mills"
+              className="mx-auto w-20 h-20 object-contain mb-4"
+            />
             <CardTitle className="text-2xl" style={{ color: colors.brown }}>
               Welcome Back
             </CardTitle>
