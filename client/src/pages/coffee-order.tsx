@@ -12,15 +12,16 @@ import { Footer } from '@/components/Footer';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
-  gold: '#D4A84B',
-  goldDark: '#B8923F',
-  brown: '#2C2416',
-  brownLight: '#666',
-  cream: '#FBF7F0',
-  creamDark: '#E8DFD0',
-  white: '#FFFFFF',
-  inputBg: '#F8F6F2',
-  red: '#C74B4B',
+  gold: '#C9A227',
+  goldLight: '#D4B23A',
+  goldDark: '#b8911f',
+  brown: '#4A3728',
+  brownLight: '#6B5344',
+  cream: '#F5F0E1',
+  creamDark: '#E8E0CC',
+  white: '#FFFDF7',
+  inputBg: '#FDF8E8',
+  red: '#ef4444',
   teal: '#4A7C8C',
 };
 
@@ -481,26 +482,26 @@ export default function CoffeeOrder() {
           body { 
             font-family: Arial, sans-serif; 
             padding: 40px; 
-            color: #2C2416; 
+            color: #4A3728; 
             max-width: 600px; 
             margin: 0 auto; 
             text-align: center;
           }
           .container { 
-            border: 1px solid #D4A84B; 
+            border: 1px solid #C9A227; 
             border-radius: 12px; 
             padding: 40px; 
-            background: #FFFFFF; 
+            background: #FFFDF7; 
           }
-          h1 { color: #2C2416; margin-bottom: 10px; }
-          p { color: #666; margin: 10px 0; }
+          h1 { color: #4A3728; margin-bottom: 10px; }
+          p { color: #6B5344; margin: 10px 0; }
           .button { 
             display: inline-flex; 
             align-items: center;
             gap: 8px;
             padding: 8px 12px; 
-            background-color: #D4A84B; 
-            color: #2C2416; 
+            background-color: #C9A227; 
+            color: #4A3728; 
             text-decoration: none; 
             border-radius: 8px; 
             font-weight: 600;
@@ -509,14 +510,14 @@ export default function CoffeeOrder() {
             border: none;
             font-size: 14px;
           }
-          .button:hover { background-color: #c49a42; }
+          .button:hover { background-color: #b8911f; }
           .button.secondary { 
             background-color: #f5f5f5; 
             border: 1px solid #ddd;
           }
           .button.secondary:hover { background-color: #e5e5e5; }
           .info { 
-            background: #FDF8F0; 
+            background: #F5F0E1; 
             padding: 15px; 
             border-radius: 8px; 
             margin: 20px 0;
@@ -609,14 +610,14 @@ export default function CoffeeOrder() {
       <head>
         <title>Coffee Order History</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 20px; color: #2C2416; max-width: 800px; margin: 0 auto; }
+          body { font-family: Arial, sans-serif; padding: 20px; color: #4A3728; max-width: 800px; margin: 0 auto; }
           .back-button { 
             display: inline-flex; 
             align-items: center;
             gap: 8px;
             padding: 8px 12px; 
-            background-color: #D4A84B; 
-            color: #2C2416; 
+            background-color: #C9A227; 
+            color: #4A3728; 
             text-decoration: none; 
             border-radius: 8px; 
             font-weight: 600;
@@ -625,62 +626,62 @@ export default function CoffeeOrder() {
             border: none;
             font-size: 14px;
           }
-          .back-button:hover { background-color: #c49a42; }
+          .back-button:hover { background-color: #b8911f; }
           @media print { .back-button, .no-print { display: none !important; } }
           .page { 
-            border: 1px solid #D4A84B; 
+            border: 1px solid #C9A227; 
             border-radius: 8px; 
             padding: 25px; 
-            background: #FFFFFF; 
+            background: #FFFDF7; 
             margin-bottom: 30px;
             page-break-after: always;
           }
           .page:last-child { page-break-after: avoid; }
           .header { text-align: center; margin-bottom: 20px; }
-          .header h1 { margin: 0; font-size: 24px; color: #2C2416; }
-          .header h2 { margin: 5px 0; font-size: 18px; font-weight: normal; color: #666; }
-          .header p { margin: 5px 0; font-size: 14px; color: #888; }
+          .header h1 { margin: 0; font-size: 24px; color: #4A3728; }
+          .header h2 { margin: 5px 0; font-size: 18px; font-weight: normal; color: #6B5344; }
+          .header p { margin: 5px 0; font-size: 14px; color: #6B5344; }
           .summary-grid { 
             display: grid; 
             grid-template-columns: repeat(2, 1fr); 
             gap: 15px; 
             margin: 20px 0; 
             padding: 20px; 
-            background: #FDF8F0; 
+            background: #F5F0E1; 
             border-radius: 8px;
           }
           .summary-item { font-size: 14px; }
-          .summary-item strong { display: block; font-size: 20px; color: #2C2416; }
+          .summary-item strong { display: block; font-size: 20px; color: #4A3728; }
           .summary-item.highlight { 
             grid-column: span 2; 
             text-align: center; 
-            background: #D4A84B; 
+            background: #C9A227; 
             padding: 15px; 
             border-radius: 8px;
             font-size: 18px;
           }
           .summary-item.highlight strong { font-size: 28px; }
           table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th { background-color: #D4A84B; color: #2C2416; padding: 12px 10px; text-align: left; font-weight: bold; }
-          td { padding: 10px; border-bottom: 1px solid #E8DFD0; }
-          .total-row { background-color: #D4A84B; font-weight: bold; }
+          th { background-color: #C9A227; color: #4A3728; padding: 12px 10px; text-align: left; font-weight: bold; }
+          td { padding: 10px; border-bottom: 1px solid #E8E0CC; }
+          .total-row { background-color: #C9A227; font-weight: bold; }
           .order-header { 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #D4A84B;
+            border-bottom: 2px solid #C9A227;
           }
           .order-header h3 { margin: 0; font-size: 18px; }
-          .order-header .order-total { font-size: 16px; color: #D4A84B; font-weight: bold; }
+          .order-header .order-total { font-size: 16px; color: #C9A227; font-weight: bold; }
           .section-title { 
             font-size: 16px; 
             font-weight: bold; 
-            color: #D4A84B; 
+            color: #C9A227; 
             margin: 25px 0 15px; 
             padding-bottom: 5px;
-            border-bottom: 1px solid #E8DFD0;
+            border-bottom: 1px solid #E8E0CC;
           }
           @media print { 
             body { print-color-adjust: exact; -webkit-print-color-adjust: exact; padding: 0; }
