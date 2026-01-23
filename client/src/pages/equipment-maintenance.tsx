@@ -60,7 +60,7 @@ import {
 import { SiGooglecalendar } from 'react-icons/si';
 import { Footer } from '@/components/Footer';
 import { Link } from 'wouter';
-import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
+import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
   gold: '#C9A227',
@@ -508,7 +508,13 @@ async function exportEquipmentRecords(
 }
 
 export default function EquipmentMaintenance() {
-  const { profile, tenant } = useAuth();
+  const { profile, tenant, branding, primaryTenant } = useAuth();
+  
+  // Location-aware branding
+  const isChildLocation = !!tenant?.parent_tenant_id;
+  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const orgName = primaryTenant?.name || branding?.company_name || '';
+  const logoUrl = branding?.logo_url || defaultLogo;
   const { toast } = useToast();
   
   const { data: equipment = [], isLoading: loadingEquipment, error: equipmentError, isError: equipmentHasError } = useEquipment();
@@ -1073,13 +1079,18 @@ export default function EquipmentMaintenance() {
         <div className="max-w-7xl mx-auto text-center pt-10">
           <img
             src={logoUrl}
-            alt="Erwin Mills Coffee Co."
+            alt={displayName}
             className="h-20 mx-auto mb-3"
             data-testid="img-logo"
           />
           <h2 className="text-xl font-semibold" style={{ color: colors.brown }}>
             Equipment Maintenance
           </h2>
+          {isChildLocation && orgName && (
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              {displayName} • Part of {orgName}
+            </p>
+          )}
         </div>
       </header>
 

@@ -49,7 +49,7 @@ import {
 } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { Link } from 'wouter';
-import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
+import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
   gold: '#C9A227',
@@ -176,7 +176,13 @@ function formatDueDate(date: string | null): string {
 }
 
 export default function AdminTasks() {
-  const { tenant, profile } = useAuth();
+  const { tenant, profile, branding, primaryTenant } = useAuth();
+  
+  // Location-aware branding
+  const isChildLocation = !!tenant?.parent_tenant_id;
+  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const orgName = primaryTenant?.name || branding?.company_name || '';
+  const logoUrl = branding?.logo_url || defaultLogo;
   const { toast } = useToast();
   const { uploadFile, isUploading } = useUpload();
   
@@ -691,13 +697,18 @@ export default function AdminTasks() {
         <div className="max-w-7xl mx-auto text-center pt-10">
           <img
             src={logoUrl}
-            alt="Erwin Mills Coffee Co."
+            alt={displayName}
             className="mx-auto mb-3"
             style={{ height: 80, width: 'auto' }}
           />
           <h2 className="text-xl font-bold" style={{ color: colors.gold }}>
             Administrative Tasks
           </h2>
+          {isChildLocation && orgName && (
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              {displayName} • Part of {orgName}
+            </p>
+          )}
         </div>
       </header>
       

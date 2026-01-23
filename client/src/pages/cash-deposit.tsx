@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText, Home } from 'lucide-react';
 import { Link } from 'wouter';
 import ExcelJS from 'exceljs';
-import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
+import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 import { Footer } from '@/components/Footer';
 
 const colors = {
@@ -72,8 +72,14 @@ const formatWeekRange = (weekStart: string) => {
 };
 
 export default function CashDeposit() {
-  const { profile, tenant } = useAuth();
+  const { profile, tenant, branding, primaryTenant } = useAuth();
   const { toast } = useToast();
+  
+  // Location-aware branding
+  const isChildLocation = !!tenant?.parent_tenant_id;
+  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const orgName = primaryTenant?.name || branding?.company_name || '';
+  const logoUrl = branding?.logo_url || defaultLogo;
   
   const today = new Date().toISOString().split('T')[0];
   const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
@@ -556,13 +562,18 @@ export default function CashDeposit() {
         <div className="max-w-7xl mx-auto text-center pt-10">
           <img
             src={logoUrl}
-            alt="Erwin Mills Coffee Co."
+            alt={displayName}
             className="h-20 mx-auto mb-3"
             data-testid="img-logo"
           />
           <h2 className="text-xl font-semibold" style={{ color: colors.brown }} data-testid="text-page-title">
             Cash Activity Tracker
           </h2>
+          {isChildLocation && orgName && (
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              {displayName} • Part of {orgName}
+            </p>
+          )}
         </div>
       </header>
 
