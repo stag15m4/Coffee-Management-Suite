@@ -255,13 +255,17 @@ async function exportEquipmentRecords(
     return;
   }
   
-  // Show loading state
+  // Show loading state (hidden when printing)
   printWindow.document.write(`
     <html>
-    <head><title>Loading Equipment Record...</title></head>
-    <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+    <head>
+      <title>Loading Equipment Record...</title>
+      <style>@media print { .loading-state { display: none !important; } }</style>
+    </head>
+    <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;" class="loading-state">
       <h2>Generating Maintenance Record</h2>
       <p>Loading all maintenance history for ${equipment.name}...</p>
+      <p style="color: #6B5344; font-size: 14px;">Please wait...</p>
     </body>
     </html>
   `);
