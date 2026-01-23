@@ -30,6 +30,7 @@ const colors = {
 interface AccessibleLocation {
   id: string;
   name: string;
+  logo_url?: string | null;
 }
 
 export default function Login() {
@@ -79,28 +80,44 @@ export default function Login() {
   };
 
   useEffect(() => {
-    if (!loading && user) {
-      // Reset loading state once auth check is complete
-      setIsLoading(false);
-      
-      if (isPlatformAdmin) {
-        window.location.href = '/platform-admin';
-      } else if (profile) {
-        // Check if user has multiple accessible locations
-        if (accessibleLocations && accessibleLocations.length > 1 && !showLocationSelector) {
-          // Show location selector for users with multiple locations
-          setAvailableLocations(accessibleLocations.map(loc => ({ id: loc.id, name: loc.name })));
-          setShowLocationSelector(true);
-          return;
+    const handleLocationSetup = async () => {
+      if (!loading && user) {
+        // Reset loading state once auth check is complete
+        setIsLoading(false);
+        
+        if (isPlatformAdmin) {
+          window.location.href = '/platform-admin';
+        } else if (profile) {
+          // Check if user has multiple accessible locations
+            if (accessibleLocations && accessibleLocations.length > 1 && !showLocationSelector) {
+            // Show location selector for users with multiple locations
+            // Fetch branding for each location to get logos
+            const locationIds = accessibleLocations.map(loc => loc.id);
+            const { data: brandingData } = await supabase
+              .from('tenant_branding')
+              .select('tenant_id, logo_url')
+              .in('tenant_id', locationIds);
+            
+            const brandingMap = new Map(brandingData?.map(b => [b.tenant_id, b.logo_url]) || []);
+            
+            setAvailableLocations(accessibleLocations.map(loc => ({ 
+              id: loc.id, 
+              name: loc.name,
+              logo_url: brandingMap.get(loc.id) || null
+            })));
+            setShowLocationSelector(true);
+            return;
+          }
+          window.location.href = '/';
         }
-        window.location.href = '/';
+        // If user exists but no profile or platform admin found,
+        // redirect to home anyway - ProtectedRoute will show the error
+        else {
+          window.location.href = '/';
+        }
       }
-      // If user exists but no profile or platform admin found,
-      // redirect to home anyway - ProtectedRoute will show the error
-      else {
-        window.location.href = '/';
-      }
-    }
+    };
+    handleLocationSetup();
   }, [loading, user, isPlatformAdmin, profile, accessibleLocations, showLocationSelector]);
 
   const handleLocationSelect = async (locationId: string) => {
@@ -302,7 +319,15 @@ export default function Login() {
                 style={{ backgroundColor: colors.cream }}
                 data-testid={`button-select-location-${location.id}`}
               >
-                <Building2 className="w-5 h-5 flex-shrink-0" style={{ color: colors.gold }} />
+                {location.logo_url ? (
+                  <img 
+                    src={location.logo_url} 
+                    alt={location.name} 
+                    className="w-8 h-8 object-contain flex-shrink-0"
+                  />
+                ) : (
+                  <Building2 className="w-5 h-5 flex-shrink-0" style={{ color: colors.gold }} />
+                )}
                 <span className="flex-1 font-medium" style={{ color: colors.brown }}>{location.name}</span>
                 {selectingLocation ? (
                   <Loader2 className="w-4 h-4 animate-spin" style={{ color: colors.brownLight }} />
