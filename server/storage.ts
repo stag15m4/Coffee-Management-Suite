@@ -10,7 +10,7 @@ import {
   type Recipe,
   type RecipeIngredient
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Ingredients
@@ -30,6 +30,10 @@ export interface IStorage {
   // Recipe Ingredients
   addRecipeIngredient(recipeIngredient: InsertRecipeIngredient): Promise<RecipeIngredient>;
   deleteRecipeIngredient(id: number): Promise<void>;
+
+  // Tenants (Stripe)
+  getTenant(tenantId: string): Promise<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null } | null>;
+  updateTenantStripeInfo(tenantId: string, info: { stripeCustomerId?: string; stripeSubscriptionId?: string; stripeSubscriptionStatus?: string }): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -106,6 +110,31 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRecipeIngredient(id: number): Promise<void> {
     await db.delete(recipeIngredients).where(eq(recipeIngredients.id, id));
+  }
+
+  async getTenant(tenantId: string): Promise<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null } | null> {
+    const result = await db.execute(
+      sql`SELECT id, stripe_customer_id, stripe_subscription_id FROM tenants WHERE id = ${tenantId}`
+    );
+    return result.rows[0] as any || null;
+  }
+
+  async updateTenantStripeInfo(tenantId: string, info: { stripeCustomerId?: string; stripeSubscriptionId?: string; stripeSubscriptionStatus?: string }): Promise<void> {
+    if (info.stripeCustomerId) {
+      await db.execute(
+        sql`UPDATE tenants SET stripe_customer_id = ${info.stripeCustomerId} WHERE id = ${tenantId}`
+      );
+    }
+    if (info.stripeSubscriptionId) {
+      await db.execute(
+        sql`UPDATE tenants SET stripe_subscription_id = ${info.stripeSubscriptionId} WHERE id = ${tenantId}`
+      );
+    }
+    if (info.stripeSubscriptionStatus) {
+      await db.execute(
+        sql`UPDATE tenants SET stripe_subscription_status = ${info.stripeSubscriptionStatus} WHERE id = ${tenantId}`
+      );
+    }
   }
 }
 
