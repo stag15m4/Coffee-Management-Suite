@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calculator, DollarSign, Coffee, Receipt, Wrench, RefreshCw, ListTodo, Building2 } from 'lucide-react';
+import { Calculator, DollarSign, Coffee, Receipt, Wrench, RefreshCw, ListTodo, Building2, MapPin } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { useToast } from '@/hooks/use-toast';
 
@@ -64,11 +64,20 @@ function ModuleCard({ title, description, icon, href, disabled }: ModuleCardProp
 }
 
 export default function Dashboard() {
-  const { profile, tenant, branding, signOut, canAccessModule, refreshEnabledModules, enabledModules } = useAuth();
+  const { profile, tenant, branding, signOut, canAccessModule, refreshEnabledModules, enabledModules, primaryTenant } = useAuth();
   const { toast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
 
-  const companyName = branding?.company_name || tenant?.name || 'Management Suite';
+  // Check if we're in a child location (has parent_tenant_id)
+  const isChildLocation = !!tenant?.parent_tenant_id;
+  
+  // For child locations, show the location name; for parent org, show branding
+  const displayName = isChildLocation 
+    ? tenant?.name || 'Location'
+    : branding?.company_name || tenant?.name || 'Management Suite';
+  
+  // For the organization name (shown as subtitle when in child location)
+  const orgName = primaryTenant?.name || branding?.company_name || '';
   
   const handleRefreshModules = async () => {
     setRefreshing(true);
@@ -93,24 +102,53 @@ export default function Dashboard() {
       >
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            {branding?.logo_url ? (
-              <img src={branding.logo_url} alt={companyName} className="h-10 w-auto" />
+            {/* Show location-specific branding for child locations, org branding for parent */}
+            {isChildLocation ? (
+              <>
+                {/* Child location: show location logo if available, else MapPin + name */}
+                {branding?.logo_url ? (
+                  <img src={branding.logo_url} alt={displayName} className="h-10 w-auto" data-testid="location-logo" />
+                ) : (
+                  <div 
+                    className="w-10 h-10 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: colors.gold }}
+                    data-testid="location-indicator"
+                  >
+                    <MapPin className="w-5 h-5" style={{ color: colors.brown }} />
+                  </div>
+                )}
+                <div>
+                  <h1 className="font-bold" style={{ color: colors.brown }} data-testid="text-location-name">{displayName}</h1>
+                  {orgName && (
+                    <p className="text-sm" style={{ color: colors.brownLight }} data-testid="text-org-name">
+                      Part of {orgName}
+                    </p>
+                  )}
+                </div>
+              </>
             ) : (
-              <div 
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: branding?.primary_color || colors.gold }}
-              >
-                <span className="font-bold" style={{ color: colors.brown }}>
-                  {companyName.substring(0, 2).toUpperCase()}
-                </span>
-              </div>
+              <>
+                {/* Parent organization: show branding logo or initials */}
+                {branding?.logo_url ? (
+                  <img src={branding.logo_url} alt={displayName} className="h-10 w-auto" data-testid="org-logo" />
+                ) : (
+                  <div 
+                    className="w-10 h-10 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: branding?.primary_color || colors.gold }}
+                  >
+                    <span className="font-bold" style={{ color: colors.brown }}>
+                      {displayName.substring(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <h1 className="font-bold" style={{ color: colors.brown }}>{displayName}</h1>
+                  {branding?.tagline && (
+                    <p className="text-sm" style={{ color: colors.brownLight }}>{branding.tagline}</p>
+                  )}
+                </div>
+              </>
             )}
-            <div>
-              <h1 className="font-bold" style={{ color: colors.brown }}>{companyName}</h1>
-              {branding?.tagline && (
-                <p className="text-sm" style={{ color: colors.brownLight }}>{branding.tagline}</p>
-              )}
-            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
