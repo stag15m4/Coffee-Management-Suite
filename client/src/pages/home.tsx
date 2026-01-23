@@ -4,6 +4,7 @@ import { Home as HomeIcon } from 'lucide-react';
 import { Link } from 'wouter';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
+import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 import {
   supabase,
   queryKeys,
@@ -2705,7 +2706,13 @@ import { Fragment } from 'react';
 export default function Home() {
   const [activeTab, setActiveTab] = useState('pricing');
   const queryClient = useQueryClient();
-  const { profile } = useAuth();
+  const { profile, tenant, branding, primaryTenant } = useAuth();
+  
+  // Location-aware branding
+  const isChildLocation = !!tenant?.parent_tenant_id;
+  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const orgName = primaryTenant?.name || branding?.company_name || '';
+  const logoUrl = branding?.logo_url || defaultLogo;
 
   const { data: ingredientCategories = [], isLoading: loadingCategories, isError: errorCategories } = useIngredientCategories();
   const { data: ingredients = [], isLoading: loadingIngredients, isError: errorIngredients } = useIngredients();
@@ -3124,14 +3131,19 @@ export default function Home() {
         </Link>
         <div className="max-w-7xl mx-auto text-center pt-10">
           <img
-            src="/logo.png"
-            alt="Erwin Mills Coffee Co."
+            src={logoUrl}
+            alt={displayName}
             className="h-20 mx-auto mb-3"
             data-testid="img-logo"
           />
           <h2 className="text-xl font-semibold" style={{ color: colors.brown }}>
             Recipe Cost Manager
           </h2>
+          {isChildLocation && orgName && (
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              {displayName} • Part of {orgName}
+            </p>
+          )}
         </div>
       </header>
 
