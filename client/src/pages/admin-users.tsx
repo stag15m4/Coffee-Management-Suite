@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Footer } from '@/components/Footer';
+import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 function generateSecurePassword(): string {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -63,8 +64,14 @@ interface UserLocationAssignment {
 }
 
 export default function AdminUsers() {
-  const { profile, tenant, accessibleLocations } = useAuth();
+  const { profile, tenant, accessibleLocations, branding, primaryTenant } = useAuth();
   const { toast } = useToast();
+  
+  // Location-aware branding
+  const isChildLocation = !!tenant?.parent_tenant_id;
+  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const orgName = primaryTenant?.name || branding?.company_name || '';
+  const logoUrl = branding?.logo_url || defaultLogo;
   
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -387,14 +394,19 @@ export default function AdminUsers() {
         </Link>
         <div className="max-w-7xl mx-auto text-center pt-10">
           <img
-            src="/logo.png"
-            alt="Erwin Mills Coffee Co."
+            src={logoUrl}
+            alt={displayName}
             className="h-20 mx-auto mb-3"
             data-testid="img-logo"
           />
           <h2 className="text-xl font-semibold" style={{ color: colors.brown }}>
             Manage Users
           </h2>
+          {isChildLocation && orgName && (
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              {displayName} • Part of {orgName}
+            </p>
+          )}
         </div>
       </header>
 
