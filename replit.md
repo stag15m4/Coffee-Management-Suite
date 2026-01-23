@@ -44,6 +44,14 @@ The platform implements a robust multi-tenant architecture with data isolation a
 ### Branding System
 Tenant-specific branding (logo, color scheme) is managed via the `tenant_branding` table and applied dynamically through a `ThemeProvider` using CSS variables.
 
+### Location Context Indicator
+When working in a child location, the dashboard header displays:
+- The location's own logo (if one exists in branding) OR a MapPin icon placeholder
+- The location name (e.g., "Coffee on Broad")
+- "Part of [Organization Name]" subtitle to show parent relationship
+
+When working in the parent organization, the standard organization branding is shown.
+
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript
 - **Routing**: Wouter
