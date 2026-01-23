@@ -29,6 +29,18 @@ The platform implements a robust multi-tenant architecture with data isolation a
 - Database trigger `check_location_limit` enforces limits on insert (prevents bypass)
 - Location Management page shows "X of Y locations" usage indicator and disables Add button at limit
 
+### Child Location Inheritance (migrations 044-045)
+- **Module Inheritance**: Child locations automatically inherit enabled modules from their parent tenant's subscription
+- **Data Inheritance**: Child locations can READ parent tenant's shared data:
+  - Ingredients and ingredient categories
+  - Recipes and base templates
+  - Coffee vendors and products
+  - Equipment and maintenance tasks
+  - Tip employees (shared pools)
+  - Admin task categories
+- Helper function `can_read_tenant_data()` checks if user can access data from parent tenant
+- Child locations can still create their own local data
+
 ### Branding System
 Tenant-specific branding (logo, color scheme) is managed via the `tenant_branding` table and applied dynamically through a `ThemeProvider` using CSS variables.
 
