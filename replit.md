@@ -2,259 +2,91 @@
 
 ## Overview
 
-This is a multi-tenant SaaS management suite for food service operations, designed to be white-labeled for multiple businesses. The suite includes:
-- **Recipe Cost Manager** - Track ingredients, create recipes, calculate costs and margins
-- **Tip Payout Calculator** - Calculate and distribute employee tips (Leads, Managers, Owners)
-- **Cash Deposit Record** - Track cash deposits and reconciliation (Managers, Owners)
-- **Bulk Coffee Ordering** - Manage wholesale coffee orders (Leads, Managers, Owners)
-- **Equipment Maintenance** - Track equipment maintenance schedules (All team members)
-- **Administrative Tasks** - Task management with delegation, categories, and tracking (Managers, Owners)
+Erwin Mills Management Suite is a multi-tenant SaaS platform designed for food service operations. It offers a comprehensive set of white-label modules to manage various aspects of a business, including:
 
-Features role-based access control (Owner, Manager, Lead, Employee) with tenant-specific branding (logo, colors).
+- **Recipe Cost Manager**: For tracking ingredients, creating recipes, and calculating costs.
+- **Tip Payout Calculator**: To streamline employee tip distribution.
+- **Cash Deposit Record**: For managing cash reconciliation and deposits.
+- **Bulk Coffee Ordering**: To handle wholesale coffee orders efficiently.
+- **Equipment Maintenance**: To schedule and track equipment upkeep.
+- **Administrative Tasks**: A system for task management, delegation, and tracking.
+
+The suite supports role-based access control (Owner, Manager, Lead, Employee) and allows for tenant-specific branding. Its business vision is to provide a robust, scalable solution for food service businesses, enhancing operational efficiency and profitability through an integrated management system.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-## Multi-Tenant Architecture
+## System Architecture
 
-### Tenant Isolation
-- Each business (tenant) has isolated data via Supabase Row Level Security
-- Tenant identified by `tenant_id` on all data tables
-- Helper functions: `get_current_tenant_id()`, `get_current_user_role()`, `has_role_or_higher()`
+### Multi-Tenant & Multi-Location Design
+The platform implements a robust multi-tenant architecture with data isolation achieved via Supabase Row Level Security (`tenant_id` on all data tables). It supports multi-location hierarchies, allowing tenants to manage multiple child locations. Users can be assigned to multiple locations, and the system includes functionality to switch between active locations. Role-based access control is granular, differentiating between Platform Admin (SaaS level) and tenant-level roles (Owner, Manager, Lead, Employee), each with specific permissions.
 
-### Multi-Location Hierarchy
-- Tenants support parent-child relationships via `parent_tenant_id` column
-- Owner of a parent tenant can view and manage all child locations
-- `user_tenant_assignments` table allows users to work at multiple locations
-- Helper functions for multi-location access:
-  - `get_user_accessible_tenants()` - Returns all tenant IDs user can access
-  - `can_access_tenant(tenant_id)` - Checks if user can access specific tenant
-  - `get_child_tenants(parent_id)` - Returns child locations of a parent
-  - `is_parent_tenant(tenant_id)` - Checks if tenant has child locations
-- AuthContext tracks `primaryTenant`, `accessibleLocations`, and `activeLocationId`
-- `switchLocation(locationId)` function switches active tenant context and dispatches 'location-changed' event
-- `useLocationChange` hook (`client/src/hooks/use-location-change.ts`) allows pages to refresh data on location switch
-- Organization Dashboard (`/organization`) shows all locations with aggregated metrics
-- Location Management (`/admin/locations`) allows owners to add/edit/deactivate locations
-- **Pending**: RLS policies need to be updated to use `can_access_tenant()` for full cross-location data access
-
-### Role Hierarchy
-
-#### Platform Level (SaaS Management)
-- **Platform Admin** - Superuser role for SaaS operations. Can manage all tenants, view usage stats, create new businesses, activate/deactivate subscriptions. Separate from tenant users.
-
-#### Tenant Level (Per-Business)
-1. **Owner** - Full access within their business, can manage users and branding
-2. **Manager** - Can manage recipes, ingredients, settings, and user management (cannot change owner roles)
-3. **Lead** - Access to Tip Payout, Bulk Ordering, and Equipment Maintenance
-4. **Employee** - Access to Equipment Maintenance only
+### Location Limits (migration 042)
+- `subscription_plans.max_locations` defines location limit per plan (Free: 1, À La Carte: 1, Test & Eval: 3, Premium: 5)
+- `tenants.max_locations_override` allows platform admins to override the plan limit for specific tenants (NULL = use plan limit)
+- Helper functions: `get_tenant_max_locations()`, `get_tenant_location_count()`, `can_add_location()`, `get_tenant_location_usage()`
+- Database trigger `check_location_limit` enforces limits on insert (prevents bypass)
+- Location Management page shows "X of Y locations" usage indicator and disables Add button at limit
 
 ### Branding System
-- `tenant_branding` table stores logo URL and color scheme per tenant
-- ThemeProvider loads branding on login and applies CSS variables
-- Default: Erwin Mills gold/cream/brown color scheme
-
-### Database Migrations
-SQL migration files in `supabase-migrations/`:
-1. `001_multi_tenant_schema.sql` - Creates tenants, tenant_branding, user_profiles tables
-2. `002_add_tenant_to_tables.sql` - Adds tenant_id to existing tables
-3. `003_row_level_security.sql` - Enables RLS policies for data isolation
-4. `004_fix_user_profile_security.sql` - Prevents user role self-escalation
-5. `005_create_first_user.sql` - Template for creating first owner account
-6. `006_cash_activity_schema.sql` - Cash deposit tracking with auto-calculated fields
-7. `007_tip_payout_schema.sql` - Tip employees, weekly tips, and employee hours tables
-8. `008_coffee_order_schema.sql` - Coffee product prices and order history tables
-9. `009_fix_user_profile_read.sql` - Fixes RLS circular dependency bug
-10. `010_platform_admin_schema.sql` - Platform admin tables for SaaS management
-11. `011_subscription_modules.sql` - Subscription plans and module access control
-12. `013_equipment_maintenance_schema.sql` - Equipment, maintenance tasks, and logs tables
-13. `014_maintenance_cost_field.sql` - Adds cost field to maintenance logs
-14. `035_fix_user_profiles_circular_dependency.sql` - Fixes RLS circular dependency with get_my_profile_info() function
-15. `036_admin_tasks_schema.sql` - Admin task categories, tasks, comments, and history tables
-16. `038_fix_recipe_tenant_isolation.sql` - **CRITICAL**: Fixes Recipe Costing tenant isolation with proper RLS policies including WITH CHECK clauses
-17. `040_multi_location_schema.sql` - Multi-location hierarchy with parent_tenant_id, user_tenant_assignments, and helper functions
-
-### Recipe Costing Module Architecture (Updated Jan 2026)
-- **Frontend hooks** (`use-recipes.ts`, `use-ingredients.ts`) query Supabase directly with tenant filtering
-- **Pattern**: Matches other modules (Cash Deposit, Tip Payout, Coffee Orders) - all use Supabase direct queries
-- **Security**: RLS policies use `tenant_id = get_current_tenant_id()` with both USING and WITH CHECK clauses
-- **Tables**: recipes, ingredients, recipe_ingredients, ingredient_categories, overhead_settings, base_templates, drink_sizes
-
-### Subscription & Module Access System
-- **Pricing Model**:
-  - **À La Carte**: Tips, Deposits, Ordering at $19.99 each (pick and choose)
-  - **Premium Suite**: All 4 modules for $99.99/month (includes Recipe Costing)
-  - **Recipe Costing** is premium-only (the "heavy hitter" module)
-- **Free Trial**: 14-day trial with all features
-- **Platform Admin** can assign plans and select à la carte modules per tenant
-- **Database Function**: `get_tenant_enabled_modules(tenant_id)` returns enabled modules
-- Tables: `modules`, `subscription_plans`, `subscription_plan_modules`, `tenant_module_subscriptions`, `tenant_module_overrides`
-
-### Implemented Modules
-
-#### Cash Deposit Record (`/cash-deposit`)
-- Tracks daily cash deposits with calculated deposit amounts
-- Fields: drawer date, gross revenue, cash sales, tip pool, owner tips, pay in/out
-- Auto-calculated: calculated deposit, difference, net cash
-- Features: date range filtering, archive toggle, CSV import/export, flagging
-- Styling: Erwin Mills branding with gold buttons, cream inputs
-
-#### Tip Payout Calculator (`/tip-payout`)
-- Manages tip distribution based on employee hours worked
-- Week-based system (Monday-Sunday) with week picker
-- Daily tip entry grid (7 days) for Cash and CC tips
-- Automatic 3.5% CC fee deduction
-- Employee management with deactivation:
-  - Add new employees
-  - Deactivate employees (preserves historical data for tax/audit)
-  - Reactivate previously deactivated employees
-  - Toggle to show/hide inactive employees
-- Hours entry per employee with hours/minutes inputs
-- Team hours verification check
-- Payout summary showing:
-  - Total tips after CC fee
-  - Total team hours
-  - Calculated hourly rate
-  - Per-employee payouts
-- Export functionality:
-  - **Weekly export**: CSV and PDF with summary + individual paystubs
-  - **Historical export**: Date range picker for payroll/audit purposes
-    - Group report: All employees across multiple weeks
-    - Individual report: Single employee history
-- Tables: tip_employees (with is_active flag), tip_weekly_data, tip_employee_hours
-
-#### Coffee Order (`/coffee-order`)
-- Bulk coffee ordering from Five Star Coffee Roasters
-- Products: 5lb bags (Espresso, Double Stack, Triple Stack, Decaf, Cold Brew) and 12oz bags
-- Settings panel for vendor/CC email and product pricing
-- Order history with load previous order functionality
-- Summary showing items, units, and total cost
-- Notes field for special instructions
-- Export to CSV and PDF
-- Tables: coffee_product_prices, coffee_order_history
-
-#### Equipment Maintenance (`/equipment-maintenance`)
-- Track equipment and maintenance schedules
-- Dashboard with status overview (overdue, due soon, good)
-- Equipment management (add/edit/delete equipment items with categories)
-- **Warranty tracking**:
-  - Toggle warranty on/off per equipment
-  - Purchase date and warranty duration (months)
-  - Auto-calculated expiration date
-  - Visual status badges (Under Warranty/Expired)
-  - Warranty notes for coverage details
-  - **Document upload** for invoices/receipts (stored in Replit Object Storage)
-    - Accepts: PDF, JPG, PNG, DOC, DOCX
-    - Documents linked from equipment cards with download
-- Maintenance tasks support two interval types:
-  - **Time-based**: Every X days (e.g., clean ice maker every 14 days)
-  - **Usage-based**: Every X units (e.g., change burrs every 1000 lbs)
-- Log completed maintenance with notes and optional cost tracking
-- Visual color-coded status indicators:
-  - Red: Overdue
-  - Yellow: Due soon (within 7 days or 90% usage)
-  - Green: Good
-- Accessible to all team members (Employees, Leads, Managers, Owners)
-- Tables: equipment (with warranty fields + document_url/document_name), maintenance_tasks, maintenance_logs
-
-#### Administrative Tasks (`/admin-tasks`)
-- Task management with full CRUD operations
-- **Categories**:
-  - Default categories: Tax (red), Compliance (blue), Financial (green)
-  - Custom categories: Add/edit/delete with color picker
-- **Task features**:
-  - Title, description, priority (low/medium/high/urgent)
-  - Status workflow: pending → in_progress → completed
-  - Due dates with visual indicators (overdue=red, due soon=yellow)
-  - Assignee delegation from tenant users
-  - File attachments (stored in Object Storage)
-- **Recurring tasks**:
-  - Patterns: daily, weekly, monthly, quarterly, yearly
-  - Auto-creates new task when marked complete
-- **Collaboration**:
-  - Comments section for each task
-  - Full audit history tracking all changes
-- **Dashboard view**:
-  - Overdue tasks section with count
-  - Due soon tasks (next 7 days)
-  - All tasks with filtering/sorting
-- **Filtering**: By category, status, priority, assignee
-- **Sorting**: By due date, priority, created date, title
-- Access: Managers and Owners only
-- Tables: admin_task_categories, admin_tasks, admin_task_comments, admin_task_history
-
-### Authentication System
-- **AuthContext** (`client/src/contexts/AuthContext.tsx`) - Manages user session, profile, tenant, and branding state
-- **Login page** (`client/src/pages/login.tsx`) - Email/password authentication with Erwin Mills branding
-- **ProtectedRoute** (`client/src/components/ProtectedRoute.tsx`) - Route-level access control by role/module
-- **Dashboard** (`client/src/pages/dashboard.tsx`) - Role-based module cards showing accessible apps
-
-## System Architecture
+Tenant-specific branding (logo, color scheme) is managed via the `tenant_branding` table and applied dynamically through a `ThemeProvider` using CSS variables.
 
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript
-- **Routing**: Wouter (lightweight React router)
-- **State Management**: TanStack React Query for server state caching and synchronization
-- **UI Components**: shadcn/ui component library built on Radix UI primitives
-- **Styling**: Tailwind CSS with custom theme configuration
+- **Routing**: Wouter
+- **State Management**: TanStack React Query
+- **UI Components**: shadcn/ui (built on Radix UI)
+- **Styling**: Tailwind CSS
 - **Form Handling**: React Hook Form with Zod validation
-- **Build Tool**: Vite with custom plugins for Replit integration
+- **Build Tool**: Vite
 
-The frontend follows a component-based architecture with:
-- Pages in `client/src/pages/` for route-level components
-- Reusable UI components in `client/src/components/ui/`
-- Custom hooks in `client/src/hooks/` for data fetching and state
-- Shared type definitions and schemas in `shared/`
+The frontend employs a component-based architecture with dedicated directories for pages, reusable UI components, and custom hooks.
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
 - **Database ORM**: Drizzle ORM with PostgreSQL
-- **API Design**: RESTful endpoints defined in `shared/routes.ts` with Zod schema validation
-- **Storage Pattern**: Repository pattern via `server/storage.ts` abstracting database operations
+- **API Design**: RESTful endpoints with Zod schema validation
+- **Storage Pattern**: Repository pattern for database operations
 
-The backend uses a clean separation:
-- `server/routes.ts` - API route handlers
-- `server/storage.ts` - Database access layer implementing `IStorage` interface
-- `server/db.ts` - Database connection pool setup
-- `shared/schema.ts` - Drizzle table definitions and insert schemas
+The backend ensures a clean separation of concerns with distinct layers for API routes, database access, and schema definitions.
 
 ### Data Model
-Three main entities:
-1. **Ingredients** - Name, unit, price per package, amount in package
-2. **Recipes** - Name, servings count, instructions
-3. **Recipe Ingredients** - Junction table linking recipes to ingredients with quantities
+The core data model includes entities for Ingredients, Recipes, and a junction table for Recipe Ingredients, along with schemas for various modules like cash activity, tip payouts, coffee orders, equipment, and administrative tasks.
 
-### Build System
-- Development: Vite dev server with HMR for frontend, tsx for backend
-- Production: Custom build script using esbuild for server bundling and Vite for client
+### Implemented Modules
+
+#### Cash Deposit Record
+Manages daily cash deposits, featuring auto-calculated fields, date range filtering, and CSV import/export.
+
+#### Tip Payout Calculator
+Handles weekly tip distribution, including CC fee deductions, employee management, hours entry, and comprehensive payout summaries with export options.
+
+#### Coffee Order
+Facilitates bulk coffee ordering with product pricing, order history, and export capabilities.
+
+#### Equipment Maintenance
+Tracks equipment and maintenance schedules, featuring warranty tracking with document uploads, various task intervals (time-based, usage-based), and visual status indicators.
+
+#### Administrative Tasks
+Provides comprehensive task management with custom categories, priority levels, due dates, assignee delegation, recurring task functionality, comments, audit history, and file attachments.
+
+### Authentication System
+An `AuthContext` manages user sessions, profiles, and tenant information. `ProtectedRoute` ensures role-based access control for routes, and the dashboard dynamically displays accessible modules.
 
 ## External Dependencies
 
 ### Database
-- **PostgreSQL** - Primary data store accessed via `DATABASE_URL` environment variable
-- **Drizzle ORM** - Type-safe database queries with schema migrations in `migrations/` directory
+- **PostgreSQL**: Primary data store.
+- **Drizzle ORM**: Used for type-safe database interactions and migrations.
 
 ### External Services
-- **Supabase** - Client-side Supabase SDK is initialized in frontend code (`@supabase/supabase-js`) using `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` environment variables. Note: The backend currently uses direct PostgreSQL via Drizzle, not Supabase.
+- **Supabase**: Utilized for client-side SDK integration (`@supabase/supabase-js`) for authentication and real-time features.
 
 ### Key NPM Packages
-- `@tanstack/react-query` - Data fetching and caching
-- `drizzle-orm` / `drizzle-kit` - Database ORM and migrations
-- `zod` - Runtime type validation for API inputs/outputs
-- `@radix-ui/*` - Accessible UI primitives
-- `react-hook-form` - Form state management
-- `wouter` - Client-side routing
-
-## iPad/Mobile Optimization
-
-### App Resume Handling
-- **useAppResume hook** (`client/src/hooks/use-app-resume.ts`) - Custom hook that listens for 'app-resumed' events
-- **AuthContext visibility tracking** - Dispatches 'app-resumed' after 30+ seconds of app being hidden (iPad multitasking)
-- All main pages use useAppResume to refresh data when returning from background:
-  - admin-tasks, coffee-order: loadData wrapped in useCallback
-  - tip-payout, cash-deposit: loader functions in dependency arrays
-  - equipment-maintenance: uses queryClient.invalidateQueries
-
-### Delete Confirmation
-- Administrative Tasks uses AlertDialog for delete confirmation to prevent accidental deletions
+- `@tanstack/react-query`: For data fetching and caching.
+- `drizzle-orm` / `drizzle-kit`: For ORM and migrations.
+- `zod`: For runtime type validation.
+- `@radix-ui/*`: For accessible UI primitives.
+- `react-hook-form`: For form state management.
+- `wouter`: For client-side routing.
