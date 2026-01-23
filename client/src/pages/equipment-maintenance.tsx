@@ -304,14 +304,14 @@ async function exportEquipmentRecords(
     <head>
       <title>Equipment Maintenance Record - ${equipment.name}</title>
       <style>
-        body { font-family: Arial, sans-serif; padding: 20px; color: #2C2416; max-width: 800px; margin: 0 auto; }
+        body { font-family: Arial, sans-serif; padding: 20px; color: #4A3728; max-width: 800px; margin: 0 auto; }
         .back-button { 
           display: inline-flex; 
           align-items: center;
           gap: 8px;
           padding: 8px 12px; 
-          background-color: #D4A84B; 
-          color: #2C2416; 
+          background-color: #C9A227; 
+          color: #4A3728; 
           text-decoration: none; 
           border-radius: 8px; 
           font-weight: 600;
@@ -320,48 +320,48 @@ async function exportEquipmentRecords(
           border: none;
           font-size: 14px;
         }
-        .back-button:hover { background-color: #c49a42; }
+        .back-button:hover { background-color: #b8911f; }
         @media print { .back-button, .no-print { display: none !important; } }
         .page { 
-          border: 1px solid #D4A84B; 
+          border: 1px solid #C9A227; 
           border-radius: 8px; 
           padding: 25px; 
-          background: #FFFFFF; 
+          background: #FFFDF7; 
           margin-bottom: 30px;
         }
         .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { margin: 0; font-size: 24px; color: #2C2416; }
-        .header h2 { margin: 5px 0; font-size: 18px; font-weight: normal; color: #666; }
-        .header p { margin: 5px 0; font-size: 14px; color: #888; }
+        .header h1 { margin: 0; font-size: 24px; color: #4A3728; }
+        .header h2 { margin: 5px 0; font-size: 18px; font-weight: normal; color: #6B5344; }
+        .header p { margin: 5px 0; font-size: 14px; color: #6B5344; }
         .section-title { 
           font-size: 16px; 
           font-weight: bold; 
-          color: #D4A84B; 
+          color: #C9A227; 
           margin: 25px 0 15px; 
           padding-bottom: 5px;
-          border-bottom: 1px solid #E8DFD0;
+          border-bottom: 1px solid #E8E0CC;
         }
         .info-grid { display: grid; grid-template-columns: 150px 1fr; gap: 8px; margin: 15px 0; }
-        .info-label { font-weight: bold; color: #666; font-size: 14px; }
-        .info-value { color: #2C2416; font-size: 14px; }
-        .warranty-covered { background: #22c55e; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .info-label { font-weight: bold; color: #6B5344; font-size: 14px; }
+        .info-value { color: #4A3728; font-size: 14px; }
+        .warranty-covered { background: #C9A227; color: #4A3728; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
         .warranty-expired { background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
-        .task-card { background: #FDF8F0; padding: 15px; margin: 15px 0; border-radius: 8px; }
-        .task-card h3 { margin: 0 0 10px 0; color: #2C2416; font-size: 16px; }
-        .no-logs { color: #999; font-style: italic; }
+        .task-card { background: #F5F0E1; padding: 15px; margin: 15px 0; border-radius: 8px; }
+        .task-card h3 { margin: 0 0 10px 0; color: #4A3728; font-size: 16px; }
+        .no-logs { color: #6B5344; font-style: italic; }
         table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th { background-color: #D4A84B; color: #2C2416; padding: 12px 10px; text-align: left; font-weight: bold; }
-        td { padding: 10px; border-bottom: 1px solid #E8DFD0; }
+        th { background-color: #C9A227; color: #4A3728; padding: 12px 10px; text-align: left; font-weight: bold; }
+        td { padding: 10px; border-bottom: 1px solid #E8E0CC; }
         .summary-box { 
-          background: #FDF8F0; 
+          background: #F5F0E1; 
           padding: 20px; 
           border-radius: 8px;
           margin-top: 20px;
         }
-        .summary-box h2 { margin: 0 0 15px 0; font-size: 18px; color: #D4A84B; }
+        .summary-box h2 { margin: 0 0 15px 0; font-size: 18px; color: #C9A227; }
         .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center; }
-        .summary-item { font-size: 14px; color: #666; }
-        .summary-item strong { display: block; font-size: 20px; color: #2C2416; margin-bottom: 5px; }
+        .summary-item { font-size: 14px; color: #6B5344; }
+        .summary-item strong { display: block; font-size: 20px; color: #4A3728; margin-bottom: 5px; }
         @media print { 
           body { print-color-adjust: exact; -webkit-print-color-adjust: exact; padding: 0; }
           .page { border: none; box-shadow: none; margin-bottom: 0; }
@@ -454,7 +454,7 @@ async function exportEquipmentRecords(
               <span class="info-value">${task.last_completed_at ? new Date(task.last_completed_at).toLocaleDateString() : 'Never'}</span>
             </div>
             
-            <div style="font-weight: bold; margin-top: 15px; color: #D4A84B;">Service History (${logs.length} entries)</div>
+            <div style="font-weight: bold; margin-top: 15px; color: #C9A227;">Service History (${logs.length} entries)</div>
             ${logs.length === 0 ? '<p class="no-logs">No service records yet.</p>' : `
             <table>
               <thead>
@@ -471,7 +471,7 @@ async function exportEquipmentRecords(
                     <td>${new Date(log.completed_at).toLocaleDateString()}</td>
                     <td>${log.completed_by || '-'}</td>
                     <td>${log.notes || '-'}</td>
-                    <td style="color: #D4A84B; font-weight: bold;">${log.cost ? '$' + Number(log.cost).toFixed(2) : '-'}</td>
+                    <td style="color: #C9A227; font-weight: bold;">${log.cost ? '$' + Number(log.cost).toFixed(2) : '-'}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -492,7 +492,7 @@ async function exportEquipmentRecords(
               Service Entries
             </div>
             <div class="summary-item">
-              <strong style="color: #D4A84B;">$${totalCost.toFixed(2)}</strong>
+              <strong style="color: #C9A227;">$${totalCost.toFixed(2)}</strong>
               Total Cost
             </div>
           </div>
