@@ -154,6 +154,19 @@ export default function OrganizationDashboard() {
     setLocation('/');
   };
 
+  // Handle case where primaryTenant is not loaded yet
+  if (!parentTenantId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full mx-auto mb-4" 
+               style={{ borderColor: colors.gold, borderTopColor: 'transparent' }} />
+          <p style={{ color: colors.brownLight }}>Loading organization...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
