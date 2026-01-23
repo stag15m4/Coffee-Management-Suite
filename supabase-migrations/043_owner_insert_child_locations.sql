@@ -13,7 +13,7 @@ CREATE POLICY "Owners can insert child locations" ON tenants
         -- User must be an owner in their current tenant
         has_role_or_higher('owner'::user_role)
         -- The new location must be a child of the owner's current tenant
-        AND parent_tenant_id = get_user_tenant_id()
+        AND parent_tenant_id = get_my_tenant_id()
     );
 
 -- Allow Owners to update child locations they have access to
