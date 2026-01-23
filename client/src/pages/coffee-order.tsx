@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Download, FileText, Plus, Trash2, Edit2, Save, X, Home } from 'lucide-react';
 import { Link } from 'wouter';
 import { Footer } from '@/components/Footer';
-import logoUrl from '@assets/Erwin-Mills-Logo_1767709452739.png';
+import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
   gold: '#D4A84B',
@@ -55,7 +55,13 @@ interface OrderHistoryItem {
 }
 
 export default function CoffeeOrder() {
-  const { tenant } = useAuth();
+  const { tenant, branding, primaryTenant } = useAuth();
+  
+  // Location-aware branding
+  const isChildLocation = !!tenant?.parent_tenant_id;
+  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const orgName = primaryTenant?.name || branding?.company_name || '';
+  const logoUrl = branding?.logo_url || defaultLogo;
   const { toast } = useToast();
   
   const [showSettings, setShowSettings] = useState(false);
@@ -854,7 +860,7 @@ export default function CoffeeOrder() {
         <div className="max-w-7xl mx-auto text-center pt-10">
           <img
             src={logoUrl}
-            alt="Erwin Mills Coffee Co."
+            alt={displayName}
             className="h-20 mx-auto mb-3"
             data-testid="img-logo"
           />
@@ -864,6 +870,11 @@ export default function CoffeeOrder() {
           <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
             Vendor: {vendorName}
           </p>
+          {isChildLocation && orgName && (
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              {displayName} • Part of {orgName}
+            </p>
+          )}
         </div>
       </header>
 
