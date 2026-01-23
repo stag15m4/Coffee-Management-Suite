@@ -106,8 +106,8 @@ The platform integrates with Stripe for subscription billing and payment process
 
 **Subscription Products:**
 - Premium Suite: $99.99/month or $999.99/year (all 6 modules, 5 locations)
-- Test & Eval: $49.99/month (all modules, 3 locations)
 - Individual modules: $19.99/month each (Tip Payout, Cash Deposit, Coffee Ordering, Equipment Maintenance, Admin Tasks)
+- Test & Eval plan exists but is gifted by platform admin only (not shown to users)
 
 **Key Files:**
 - `server/stripeClient.ts` - Stripe client initialization using Replit connector

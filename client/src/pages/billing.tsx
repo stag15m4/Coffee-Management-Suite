@@ -138,7 +138,7 @@ export default function Billing() {
   };
 
   const premiumProducts = products.filter(p => 
-    p.metadata?.plan_id === 'premium' || p.metadata?.plan_id === 'test_eval'
+    p.metadata?.plan_id === 'premium'
   );
   const alacarteProducts = products.filter(p => p.metadata?.plan_id === 'alacarte');
 
