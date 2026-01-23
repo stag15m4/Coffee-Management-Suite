@@ -58,14 +58,14 @@ export default function AdminBranding() {
   }, [branding]);
 
   const saveBranding = async () => {
-    if (!profile?.tenant_id) return;
+    if (!tenant?.id) return;
     
     setSaving(true);
     try {
       const { error } = await supabase
         .from('tenant_branding')
         .upsert({
-          tenant_id: profile.tenant_id,
+          tenant_id: tenant.id,
           company_name: companyName || null,
           tagline: tagline || null,
           logo_url: logoUrl || null,

@@ -485,9 +485,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq('tenant_id', locationId)
       .maybeSingle();
 
-    if (newBranding) {
-      setBranding(newBranding);
-    }
+    // Always update branding state - if location has no branding, set to null
+    // This prevents the previous location's branding from persisting
+    setBranding(newBranding || null);
 
     // Refresh enabled modules for the new location
     const { data: modules } = await supabase.rpc('get_tenant_enabled_modules', {
