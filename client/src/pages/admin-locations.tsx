@@ -57,6 +57,13 @@ interface Location {
   parent_tenant_id: string | null;
 }
 
+interface LocationUsage {
+  current_count: number;
+  max_allowed: number;
+  can_add: boolean;
+  remaining: number;
+}
+
 export default function AdminLocations() {
   const { profile, tenant, branding } = useAuth();
   const { toast } = useToast();
@@ -64,6 +71,7 @@ export default function AdminLocations() {
   const [saving, setSaving] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [userCounts, setUserCounts] = useState<Record<string, number>>({});
+  const [locationUsage, setLocationUsage] = useState<LocationUsage | null>(null);
   
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
@@ -101,6 +109,19 @@ export default function AdminLocations() {
         counts[loc.id] = count || 0;
       }
       setUserCounts(counts);
+
+      // Fetch location usage limits
+      const { data: usageData, error: usageError } = await supabase
+        .rpc('get_tenant_location_usage', { p_tenant_id: tenant.id });
+      
+      if (usageError) {
+        console.warn('Could not fetch location usage:', usageError.message);
+        // Default to disabling adds if function doesn't exist - fail safe
+        const currentCount = (childLocations?.filter(l => l.is_active)?.length || 0) + 1;
+        setLocationUsage({ current_count: currentCount, max_allowed: currentCount, can_add: false, remaining: 0 });
+      } else {
+        setLocationUsage(usageData);
+      }
     } catch (error: any) {
       console.error('Error loading locations:', error);
       toast({ title: 'Error loading locations', description: error.message, variant: 'destructive' });
@@ -270,7 +291,7 @@ export default function AdminLocations() {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
           <div>
             <h2 className="text-xl font-bold" style={{ color: colors.brown }}>
               Your Locations
@@ -279,18 +300,36 @@ export default function AdminLocations() {
               Add and manage locations for your organization
             </p>
           </div>
-          <Button
-            onClick={() => {
-              setEditingLocation(null);
-              setFormData({ name: '', slug: '' });
-              setShowAddDialog(true);
-            }}
-            style={{ backgroundColor: colors.gold, color: colors.brown }}
-            data-testid="button-add-location"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Location
-          </Button>
+          <div className="flex items-center gap-4">
+            {locationUsage && (
+              <div className="text-right">
+                <p className="text-sm font-medium" style={{ color: colors.brown }}>
+                  {locationUsage.current_count} of {locationUsage.max_allowed} locations
+                </p>
+                {!locationUsage.can_add && (
+                  <p className="text-xs text-orange-600">
+                    Upgrade your plan for more locations
+                  </p>
+                )}
+              </div>
+            )}
+            <Button
+              onClick={() => {
+                setEditingLocation(null);
+                setFormData({ name: '', slug: '' });
+                setShowAddDialog(true);
+              }}
+              disabled={locationUsage !== null && !locationUsage.can_add}
+              style={{ 
+                backgroundColor: locationUsage?.can_add !== false ? colors.gold : colors.creamDark, 
+                color: colors.brown 
+              }}
+              data-testid="button-add-location"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Location
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -315,7 +354,11 @@ export default function AdminLocations() {
                   setFormData({ name: '', slug: '' });
                   setShowAddDialog(true);
                 }}
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                disabled={locationUsage !== null && !locationUsage.can_add}
+                style={{ 
+                  backgroundColor: locationUsage?.can_add !== false ? colors.gold : colors.creamDark, 
+                  color: colors.brown 
+                }}
                 data-testid="button-add-first-location"
               >
                 <Plus className="w-4 h-4 mr-2" />
