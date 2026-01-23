@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, RotateCcw, Home } from 'lucide-react';
 import { Link } from 'wouter';
 import { Footer } from '@/components/Footer';
+import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
   gold: '#C9A227',
@@ -26,7 +27,13 @@ const defaultBranding = {
 };
 
 export default function AdminBranding() {
-  const { profile, tenant, branding } = useAuth();
+  const { profile, tenant, branding, primaryTenant } = useAuth();
+  
+  // Location-aware branding
+  const isChildLocation = !!tenant?.parent_tenant_id;
+  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const orgName = primaryTenant?.name || branding?.company_name || '';
+  const headerLogoUrl = branding?.logo_url || defaultLogo;
   const { toast } = useToast();
   
   const [companyName, setCompanyName] = useState('');
@@ -131,14 +138,19 @@ export default function AdminBranding() {
         </Button>
         <div className="max-w-7xl mx-auto text-center pt-10">
           <img
-            src="/logo.png"
-            alt="Erwin Mills Coffee Co."
+            src={headerLogoUrl}
+            alt={displayName}
             className="h-20 mx-auto mb-3"
             data-testid="img-logo"
           />
           <h2 className="text-xl font-semibold" style={{ color: colors.brown }}>
             Branding Settings
           </h2>
+          {isChildLocation && orgName && (
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              {displayName} • Part of {orgName}
+            </p>
+          )}
         </div>
       </header>
 
