@@ -5,6 +5,8 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { sendOrderEmail, sendFeedbackEmail, type OrderEmailData, type FeedbackEmailData } from "./resend";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -249,6 +251,162 @@ export async function registerRoutes(
 
   // Register object storage routes for file uploads
   registerObjectStorageRoutes(app);
+
+  // Stripe Routes
+  const { stripeService } = await import('./stripeService');
+  const { getStripePublishableKey } = await import('./stripeClient');
+
+  app.get('/api/stripe/publishable-key', async (req, res) => {
+    try {
+      const publishableKey = await getStripePublishableKey();
+      res.json({ publishableKey });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/stripe/products', async (req, res) => {
+    try {
+      const rows = await stripeService.listProductsWithPrices();
+      
+      const productsMap = new Map();
+      for (const row of rows as any[]) {
+        if (!productsMap.has(row.product_id)) {
+          productsMap.set(row.product_id, {
+            id: row.product_id,
+            name: row.product_name,
+            description: row.product_description,
+            active: row.product_active,
+            metadata: row.product_metadata,
+            prices: []
+          });
+        }
+        if (row.price_id) {
+          productsMap.get(row.product_id).prices.push({
+            id: row.price_id,
+            unit_amount: row.unit_amount,
+            currency: row.currency,
+            recurring: row.recurring,
+            active: row.price_active,
+            metadata: row.price_metadata,
+          });
+        }
+      }
+
+      res.json({ data: Array.from(productsMap.values()) });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/stripe/checkout', async (req, res) => {
+    try {
+      const { priceId, tenantId, tenantEmail, tenantName, userId } = req.body;
+      
+      if (!priceId || !tenantId || !tenantEmail) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const userProfileResult = await db.execute(
+        sql`SELECT tenant_id, role FROM user_profiles WHERE id = ${userId}`
+      );
+      const userProfile = userProfileResult.rows[0] as any;
+      
+      if (!userProfile || userProfile.tenant_id !== tenantId) {
+        return res.status(403).json({ error: 'Not authorized for this tenant' });
+      }
+      
+      if (userProfile.role !== 'owner') {
+        return res.status(403).json({ error: 'Only owners can manage billing' });
+      }
+
+      let stripeCustomerId = null;
+      
+      const tenantResult = await storage.getTenant(tenantId);
+      if (tenantResult?.stripe_customer_id) {
+        stripeCustomerId = tenantResult.stripe_customer_id;
+      } else {
+        const customer = await stripeService.createCustomer(tenantEmail, tenantId, tenantName || 'Tenant');
+        stripeCustomerId = customer.id;
+        await storage.updateTenantStripeInfo(tenantId, { stripeCustomerId: customer.id });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripeService.createCheckoutSession(
+        stripeCustomerId,
+        priceId,
+        `${baseUrl}/billing?success=true`,
+        `${baseUrl}/billing?canceled=true`,
+        tenantId
+      );
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/stripe/portal', async (req, res) => {
+    try {
+      const { tenantId, userId } = req.body;
+      
+      if (!tenantId) {
+        return res.status(400).json({ error: 'Missing tenantId' });
+      }
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const userProfileResult = await db.execute(
+        sql`SELECT tenant_id, role FROM user_profiles WHERE id = ${userId}`
+      );
+      const userProfile = userProfileResult.rows[0] as any;
+      
+      if (!userProfile || userProfile.tenant_id !== tenantId) {
+        return res.status(403).json({ error: 'Not authorized for this tenant' });
+      }
+      
+      if (userProfile.role !== 'owner') {
+        return res.status(403).json({ error: 'Only owners can manage billing' });
+      }
+
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant?.stripe_customer_id) {
+        return res.status(400).json({ error: 'No Stripe customer found for this tenant' });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripeService.createCustomerPortalSession(
+        tenant.stripe_customer_id,
+        `${baseUrl}/billing`
+      );
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error('Portal error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/stripe/subscription/:tenantId', async (req, res) => {
+    try {
+      const tenant = await storage.getTenant(req.params.tenantId);
+      if (!tenant?.stripe_subscription_id) {
+        return res.json({ subscription: null });
+      }
+
+      const subscription = await stripeService.getSubscription(tenant.stripe_subscription_id);
+      res.json({ subscription });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   return httpServer;
 }
