@@ -507,6 +507,8 @@ async function exportEquipmentRecords(
     </html>
   `;
   
+  // Clear loading state and write final content
+  printWindow.document.open();
   printWindow.document.write(htmlContent);
   printWindow.document.close();
 }
