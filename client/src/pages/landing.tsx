@@ -418,7 +418,10 @@ export default function Landing() {
                   </span>
                   <span style={{ color: colors.cream }}>/month</span>
                   <p className="text-sm mt-1" style={{ color: colors.cream }}>
-                    or $999.99/year (save $200!)
+                    or $999.99/year
+                  </p>
+                  <p className="text-sm mt-2 font-semibold" style={{ color: colors.goldBright }}>
+                    Save $440/year vs individual modules!
                   </p>
                 </div>
                 <ul className="space-y-3 mb-6 flex-1">
