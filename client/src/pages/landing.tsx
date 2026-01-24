@@ -394,10 +394,10 @@ export default function Landing() {
                 Best Value
               </div>
               <CardHeader className="pb-4">
-                <CardTitle className="text-2xl" style={{ color: colors.white }}>
+                <CardTitle className="text-2xl" style={{ color: colors.gold }}>
                   Premium Suite
                 </CardTitle>
-                <CardDescription style={{ color: colors.creamDark }}>
+                <CardDescription style={{ color: colors.cream }}>
                   Everything you need to run your operation
                 </CardDescription>
               </CardHeader>
