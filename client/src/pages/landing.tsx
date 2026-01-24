@@ -448,42 +448,43 @@ export default function Landing() {
             {/* À La Carte */}
             <Card 
               style={{ 
-                backgroundColor: colors.cream, 
-                borderColor: colors.creamDark 
+                backgroundColor: colors.brown, 
+                borderColor: colors.gold,
+                borderWidth: '2px'
               }}
             >
               <CardHeader className="pb-4">
-                <CardTitle className="text-2xl" style={{ color: colors.brown }}>
+                <CardTitle className="text-2xl" style={{ color: colors.gold }}>
                   À La Carte
                 </CardTitle>
-                <CardDescription style={{ color: colors.brownLight }}>
+                <CardDescription style={{ color: colors.cream }}>
                   Pick only the modules you need
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="mb-6">
-                  <span className="text-4xl font-bold" style={{ color: colors.brown }}>
+                  <span className="text-4xl font-bold" style={{ color: colors.gold }}>
                     From $9.99
                   </span>
-                  <span style={{ color: colors.brownLight }}>/month</span>
-                  <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
+                  <span style={{ color: colors.cream }}>/month</span>
+                  <p className="text-sm mt-1" style={{ color: colors.cream }}>
                     per module
                   </p>
                 </div>
                 <ul className="space-y-3 mb-6">
-                  <li className="flex items-center gap-2" style={{ color: colors.brown }}>
+                  <li className="flex items-center gap-2" style={{ color: colors.cream }}>
                     <Check className="w-5 h-5" style={{ color: colors.gold }} />
                     Choose your modules
                   </li>
-                  <li className="flex items-center gap-2" style={{ color: colors.brown }}>
+                  <li className="flex items-center gap-2" style={{ color: colors.cream }}>
                     <Check className="w-5 h-5" style={{ color: colors.gold }} />
                     1 location included
                   </li>
-                  <li className="flex items-center gap-2" style={{ color: colors.brown }}>
+                  <li className="flex items-center gap-2" style={{ color: colors.cream }}>
                     <Check className="w-5 h-5" style={{ color: colors.gold }} />
                     Add more anytime
                   </li>
-                  <li className="flex items-center gap-2" style={{ color: colors.brown }}>
+                  <li className="flex items-center gap-2" style={{ color: colors.cream }}>
                     <Check className="w-5 h-5" style={{ color: colors.gold }} />
                     Upgrade to Premium anytime
                   </li>
@@ -491,9 +492,8 @@ export default function Landing() {
                 <Button 
                   className="w-full"
                   size="lg"
-                  variant="outline"
                   onClick={() => setLocation('/login')}
-                  style={{ borderColor: colors.brown, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.brown }}
                   data-testid="button-alacarte-start"
                 >
                   Get Started
