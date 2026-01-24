@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FeedbackButton } from "@/components/FeedbackButton";
+import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Home from "@/pages/home";
@@ -20,6 +21,28 @@ import AdminLocations from "@/pages/admin-locations";
 import OrganizationDashboard from "@/pages/organization-dashboard";
 import PlatformAdmin from "@/pages/platform-admin";
 import Billing from "@/pages/billing";
+
+function HomePage() {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: '#FFFDF7' }}>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: '#C9A227' }}></div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Landing />;
+  }
+  
+  return (
+    <ProtectedRoute>
+      <Dashboard />
+    </ProtectedRoute>
+  );
+}
 
 function Router() {
   return (
@@ -81,11 +104,7 @@ function Router() {
           <Billing />
         </ProtectedRoute>
       </Route>
-      <Route path="/">
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      </Route>
+      <Route path="/" component={HomePage} />
     </Switch>
   );
 }
