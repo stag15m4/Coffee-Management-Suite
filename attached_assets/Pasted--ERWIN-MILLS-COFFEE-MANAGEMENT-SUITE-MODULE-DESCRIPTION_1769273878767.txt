@@ -1,0 +1,93 @@
+
+
+ERWIN MILLS COFFEE MANAGEMENT SUITE - MODULE DESCRIPTIONS
+===================================================
+
+1. RECIPE COST MANAGER ($19.99/mo)
+----------------------------------
+Track ingredients, create recipes, and calculate precise food costs to protect your margins. Quick color-coded readout. Automatically updates with vendor price changes
+
+Features:
+- Create and manage ingredient usage with real-time pricing
+- Build recipes with automatic cost calculations
+- Factor in Ops Costs on a per-drink basis
+- Track food cost percentages and profit margins
+- Track OVERALL Profit per drink and Margin for all recipes.
+- Organize ingredients by category (dairy, produce, meats, etc.)
+- Export recipe cards and cost breakdowns to PDF
+
+Enter your latte recipe with espresso, milk, and syrup. See instantly that your $4.75 latte costs $3.2132 to make — a 32.4% margin.
+
+
+2. TIP PAYOUT CALCULATOR ($19.99/mo)
+------------------------------------
+Streamline and Delegate tip distribution with automated calculations and detailed payout reports.
+
+Features:
+- Automatic tip pool calculations based on hours worked
+- Handle credit card fee deductions automatically
+- Track multiple tip periods (weekly, bi-weekly)
+- Generate detailed payout summaries
+- Export reports to PDF or CSV for payroll and W2 Tracking
+
+Enter $2,400 in weekly tips across 8 employees. The system calculates each person's share based on their hours, deducts CC fees only from CC tips, and shows exact payout amounts.
+
+
+3. CASH DEPOSIT RECORD ($19.99/mo)
+---------------------------------
+Manage daily cash reconciliation and deposits with complete audit trails.
+
+Features:
+- Daily cash drawer reconciliation
+- Track deposits by date with running totals
+- Auto-calculate expected vs actual cash
+- Flag discrepancies for review
+-Add notes to daily records as necessary
+- Complete audit trail of all entries
+- Export deposit history to CSV
+
+Closing staff counts drawer at night and comes up short. Opening staff counts drawer and comes up over expected till amount. This can be easily tracked by Owner, Manager, Lead or anyone you delegate the task to. No spreadsheets necessary!
+
+
+4. COFFEE ORDERING ($19.99/mo)
+-----------------------------
+Handle wholesale coffee orders efficiently with a vendor-direct email form.
+
+Features:
+- Manage multiple wholesale coffee products
+- Track product pricing and order history
+- Create and submit email-based orders directly
+- View order history and spending trends
+- Export orders and invoices
+
+Delegate coffee ordering to your Lead Barista or you Store Manager. Track what they’ve bought and what spent've spent this quarter.
+
+
+5. EQUIPMENT MAINTENANCE ($19.99/mo)
+------------------------------------
+Schedule and track equipment maintenance with warranty tracking and maintenance history export.
+
+Features:
+- Catalog all equipment with specs and manuals
+- Track warranty status and expiration dates
+- Schedule preventive maintenance tasks
+- Log maintenance history and costs
+- Set reminders for upcoming service
+- Upload warranty documents and receipts
+
+Your Eureka Atom 75 needs monthly deep-cleaning. Set it up once, get reminded automatically, and log each service with notes.
+
+
+6. ADMINISTRATIVE TASKS ($19.99/mo)
+-----------------------------------
+Comprehensive task management with delegation, recurring tasks, and team collaboration for management activities.
+
+Features:
+- Create tasks with priorities and due dates
+- Assign tasks to team members
+- Set up recurring tasks (daily, weekly, monthly)
+- Organize with custom categories
+- Track completion and add comments
+- View task history and team performance
+
+Create a recurring task: "Re-Certify FOH Fire Extinguishers for this year" repeats every January 1. Track completion and add notes as needed.

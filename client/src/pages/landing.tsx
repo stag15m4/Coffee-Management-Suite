@@ -46,71 +46,71 @@ const modules = [
   {
     id: 'recipe-costing',
     title: 'Recipe Cost Manager',
-    description: 'Track ingredients, create recipes, and calculate precise food costs to protect your margins.',
+    description: 'Track ingredients, create recipes, and calculate precise food costs to protect your margins. Quick color-coded readout. Automatically updates with vendor price changes.',
     icon: Calculator,
-    price: '$39.99/mo',
+    price: '$19.99/mo',
     features: [
-      'Create and manage ingredient inventory with real-time pricing',
+      'Create and manage ingredient usage with real-time pricing',
       'Build recipes with automatic cost calculations',
+      'Factor in Ops Costs on a per-drink basis',
       'Track food cost percentages and profit margins',
+      'Track OVERALL Profit per drink and Margin for all recipes',
       'Organize ingredients by category (dairy, produce, meats, etc.)',
-      'Scale recipes up or down with instant cost updates',
       'Export recipe cards and cost breakdowns to PDF',
     ],
-    example: 'Enter your latte recipe with espresso, milk, and syrup. See instantly that your $5.50 latte costs $1.23 to make — a 77% margin.',
+    example: 'Enter your latte recipe with espresso, milk, and syrup. See instantly that your $4.75 latte costs $3.21 to make — a 32.4% margin.',
   },
   {
     id: 'tip-payout',
     title: 'Tip Payout Calculator',
-    description: 'Streamline tip distribution with automated calculations and detailed payout reports.',
+    description: 'Streamline and delegate tip distribution with automated calculations and detailed payout reports.',
     icon: DollarSign,
     price: '$19.99/mo',
     features: [
       'Automatic tip pool calculations based on hours worked',
       'Handle credit card fee deductions automatically',
       'Track multiple tip periods (weekly, bi-weekly)',
-      'Manage employee tip eligibility and rates',
       'Generate detailed payout summaries',
-      'Export reports to PDF or CSV for payroll',
+      'Export reports to PDF or CSV for payroll and W2 tracking',
     ],
-    example: 'Enter $2,400 in weekly tips across 8 employees. The system calculates each person\'s share based on their hours, deducts CC fees, and shows exact payout amounts.',
+    example: 'Enter $2,400 in weekly tips across 8 employees. The system calculates each person\'s share based on their hours, deducts CC fees only from CC tips, and shows exact payout amounts.',
   },
   {
     id: 'cash-deposit',
     title: 'Cash Deposit Record',
     description: 'Manage daily cash reconciliation and deposits with complete audit trails.',
     icon: PiggyBank,
-    price: '$9.99/mo',
+    price: '$19.99/mo',
     features: [
       'Daily cash drawer reconciliation',
       'Track deposits by date with running totals',
       'Auto-calculate expected vs actual cash',
       'Flag discrepancies for review',
+      'Add notes to daily records as necessary',
       'Complete audit trail of all entries',
       'Export deposit history to CSV',
     ],
-    example: 'Count your drawer at close: $847.23. Enter it, and the system shows you\'re $12.50 over your expected amount based on sales.',
+    example: 'Closing staff counts drawer at night and comes up short. Opening staff counts drawer and comes up over expected till amount. This can be easily tracked by Owner, Manager, Lead or anyone you delegate the task to. No spreadsheets necessary!',
   },
   {
     id: 'bulk-ordering',
     title: 'Coffee Ordering',
-    description: 'Handle wholesale coffee orders efficiently with vendor management and order tracking.',
+    description: 'Handle wholesale coffee orders efficiently with a vendor-direct email form.',
     icon: Coffee,
-    price: '$9.99/mo',
+    price: '$19.99/mo',
     features: [
-      'Manage multiple coffee vendors and products',
+      'Manage multiple wholesale coffee products',
       'Track product pricing and order history',
-      'Create and submit orders directly',
-      'Monitor inventory levels and reorder points',
+      'Create and submit email-based orders directly',
       'View order history and spending trends',
       'Export orders and invoices',
     ],
-    example: 'Running low on Ethiopian Yirgacheffe? Create an order for 10 bags at $14.50 each, and track when it arrives and what you\'ve spent this quarter.',
+    example: 'Delegate coffee ordering to your Lead Barista or Store Manager. Track what they\'ve bought and what you\'ve spent this quarter.',
   },
   {
     id: 'equipment-maintenance',
     title: 'Equipment Maintenance',
-    description: 'Schedule and track equipment upkeep with warranty tracking and maintenance history.',
+    description: 'Schedule and track equipment maintenance with warranty tracking and maintenance history export.',
     icon: Wrench,
     price: '$19.99/mo',
     features: [
@@ -121,12 +121,12 @@ const modules = [
       'Set reminders for upcoming service',
       'Upload warranty documents and receipts',
     ],
-    example: 'Your La Marzocco espresso machine needs monthly backflushing. Set it up once, get reminded automatically, and log each service with notes.',
+    example: 'Your Eureka Atom 75 needs monthly deep-cleaning. Set it up once, get reminded automatically, and log each service with notes.',
   },
   {
     id: 'admin-tasks',
     title: 'Administrative Tasks',
-    description: 'Comprehensive task management with delegation, recurring tasks, and team collaboration.',
+    description: 'Comprehensive task management with delegation, recurring tasks, and team collaboration for management activities.',
     icon: ClipboardList,
     price: '$19.99/mo',
     features: [
@@ -137,7 +137,7 @@ const modules = [
       'Track completion and add comments',
       'View task history and team performance',
     ],
-    example: 'Create a recurring task: "Deep clean espresso machine" every Sunday, assigned to your closing lead. Track completion and add notes each week.',
+    example: 'Create a recurring task: "Re-Certify FOH Fire Extinguishers for this year" repeats every January 1. Track completion and add notes as needed.',
   },
 ];
 
@@ -473,7 +473,7 @@ export default function Landing() {
               <CardContent className="flex flex-col flex-1">
                 <div className="mb-6">
                   <span className="text-4xl font-bold" style={{ color: colors.goldBright }}>
-                    From $9.99
+                    $19.99
                   </span>
                   <span style={{ color: colors.cream }}>/month</span>
                   <p className="text-sm mt-1" style={{ color: colors.cream }}>
