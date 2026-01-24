@@ -97,6 +97,25 @@ async function createProducts() {
   console.log('Created Test & Eval product:', testEvalProduct.id);
   console.log('  Monthly price:', testEvalPrice.id, '$49.99/mo');
 
+  // Recipe Cost Manager - $19.99/mo
+  const recipeCostProduct = await stripe.products.create({
+    name: 'Recipe Cost Manager',
+    description: 'Track ingredients, create recipes, and calculate precise food costs.',
+    metadata: {
+      plan_id: 'alacarte',
+      module_id: 'recipe-costing'
+    }
+  });
+
+  const recipeCostPrice = await stripe.prices.create({
+    product: recipeCostProduct.id,
+    unit_amount: 1999,
+    currency: 'usd',
+    recurring: { interval: 'month' }
+  });
+
+  console.log('Created Recipe Cost Manager module:', recipeCostProduct.id, '$19.99/mo');
+
   const tipPayoutProduct = await stripe.products.create({
     name: 'Tip Payout Calculator',
     description: 'Calculate and distribute employee tips efficiently.',
