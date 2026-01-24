@@ -106,13 +106,13 @@ The platform integrates with Stripe for subscription billing and payment process
 
 **Subscription Products:**
 - Premium Suite: $99.99/month or $999.99/year (all 6 modules, 5 locations)
-- Individual modules:
-  - Recipe Cost Manager: $39.99/month
+- Individual modules (all $19.99/month each):
+  - Recipe Cost Manager: $19.99/month
   - Tip Payout Calculator: $19.99/month
   - Equipment Maintenance: $19.99/month
   - Administrative Tasks: $19.99/month
-  - Cash Deposit Record: $9.99/month
-  - Coffee Ordering: $9.99/month
+  - Cash Deposit Record: $19.99/month
+  - Coffee Ordering: $19.99/month
 - Test & Eval plan exists but is gifted by platform admin only (not shown to users)
 
 **Key Files:**
