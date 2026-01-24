@@ -1,7 +1,15 @@
+import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   Calculator, 
   DollarSign, 
@@ -14,7 +22,8 @@ import {
   Building2,
   Users,
   Shield,
-  BarChart3
+  BarChart3,
+  X
 } from 'lucide-react';
 import logoPath from '@assets/Subject_1769202087116.png';
 
@@ -34,6 +43,15 @@ const modules = [
     description: 'Track ingredients, create recipes, and calculate precise food costs to protect your margins.',
     icon: Calculator,
     price: '$39.99/mo',
+    features: [
+      'Create and manage ingredient inventory with real-time pricing',
+      'Build recipes with automatic cost calculations',
+      'Track food cost percentages and profit margins',
+      'Organize ingredients by category (dairy, produce, meats, etc.)',
+      'Scale recipes up or down with instant cost updates',
+      'Export recipe cards and cost breakdowns to PDF',
+    ],
+    example: 'Enter your latte recipe with espresso, milk, and syrup. See instantly that your $5.50 latte costs $1.23 to make — a 77% margin.',
   },
   {
     id: 'tip-payout',
@@ -41,6 +59,15 @@ const modules = [
     description: 'Streamline tip distribution with automated calculations and detailed payout reports.',
     icon: DollarSign,
     price: '$19.99/mo',
+    features: [
+      'Automatic tip pool calculations based on hours worked',
+      'Handle credit card fee deductions automatically',
+      'Track multiple tip periods (weekly, bi-weekly)',
+      'Manage employee tip eligibility and rates',
+      'Generate detailed payout summaries',
+      'Export reports to PDF or CSV for payroll',
+    ],
+    example: 'Enter $2,400 in weekly tips across 8 employees. The system calculates each person\'s share based on their hours, deducts CC fees, and shows exact payout amounts.',
   },
   {
     id: 'cash-deposit',
@@ -48,6 +75,15 @@ const modules = [
     description: 'Manage daily cash reconciliation and deposits with complete audit trails.',
     icon: PiggyBank,
     price: '$9.99/mo',
+    features: [
+      'Daily cash drawer reconciliation',
+      'Track deposits by date with running totals',
+      'Auto-calculate expected vs actual cash',
+      'Flag discrepancies for review',
+      'Complete audit trail of all entries',
+      'Export deposit history to CSV',
+    ],
+    example: 'Count your drawer at close: $847.23. Enter it, and the system shows you\'re $12.50 over your expected amount based on sales.',
   },
   {
     id: 'bulk-ordering',
@@ -55,6 +91,15 @@ const modules = [
     description: 'Handle wholesale coffee orders efficiently with vendor management and order tracking.',
     icon: Coffee,
     price: '$9.99/mo',
+    features: [
+      'Manage multiple coffee vendors and products',
+      'Track product pricing and order history',
+      'Create and submit orders directly',
+      'Monitor inventory levels and reorder points',
+      'View order history and spending trends',
+      'Export orders and invoices',
+    ],
+    example: 'Running low on Ethiopian Yirgacheffe? Create an order for 10 bags at $14.50 each, and track when it arrives and what you\'ve spent this quarter.',
   },
   {
     id: 'equipment-maintenance',
@@ -62,6 +107,15 @@ const modules = [
     description: 'Schedule and track equipment upkeep with warranty tracking and maintenance history.',
     icon: Wrench,
     price: '$19.99/mo',
+    features: [
+      'Catalog all equipment with specs and manuals',
+      'Track warranty status and expiration dates',
+      'Schedule preventive maintenance tasks',
+      'Log maintenance history and costs',
+      'Set reminders for upcoming service',
+      'Upload warranty documents and receipts',
+    ],
+    example: 'Your La Marzocco espresso machine needs monthly backflushing. Set it up once, get reminded automatically, and log each service with notes.',
   },
   {
     id: 'admin-tasks',
@@ -69,6 +123,15 @@ const modules = [
     description: 'Comprehensive task management with delegation, recurring tasks, and team collaboration.',
     icon: ClipboardList,
     price: '$19.99/mo',
+    features: [
+      'Create tasks with priorities and due dates',
+      'Assign tasks to team members',
+      'Set up recurring tasks (daily, weekly, monthly)',
+      'Organize with custom categories',
+      'Track completion and add comments',
+      'View task history and team performance',
+    ],
+    example: 'Create a recurring task: "Deep clean espresso machine" every Sunday, assigned to your closing lead. Track completion and add notes each week.',
   },
 ];
 
@@ -95,8 +158,11 @@ const features = [
   },
 ];
 
+type ModuleType = typeof modules[number];
+
 export default function Landing() {
   const [, setLocation] = useLocation();
+  const [selectedModule, setSelectedModule] = useState<ModuleType | null>(null);
 
   return (
     <div style={{ backgroundColor: colors.white, minHeight: '100vh' }}>
@@ -260,8 +326,9 @@ export default function Landing() {
             {modules.map((module) => (
               <Card 
                 key={module.id}
-                className="hover-elevate"
+                className="hover-elevate cursor-pointer transition-transform"
                 style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                onClick={() => setSelectedModule(module)}
                 data-testid={`card-module-${module.id}`}
               >
                 <CardHeader>
@@ -281,6 +348,11 @@ export default function Landing() {
                     {module.description}
                   </CardDescription>
                 </CardHeader>
+                <CardContent className="pt-0">
+                  <p className="text-sm font-medium" style={{ color: colors.gold }}>
+                    Click to see examples →
+                  </p>
+                </CardContent>
               </Card>
             ))}
           </div>
@@ -478,6 +550,87 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* Module Details Modal */}
+      <Dialog open={!!selectedModule} onOpenChange={() => setSelectedModule(null)}>
+        <DialogContent 
+          className="max-w-lg max-h-[85vh] overflow-y-auto"
+          style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+        >
+          {selectedModule && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-3 mb-2">
+                  <div 
+                    className="w-12 h-12 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: colors.gold }}
+                  >
+                    <selectedModule.icon className="w-6 h-6" style={{ color: colors.brown }} />
+                  </div>
+                  <div>
+                    <DialogTitle style={{ color: colors.brown }}>
+                      {selectedModule.title}
+                    </DialogTitle>
+                    <Badge style={{ backgroundColor: colors.gold, color: colors.brown }}>
+                      {selectedModule.price}
+                    </Badge>
+                  </div>
+                </div>
+                <DialogDescription style={{ color: colors.brownLight }}>
+                  {selectedModule.description}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 mt-4">
+                {/* Features List */}
+                <div>
+                  <h4 className="font-semibold mb-3" style={{ color: colors.brown }}>
+                    What You Can Do
+                  </h4>
+                  <ul className="space-y-2">
+                    {selectedModule.features.map((feature, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <Check className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: colors.gold }} />
+                        <span className="text-sm" style={{ color: colors.brownLight }}>
+                          {feature}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Example */}
+                <div 
+                  className="p-4 rounded-lg"
+                  style={{ backgroundColor: colors.cream }}
+                >
+                  <h4 className="font-semibold mb-2" style={{ color: colors.brown }}>
+                    Real Example
+                  </h4>
+                  <p className="text-sm" style={{ color: colors.brownLight }}>
+                    {selectedModule.example}
+                  </p>
+                </div>
+
+                {/* CTA */}
+                <Button 
+                  className="w-full"
+                  size="lg"
+                  onClick={() => {
+                    setSelectedModule(null);
+                    setLocation('/login');
+                  }}
+                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  data-testid="button-modal-start"
+                >
+                  Start Free Trial
+                  <ChevronRight className="w-5 h-5 ml-2" />
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
