@@ -195,8 +195,9 @@ export default function Landing() {
                 Sign In
               </Button>
               <Button 
+                className="font-semibold"
                 onClick={() => setLocation('/login')}
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ background: goldGradient, color: colors.black, border: 'none' }}
                 data-testid="button-get-started"
               >
                 Get Started
@@ -234,8 +235,9 @@ export default function Landing() {
               <div className="flex flex-wrap gap-4">
                 <Button 
                   size="lg"
+                  className="font-semibold"
                   onClick={() => setLocation('/login')}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ background: goldGradient, color: colors.black, border: 'none' }}
                   data-testid="button-hero-start"
                 >
                   Start Free Trial
@@ -386,7 +388,7 @@ export default function Landing() {
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {/* Premium Suite */}
             <Card 
-              className="relative overflow-hidden"
+              className="relative overflow-hidden flex flex-col"
               style={{ 
                 backgroundColor: colors.charcoal, 
                 borderColor: colors.gold,
@@ -407,7 +409,7 @@ export default function Landing() {
                   Everything you need to run your operation
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-col flex-1">
                 <div className="mb-6">
                   <span className="text-4xl font-bold" style={{ color: colors.goldBright }}>
                     $99.99
@@ -417,7 +419,7 @@ export default function Landing() {
                     or $999.99/year (save $200!)
                   </p>
                 </div>
-                <ul className="space-y-3 mb-6">
+                <ul className="space-y-3 mb-6 flex-1">
                   <li className="flex items-center gap-2" style={{ color: colors.cream }}>
                     <Check className="w-5 h-5" style={{ color: colors.goldBright }} />
                     All 6 modules included
@@ -440,7 +442,7 @@ export default function Landing() {
                   </li>
                 </ul>
                 <Button 
-                  className="w-full font-semibold"
+                  className="w-full font-semibold mt-auto"
                   size="lg"
                   onClick={() => setLocation('/login')}
                   style={{ background: goldGradient, color: colors.black, border: 'none' }}
@@ -453,6 +455,7 @@ export default function Landing() {
 
             {/* À La Carte */}
             <Card 
+              className="flex flex-col"
               style={{ 
                 backgroundColor: colors.charcoal, 
                 borderColor: colors.gold,
@@ -467,7 +470,7 @@ export default function Landing() {
                   Pick only the modules you need
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-col flex-1">
                 <div className="mb-6">
                   <span className="text-4xl font-bold" style={{ color: colors.goldBright }}>
                     From $9.99
@@ -477,7 +480,7 @@ export default function Landing() {
                     per module
                   </p>
                 </div>
-                <ul className="space-y-3 mb-6">
+                <ul className="space-y-3 mb-6 flex-1">
                   <li className="flex items-center gap-2" style={{ color: colors.cream }}>
                     <Check className="w-5 h-5" style={{ color: colors.goldBright }} />
                     Choose your modules
@@ -496,7 +499,7 @@ export default function Landing() {
                   </li>
                 </ul>
                 <Button 
-                  className="w-full font-semibold"
+                  className="w-full font-semibold mt-auto"
                   size="lg"
                   onClick={() => setLocation('/login')}
                   style={{ background: goldGradient, color: colors.black, border: 'none' }}
@@ -511,24 +514,25 @@ export default function Landing() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 md:py-24" style={{ backgroundColor: colors.brown }}>
+      <section className="py-16 md:py-24" style={{ backgroundColor: colors.charcoal }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 
             className="text-3xl md:text-4xl font-bold mb-4"
-            style={{ color: colors.white }}
+            style={{ color: colors.goldBright }}
           >
             Ready to Transform Your Operations?
           </h2>
           <p 
             className="text-lg mb-8"
-            style={{ color: colors.creamDark }}
+            style={{ color: colors.cream }}
           >
             Join coffee shops and cafes that trust Erwin Mills to run their business.
           </p>
           <Button 
             size="lg"
+            className="font-semibold"
             onClick={() => setLocation('/login')}
-            style={{ backgroundColor: colors.gold, color: colors.brown }}
+            style={{ background: goldGradient, color: colors.black, border: 'none' }}
             data-testid="button-cta-start"
           >
             Start Your Free Trial
@@ -626,7 +630,7 @@ export default function Landing() {
                     setSelectedModule(null);
                     setLocation('/login');
                   }}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ background: goldGradient, color: colors.black, border: 'none' }}
                   data-testid="button-modal-start"
                 >
                   Start Free Trial
