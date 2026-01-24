@@ -223,14 +223,16 @@ export default function Landing() {
                 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
                 style={{ color: colors.brown }}
               >
-                Manage Your Coffee Shop Like a Pro
+                Stop Working <em>For</em> Your Cafe.<br />Start Working <em>On</em> It.
               </h1>
               <p 
                 className="text-lg md:text-xl mb-8"
                 style={{ color: colors.brownLight }}
               >
-                The complete management suite for coffee shops, cafes, and food service operations. 
-                Track costs, manage staff, and streamline operations — all in one place.
+                Tired of missing vacations and never enjoying the fruits of your labor? 
+                Our Coffee Management Suite helps new owners quickly become profitable — and helps 
+                seasoned owners delegate and scale. Delegation is the hardest part of ownership. 
+                We make it safe, simple, and trackable.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Button 
