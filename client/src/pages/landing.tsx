@@ -29,12 +29,18 @@ import logoPath from '@assets/Subject_1769202087116.png';
 
 const colors = {
   gold: '#C9A227',
+  goldBright: '#E6C145',
+  goldDark: '#997A1F',
+  black: '#000000',
+  charcoal: '#1A1A1A',
   brown: '#4A3728',
   brownLight: '#6B5344',
   cream: '#F5F0E1',
   creamDark: '#E8E0CC',
   white: '#FFFDF7',
 };
+
+const goldGradient = 'linear-gradient(135deg, #E6C145 0%, #C9A227 50%, #997A1F 100%)';
 
 const modules = [
   {
@@ -382,19 +388,19 @@ export default function Landing() {
             <Card 
               className="relative overflow-hidden"
               style={{ 
-                backgroundColor: colors.brown, 
+                backgroundColor: colors.charcoal, 
                 borderColor: colors.gold,
                 borderWidth: '2px'
               }}
             >
               <div 
                 className="absolute top-0 right-0 px-3 py-1 text-sm font-semibold"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ background: goldGradient, color: colors.black }}
               >
                 Best Value
               </div>
               <CardHeader className="pb-4">
-                <CardTitle className="text-2xl" style={{ color: colors.gold }}>
+                <CardTitle className="text-2xl" style={{ color: colors.goldBright }}>
                   Premium Suite
                 </CardTitle>
                 <CardDescription style={{ color: colors.cream }}>
@@ -403,41 +409,41 @@ export default function Landing() {
               </CardHeader>
               <CardContent>
                 <div className="mb-6">
-                  <span className="text-4xl font-bold" style={{ color: colors.gold }}>
+                  <span className="text-4xl font-bold" style={{ color: colors.goldBright }}>
                     $99.99
                   </span>
-                  <span style={{ color: colors.creamDark }}>/month</span>
-                  <p className="text-sm mt-1" style={{ color: colors.creamDark }}>
+                  <span style={{ color: colors.cream }}>/month</span>
+                  <p className="text-sm mt-1" style={{ color: colors.cream }}>
                     or $999.99/year (save $200!)
                   </p>
                 </div>
                 <ul className="space-y-3 mb-6">
                   <li className="flex items-center gap-2" style={{ color: colors.cream }}>
-                    <Check className="w-5 h-5" style={{ color: colors.gold }} />
+                    <Check className="w-5 h-5" style={{ color: colors.goldBright }} />
                     All 6 modules included
                   </li>
                   <li className="flex items-center gap-2" style={{ color: colors.cream }}>
-                    <Check className="w-5 h-5" style={{ color: colors.gold }} />
+                    <Check className="w-5 h-5" style={{ color: colors.goldBright }} />
                     Up to 5 locations
                   </li>
                   <li className="flex items-center gap-2" style={{ color: colors.cream }}>
-                    <Check className="w-5 h-5" style={{ color: colors.gold }} />
+                    <Check className="w-5 h-5" style={{ color: colors.goldBright }} />
                     Unlimited users
                   </li>
                   <li className="flex items-center gap-2" style={{ color: colors.cream }}>
-                    <Check className="w-5 h-5" style={{ color: colors.gold }} />
+                    <Check className="w-5 h-5" style={{ color: colors.goldBright }} />
                     Custom branding
                   </li>
                   <li className="flex items-center gap-2" style={{ color: colors.cream }}>
-                    <Check className="w-5 h-5" style={{ color: colors.gold }} />
+                    <Check className="w-5 h-5" style={{ color: colors.goldBright }} />
                     Priority support
                   </li>
                 </ul>
                 <Button 
-                  className="w-full"
+                  className="w-full font-semibold"
                   size="lg"
                   onClick={() => setLocation('/login')}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ background: goldGradient, color: colors.black, border: 'none' }}
                   data-testid="button-premium-start"
                 >
                   Start Free Trial
@@ -448,13 +454,13 @@ export default function Landing() {
             {/* À La Carte */}
             <Card 
               style={{ 
-                backgroundColor: colors.brown, 
+                backgroundColor: colors.charcoal, 
                 borderColor: colors.gold,
                 borderWidth: '2px'
               }}
             >
               <CardHeader className="pb-4">
-                <CardTitle className="text-2xl" style={{ color: colors.gold }}>
+                <CardTitle className="text-2xl" style={{ color: colors.goldBright }}>
                   À La Carte
                 </CardTitle>
                 <CardDescription style={{ color: colors.cream }}>
@@ -463,7 +469,7 @@ export default function Landing() {
               </CardHeader>
               <CardContent>
                 <div className="mb-6">
-                  <span className="text-4xl font-bold" style={{ color: colors.gold }}>
+                  <span className="text-4xl font-bold" style={{ color: colors.goldBright }}>
                     From $9.99
                   </span>
                   <span style={{ color: colors.cream }}>/month</span>
@@ -473,27 +479,27 @@ export default function Landing() {
                 </div>
                 <ul className="space-y-3 mb-6">
                   <li className="flex items-center gap-2" style={{ color: colors.cream }}>
-                    <Check className="w-5 h-5" style={{ color: colors.gold }} />
+                    <Check className="w-5 h-5" style={{ color: colors.goldBright }} />
                     Choose your modules
                   </li>
                   <li className="flex items-center gap-2" style={{ color: colors.cream }}>
-                    <Check className="w-5 h-5" style={{ color: colors.gold }} />
+                    <Check className="w-5 h-5" style={{ color: colors.goldBright }} />
                     1 location included
                   </li>
                   <li className="flex items-center gap-2" style={{ color: colors.cream }}>
-                    <Check className="w-5 h-5" style={{ color: colors.gold }} />
+                    <Check className="w-5 h-5" style={{ color: colors.goldBright }} />
                     Add more anytime
                   </li>
                   <li className="flex items-center gap-2" style={{ color: colors.cream }}>
-                    <Check className="w-5 h-5" style={{ color: colors.gold }} />
+                    <Check className="w-5 h-5" style={{ color: colors.goldBright }} />
                     Upgrade to Premium anytime
                   </li>
                 </ul>
                 <Button 
-                  className="w-full"
+                  className="w-full font-semibold"
                   size="lg"
                   onClick={() => setLocation('/login')}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ background: goldGradient, color: colors.black, border: 'none' }}
                   data-testid="button-alacarte-start"
                 >
                   Get Started
