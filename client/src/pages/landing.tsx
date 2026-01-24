@@ -180,9 +180,9 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <img src={logoPath} alt="Erwin Mills" className="h-10 w-10" />
+              <img src={logoPath} alt="Erwin Mills Coffee Management Suite" className="h-10 w-10" />
               <span className="text-xl font-bold" style={{ color: colors.brown }}>
-                Erwin Mills
+                Erwin Mills Coffee Management Suite
               </span>
             </div>
             <div className="flex items-center gap-3">
