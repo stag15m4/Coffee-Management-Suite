@@ -1173,6 +1173,16 @@ export default function TipPayout() {
     }
   };
 
+  // Prevent iOS scroll jump on input focus
+  const preventScrollJump = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Store current scroll position
+    const scrollY = window.scrollY;
+    // Restore after iOS tries to scroll
+    requestAnimationFrame(() => {
+      window.scrollTo(0, scrollY);
+    });
+  };
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
       <header className="px-6 py-6 relative">
@@ -1349,8 +1359,10 @@ export default function TipPayout() {
                       type="number"
                       step="0.01"
                       placeholder="0"
+                      inputMode="decimal"
                       tabIndex={i * 2 + 1}
                       value={cashEntries[i] || ''}
+                      onFocus={preventScrollJump}
                       onChange={(e) => {
                         const newEntries = [...cashEntries];
                         newEntries[i] = parseFloat(e.target.value) || 0;
@@ -1378,8 +1390,10 @@ export default function TipPayout() {
                       type="number"
                       step="0.01"
                       placeholder="0"
+                      inputMode="decimal"
                       tabIndex={i * 2 + 2}
                       value={ccEntries[i] || ''}
+                      onFocus={preventScrollJump}
                       onChange={(e) => {
                         const newEntries = [...ccEntries];
                         newEntries[i] = parseFloat(e.target.value) || 0;
@@ -1437,7 +1451,9 @@ export default function TipPayout() {
                   type="number"
                   min="0"
                   placeholder="0"
+                  inputMode="numeric"
                   value={hoursInput}
+                  onFocus={preventScrollJump}
                   onChange={(e) => setHoursInput(e.target.value)}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   data-testid="input-hours"
@@ -1450,7 +1466,9 @@ export default function TipPayout() {
                   min="0"
                   max="59"
                   placeholder="0"
+                  inputMode="numeric"
                   value={minutesInput}
+                  onFocus={preventScrollJump}
                   onChange={(e) => setMinutesInput(e.target.value)}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   data-testid="input-minutes"
@@ -1485,7 +1503,9 @@ export default function TipPayout() {
                   type="number"
                   min="0"
                   placeholder="0"
+                  inputMode="numeric"
                   value={teamHoursCheck}
+                  onFocus={preventScrollJump}
                   onChange={(e) => setTeamHoursCheck(e.target.value)}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   data-testid="input-team-hours"
@@ -1498,7 +1518,9 @@ export default function TipPayout() {
                   min="0"
                   max="59"
                   placeholder="0"
+                  inputMode="numeric"
                   value={teamMinutesCheck}
+                  onFocus={preventScrollJump}
                   onChange={(e) => setTeamMinutesCheck(e.target.value)}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   data-testid="input-team-minutes"
