@@ -75,7 +75,11 @@ const getMonday = (date: Date = new Date()) => {
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff);
-  return d.toISOString().split('T')[0];
+  // Use local date formatting to avoid UTC timezone shift
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const dayOfMonth = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${dayOfMonth}`;
 };
 
 const getWeekRange = (weekKey: string) => {
@@ -1209,7 +1213,7 @@ export default function TipPayout() {
               <Input
                 type="date"
                 value={weekKey}
-                onChange={(e) => setWeekKey(getMonday(new Date(e.target.value)))}
+                onChange={(e) => setWeekKey(getMonday(new Date(e.target.value + 'T12:00:00')))}
                 className="max-w-xs mx-auto"
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                 data-testid="input-week-picker"
