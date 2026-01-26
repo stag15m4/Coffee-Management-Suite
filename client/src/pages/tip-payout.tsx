@@ -1173,14 +1173,29 @@ export default function TipPayout() {
     }
   };
 
-  // Prevent iOS scroll jump on input focus
+  // Prevent iOS scroll jump on input focus and during typing
+  const scrollLockRef = { current: false, scrollY: 0 };
+  
   const preventScrollJump = (e: React.FocusEvent<HTMLInputElement>) => {
-    // Store current scroll position
-    const scrollY = window.scrollY;
-    // Restore after iOS tries to scroll
-    requestAnimationFrame(() => {
-      window.scrollTo(0, scrollY);
-    });
+    scrollLockRef.scrollY = window.scrollY;
+    scrollLockRef.current = true;
+    
+    // Restore scroll position multiple times to catch iOS delayed scrolling
+    const restore = () => {
+      if (scrollLockRef.current) {
+        window.scrollTo(0, scrollLockRef.scrollY);
+      }
+    };
+    
+    requestAnimationFrame(restore);
+    setTimeout(restore, 50);
+    setTimeout(restore, 100);
+    setTimeout(restore, 150);
+    
+    // Release lock after keyboard is fully open
+    setTimeout(() => {
+      scrollLockRef.current = false;
+    }, 300);
   };
 
   return (
