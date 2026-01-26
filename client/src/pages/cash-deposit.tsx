@@ -547,6 +547,14 @@ export default function CashDeposit() {
     }
   };
 
+  // Prevent iOS scroll jump on input focus
+  const preventScrollJump = (e: React.FocusEvent<HTMLInputElement>) => {
+    const scrollY = window.scrollY;
+    requestAnimationFrame(() => {
+      window.scrollTo(0, scrollY);
+    });
+  };
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
       <header className="px-6 py-6 relative">
@@ -713,7 +721,9 @@ export default function CashDeposit() {
                   <Input
                     type="number"
                     step="0.01"
+                    inputMode="decimal"
                     value={formData.gross_revenue}
+                    onFocus={preventScrollJump}
                     onChange={(e) => updateField('gross_revenue', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -729,7 +739,9 @@ export default function CashDeposit() {
                   <Input
                     type="number"
                     step="0.01"
+                    inputMode="decimal"
                     value={formData.starting_drawer}
+                    onFocus={preventScrollJump}
                     onChange={(e) => updateField('starting_drawer', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -745,7 +757,9 @@ export default function CashDeposit() {
                   <Input
                     type="number"
                     step="0.01"
+                    inputMode="decimal"
                     value={formData.cash_sales}
+                    onFocus={preventScrollJump}
                     onChange={(e) => updateField('cash_sales', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -764,7 +778,9 @@ export default function CashDeposit() {
                   <Input
                     type="number"
                     step="0.01"
+                    inputMode="decimal"
                     value={formData.tip_pool}
+                    onFocus={preventScrollJump}
                     onChange={(e) => updateField('tip_pool', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -780,7 +796,9 @@ export default function CashDeposit() {
                   <Input
                     type="number"
                     step="0.01"
+                    inputMode="decimal"
                     value={formData.owner_tips}
+                    onFocus={preventScrollJump}
                     onChange={(e) => updateField('owner_tips', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -796,7 +814,9 @@ export default function CashDeposit() {
                   <Input
                     type="number"
                     step="0.01"
+                    inputMode="decimal"
                     value={formData.pay_in}
+                    onFocus={preventScrollJump}
                     onChange={(e) => updateField('pay_in', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -812,7 +832,9 @@ export default function CashDeposit() {
                   <Input
                     type="number"
                     step="0.01"
+                    inputMode="decimal"
                     value={formData.pay_out}
+                    onFocus={preventScrollJump}
                     onChange={(e) => updateField('pay_out', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -831,7 +853,9 @@ export default function CashDeposit() {
                   <Input
                     type="number"
                     step="0.01"
+                    inputMode="decimal"
                     value={formData.actual_deposit}
+                    onFocus={preventScrollJump}
                     onChange={(e) => updateField('actual_deposit', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
