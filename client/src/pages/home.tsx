@@ -1625,11 +1625,13 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
   const [editValue, setEditValue] = useState('');
   
   // Filter out bulk sizes and separate drink sizes from food sizes
+  // Exclude bulk from both drink and food sizes
   const drinkTypeSizes = drinkSizes.filter(s => 
     !s.name.toLowerCase().includes('bulk') && 
     (!s.drink_type || s.drink_type.toLowerCase() !== 'food')
   );
   const foodSizes = drinkSizes.filter(s => 
+    !s.name.toLowerCase().includes('bulk') &&
     s.drink_type && s.drink_type.toLowerCase() === 'food'
   );
   
@@ -1637,23 +1639,33 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
   const standardDrinkSizes = drinkTypeSizes;
   
   // Filter out bulk recipes (they are manufacturing recipes, not for sale directly)
-  // Also separate drink recipes from food recipes based on their base template
   const nonBulkRecipes = recipes.filter(r => !r.is_bulk_recipe);
   
-  // Get food base template IDs
-  const foodBaseTemplateIds = baseTemplates
-    .filter(bt => bt.drink_type && bt.drink_type.toLowerCase() === 'food')
-    .map(bt => bt.id);
+  // Get all food size IDs for classification
+  const foodSizeIds = foodSizes.map(s => s.id);
+  const drinkSizeIds = drinkTypeSizes.map(s => s.id);
   
-  // Recipes with a food base template
+  // Helper to check if a recipe has ingredients for any given size IDs
+  const hasIngredientsForSizeIds = (recipe: Recipe, sizeIds: string[]): boolean => {
+    return recipe.recipe_ingredients?.some(ri => sizeIds.includes(ri.size_id)) || false;
+  };
+  
+  // Recipes that have ingredients for food sizes go in the food section
   const foodRecipes = nonBulkRecipes.filter(r => 
-    r.base_template_id && foodBaseTemplateIds.includes(r.base_template_id)
+    hasIngredientsForSizeIds(r, foodSizeIds)
   );
   
-  // Recipes that are NOT food (drinks)
+  // Recipes that have ingredients for drink sizes go in the drink section
+  // (a recipe can appear in both if it has ingredients for both)
   const drinkRecipes = nonBulkRecipes.filter(r => 
-    !r.base_template_id || !foodBaseTemplateIds.includes(r.base_template_id)
+    hasIngredientsForSizeIds(r, drinkSizeIds)
   );
+  
+  // Also include recipes with NO ingredients yet in the drink section as default
+  const recipesWithNoIngredients = nonBulkRecipes.filter(r => 
+    !hasIngredientsForSizeIds(r, foodSizeIds) && !hasIngredientsForSizeIds(r, drinkSizeIds)
+  );
+  const drinkRecipesWithDefaults = [...drinkRecipes, ...recipesWithNoIngredients];
 
   const getSizeBaseTemplateId = (recipeId: string, sizeId: string): string | null => {
     const rsb = recipeSizeBases.find(r => r.recipe_id === recipeId && r.size_id === sizeId);
@@ -1933,7 +1945,7 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
               </tr>
             </thead>
             <tbody>
-              {drinkRecipes.map((recipe, idx) => (
+              {drinkRecipesWithDefaults.map((recipe, idx) => (
                 <tr
                   key={recipe.id}
                   style={{
