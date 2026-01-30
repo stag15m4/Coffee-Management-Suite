@@ -2308,7 +2308,7 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
     setAddingIngredient(null);
   };
 
-  const drinkTypes = ['Hot', 'Cold'];
+  const drinkTypes = ['Hot', 'Cold', 'Food'];
 
   return (
     <div className="space-y-4">
