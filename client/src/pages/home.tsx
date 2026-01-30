@@ -3196,7 +3196,7 @@ export default function Home() {
     try {
       const { error } = await supabase
         .from('base_template_ingredients')
-        .insert({ ...ingredient, tenant_id: profile?.tenant_id });
+        .insert(ingredient);
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
@@ -3245,7 +3245,6 @@ export default function Home() {
         size_id: ingredient.size_id,
         quantity: ingredient.quantity,
         unit: ingredient.unit,
-        tenant_id: profile?.tenant_id,
       };
       if (ingredient.ingredient_id) {
         insertData.ingredient_id = ingredient.ingredient_id;
