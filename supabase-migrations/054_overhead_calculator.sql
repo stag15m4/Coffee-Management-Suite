@@ -42,12 +42,12 @@ CREATE POLICY "Users can view their tenant overhead items"
     ON overhead_items FOR SELECT
     USING (
         tenant_id IN (
-            SELECT tenant_id FROM user_profiles WHERE user_id = auth.uid()
+            SELECT tenant_id FROM user_profiles WHERE id = auth.uid()
         )
         OR
         tenant_id IN (
             SELECT id FROM tenants WHERE parent_tenant_id IN (
-                SELECT tenant_id FROM user_profiles WHERE user_id = auth.uid()
+                SELECT tenant_id FROM user_profiles WHERE id = auth.uid()
             )
         )
     );
@@ -56,7 +56,7 @@ CREATE POLICY "Users can insert overhead items for their tenant"
     ON overhead_items FOR INSERT
     WITH CHECK (
         tenant_id IN (
-            SELECT tenant_id FROM user_profiles WHERE user_id = auth.uid()
+            SELECT tenant_id FROM user_profiles WHERE id = auth.uid()
         )
     );
 
@@ -64,7 +64,7 @@ CREATE POLICY "Users can update their tenant overhead items"
     ON overhead_items FOR UPDATE
     USING (
         tenant_id IN (
-            SELECT tenant_id FROM user_profiles WHERE user_id = auth.uid()
+            SELECT tenant_id FROM user_profiles WHERE id = auth.uid()
         )
     );
 
@@ -72,6 +72,6 @@ CREATE POLICY "Users can delete their tenant overhead items"
     ON overhead_items FOR DELETE
     USING (
         tenant_id IN (
-            SELECT tenant_id FROM user_profiles WHERE user_id = auth.uid()
+            SELECT tenant_id FROM user_profiles WHERE id = auth.uid()
         )
     );
