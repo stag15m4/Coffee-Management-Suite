@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Home as HomeIcon } from 'lucide-react';
+import { Home as HomeIcon, Trash2 } from 'lucide-react';
 import { Link } from 'wouter';
+import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
@@ -2418,9 +2419,10 @@ interface BaseTemplatesTabProps {
   onAddTemplate: (template: { name: string; drink_type: string; description?: string }) => Promise<void>;
   onAddTemplateIngredient: (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number }) => Promise<void>;
   onDeleteTemplateIngredient: (id: string) => Promise<void>;
+  onDeleteTemplate: (id: string) => Promise<void>;
 }
 
-const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient }: BaseTemplatesTabProps) => {
+const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient, onDeleteTemplate }: BaseTemplatesTabProps) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
   const [newTemplate, setNewTemplate] = useState({ name: '', drink_type: 'Hot', description: '' });
@@ -2569,7 +2571,21 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
                     {template.drink_type} drinks {template.description ? `- ${template.description}` : ''}
                   </span>
                 </div>
-                <span style={{ color: colors.gold }}>{expandedTemplate === template.id ? '▼' : '▶'}</span>
+                <div className="flex items-center gap-3">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteTemplate(template.id);
+                    }}
+                    data-testid={`button-delete-template-${template.id}`}
+                    title="Delete template"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                  <span style={{ color: colors.gold }}>{expandedTemplate === template.id ? '▼' : '▶'}</span>
+                </div>
               </div>
 
               {expandedTemplate === template.id && (
@@ -3203,6 +3219,25 @@ export default function Home() {
     }
   };
 
+  const handleDeleteBaseTemplate = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this base template? This will also remove all its ingredients.')) {
+      return;
+    }
+    try {
+      // Delete the template - cascade will handle ingredients (migration 053 required)
+      const { error } = await supabase
+        .from('base_templates')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
+    } catch (error: any) {
+      console.error('Error deleting base template:', error);
+      alert('Error deleting base template: ' + error.message);
+    }
+  };
+
   const handleAddRecipeIngredient = async (ingredient: { recipe_id: string; ingredient_id?: string | null; size_id: string; quantity: number; unit?: string; syrup_recipe_id?: string | null }) => {
     try {
       const insertData: Record<string, any> = {
@@ -3361,6 +3396,7 @@ export default function Home() {
             onAddTemplate={handleAddBaseTemplate}
             onAddTemplateIngredient={handleAddTemplateIngredient}
             onDeleteTemplateIngredient={handleDeleteTemplateIngredient}
+            onDeleteTemplate={handleDeleteBaseTemplate}
           />
         )}
         {activeTab === 'recipes' && (
