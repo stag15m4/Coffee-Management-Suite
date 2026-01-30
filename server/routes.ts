@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
@@ -7,6 +7,31 @@ import { sendOrderEmail, sendFeedbackEmail, type OrderEmailData, type FeedbackEm
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
+
+// Helper to verify platform admin status
+async function verifyPlatformAdmin(userId: string | undefined): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const result = await db.execute(sql`
+      SELECT 1 FROM platform_admins 
+      WHERE user_id = ${userId}::uuid AND is_active = true
+      LIMIT 1
+    `);
+    return result.rows.length > 0;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Middleware to require platform admin
+const requirePlatformAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.headers['x-user-id'] as string;
+  const isAdmin = await verifyPlatformAdmin(userId);
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'Platform admin access required' });
+  }
+  next();
+};
 
 export async function registerRoutes(
   httpServer: Server,
@@ -403,6 +428,272 @@ export async function registerRoutes(
 
       const subscription = await stripeService.getSubscription(tenant.stripe_subscription_id);
       res.json({ subscription });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =====================================================
+  // RESELLER & LICENSE CODE ROUTES (Platform Admin Only)
+  // =====================================================
+  
+  // Get all resellers (platform admin only)
+  app.get('/api/resellers', requirePlatformAdmin, async (req, res) => {
+    try {
+      const resellers = await db.execute(sql`
+        SELECT * FROM resellers 
+        ORDER BY created_at DESC
+      `);
+      res.json(resellers.rows);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get single reseller with license codes (platform admin only)
+  app.get('/api/resellers/:id', requirePlatformAdmin, async (req, res) => {
+    try {
+      const reseller = await db.execute(sql`
+        SELECT * FROM resellers WHERE id = ${req.params.id}
+      `);
+      if (!reseller.rows.length) {
+        return res.status(404).json({ error: 'Reseller not found' });
+      }
+      
+      const licenseCodes = await db.execute(sql`
+        SELECT lc.*, t.name as tenant_name
+        FROM license_codes lc
+        LEFT JOIN tenants t ON lc.tenant_id = t.id
+        WHERE lc.reseller_id = ${req.params.id}
+        ORDER BY lc.created_at DESC
+      `);
+      
+      res.json({ 
+        ...reseller.rows[0], 
+        licenseCodes: licenseCodes.rows 
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create reseller (platform admin only)
+  app.post('/api/resellers', requirePlatformAdmin, async (req, res) => {
+    try {
+      const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, notes } = req.body;
+      
+      const result = await db.execute(sql`
+        INSERT INTO resellers (name, contact_email, contact_name, phone, company_address, seats_total, notes)
+        VALUES (${name}, ${contactEmail}, ${contactName}, ${phone}, ${companyAddress}, ${seatsTotal || 0}, ${notes})
+        RETURNING *
+      `);
+      
+      res.status(201).json(result.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update reseller (platform admin only)
+  app.put('/api/resellers/:id', requirePlatformAdmin, async (req, res) => {
+    try {
+      const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, notes, isActive } = req.body;
+      
+      const result = await db.execute(sql`
+        UPDATE resellers 
+        SET name = ${name}, 
+            contact_email = ${contactEmail}, 
+            contact_name = ${contactName},
+            phone = ${phone},
+            company_address = ${companyAddress},
+            seats_total = ${seatsTotal},
+            notes = ${notes},
+            is_active = ${isActive},
+            updated_at = NOW()
+        WHERE id = ${req.params.id}
+        RETURNING *
+      `);
+      
+      if (!result.rows.length) {
+        return res.status(404).json({ error: 'Reseller not found' });
+      }
+      
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete reseller (platform admin only)
+  app.delete('/api/resellers/:id', requirePlatformAdmin, async (req, res) => {
+    try {
+      await db.execute(sql`DELETE FROM resellers WHERE id = ${req.params.id}`);
+      res.status(204).end();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Generate license codes for a reseller (platform admin only)
+  app.post('/api/resellers/:id/generate-codes', requirePlatformAdmin, async (req, res) => {
+    try {
+      const { count = 1, subscriptionPlan = 'premium', expiresAt } = req.body;
+      const resellerId = req.params.id;
+      
+      // Check reseller exists and has available seats
+      const reseller = await db.execute(sql`
+        SELECT * FROM resellers WHERE id = ${resellerId}
+      `);
+      
+      if (!reseller.rows.length) {
+        return res.status(404).json({ error: 'Reseller not found' });
+      }
+      
+      const resellerData = reseller.rows[0] as any;
+      const availableSeats = resellerData.seats_total - resellerData.seats_used;
+      
+      // Count existing unredeemed codes
+      const unredeemedCodes = await db.execute(sql`
+        SELECT COUNT(*) as count FROM license_codes 
+        WHERE reseller_id = ${resellerId} AND redeemed_at IS NULL
+      `);
+      const pendingCodes = parseInt((unredeemedCodes.rows[0] as any).count) || 0;
+      
+      if (count > availableSeats - pendingCodes) {
+        return res.status(400).json({ 
+          error: `Cannot generate ${count} codes. Only ${availableSeats - pendingCodes} seats available.` 
+        });
+      }
+      
+      const codes = [];
+      for (let i = 0; i < count; i++) {
+        // Generate unique code
+        const codeResult = await db.execute(sql`SELECT generate_license_code() as code`);
+        const code = (codeResult.rows[0] as any).code;
+        
+        const result = await db.execute(sql`
+          INSERT INTO license_codes (code, reseller_id, subscription_plan, expires_at)
+          VALUES (${code}, ${resellerId}, ${subscriptionPlan}, ${expiresAt || null})
+          RETURNING *
+        `);
+        codes.push(result.rows[0]);
+      }
+      
+      res.status(201).json(codes);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Validate a license code (public endpoint for signup flow)
+  app.get('/api/license-codes/validate/:code', async (req, res) => {
+    try {
+      const code = req.params.code.toUpperCase().replace(/-/g, '');
+      
+      const result = await db.execute(sql`
+        SELECT lc.*, r.name as reseller_name
+        FROM license_codes lc
+        JOIN resellers r ON lc.reseller_id = r.id
+        WHERE REPLACE(lc.code, '-', '') = ${code}
+        AND lc.redeemed_at IS NULL
+        AND (lc.expires_at IS NULL OR lc.expires_at > NOW())
+        AND r.is_active = true
+      `);
+      
+      if (!result.rows.length) {
+        return res.status(404).json({ valid: false, error: 'Invalid or expired license code' });
+      }
+      
+      const license = result.rows[0] as any;
+      res.json({ 
+        valid: true, 
+        code: license.code,
+        subscriptionPlan: license.subscription_plan,
+        resellerName: license.reseller_name
+      });
+    } catch (error: any) {
+      res.status(500).json({ valid: false, error: error.message });
+    }
+  });
+
+  // Redeem a license code (called during signup - requires authenticated user)
+  app.post('/api/license-codes/redeem', async (req, res) => {
+    try {
+      const { code } = req.body;
+      const userId = req.headers['x-user-id'] as string;
+      
+      // Require authentication
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      
+      if (!code) {
+        return res.status(400).json({ error: 'License code is required' });
+      }
+      
+      // Get the tenant ID server-side from the user's profile (don't trust client)
+      const userProfile = await db.execute(sql`
+        SELECT tenant_id FROM user_profiles 
+        WHERE user_id = ${userId}::uuid
+        LIMIT 1
+      `);
+      
+      if (!userProfile.rows.length) {
+        return res.status(403).json({ error: 'User profile not found' });
+      }
+      
+      const tenantId = (userProfile.rows[0] as any).tenant_id;
+      
+      if (!tenantId) {
+        return res.status(403).json({ error: 'User has no associated tenant' });
+      }
+      
+      const result = await db.execute(sql`
+        SELECT redeem_license_code(${code}, ${tenantId}::uuid) as license_id
+      `);
+      
+      const licenseId = (result.rows[0] as any).license_id;
+      
+      if (!licenseId) {
+        return res.status(400).json({ error: 'Invalid or already redeemed license code' });
+      }
+      
+      res.json({ success: true, licenseId });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get all license codes (platform admin only)
+  app.get('/api/license-codes', requirePlatformAdmin, async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT lc.*, r.name as reseller_name, t.name as tenant_name
+        FROM license_codes lc
+        JOIN resellers r ON lc.reseller_id = r.id
+        LEFT JOIN tenants t ON lc.tenant_id = t.id
+        ORDER BY lc.created_at DESC
+      `);
+      res.json(result.rows);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete a license code (platform admin only, only if unredeemed)
+  app.delete('/api/license-codes/:id', requirePlatformAdmin, async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        DELETE FROM license_codes 
+        WHERE id = ${req.params.id} AND redeemed_at IS NULL
+        RETURNING *
+      `);
+      
+      if (!result.rows.length) {
+        return res.status(400).json({ error: 'Cannot delete redeemed license code' });
+      }
+      
+      res.status(204).end();
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

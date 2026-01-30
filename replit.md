@@ -128,6 +128,34 @@ The platform integrates with Stripe for subscription billing and payment process
 - Webhook route registered BEFORE express.json() for raw body access
 - **Note**: Currently userId is passed from client. For production, implement server-side Supabase JWT verification to extract userId from verified token rather than trusting client-supplied values.
 
+### Wholesale Reseller & License Code System
+
+The platform includes a wholesale distribution system for resellers/partners:
+
+**Architecture:**
+- `resellers` table: Tracks wholesale partners with seat allocation (seats_total/seats_used)
+- `license_codes` table: Unique codes for subscription activation
+- Platform admin UI at `/reseller-management` for CRUD operations
+
+**Key Features:**
+- Generate unique license codes (format: XXXX-XXXX-XXXX-XXXX) for resellers
+- Track seat usage vs. allocation per reseller
+- Codes can be configured with subscription plan type and expiration dates
+- License code redemption during signup flow
+
+**Security Implementation (migrations 049-051):**
+- `requirePlatformAdmin` middleware protects all reseller/license management endpoints
+- Verifies user against `platform_admins` table (user_id + is_active)
+- License redemption endpoint requires `x-user-id` header (401 if missing)
+- TenantId is derived server-side from user_profiles, never trusted from client
+- Frontend sends `x-user-id` header with all authenticated reseller API calls
+- RLS policies and function search paths secured (SET search_path = '')
+
+**Key Files:**
+- `server/routes.ts` - Reseller/license API endpoints with auth middleware
+- `client/src/pages/reseller-management.tsx` - Platform admin UI
+- `client/src/pages/login.tsx` - License code redemption in signup flow
+
 ## External Dependencies
 
 ### Database
