@@ -68,22 +68,22 @@ ALTER TABLE resellers ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Platform admins can view resellers" ON resellers
     FOR SELECT USING (
-        EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid() AND is_active = true)
+        EXISTS (SELECT 1 FROM platform_admins WHERE id = auth.uid() AND is_active = true)
     );
 
 CREATE POLICY "Platform admins can insert resellers" ON resellers
     FOR INSERT WITH CHECK (
-        EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid() AND is_active = true)
+        EXISTS (SELECT 1 FROM platform_admins WHERE id = auth.uid() AND is_active = true)
     );
 
 CREATE POLICY "Platform admins can update resellers" ON resellers
     FOR UPDATE USING (
-        EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid() AND is_active = true)
+        EXISTS (SELECT 1 FROM platform_admins WHERE id = auth.uid() AND is_active = true)
     );
 
 CREATE POLICY "Platform admins can delete resellers" ON resellers
     FOR DELETE USING (
-        EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid() AND is_active = true)
+        EXISTS (SELECT 1 FROM platform_admins WHERE id = auth.uid() AND is_active = true)
     );
 
 -- =====================================================
@@ -94,7 +94,7 @@ ALTER TABLE license_codes ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Platform admins can view license codes" ON license_codes
     FOR SELECT USING (
-        EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid() AND is_active = true)
+        EXISTS (SELECT 1 FROM platform_admins WHERE id = auth.uid() AND is_active = true)
     );
 
 CREATE POLICY "Anyone can check unredeemed codes" ON license_codes
@@ -104,17 +104,17 @@ CREATE POLICY "Anyone can check unredeemed codes" ON license_codes
 
 CREATE POLICY "Platform admins can insert license codes" ON license_codes
     FOR INSERT WITH CHECK (
-        EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid() AND is_active = true)
+        EXISTS (SELECT 1 FROM platform_admins WHERE id = auth.uid() AND is_active = true)
     );
 
 CREATE POLICY "Platform admins can update license codes" ON license_codes
     FOR UPDATE USING (
-        EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid() AND is_active = true)
+        EXISTS (SELECT 1 FROM platform_admins WHERE id = auth.uid() AND is_active = true)
     );
 
 CREATE POLICY "Platform admins can delete license codes" ON license_codes
     FOR DELETE USING (
-        EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid() AND is_active = true)
+        EXISTS (SELECT 1 FROM platform_admins WHERE id = auth.uid() AND is_active = true)
     );
 
 -- =====================================================
