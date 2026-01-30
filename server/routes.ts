@@ -14,7 +14,7 @@ async function verifyPlatformAdmin(userId: string | undefined): Promise<boolean>
   try {
     const result = await db.execute(sql`
       SELECT 1 FROM platform_admins 
-      WHERE user_id = ${userId}::uuid AND is_active = true
+      WHERE id = ${userId}::uuid AND is_active = true
       LIMIT 1
     `);
     return result.rows.length > 0;
