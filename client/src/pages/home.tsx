@@ -2381,7 +2381,10 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
 
       <div className="grid gap-4">
         {baseTemplates.map(template => {
-          const templateSizes = drinkSizes.filter(s => s.drink_type === template.drink_type || !s.drink_type);
+          const templateSizes = drinkSizes.filter(s => 
+            (s.drink_type || '').toLowerCase() === (template.drink_type || '').toLowerCase() || 
+            !s.drink_type
+          );
           return (
             <div
               key={template.id}
