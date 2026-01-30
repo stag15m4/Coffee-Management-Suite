@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Home as HomeIcon, Trash2 } from 'lucide-react';
+import { Home as HomeIcon, Trash2, Check, X, Pencil } from 'lucide-react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/Footer';
@@ -16,6 +16,10 @@ import {
   useDrinkSizes,
   useRecipes,
   useOverhead,
+  useOverheadItems,
+  useAddOverheadItem,
+  useUpdateOverheadItem,
+  useDeleteOverheadItem,
   useRecipePricing,
   useRecipeSizeBases,
   useUpdateIngredient,
@@ -222,6 +226,18 @@ interface OverheadSettings {
   cost_per_minute: number;
   minutes_per_drink: number;
   notes?: string;
+  operating_days_per_week?: number;
+}
+
+interface OverheadItem {
+  id: string;
+  tenant_id: string;
+  name: string;
+  amount: number;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annual';
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface IngredientsTabProps {
@@ -2178,15 +2194,70 @@ interface SettingsTabProps {
   baseTemplates: BaseTemplate[];
   recipeSizeBases: RecipeSizeBase[];
   recipePricing: RecipeSizePricing[];
+  overheadItems: OverheadItem[];
+  onAddOverheadItem: (item: { name: string; amount: number; frequency: string }) => Promise<void>;
+  onUpdateOverheadItem: (id: string, updates: { name?: string; amount?: number; frequency?: string }) => Promise<void>;
+  onDeleteOverheadItem: (id: string) => Promise<void>;
 }
 
-const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSizes, baseTemplates, recipeSizeBases, recipePricing }: SettingsTabProps) => {
+const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSizes, baseTemplates, recipeSizeBases, recipePricing, overheadItems, onAddOverheadItem, onUpdateOverheadItem, onDeleteOverheadItem }: SettingsTabProps) => {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     cost_per_minute: overhead?.cost_per_minute || 2.26,
     minutes_per_drink: overhead?.minutes_per_drink || 1,
     notes: overhead?.notes || '',
+    operating_days_per_week: overhead?.operating_days_per_week || 7,
   });
+  const [newItem, setNewItem] = useState({ name: '', amount: '', frequency: 'monthly' });
+  const [addingItem, setAddingItem] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemForm, setEditingItemForm] = useState({ name: '', amount: '', frequency: '' });
+
+  const operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
+  const weeksPerMonth = 4.33;
+  const daysPerMonth = operatingDays * weeksPerMonth;
+
+  const calculatePeriodAmounts = (amount: number, frequency: string) => {
+    let monthlyAmount = 0;
+    switch (frequency) {
+      case 'daily':
+        monthlyAmount = amount * daysPerMonth;
+        break;
+      case 'weekly':
+        monthlyAmount = amount * weeksPerMonth;
+        break;
+      case 'monthly':
+        monthlyAmount = amount;
+        break;
+      case 'quarterly':
+        monthlyAmount = amount / 3;
+        break;
+      case 'annual':
+        monthlyAmount = amount / 12;
+        break;
+    }
+    return {
+      daily: monthlyAmount / daysPerMonth,
+      weekly: monthlyAmount / weeksPerMonth,
+      monthly: monthlyAmount,
+      quarterly: monthlyAmount * 3,
+      annual: monthlyAmount * 12,
+    };
+  };
+
+  const totals = overheadItems.reduce(
+    (acc, item) => {
+      const amounts = calculatePeriodAmounts(Number(item.amount), item.frequency);
+      return {
+        daily: acc.daily + amounts.daily,
+        weekly: acc.weekly + amounts.weekly,
+        monthly: acc.monthly + amounts.monthly,
+        quarterly: acc.quarterly + amounts.quarterly,
+        annual: acc.annual + amounts.annual,
+      };
+    },
+    { daily: 0, weekly: 0, monthly: 0, quarterly: 0, annual: 0 }
+  );
 
   const handleSave = async () => {
     await onUpdateOverhead(form);
@@ -2198,7 +2269,7 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
       <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
         <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>Overhead Settings</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
               Cost per Minute
@@ -2237,6 +2308,28 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
             ) : (
               <div className="text-2xl font-bold" style={{ color: colors.brown }}>
                 {overhead?.minutes_per_drink || 1}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+              Operating Days Per Week
+            </label>
+            {editing ? (
+              <input
+                type="number"
+                min="1"
+                max="7"
+                value={form.operating_days_per_week}
+                onChange={(e) => setForm({ ...form, operating_days_per_week: Math.min(7, Math.max(1, parseInt(e.target.value) || 7)) })}
+                className="w-full px-3 py-2 rounded-lg border-2 outline-none"
+                style={{ borderColor: colors.gold }}
+                data-testid="input-operating-days"
+              />
+            ) : (
+              <div className="text-2xl font-bold" style={{ color: colors.brown }}>
+                {overhead?.operating_days_per_week || 7} days
               </div>
             )}
           </div>
@@ -2297,6 +2390,264 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
               Edit Settings
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Overhead Calculator */}
+      <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <h3 className="text-lg font-bold" style={{ color: colors.brown }}>Overhead Calculator</h3>
+          <button
+            onClick={() => setAddingItem(true)}
+            className="px-3 py-1.5 font-semibold rounded-lg text-sm"
+            style={{ backgroundColor: colors.gold, color: colors.white }}
+            data-testid="button-add-overhead-item"
+          >
+            + Add Item
+          </button>
+        </div>
+        <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
+          Add your shop overhead costs. Amounts are automatically converted to all time periods based on your {operatingDays}-day operating week.
+        </p>
+
+        {/* Table Header */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" style={{ minWidth: '700px' }}>
+            <thead>
+              <tr style={{ backgroundColor: colors.cream }}>
+                <th className="text-left p-2 font-semibold" style={{ color: colors.brown, width: '20%' }}>Item</th>
+                <th className="text-right p-2 font-semibold" style={{ color: colors.brown, width: '12%' }}>Amount</th>
+                <th className="text-center p-2 font-semibold" style={{ color: colors.brown, width: '12%' }}>Frequency</th>
+                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Daily</th>
+                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Weekly</th>
+                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Monthly</th>
+                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Quarterly</th>
+                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Annual</th>
+                <th className="p-2" style={{ width: '40px' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Add New Item Row */}
+              {addingItem && (
+                <tr style={{ backgroundColor: colors.cream }}>
+                  <td className="p-2">
+                    <input
+                      type="text"
+                      placeholder="Item name"
+                      value={newItem.name}
+                      onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                      className="w-full px-2 py-1 rounded border outline-none"
+                      style={{ borderColor: colors.gold }}
+                      data-testid="input-new-item-name"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      step="0.01"
+                      value={newItem.amount}
+                      onChange={(e) => setNewItem({ ...newItem, amount: e.target.value })}
+                      className="w-full px-2 py-1 rounded border outline-none text-right"
+                      style={{ borderColor: colors.gold }}
+                      data-testid="input-new-item-amount"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <select
+                      value={newItem.frequency}
+                      onChange={(e) => setNewItem({ ...newItem, frequency: e.target.value })}
+                      className="w-full px-2 py-1 rounded border outline-none"
+                      style={{ borderColor: colors.gold }}
+                      data-testid="select-new-item-frequency"
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="quarterly">Quarterly</option>
+                      <option value="annual">Annual</option>
+                    </select>
+                  </td>
+                  <td colSpan={5} className="p-2 text-right">
+                    <button
+                      onClick={async () => {
+                        if (newItem.name && newItem.amount) {
+                          await onAddOverheadItem({
+                            name: newItem.name,
+                            amount: parseFloat(newItem.amount) || 0,
+                            frequency: newItem.frequency,
+                          });
+                          setNewItem({ name: '', amount: '', frequency: 'monthly' });
+                          setAddingItem(false);
+                        }
+                      }}
+                      className="px-3 py-1 font-semibold rounded text-sm mr-2"
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                      data-testid="button-save-new-item"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => {
+                        setNewItem({ name: '', amount: '', frequency: 'monthly' });
+                        setAddingItem(false);
+                      }}
+                      className="px-3 py-1 font-semibold rounded text-sm"
+                      style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                      data-testid="button-cancel-new-item"
+                    >
+                      Cancel
+                    </button>
+                  </td>
+                </tr>
+              )}
+
+              {/* Existing Items */}
+              {overheadItems.map((item) => {
+                const amounts = calculatePeriodAmounts(Number(item.amount), item.frequency);
+                const isEditing = editingItemId === item.id;
+
+                return (
+                  <tr key={item.id} className="border-b" style={{ borderColor: colors.cream }}>
+                    <td className="p-2">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editingItemForm.name}
+                          onChange={(e) => setEditingItemForm({ ...editingItemForm, name: e.target.value })}
+                          className="w-full px-2 py-1 rounded border outline-none"
+                          style={{ borderColor: colors.gold }}
+                          data-testid={`input-edit-item-name-${item.id}`}
+                        />
+                      ) : (
+                        <span style={{ color: colors.brown }}>{item.name}</span>
+                      )}
+                    </td>
+                    <td className="p-2 text-right">
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editingItemForm.amount}
+                          onChange={(e) => setEditingItemForm({ ...editingItemForm, amount: e.target.value })}
+                          className="w-full px-2 py-1 rounded border outline-none text-right"
+                          style={{ borderColor: colors.gold }}
+                          data-testid={`input-edit-item-amount-${item.id}`}
+                        />
+                      ) : (
+                        <span style={{ color: colors.brown }}>{formatCurrency(Number(item.amount))}</span>
+                      )}
+                    </td>
+                    <td className="p-2 text-center">
+                      {isEditing ? (
+                        <select
+                          value={editingItemForm.frequency}
+                          onChange={(e) => setEditingItemForm({ ...editingItemForm, frequency: e.target.value })}
+                          className="w-full px-2 py-1 rounded border outline-none"
+                          style={{ borderColor: colors.gold }}
+                          data-testid={`select-edit-item-frequency-${item.id}`}
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="quarterly">Quarterly</option>
+                          <option value="annual">Annual</option>
+                        </select>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
+                          {item.frequency}
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.daily)}</td>
+                    <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.weekly)}</td>
+                    <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.monthly)}</td>
+                    <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.quarterly)}</td>
+                    <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.annual)}</td>
+                    <td className="p-2">
+                      {isEditing ? (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={async () => {
+                              await onUpdateOverheadItem(item.id, {
+                                name: editingItemForm.name,
+                                amount: parseFloat(editingItemForm.amount) || 0,
+                                frequency: editingItemForm.frequency,
+                              });
+                              setEditingItemId(null);
+                            }}
+                            className="p-1 rounded"
+                            style={{ color: colors.gold }}
+                            data-testid={`button-save-item-${item.id}`}
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setEditingItemId(null)}
+                            className="p-1 rounded"
+                            style={{ color: colors.brownLight }}
+                            data-testid={`button-cancel-item-${item.id}`}
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingItemId(item.id);
+                              setEditingItemForm({
+                                name: item.name,
+                                amount: String(item.amount),
+                                frequency: item.frequency,
+                              });
+                            }}
+                            className="p-1 rounded"
+                            style={{ color: colors.brownLight }}
+                            data-testid={`button-edit-item-${item.id}`}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => onDeleteOverheadItem(item.id)}
+                            className="p-1 rounded"
+                            style={{ color: colors.brownLight }}
+                            data-testid={`button-delete-item-${item.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {/* Totals Row */}
+              {overheadItems.length > 0 && (
+                <tr style={{ backgroundColor: colors.cream }}>
+                  <td className="p-2 font-bold" style={{ color: colors.brown }}>Total</td>
+                  <td className="p-2"></td>
+                  <td className="p-2"></td>
+                  <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.daily)}</td>
+                  <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.weekly)}</td>
+                  <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.monthly)}</td>
+                  <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.quarterly)}</td>
+                  <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.annual)}</td>
+                  <td className="p-2"></td>
+                </tr>
+              )}
+
+              {/* Empty State */}
+              {overheadItems.length === 0 && !addingItem && (
+                <tr>
+                  <td colSpan={9} className="p-8 text-center" style={{ color: colors.brownLight }}>
+                    No overhead items yet. Click "Add Item" to get started.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -2906,12 +3257,16 @@ export default function Home() {
   const { data: drinkSizes = [], isLoading: loadingDrinkSizes, isError: errorDrinkSizes } = useDrinkSizes();
   const { data: recipes = [], isLoading: loadingRecipes, isError: errorRecipes } = useRecipes();
   const { data: overhead, isLoading: loadingOverhead, isError: errorOverhead } = useOverhead();
+  const { data: overheadItems = [], isLoading: loadingOverheadItems, isError: errorOverheadItems } = useOverheadItems();
   const { data: pricingData = [], isLoading: loadingPricing, isError: errorPricing } = useRecipePricing();
   const { data: recipeSizeBases = [], isLoading: loadingRecipeSizeBases, isError: errorRecipeSizeBases } = useRecipeSizeBases();
 
   const updateIngredientMutation = useUpdateIngredient();
   const addIngredientMutation = useAddIngredient();
   const updateOverheadMutation = useUpdateOverhead();
+  const addOverheadItemMutation = useAddOverheadItem();
+  const updateOverheadItemMutation = useUpdateOverheadItem();
+  const deleteOverheadItemMutation = useDeleteOverheadItem();
   const updateRecipePricingMutation = useUpdateRecipePricing();
   const updateRecipeSizeBaseMutation = useUpdateRecipeSizeBase();
 
@@ -2950,6 +3305,35 @@ export default function Home() {
       await updateOverheadMutation.mutateAsync({ id: overhead.id, updates });
     } catch (error: any) {
       alert('Error updating overhead: ' + error.message);
+    }
+  };
+
+  const handleAddOverheadItem = async (item: { name: string; amount: number; frequency: string }) => {
+    try {
+      if (!profile?.tenant_id) return;
+      await addOverheadItemMutation.mutateAsync({
+        ...item,
+        tenant_id: profile.tenant_id,
+        sort_order: overheadItems.length,
+      });
+    } catch (error: any) {
+      alert('Error adding overhead item: ' + error.message);
+    }
+  };
+
+  const handleUpdateOverheadItem = async (id: string, updates: { name?: string; amount?: number; frequency?: string }) => {
+    try {
+      await updateOverheadItemMutation.mutateAsync({ id, updates });
+    } catch (error: any) {
+      alert('Error updating overhead item: ' + error.message);
+    }
+  };
+
+  const handleDeleteOverheadItem = async (id: string) => {
+    try {
+      await deleteOverheadItemMutation.mutateAsync(id);
+    } catch (error: any) {
+      alert('Error deleting overhead item: ' + error.message);
     }
   };
 
@@ -3440,6 +3824,10 @@ export default function Home() {
             baseTemplates={baseTemplates}
             recipeSizeBases={recipeSizeBases}
             recipePricing={pricingData}
+            overheadItems={overheadItems as OverheadItem[]}
+            onAddOverheadItem={handleAddOverheadItem}
+            onUpdateOverheadItem={handleUpdateOverheadItem}
+            onDeleteOverheadItem={handleDeleteOverheadItem}
           />
         )}
       </main>

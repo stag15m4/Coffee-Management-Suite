@@ -78,6 +78,18 @@ The core data model includes entities for Ingredients, Recipes, and a junction t
 
 ### Implemented Modules
 
+#### Recipe Cost Manager
+Comprehensive recipe costing with ingredient management, base templates (disposables), and multi-size recipe support.
+
+**Overhead Calculator (Settings Tab)**:
+- Operating Days Per Week: Configurable setting (1-7) for accurate daily cost calculations
+- Dynamic overhead items spreadsheet: Add/edit/delete line items (rent, insurance, payroll, etc.)
+- Automatic time period conversion: Amounts entered at any frequency (daily/weekly/monthly/quarterly/annual) are automatically calculated across all periods
+- Total summary row shows aggregate overhead across all time periods
+- Uses operating days for accurate daily calculations: Daily = Monthly ÷ (days/week × 4.33)
+
+**Tables**: `overhead_settings` (with `operating_days_per_week`), `overhead_items` (migration 054)
+
 #### Cash Deposit Record
 Manages daily cash deposits, featuring auto-calculated fields, date range filtering, and CSV import/export.
 
