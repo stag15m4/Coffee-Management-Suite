@@ -1624,10 +1624,36 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   
-  // Filter out bulk sizes for pricing matrix (only show standard drink sizes)
-  const standardDrinkSizes = drinkSizes.filter(s => !s.name.toLowerCase().includes('bulk'));
+  // Filter out bulk sizes and separate drink sizes from food sizes
+  const drinkTypeSizes = drinkSizes.filter(s => 
+    !s.name.toLowerCase().includes('bulk') && 
+    (!s.drink_type || s.drink_type.toLowerCase() !== 'food')
+  );
+  const foodSizes = drinkSizes.filter(s => 
+    s.drink_type && s.drink_type.toLowerCase() === 'food'
+  );
+  
+  // For backward compatibility
+  const standardDrinkSizes = drinkTypeSizes;
+  
   // Filter out bulk recipes (they are manufacturing recipes, not for sale directly)
-  const drinkRecipes = recipes.filter(r => !r.is_bulk_recipe);
+  // Also separate drink recipes from food recipes based on their base template
+  const nonBulkRecipes = recipes.filter(r => !r.is_bulk_recipe);
+  
+  // Get food base template IDs
+  const foodBaseTemplateIds = baseTemplates
+    .filter(bt => bt.drink_type && bt.drink_type.toLowerCase() === 'food')
+    .map(bt => bt.id);
+  
+  // Recipes with a food base template
+  const foodRecipes = nonBulkRecipes.filter(r => 
+    r.base_template_id && foodBaseTemplateIds.includes(r.base_template_id)
+  );
+  
+  // Recipes that are NOT food (drinks)
+  const drinkRecipes = nonBulkRecipes.filter(r => 
+    !r.base_template_id || !foodBaseTemplateIds.includes(r.base_template_id)
+  );
 
   const getSizeBaseTemplateId = (recipeId: string, sizeId: string): string | null => {
     const rsb = recipeSizeBases.find(r => r.recipe_id === recipeId && r.size_id === sizeId);
@@ -1998,6 +2024,134 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
           </table>
         </div>
       </div>
+
+      {/* Food Items Section */}
+      {foodSizes.length > 0 && (
+        <div className="rounded-2xl overflow-hidden shadow-md" style={{ backgroundColor: colors.white }}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ backgroundColor: colors.brown }}>
+                  <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.white }}>Food Items</th>
+                  {foodSizes.map(size => (
+                    <th key={size.id} colSpan={4} className="px-2 py-3 text-center font-semibold" style={{ color: colors.white }}>
+                      {size.name}
+                    </th>
+                  ))}
+                </tr>
+                <tr style={{ backgroundColor: colors.creamDark }}>
+                  <th className="px-4 py-2" style={{ color: colors.brown }}></th>
+                  {foodSizes.map(size => (
+                    <Fragment key={size.id}>
+                      <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Cost</th>
+                      <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Sale</th>
+                      <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Margin</th>
+                      <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Profit</th>
+                    </Fragment>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {foodRecipes.length === 0 ? (
+                  <tr style={{ backgroundColor: colors.white }}>
+                    <td colSpan={1 + foodSizes.length * 4} className="px-4 py-6 text-center" style={{ color: colors.brownLight }}>
+                      No food items yet. Create a recipe with a Food base template.
+                    </td>
+                  </tr>
+                ) : (
+                  foodRecipes.map((recipe, idx) => (
+                    <tr
+                      key={recipe.id}
+                      style={{
+                        backgroundColor: idx % 2 === 0 ? colors.white : colors.cream,
+                        borderBottom: `1px solid ${colors.creamDark}`,
+                      }}
+                      data-testid={`row-pricing-food-${recipe.name}`}
+                    >
+                      <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>
+                        <div>{recipe.name}</div>
+                        <div className="text-xs" style={{ color: colors.brownLight }}>{recipe.category_name}</div>
+                      </td>
+                      {foodSizes.map(size => {
+                        const hasItems = hasIngredientsForSize(recipe, size.id);
+                        if (!hasItems) {
+                          return (
+                            <Fragment key={size.id}>
+                              <td className="px-2 py-2 text-right text-xs" style={{ color: colors.brownLight }}>-</td>
+                              <td className="px-2 py-2 text-right text-xs" style={{ color: colors.brownLight }}>-</td>
+                              <td className="px-2 py-2 text-right text-xs" style={{ color: colors.brownLight }}>-</td>
+                              <td className="px-2 py-2 text-right text-xs" style={{ color: colors.brownLight }}>-</td>
+                            </Fragment>
+                          );
+                        }
+                        const cost = calculateSizeCost(recipe, size.id);
+                        const cellKey = `${recipe.id}-${size.id}`;
+                        const salePrice = getSalePrice(recipe.id, size.id);
+                        const profit = salePrice - cost;
+                        const margin = salePrice > 0 ? (profit / salePrice * 100) : 0;
+                        const marginColor = margin > 31 ? colors.green : margin > 25 ? colors.gold : colors.red;
+                        const isEditing = editingCell === cellKey;
+
+                        return (
+                          <Fragment key={size.id}>
+                            <td className="px-2 py-2 text-right font-mono text-xs" style={{ color: colors.brown }}>
+                              {formatCurrency(cost)}
+                            </td>
+                            <td className="px-1 py-1">
+                              {isEditing ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleSaveSalePrice(recipe.id, size.id);
+                                      if (e.key === 'Escape') setEditingCell(null);
+                                    }}
+                                    className="w-16 px-1 py-0.5 text-right text-xs rounded border"
+                                    style={{ borderColor: colors.gold }}
+                                    autoFocus
+                                    data-testid={`input-sale-price-food-${recipe.id}-${size.id}`}
+                                  />
+                                  <button
+                                    onClick={() => handleSaveSalePrice(recipe.id, size.id)}
+                                    className="text-xs px-1"
+                                    style={{ color: colors.green }}
+                                  >
+                                    Save
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setEditingCell(cellKey);
+                                    setEditValue(salePrice.toString());
+                                  }}
+                                  className="w-full text-right font-mono text-xs font-semibold px-1 py-0.5 rounded hover:bg-opacity-80"
+                                  style={{ color: salePrice > 0 ? colors.brown : colors.brownLight }}
+                                  data-testid={`button-edit-sale-food-${recipe.id}-${size.id}`}
+                                >
+                                  {salePrice > 0 ? formatCurrency(salePrice) : 'Set'}
+                                </button>
+                              )}
+                            </td>
+                            <td className="px-2 py-2 text-right font-mono text-xs font-semibold" style={{ color: salePrice > 0 ? marginColor : colors.brownLight }}>
+                              {salePrice > 0 ? formatPercent(margin) : '-'}
+                            </td>
+                            <td className="px-2 py-2 text-right font-mono text-xs" style={{ color: profit >= 0 ? colors.green : colors.red }}>
+                              {salePrice > 0 ? formatCurrency(profit) : '-'}
+                            </td>
+                          </Fragment>
+                        );
+                      })}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
