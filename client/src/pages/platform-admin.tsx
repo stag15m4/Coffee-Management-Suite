@@ -19,7 +19,8 @@ import {
   XCircle,
   Loader2,
   Settings,
-  Package
+  Package,
+  Key
 } from 'lucide-react';
 import {
   Dialog,
@@ -372,6 +373,15 @@ export default function PlatformAdmin() {
               <p className="text-sm text-slate-400">{platformAdmin?.email}</p>
             </div>
           </div>
+          <Button 
+            variant="outline" 
+            onClick={() => setLocation('/reseller-management')}
+            className="border-slate-600 text-slate-300 hover:bg-slate-700"
+            data-testid="button-reseller-management"
+          >
+            <Key className="w-4 h-4 mr-2" />
+            Wholesale Partners
+          </Button>
           <Button 
             variant="outline" 
             onClick={handleLogout}

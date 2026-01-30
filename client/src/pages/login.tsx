@@ -38,6 +38,9 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [companyName, setCompanyName] = useState('');
+  const [licenseCode, setLicenseCode] = useState('');
+  const [licenseCodeValid, setLicenseCodeValid] = useState<boolean | null>(null);
+  const [licenseCodeInfo, setLicenseCodeInfo] = useState<{resellerName: string, subscriptionPlan: string} | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
@@ -189,6 +192,33 @@ export default function Login() {
     }
   };
 
+  const validateLicenseCode = async (code: string) => {
+    if (!code.trim()) {
+      setLicenseCodeValid(null);
+      setLicenseCodeInfo(null);
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/license-codes/validate/${encodeURIComponent(code)}`);
+      const data = await response.json();
+      
+      if (data.valid) {
+        setLicenseCodeValid(true);
+        setLicenseCodeInfo({
+          resellerName: data.resellerName,
+          subscriptionPlan: data.subscriptionPlan
+        });
+      } else {
+        setLicenseCodeValid(false);
+        setLicenseCodeInfo(null);
+      }
+    } catch (error) {
+      setLicenseCodeValid(false);
+      setLicenseCodeInfo(null);
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -218,6 +248,16 @@ export default function Login() {
       });
       return;
     }
+
+    // If license code is entered, validate it first
+    if (licenseCode.trim() && licenseCodeValid === false) {
+      toast({
+        title: 'Invalid license code',
+        description: 'Please enter a valid license code or remove it to continue.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     setIsLoading(true);
     
@@ -229,6 +269,7 @@ export default function Login() {
         options: {
           data: {
             company_name: companyName.trim(),
+            license_code: licenseCode.trim() || null,
           }
         }
       });
@@ -256,9 +297,30 @@ export default function Login() {
         setIsLoading(false);
       } else if (data.session) {
         // Auto-confirmed (dev mode or email confirmation disabled)
+        // If there was a license code, try to redeem it
+        if (licenseCode.trim() && licenseCodeValid && data.user) {
+          try {
+            // Server derives tenantId from authenticated user's profile
+            await fetch('/api/license-codes/redeem', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'x-user-id': data.user.id
+              },
+              body: JSON.stringify({
+                code: licenseCode.trim()
+              })
+            });
+          } catch (redeemError) {
+            console.error('Failed to redeem license code:', redeemError);
+          }
+        }
+        
         toast({
           title: 'Account created!',
-          description: 'Welcome to Erwin Mills Management Suite.',
+          description: licenseCodeInfo 
+            ? `Welcome! Your ${licenseCodeInfo.subscriptionPlan} subscription from ${licenseCodeInfo.resellerName} has been activated.`
+            : 'Welcome to Erwin Mills Management Suite.',
         });
         // Redirect will happen via useEffect
       }
@@ -348,6 +410,51 @@ export default function Login() {
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                     data-testid="input-confirm-password"
                   />
+                </div>
+              )}
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="licenseCode" style={{ color: colors.brown }}>
+                    License Code <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="licenseCode"
+                      type="text"
+                      placeholder="XXXX-XXXX-XXXX"
+                      value={licenseCode}
+                      onChange={(e) => {
+                        const value = e.target.value.toUpperCase();
+                        setLicenseCode(value);
+                        if (value.replace(/-/g, '').length >= 12) {
+                          validateLicenseCode(value);
+                        } else {
+                          setLicenseCodeValid(null);
+                          setLicenseCodeInfo(null);
+                        }
+                      }}
+                      style={{ 
+                        backgroundColor: colors.inputBg, 
+                        borderColor: licenseCodeValid === true ? '#22c55e' : 
+                                     licenseCodeValid === false ? '#ef4444' : colors.creamDark 
+                      }}
+                      data-testid="input-license-code"
+                    />
+                    {licenseCodeValid === true && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">✓</span>
+                    )}
+                    {licenseCodeValid === false && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500">✗</span>
+                    )}
+                  </div>
+                  {licenseCodeInfo && (
+                    <p className="text-sm text-green-600">
+                      Valid code from {licenseCodeInfo.resellerName} - {licenseCodeInfo.subscriptionPlan} plan
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Have a license code from a partner? Enter it here for instant activation.
+                  </p>
                 </div>
               )}
               <Button
