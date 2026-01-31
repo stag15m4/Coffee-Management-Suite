@@ -2919,7 +2919,7 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
                 <div>
                   <h3 className="font-bold" style={{ color: colors.brown }}>{template.name}</h3>
                   <span className="text-sm" style={{ color: colors.brownLight }}>
-                    {template.drink_type} drinks {template.description ? `- ${template.description}` : ''}
+                    {template.drink_type === 'Food' ? 'Food items' : `${template.drink_type} drinks`} {template.description ? `- ${template.description}` : ''}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
