@@ -2292,7 +2292,7 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
     return count;
   }, [payrollInputs]);
 
-  const existingPayrollItem = overheadItems.find(item => item.name === 'Payroll');
+  const existingPayrollItem = overheadItems.find(item => item.name === 'Labor');
 
   const openPayrollModal = () => {
     if (existingPayrollItem) {
@@ -2308,13 +2308,13 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
     if (payrollAverage <= 0) return;
     if (existingPayrollItem) {
       await onUpdateOverheadItem(existingPayrollItem.id, {
-        name: 'Payroll',
+        name: 'Labor',
         amount: payrollAverage,
         frequency: 'bi-weekly',
       });
     } else {
       await onAddOverheadItem({
-        name: 'Payroll',
+        name: 'Labor',
         amount: payrollAverage,
         frequency: 'bi-weekly',
       });
@@ -2486,9 +2486,9 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
               onClick={openPayrollModal}
               className="px-3 py-1.5 font-semibold rounded-lg text-sm"
               style={{ backgroundColor: colors.brown, color: colors.white }}
-              data-testid="button-payroll"
+              data-testid="button-labor"
             >
-              Payroll
+              Labor
             </button>
             <button
               onClick={() => setAddingItem(true)}
@@ -2860,9 +2860,9 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
       {showPayrollModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="rounded-xl p-6 shadow-xl max-w-md w-full" style={{ backgroundColor: colors.white }}>
-            <h3 className="text-lg font-bold mb-2" style={{ color: colors.brown }}>Payroll Calculator</h3>
+            <h3 className="text-lg font-bold mb-2" style={{ color: colors.brown }}>Labor Calculator</h3>
             <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
-              Enter your last 3 payroll runs (including all taxes) to calculate an average bi-weekly payroll cost.
+              Enter your last 3 payroll runs (including all taxes) to calculate an average bi-weekly labor cost.
             </p>
             
             <div className="space-y-3">
@@ -2939,7 +2939,7 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium" style={{ color: colors.brownLight }}>Bi-Weekly Payroll</span>
+                  <span className="text-sm font-medium" style={{ color: colors.brownLight }}>Bi-Weekly Labor</span>
                   <span className="text-lg font-bold" style={{ color: colors.brown }}>
                     {formatCurrency(payrollAverage)}
                   </span>
@@ -2966,7 +2966,7 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
                 style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-save-payroll"
               >
-                {existingPayrollItem ? 'Update Payroll' : 'Add Payroll'}
+                {existingPayrollItem ? 'Update Labor' : 'Add Labor'}
               </button>
             </div>
           </div>
