@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Home as HomeIcon, Trash2, Check, X, Pencil } from 'lucide-react';
 import { Link } from 'wouter';
@@ -50,7 +50,7 @@ const formatCurrency = (value: number | string) => {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
+    maximumFractionDigits: 2,
   }).format(num);
 };
 
@@ -227,6 +227,8 @@ interface OverheadSettings {
   minutes_per_drink: number;
   notes?: string;
   operating_days_per_week?: number;
+  hours_open_per_day?: number;
+  owner_tips_enabled?: boolean;
 }
 
 interface OverheadItem {
@@ -234,7 +236,7 @@ interface OverheadItem {
   tenant_id: string;
   name: string;
   amount: number;
-  frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annual';
+  frequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'annual';
   sort_order: number;
   created_at?: string;
   updated_at?: string;
@@ -2207,6 +2209,7 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
     minutes_per_drink: overhead?.minutes_per_drink || 1,
     notes: overhead?.notes || '',
     operating_days_per_week: overhead?.operating_days_per_week || 7,
+    hours_open_per_day: overhead?.hours_open_per_day || 8,
   });
   const [newItem, setNewItem] = useState({ name: '', amount: '', frequency: 'monthly' });
   const [addingItem, setAddingItem] = useState(false);
@@ -2214,8 +2217,11 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
   const [editingItemForm, setEditingItemForm] = useState({ name: '', amount: '', frequency: '' });
 
   const operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
+  const hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
   const weeksPerMonth = 4.33;
   const daysPerMonth = operatingDays * weeksPerMonth;
+  const minutesPerDay = hoursPerDay * 60;
+  const minutesPerMonth = minutesPerDay * daysPerMonth;
 
   const calculatePeriodAmounts = (amount: number, frequency: string) => {
     let monthlyAmount = 0;
@@ -2225,6 +2231,9 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
         break;
       case 'weekly':
         monthlyAmount = amount * weeksPerMonth;
+        break;
+      case 'bi-weekly':
+        monthlyAmount = amount * (weeksPerMonth / 2);
         break;
       case 'monthly':
         monthlyAmount = amount;
@@ -2269,45 +2278,30 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
       <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
         <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>Overhead Settings</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
-              Cost per Minute
-            </label>
-            {editing ? (
-              <input
-                type="number"
-                step="0.01"
-                value={form.cost_per_minute}
-                onChange={(e) => setForm({ ...form, cost_per_minute: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3 py-2 rounded-lg border-2 outline-none"
-                style={{ borderColor: colors.gold }}
-                data-testid="input-cost-per-minute"
-              />
-            ) : (
-              <div className="text-2xl font-bold" style={{ color: colors.gold }}>
-                {formatCurrency(overhead?.cost_per_minute || 0)}
-              </div>
-            )}
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
               Minutes per Drink
             </label>
             {editing ? (
               <input
-                type="number"
-                step="0.5"
+                type="text"
+                inputMode="decimal"
                 value={form.minutes_per_drink}
-                onChange={(e) => setForm({ ...form, minutes_per_drink: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                    setForm({ ...form, minutes_per_drink: val === '' ? 0 : parseFloat(val) || 0 });
+                  }
+                }}
+                onFocus={(e) => e.target.select()}
                 className="w-full px-3 py-2 rounded-lg border-2 outline-none"
                 style={{ borderColor: colors.gold }}
                 data-testid="input-minutes-per-drink"
               />
             ) : (
               <div className="text-2xl font-bold" style={{ color: colors.brown }}>
-                {overhead?.minutes_per_drink || 1}
+                {overhead?.minutes_per_drink ? String(overhead.minutes_per_drink).replace(/^0+(?=\d)/, '') : '1'}
               </div>
             )}
           </div>
@@ -2323,6 +2317,7 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
                 max="7"
                 value={form.operating_days_per_week}
                 onChange={(e) => setForm({ ...form, operating_days_per_week: Math.min(7, Math.max(1, parseInt(e.target.value) || 7)) })}
+                onFocus={(e) => e.target.select()}
                 className="w-full px-3 py-2 rounded-lg border-2 outline-none"
                 style={{ borderColor: colors.gold }}
                 data-testid="input-operating-days"
@@ -2333,12 +2328,51 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
               </div>
             )}
           </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+              Hours Open Per Day
+            </label>
+            {editing ? (
+              <input
+                type="number"
+                step="0.5"
+                min="1"
+                max="24"
+                value={form.hours_open_per_day}
+                onChange={(e) => setForm({ ...form, hours_open_per_day: Math.min(24, Math.max(1, parseFloat(e.target.value) || 8)) })}
+                onFocus={(e) => e.target.select()}
+                className="w-full px-3 py-2 rounded-lg border-2 outline-none"
+                style={{ borderColor: colors.gold }}
+                data-testid="input-hours-open"
+              />
+            ) : (
+              <div className="text-2xl font-bold" style={{ color: colors.brown }}>
+                {overhead?.hours_open_per_day || 8} hours
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+              Calculated Cost/Minute
+            </label>
+            <div className="text-2xl font-bold" style={{ color: colors.gold }}>
+              {formatCurrency(minutesPerMonth > 0 ? totals.monthly / minutesPerMonth : 0)}
+            </div>
+            <div className="text-xs" style={{ color: colors.brownLight }}>
+              From overhead calculator
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 p-4 rounded-lg" style={{ backgroundColor: colors.cream }}>
           <div className="text-sm" style={{ color: colors.brownLight }}>Overhead per Drink</div>
           <div className="text-3xl font-bold" style={{ color: colors.gold }}>
-            {formatCurrency((overhead?.cost_per_minute || 0) * (overhead?.minutes_per_drink || 1))}
+            {formatCurrency((minutesPerMonth > 0 ? totals.monthly / minutesPerMonth : 0) * (overhead?.minutes_per_drink || 1))}
+          </div>
+          <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
+            Cost/min ({formatCurrency(minutesPerMonth > 0 ? totals.monthly / minutesPerMonth : 0)}) x Minutes/drink ({overhead?.minutes_per_drink || 1})
           </div>
         </div>
 
@@ -2463,6 +2497,7 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
                     >
                       <option value="daily">Daily</option>
                       <option value="weekly">Weekly</option>
+                      <option value="bi-weekly">Bi-Weekly</option>
                       <option value="monthly">Monthly</option>
                       <option value="quarterly">Quarterly</option>
                       <option value="annual">Annual</option>
@@ -2549,6 +2584,7 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
                         >
                           <option value="daily">Daily</option>
                           <option value="weekly">Weekly</option>
+                          <option value="bi-weekly">Bi-Weekly</option>
                           <option value="monthly">Monthly</option>
                           <option value="quarterly">Quarterly</option>
                           <option value="annual">Annual</option>
@@ -3261,6 +3297,42 @@ export default function Home() {
   const { data: pricingData = [], isLoading: loadingPricing, isError: errorPricing } = useRecipePricing();
   const { data: recipeSizeBases = [], isLoading: loadingRecipeSizeBases, isError: errorRecipeSizeBases } = useRecipeSizeBases();
 
+  // Calculate cost per minute from overhead items
+  const calculatedCostPerMinute = useMemo(() => {
+    const operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
+    const hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
+    const weeksPerMonth = 4.33;
+    const daysPerMonth = operatingDays * weeksPerMonth;
+    const minutesPerMonth = hoursPerDay * 60 * daysPerMonth;
+    
+    // Calculate monthly total from overhead items
+    const monthlyTotal = (overheadItems as OverheadItem[]).reduce((total, item) => {
+      let monthlyAmount = 0;
+      const amount = Number(item.amount) || 0;
+      switch (item.frequency) {
+        case 'daily': monthlyAmount = amount * daysPerMonth; break;
+        case 'weekly': monthlyAmount = amount * weeksPerMonth; break;
+        case 'bi-weekly': monthlyAmount = amount * (weeksPerMonth / 2); break;
+        case 'monthly': monthlyAmount = amount; break;
+        case 'quarterly': monthlyAmount = amount / 3; break;
+        case 'annual': monthlyAmount = amount / 12; break;
+      }
+      return total + monthlyAmount;
+    }, 0);
+    
+    return minutesPerMonth > 0 ? monthlyTotal / minutesPerMonth : 0;
+  }, [overhead?.operating_days_per_week, overhead?.hours_open_per_day, overheadItems]);
+
+  // Create enhanced overhead with calculated cost per minute
+  // Always use calculated value from overhead items (even if 0)
+  const enhancedOverhead = useMemo(() => {
+    if (!overhead) return overhead;
+    return {
+      ...overhead,
+      cost_per_minute: calculatedCostPerMinute,
+    };
+  }, [overhead, calculatedCostPerMinute]);
+
   const updateIngredientMutation = useUpdateIngredient();
   const addIngredientMutation = useAddIngredient();
   const updateOverheadMutation = useUpdateOverhead();
@@ -3789,7 +3861,7 @@ export default function Home() {
             productCategories={productCategories}
             baseTemplates={baseTemplates}
             drinkSizes={drinkSizes}
-            overhead={overhead}
+            overhead={enhancedOverhead}
             recipeSizeBases={recipeSizeBases}
             onAddRecipe={handleAddRecipe}
             onUpdateRecipe={handleUpdateRecipe}
@@ -3808,7 +3880,7 @@ export default function Home() {
             ingredients={ingredients}
             baseTemplates={baseTemplates}
             drinkSizes={drinkSizes}
-            overhead={overhead}
+            overhead={enhancedOverhead}
             pricingData={pricingData}
             recipeSizeBases={recipeSizeBases}
             onUpdatePricing={handleUpdatePricing}
@@ -3816,7 +3888,7 @@ export default function Home() {
         )}
         {activeTab === 'settings' && (
           <SettingsTab
-            overhead={overhead}
+            overhead={enhancedOverhead}
             onUpdateOverhead={handleUpdateOverhead}
             ingredients={ingredients}
             recipes={recipes}
