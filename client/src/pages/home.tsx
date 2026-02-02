@@ -2217,6 +2217,7 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
   const [editingItemForm, setEditingItemForm] = useState({ name: '', amount: '', frequency: '' });
   const [showPayrollModal, setShowPayrollModal] = useState(false);
   const [payrollInputs, setPayrollInputs] = useState({ run1: '', run2: '', run3: '' });
+  const [laborFrequency, setLaborFrequency] = useState<'weekly' | 'bi-weekly' | 'monthly' | 'bi-monthly'>('bi-weekly');
 
   const operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
   const hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
@@ -2298,8 +2299,10 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
     if (existingPayrollItem) {
       const avg = Number(existingPayrollItem.amount);
       setPayrollInputs({ run1: avg.toString(), run2: '', run3: '' });
+      setLaborFrequency((existingPayrollItem.frequency as 'weekly' | 'bi-weekly' | 'monthly' | 'bi-monthly') || 'bi-weekly');
     } else {
       setPayrollInputs({ run1: '', run2: '', run3: '' });
+      setLaborFrequency('bi-weekly');
     }
     setShowPayrollModal(true);
   };
@@ -2310,13 +2313,13 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
       await onUpdateOverheadItem(existingPayrollItem.id, {
         name: 'Labor',
         amount: payrollAverage,
-        frequency: 'bi-weekly',
+        frequency: laborFrequency,
       });
     } else {
       await onAddOverheadItem({
         name: 'Labor',
         amount: payrollAverage,
-        frequency: 'bi-weekly',
+        frequency: laborFrequency,
       });
     }
     setShowPayrollModal(false);
@@ -2862,10 +2865,27 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
           <div className="rounded-xl p-6 shadow-xl max-w-md w-full" style={{ backgroundColor: colors.white }}>
             <h3 className="text-lg font-bold mb-2" style={{ color: colors.brown }}>Labor Calculator</h3>
             <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
-              Enter your last 3 payroll runs (including all taxes) to calculate an average bi-weekly labor cost.
+              Enter your last 3 payroll runs (including all taxes) to calculate an average labor cost.
             </p>
             
             <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+                  Pay Frequency
+                </label>
+                <select
+                  value={laborFrequency}
+                  onChange={(e) => setLaborFrequency(e.target.value as 'weekly' | 'bi-weekly' | 'monthly' | 'bi-monthly')}
+                  className="w-full px-3 py-2 rounded-lg border-2 outline-none"
+                  style={{ borderColor: colors.gold }}
+                  data-testid="select-labor-frequency"
+                >
+                  <option value="weekly">Weekly</option>
+                  <option value="bi-weekly">Bi-Weekly</option>
+                  <option value="bi-monthly">Bi-Monthly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
               <div>
                 <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
                   Payroll Run 1
@@ -2939,7 +2959,11 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium" style={{ color: colors.brownLight }}>Bi-Weekly Labor</span>
+                  <span className="text-sm font-medium" style={{ color: colors.brownLight }}>
+                    {laborFrequency === 'weekly' ? 'Weekly' : 
+                     laborFrequency === 'bi-weekly' ? 'Bi-Weekly' : 
+                     laborFrequency === 'bi-monthly' ? 'Bi-Monthly' : 'Monthly'} Labor
+                  </span>
                   <span className="text-lg font-bold" style={{ color: colors.brown }}>
                     {formatCurrency(payrollAverage)}
                   </span>
