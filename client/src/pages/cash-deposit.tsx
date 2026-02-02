@@ -38,6 +38,7 @@ interface CashEntry {
   owner_tips: number;
   pay_in: number;
   pay_out: number;
+  cash_refund: number;
   actual_deposit: number;
   calculated_deposit: number;
   notes: string;
@@ -101,9 +102,62 @@ export default function CashDeposit() {
     owner_tips: '',
     pay_in: '',
     pay_out: '',
+    cash_refund: '',
     notes: '',
     flagged: false
   });
+  const [ownerTipsEnabled, setOwnerTipsEnabled] = useState(true);
+  const [ownerTipsLoaded, setOwnerTipsLoaded] = useState(false);
+
+  // Load owner_tips_enabled setting from overhead_settings (tenant-scoped)
+  useEffect(() => {
+    const loadOwnerTipsSetting = async () => {
+      if (!tenant?.id) return;
+      try {
+        const { data, error } = await supabase
+          .from('overhead_settings')
+          .select('owner_tips_enabled')
+          .eq('tenant_id', tenant.id)
+          .limit(1)
+          .maybeSingle();
+        if (!error && data !== null) {
+          setOwnerTipsEnabled(data.owner_tips_enabled !== false);
+        }
+        setOwnerTipsLoaded(true);
+      } catch (err) {
+        console.error('Error loading owner tips setting:', err);
+        setOwnerTipsLoaded(true);
+      }
+    };
+    loadOwnerTipsSetting();
+  }, [tenant?.id]);
+
+  // Save owner_tips_enabled setting when toggled (tenant-scoped)
+  const toggleOwnerTips = async () => {
+    if (!tenant?.id || !ownerTipsLoaded) return;
+    const newValue = !ownerTipsEnabled;
+    setOwnerTipsEnabled(newValue);
+    try {
+      const { data: existing } = await supabase
+        .from('overhead_settings')
+        .select('id')
+        .eq('tenant_id', tenant.id)
+        .limit(1)
+        .maybeSingle();
+      if (existing?.id) {
+        await supabase
+          .from('overhead_settings')
+          .update({ owner_tips_enabled: newValue })
+          .eq('id', existing.id);
+      } else {
+        await supabase
+          .from('overhead_settings')
+          .insert({ tenant_id: tenant.id, owner_tips_enabled: newValue });
+      }
+    } catch (err) {
+      console.error('Error saving owner tips setting:', err);
+    }
+  };
 
   const loadEntries = useCallback(async () => {
     if (!tenant?.id) {
@@ -169,6 +223,7 @@ export default function CashDeposit() {
         owner_tips: editingEntry.owner_tips?.toString() || '',
         pay_in: editingEntry.pay_in?.toString() || '',
         pay_out: editingEntry.pay_out?.toString() || '',
+        cash_refund: editingEntry.cash_refund?.toString() || '',
         notes: editingEntry.notes || '',
         flagged: editingEntry.flagged || false
       });
@@ -182,11 +237,12 @@ export default function CashDeposit() {
   const calculatedDeposit = () => {
     const cashSales = parseFloat(formData.cash_sales) || 0;
     const tipPool = parseFloat(formData.tip_pool) || 0;
-    const ownerTips = parseFloat(formData.owner_tips) || 0;
+    const ownerTips = (ownerTipsEnabled && ownerTipsLoaded) ? (parseFloat(formData.owner_tips) || 0) : 0;
     const payIn = parseFloat(formData.pay_in) || 0;
     const payOut = parseFloat(formData.pay_out) || 0;
+    const cashRefund = parseFloat(formData.cash_refund) || 0;
     const startingDrawer = parseFloat(formData.starting_drawer) || 200;
-    return cashSales - tipPool - ownerTips - payOut + payIn - (200 - startingDrawer);
+    return cashSales - tipPool - ownerTips - payOut + payIn - cashRefund - (200 - startingDrawer);
   };
 
   const difference = () => {
@@ -202,7 +258,7 @@ export default function CashDeposit() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tenant?.id) return;
+    if (!tenant?.id || !ownerTipsLoaded) return;
     
     setSaving(true);
 
@@ -214,9 +270,10 @@ export default function CashDeposit() {
       actual_deposit: parseFloat(formData.actual_deposit) || 0,
       cash_sales: parseFloat(formData.cash_sales) || 0,
       tip_pool: parseFloat(formData.tip_pool) || 0,
-      owner_tips: parseFloat(formData.owner_tips) || 0,
+      owner_tips: (ownerTipsEnabled && ownerTipsLoaded) ? (parseFloat(formData.owner_tips) || 0) : 0,
       pay_in: parseFloat(formData.pay_in) || 0,
       pay_out: parseFloat(formData.pay_out) || 0,
+      cash_refund: parseFloat(formData.cash_refund) || 0,
       notes: formData.notes,
       flagged: formData.flagged
     };
@@ -261,6 +318,7 @@ export default function CashDeposit() {
       owner_tips: '',
       pay_in: '',
       pay_out: '',
+      cash_refund: '',
       notes: '',
       flagged: false
     });
@@ -309,7 +367,7 @@ export default function CashDeposit() {
   const exportToCSV = () => {
     const headers = [
       'Date', 'Gross Revenue', 'Starting Drawer', 'Cash Sales', 'Tip Pool',
-      'Owner Tips', 'Pay In', 'Pay Out', 'Actual Deposit', 'Calculated Deposit',
+      'Owner Tips', 'Pay In', 'Pay Out', 'Cash Refund', 'Actual Deposit', 'Calculated Deposit',
       'Difference', 'Net Cash', 'Notes'
     ];
 
@@ -324,6 +382,7 @@ export default function CashDeposit() {
         e.owner_tips || 0,
         e.pay_in || 0,
         e.pay_out || 0,
+        e.cash_refund || 0,
         e.actual_deposit || 0,
         e.calculated_deposit || 0,
         ((e.actual_deposit || 0) - (e.calculated_deposit || 0)).toFixed(2),
@@ -553,6 +612,9 @@ export default function CashDeposit() {
   const preventScrollJump = (e: React.FocusEvent<HTMLInputElement>) => {
     scrollLockRef.scrollY = window.scrollY;
     scrollLockRef.current = true;
+    
+    // Select all text on focus so typing overwrites placeholder values
+    e.target.select();
     
     // Restore scroll position multiple times to catch iOS delayed scrolling
     const restore = () => {
@@ -807,7 +869,22 @@ export default function CashDeposit() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label style={{ color: colors.brown }}>Owner Tips</Label>
+                <div className="flex items-center justify-between">
+                  <Label style={{ color: ownerTipsEnabled ? colors.brown : colors.brownLight }}>Owner Tips</Label>
+                  <button
+                    type="button"
+                    onClick={toggleOwnerTips}
+                    disabled={!ownerTipsLoaded}
+                    className="text-xs px-2 py-1 rounded disabled:opacity-50"
+                    style={{ 
+                      backgroundColor: ownerTipsEnabled ? colors.gold : colors.creamDark, 
+                      color: ownerTipsEnabled ? colors.white : colors.brownLight 
+                    }}
+                    data-testid="button-toggle-owner-tips"
+                  >
+                    {ownerTipsEnabled ? 'On' : 'Off'}
+                  </button>
+                </div>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
@@ -818,8 +895,9 @@ export default function CashDeposit() {
                     onFocus={preventScrollJump}
                     onChange={(e) => updateField('owner_tips', e.target.value)}
                     className="pl-7"
-                    style={{ backgroundColor: colors.inputBg }}
+                    style={{ backgroundColor: ownerTipsEnabled && ownerTipsLoaded ? colors.inputBg : colors.creamDark }}
                     placeholder="0.00"
+                    disabled={!ownerTipsEnabled || !ownerTipsLoaded}
                     data-testid="input-owner-tips"
                   />
                 </div>
@@ -857,6 +935,24 @@ export default function CashDeposit() {
                     style={{ backgroundColor: colors.inputBg }}
                     placeholder="0.00"
                     data-testid="input-pay-out"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label style={{ color: colors.brown }}>Cash Refund</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={formData.cash_refund}
+                    onFocus={preventScrollJump}
+                    onChange={(e) => updateField('cash_refund', e.target.value)}
+                    className="pl-7"
+                    style={{ backgroundColor: colors.inputBg }}
+                    placeholder="0.00"
+                    data-testid="input-cash-refund"
                   />
                 </div>
               </div>

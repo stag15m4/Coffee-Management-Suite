@@ -83,15 +83,23 @@ Comprehensive recipe costing with ingredient management, base templates (disposa
 
 **Overhead Calculator (Settings Tab)**:
 - Operating Days Per Week: Configurable setting (1-7) for accurate daily cost calculations
+- Hours Open Per Day: Configurable setting (1-24) for cost per minute calculations
 - Dynamic overhead items spreadsheet: Add/edit/delete line items (rent, insurance, payroll, etc.)
-- Automatic time period conversion: Amounts entered at any frequency (daily/weekly/monthly/quarterly/annual) are automatically calculated across all periods
+- Frequency options: Daily, Weekly, Bi-Weekly, Monthly, Quarterly, Annual
+- Automatic time period conversion: Amounts entered at any frequency are automatically calculated across all periods
 - Total summary row shows aggregate overhead across all time periods
-- Uses operating days for accurate daily calculations: Daily = Monthly ÷ (days/week × 4.33)
+- Calculated Cost per Minute: Automatically derived from overhead items ÷ (operating minutes per month)
+- Recipe overhead costs now use the calculated cost per minute from overhead items
 
-**Tables**: `overhead_settings` (with `operating_days_per_week`), `overhead_items` (migration 054)
+**Tables**: `overhead_settings` (with `operating_days_per_week`, `hours_open_per_day`), `overhead_items` (migrations 054, 055)
 
 #### Cash Deposit Record
 Manages daily cash deposits, featuring auto-calculated fields, date range filtering, and CSV import/export.
+
+**Features (migration 055)**:
+- Cash Refund field: Debits refunds from the calculated deposit
+- Owner Tips toggle: Activate/deactivate owner tips field as shop grows
+- Auto-select on focus: Tab through fields highlights values for easy overwrite
 
 #### Tip Payout Calculator
 Handles weekly tip distribution, including CC fee deductions, employee management, hours entry, and comprehensive payout summaries with export options.
