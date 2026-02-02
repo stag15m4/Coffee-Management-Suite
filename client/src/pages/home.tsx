@@ -2215,6 +2215,8 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
   const [addingItem, setAddingItem] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemForm, setEditingItemForm] = useState({ name: '', amount: '', frequency: '' });
+  const [showPayrollModal, setShowPayrollModal] = useState(false);
+  const [payrollInputs, setPayrollInputs] = useState({ run1: '', run2: '', run3: '' });
 
   const operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
   const hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
@@ -2271,6 +2273,54 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
   const handleSave = async () => {
     await onUpdateOverhead(form);
     setEditing(false);
+  };
+
+  const payrollAverage = useMemo(() => {
+    const run1 = payrollInputs.run1 !== '' ? parseFloat(payrollInputs.run1) || 0 : null;
+    const run2 = payrollInputs.run2 !== '' ? parseFloat(payrollInputs.run2) || 0 : null;
+    const run3 = payrollInputs.run3 !== '' ? parseFloat(payrollInputs.run3) || 0 : null;
+    const enteredRuns = [run1, run2, run3].filter(r => r !== null) as number[];
+    if (enteredRuns.length === 0) return 0;
+    return enteredRuns.reduce((a, b) => a + b, 0) / enteredRuns.length;
+  }, [payrollInputs]);
+
+  const payrollRunsEntered = useMemo(() => {
+    let count = 0;
+    if (payrollInputs.run1 !== '') count++;
+    if (payrollInputs.run2 !== '') count++;
+    if (payrollInputs.run3 !== '') count++;
+    return count;
+  }, [payrollInputs]);
+
+  const existingPayrollItem = overheadItems.find(item => item.name === 'Payroll');
+
+  const openPayrollModal = () => {
+    if (existingPayrollItem) {
+      const avg = Number(existingPayrollItem.amount);
+      setPayrollInputs({ run1: avg.toString(), run2: '', run3: '' });
+    } else {
+      setPayrollInputs({ run1: '', run2: '', run3: '' });
+    }
+    setShowPayrollModal(true);
+  };
+
+  const handlePayrollSave = async () => {
+    if (payrollAverage <= 0) return;
+    if (existingPayrollItem) {
+      await onUpdateOverheadItem(existingPayrollItem.id, {
+        name: 'Payroll',
+        amount: payrollAverage,
+        frequency: 'bi-weekly',
+      });
+    } else {
+      await onAddOverheadItem({
+        name: 'Payroll',
+        amount: payrollAverage,
+        frequency: 'bi-weekly',
+      });
+    }
+    setShowPayrollModal(false);
+    setPayrollInputs({ run1: '', run2: '', run3: '' });
   };
 
   return (
@@ -2431,14 +2481,24 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
       <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <h3 className="text-lg font-bold" style={{ color: colors.brown }}>Overhead Calculator</h3>
-          <button
-            onClick={() => setAddingItem(true)}
-            className="px-3 py-1.5 font-semibold rounded-lg text-sm"
-            style={{ backgroundColor: colors.gold, color: colors.white }}
-            data-testid="button-add-overhead-item"
-          >
-            + Add Item
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={openPayrollModal}
+              className="px-3 py-1.5 font-semibold rounded-lg text-sm"
+              style={{ backgroundColor: colors.brown, color: colors.white }}
+              data-testid="button-payroll"
+            >
+              Payroll
+            </button>
+            <button
+              onClick={() => setAddingItem(true)}
+              className="px-3 py-1.5 font-semibold rounded-lg text-sm"
+              style={{ backgroundColor: colors.gold, color: colors.white }}
+              data-testid="button-add-overhead-item"
+            >
+              + Add Item
+            </button>
+          </div>
         </div>
         <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
           Add your shop overhead costs. Amounts are automatically converted to all time periods based on your {operatingDays}-day operating week.
@@ -2795,6 +2855,123 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
           </button>
         </div>
       </div>
+
+      {/* Payroll Modal */}
+      {showPayrollModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="rounded-xl p-6 shadow-xl max-w-md w-full" style={{ backgroundColor: colors.white }}>
+            <h3 className="text-lg font-bold mb-2" style={{ color: colors.brown }}>Payroll Calculator</h3>
+            <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
+              Enter your last 3 payroll runs (including all taxes) to calculate an average bi-weekly payroll cost.
+            </p>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+                  Payroll Run 1
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={payrollInputs.run1}
+                    onChange={(e) => setPayrollInputs({ ...payrollInputs, run1: e.target.value })}
+                    onFocus={(e) => e.target.select()}
+                    className="w-full pl-7 pr-3 py-2 rounded-lg border-2 outline-none"
+                    style={{ borderColor: colors.gold }}
+                    data-testid="input-payroll-run1"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+                  Payroll Run 2
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={payrollInputs.run2}
+                    onChange={(e) => setPayrollInputs({ ...payrollInputs, run2: e.target.value })}
+                    onFocus={(e) => e.target.select()}
+                    className="w-full pl-7 pr-3 py-2 rounded-lg border-2 outline-none"
+                    style={{ borderColor: colors.gold }}
+                    data-testid="input-payroll-run2"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+                  Payroll Run 3
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={payrollInputs.run3}
+                    onChange={(e) => setPayrollInputs({ ...payrollInputs, run3: e.target.value })}
+                    onFocus={(e) => e.target.select()}
+                    className="w-full pl-7 pr-3 py-2 rounded-lg border-2 outline-none"
+                    style={{ borderColor: colors.gold }}
+                    data-testid="input-payroll-run3"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 border-t" style={{ borderColor: colors.cream }}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs" style={{ color: colors.brownLight }}>
+                    {payrollRunsEntered === 0 ? 'Enter payroll runs above' : 
+                     payrollRunsEntered === 1 ? 'Average of 1 run' :
+                     payrollRunsEntered === 2 ? 'Average of 2 runs' : 
+                     'Average of 3 runs'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium" style={{ color: colors.brownLight }}>Bi-Weekly Payroll</span>
+                  <span className="text-lg font-bold" style={{ color: colors.brown }}>
+                    {formatCurrency(payrollAverage)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => {
+                  setShowPayrollModal(false);
+                  setPayrollInputs({ run1: '', run2: '', run3: '' });
+                }}
+                className="flex-1 px-4 py-2 font-semibold rounded-lg"
+                style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                data-testid="button-cancel-payroll"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePayrollSave}
+                disabled={payrollAverage <= 0}
+                className="flex-1 px-4 py-2 font-semibold rounded-lg disabled:opacity-50"
+                style={{ backgroundColor: colors.gold, color: colors.white }}
+                data-testid="button-save-payroll"
+              >
+                {existingPayrollItem ? 'Update Payroll' : 'Add Payroll'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
