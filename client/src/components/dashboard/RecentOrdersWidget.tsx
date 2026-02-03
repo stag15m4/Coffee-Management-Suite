@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-queries';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
+import { MOCK_RECENT_ORDERS, useMockData } from './MockDataProvider';
 
 const colors = {
   gold: '#C9A227',
@@ -22,11 +23,17 @@ interface Order {
 
 export function RecentOrdersWidget() {
   const { tenant } = useAuth();
+  const { isMockMode } = useMockData();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard-orders', tenant?.id],
     queryFn: async () => {
       if (!tenant?.id) return null;
+
+      // Use mock data in dev mode
+      if (isMockMode) {
+        return MOCK_RECENT_ORDERS;
+      }
 
       // Get recent orders
       const { data: orders, error: ordersError } = await supabase

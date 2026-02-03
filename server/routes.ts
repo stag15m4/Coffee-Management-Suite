@@ -476,7 +476,10 @@ async function seedDatabase() {
 }
 
 // Call seed
-seedDatabase().catch(console.error);
+// Only seed if database is configured
+if (process.env.DATABASE_URL) {
+  seedDatabase().catch(console.error);
+}
 
 // Coffee Order Email Route
 const sendOrderEmailSchema = z.object({

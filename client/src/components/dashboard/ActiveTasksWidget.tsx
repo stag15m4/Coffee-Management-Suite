@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-queries';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
+import { MOCK_ACTIVE_TASKS, useMockData } from './MockDataProvider';
 
 const colors = {
   gold: '#C9A227',
@@ -26,11 +27,17 @@ interface Task {
 
 export function ActiveTasksWidget() {
   const { tenant, profile } = useAuth();
+  const { isMockMode } = useMockData();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard-tasks', tenant?.id, profile?.id],
     queryFn: async () => {
       if (!tenant?.id || !profile?.id) return null;
+
+      // Use mock data in dev mode
+      if (isMockMode) {
+        return MOCK_ACTIVE_TASKS;
+      }
 
       // Get tasks assigned to current user that are pending or in_progress
       const { data: tasks, error: tasksError } = await supabase

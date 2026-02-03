@@ -3,6 +3,7 @@ import { DashboardWidget } from './DashboardWidget';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-queries';
 import { useAuth } from '@/contexts/AuthContext';
+import { MOCK_REVENUE_DATA, useMockData } from './MockDataProvider';
 
 const colors = {
   gold: '#C9A227',
@@ -14,11 +15,17 @@ const colors = {
 
 export function RevenueWidget() {
   const { tenant } = useAuth();
+  const { isMockMode } = useMockData();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard-revenue', tenant?.id],
     queryFn: async () => {
       if (!tenant?.id) return null;
+
+      // Use mock data in dev mode
+      if (isMockMode) {
+        return MOCK_REVENUE_DATA;
+      }
 
       const now = new Date();
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];

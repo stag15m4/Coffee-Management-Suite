@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-queries';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
+import { MOCK_MAINTENANCE_TASKS, useMockData } from './MockDataProvider';
 
 const colors = {
   gold: '#C9A227',
@@ -24,11 +25,17 @@ interface MaintenanceTask {
 
 export function UpcomingMaintenanceWidget() {
   const { tenant } = useAuth();
+  const { isMockMode } = useMockData();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard-maintenance', tenant?.id],
     queryFn: async () => {
       if (!tenant?.id) return null;
+
+      // Use mock data in dev mode
+      if (isMockMode) {
+        return MOCK_MAINTENANCE_TASKS;
+      }
 
       const now = new Date();
       const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];

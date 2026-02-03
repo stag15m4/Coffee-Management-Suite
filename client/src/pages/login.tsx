@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Footer } from '@/components/Footer';
-import { Building2, ChevronRight, Loader2 } from 'lucide-react';
+import { Building2, ChevronRight, Loader2, Code } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -390,6 +390,28 @@ export default function Login() {
                 </button>
               </div>
             </form>
+
+            {/* Dev Mode Button - only shows when VITE_USE_MOCK_DATA=true */}
+            {import.meta.env.VITE_USE_MOCK_DATA === 'true' && (
+              <div className="mt-6 pt-6 border-t" style={{ borderColor: colors.creamDark }}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    localStorage.setItem('dev_mode', 'true');
+                    window.location.href = '/';
+                  }}
+                  style={{ borderColor: colors.gold, color: colors.gold }}
+                >
+                  <Code className="w-4 h-4 mr-2" />
+                  Dev Mode - Skip Login
+                </Button>
+                <p className="text-xs text-center mt-2" style={{ color: colors.brownLight }}>
+                  Development only - bypasses authentication
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
