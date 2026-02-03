@@ -1,9 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// In dev mode with mock data, create a dummy client that won't be used
+const isDevMode = import.meta.env.VITE_USE_MOCK_DATA === 'true';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || (isDevMode ? 'https://mock.supabase.co' : '');
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || (isDevMode ? 'mock-key' : '');
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: !isDevMode,
+    autoRefreshToken: !isDevMode,
+  }
+});
 
 export const queryKeys = {
   ingredientCategories: ['ingredient-categories'] as const,
