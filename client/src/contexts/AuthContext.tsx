@@ -388,6 +388,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.log('[Session] Retrieved existing session');
                 setSession(sessionData.session);
                 setUser(sessionData.session.user);
+                // Re-fetch user data to ensure profile, tenant, and modules are fresh
+                await fetchUserData(sessionData.session.user.id, 0, true);
               } else {
                 console.warn('[Session] No valid session found, user may need to re-login');
               }
@@ -401,6 +403,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (isMounted) {
               setSession(data.session);
               setUser(data.session.user);
+              // Re-fetch user data to ensure profile, tenant, and modules are fresh
+              await fetchUserData(data.session.user.id, 0, true);
             }
           }
 
