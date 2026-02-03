@@ -472,8 +472,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           } else if (data?.session) {
             console.log('[Session] Session refreshed successfully');
-            // Don't update session/user here to prevent triggering fetchUserData cascade
-            // The session is already refreshed in Supabase, pages will work fine
+            // Update session state so modules have fresh auth data
+            if (isMounted) {
+              setSession(data.session);
+              setUser(data.session.user);
+            }
           }
 
           // Dispatch custom event to notify pages to refresh their data
