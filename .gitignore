@@ -67,3 +67,7 @@ attached_assets/
 
 # TypeScript cache
 *.tsbuildinfo
+
+#zip files
+*.tar.gz
+*.zip
