@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Calculator, DollarSign, Coffee, Receipt, Wrench, RefreshCw, ListTodo, Building2, MapPin, CreditCard } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { useToast } from '@/hooks/use-toast';
+import { RevenueWidget } from '@/components/dashboard/RevenueWidget';
+import { UpcomingMaintenanceWidget } from '@/components/dashboard/UpcomingMaintenanceWidget';
+import { ActiveTasksWidget } from '@/components/dashboard/ActiveTasksWidget';
+import { RecentOrdersWidget } from '@/components/dashboard/RecentOrdersWidget';
 
 const colors = {
   gold: '#C9A227',
@@ -207,6 +211,27 @@ export default function Dashboard() {
           </Card>
         )}
 
+        {/* Dashboard Insights Widgets */}
+        {hasAnyModules && (
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold mb-4" style={{ color: colors.brown }}>
+              Insights
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {canAccessModule('cash-deposit') && <RevenueWidget />}
+              {canAccessModule('equipment-maintenance') && <UpcomingMaintenanceWidget />}
+              {canAccessModule('admin-tasks') && <ActiveTasksWidget />}
+              {canAccessModule('bulk-ordering') && <RecentOrdersWidget />}
+            </div>
+          </div>
+        )}
+
+        {/* Module Cards */}
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: colors.brown }}>
+            Modules
+          </h3>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {canAccessModule('recipe-costing') && (
             <ModuleCard
