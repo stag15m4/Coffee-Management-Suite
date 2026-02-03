@@ -951,6 +951,26 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ### Blocked Items
 - None yet
 
+### Newly Discovered Issues
+
+#### Email Verification Flow Error Handling
+**Status**: Not Started
+**Priority**: MEDIUM
+**Discovered**: 2026-02-02
+
+**Issue**: Clicking email verification links causes AbortError and page freeze
+**Steps to Reproduce**:
+1. Receive verification email
+2. Click verification link
+3. Page loads but throws "Unhandled Promise Rejection: AbortError"
+4. Page becomes unresponsive
+
+**Suggested Fix**:
+- Add proper error handling for email verification flow
+- Add loading state during verification
+- Show user-friendly error messages if verification fails
+- Implement timeout protection for verification requests
+
 ### Questions/Decisions Needed
 - Theme builder scope - how customizable?
 - White-label pricing model?
