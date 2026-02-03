@@ -1,6 +1,77 @@
-node_modules
-dist
-.DS_Store
+# Dependencies
+node_modules/
+.upm/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
 server/public
+
+# Large zip files (exceeds GitHub 100MB limit)
+*.zip
+erwin-mills-app.zip
+erwin-mills-assets.zip
+erwin-mills-suite.zip
+code-export.zip
+supabase-migrations.zip
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+taskManagement.db
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env*.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+.cache/
+
+# Replit specific (optional - remove if you want these tracked)
+.replit.nix
+.breakpoints
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Uploaded assets (if large)
+attached_assets/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Vite config backups
 vite.config.ts.*
+
+# Zip and tar files
 *.tar.gz
+*.zip

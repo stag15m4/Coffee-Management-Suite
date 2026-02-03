@@ -78,8 +78,28 @@ The core data model includes entities for Ingredients, Recipes, and a junction t
 
 ### Implemented Modules
 
+#### Recipe Cost Manager
+Comprehensive recipe costing with ingredient management, base templates (disposables), and multi-size recipe support.
+
+**Overhead Calculator (Settings Tab)**:
+- Operating Days Per Week: Configurable setting (1-7) for accurate daily cost calculations
+- Hours Open Per Day: Configurable setting (1-24) for cost per minute calculations
+- Dynamic overhead items spreadsheet: Add/edit/delete line items (rent, insurance, payroll, etc.)
+- Frequency options: Daily, Weekly, Bi-Weekly, Monthly, Quarterly, Annual
+- Automatic time period conversion: Amounts entered at any frequency are automatically calculated across all periods
+- Total summary row shows aggregate overhead across all time periods
+- Calculated Cost per Minute: Automatically derived from overhead items ÷ (operating minutes per month)
+- Recipe overhead costs now use the calculated cost per minute from overhead items
+
+**Tables**: `overhead_settings` (with `operating_days_per_week`, `hours_open_per_day`), `overhead_items` (migrations 054, 055)
+
 #### Cash Deposit Record
 Manages daily cash deposits, featuring auto-calculated fields, date range filtering, and CSV import/export.
+
+**Features (migration 055)**:
+- Cash Refund field: Debits refunds from the calculated deposit
+- Owner Tips toggle: Activate/deactivate owner tips field as shop grows
+- Auto-select on focus: Tab through fields highlights values for easy overwrite
 
 #### Tip Payout Calculator
 Handles weekly tip distribution, including CC fee deductions, employee management, hours entry, and comprehensive payout summaries with export options.
@@ -127,6 +147,34 @@ The platform integrates with Stripe for subscription billing and payment process
 - Only owners can manage billing (role check)
 - Webhook route registered BEFORE express.json() for raw body access
 - **Note**: Currently userId is passed from client. For production, implement server-side Supabase JWT verification to extract userId from verified token rather than trusting client-supplied values.
+
+### Wholesale Reseller & License Code System
+
+The platform includes a wholesale distribution system for resellers/partners:
+
+**Architecture:**
+- `resellers` table: Tracks wholesale partners with seat allocation (seats_total/seats_used)
+- `license_codes` table: Unique codes for subscription activation
+- Platform admin UI at `/reseller-management` for CRUD operations
+
+**Key Features:**
+- Generate unique license codes (format: XXXX-XXXX-XXXX-XXXX) for resellers
+- Track seat usage vs. allocation per reseller
+- Codes can be configured with subscription plan type and expiration dates
+- License code redemption during signup flow
+
+**Security Implementation (migrations 049-051):**
+- `requirePlatformAdmin` middleware protects all reseller/license management endpoints
+- Verifies user against `platform_admins` table (user_id + is_active)
+- License redemption endpoint requires `x-user-id` header (401 if missing)
+- TenantId is derived server-side from user_profiles, never trusted from client
+- Frontend sends `x-user-id` header with all authenticated reseller API calls
+- RLS policies and function search paths secured (SET search_path = '')
+
+**Key Files:**
+- `server/routes.ts` - Reseller/license API endpoints with auth middleware
+- `client/src/pages/reseller-management.tsx` - Platform admin UI
+- `client/src/pages/login.tsx` - License code redemption in signup flow
 
 ## External Dependencies
 

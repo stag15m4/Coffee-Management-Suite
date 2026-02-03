@@ -136,6 +136,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const adminResult = adminSettled.status === 'fulfilled' ? adminSettled.value : null;
       const profileResult = profileSettled.status === 'fulfilled' ? profileSettled.value : null;
 
+      // Debug logging for platform admin check
+      console.log('Platform admin check - userId:', userId);
+      console.log('Platform admin check - adminResult:', adminResult);
+      console.log('Platform admin check - adminResult.data:', adminResult ? (adminResult as any).data : 'no result');
+      console.log('Platform admin check - adminResult.error:', adminResult ? (adminResult as any).error : 'no result');
+
       // Check if platform admin
       if (adminResult && (adminResult as any).data && !(adminResult as any).error) {
         setPlatformAdmin((adminResult as any).data);
