@@ -192,36 +192,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Load all accessible locations (parent/child for owners, plus any user_tenant_assignments)
         let allLocations: Tenant[] = [tenantData];
-        
-        if (profileData.role === 'owner') {
-          // Owners get child locations of their primary tenant
-          const { data: childLocations } = await supabase
-            .from('tenants')
-            .select('*')
-            .eq('parent_tenant_id', tenantData.id)
-            .eq('is_active', true)
-            .order('name');
-          
-          allLocations = [tenantData, ...(childLocations || [])];
-          setIsParentTenant((childLocations?.length || 0) > 0);
-        } else {
-          setIsParentTenant(false);
+
+        try {
+          if (profileData.role === 'owner') {
+            // Owners get child locations of their primary tenant (with timeout)
+            const childLocationsResult = await withTimeout(
+              supabase
+                .from('tenants')
+                .select('*')
+                .eq('parent_tenant_id', tenantData.id)
+                .eq('is_active', true)
+                .order('name'),
+              'Child locations query'
+            );
+
+            const childLocations = childLocationsResult && !(childLocationsResult as any).error
+              ? (childLocationsResult as any).data
+              : null;
+
+            allLocations = [tenantData, ...(childLocations || [])];
+            setIsParentTenant((childLocations?.length || 0) > 0);
+          } else {
+            setIsParentTenant(false);
+          }
+
+          // Also load any additional locations from user_tenant_assignments for all users (with timeout)
+          const assignmentsResult = await withTimeout(
+            supabase
+              .from('user_tenant_assignments')
+              .select('tenant:tenants!inner(*)')
+              .eq('user_id', userId)
+              .eq('is_active', true),
+            'User assignments query'
+          );
+
+          const assignments = assignmentsResult && !(assignmentsResult as any).error
+            ? (assignmentsResult as any).data
+            : null;
+
+          if (assignments && assignments.length > 0) {
+            const assignedTenants = assignments
+              .map((a: any) => a.tenant as Tenant)
+              .filter((t: Tenant) => t.is_active && !allLocations.find(l => l.id === t.id));
+            allLocations = [...allLocations, ...assignedTenants];
+          }
+        } catch (err) {
+          console.warn('[AuthContext] Failed to load additional locations:', err);
+          // Continue with just the primary tenant
         }
-        
-        // Also load any additional locations from user_tenant_assignments for all users
-        const { data: assignments } = await supabase
-          .from('user_tenant_assignments')
-          .select('tenant:tenants!inner(*)')
-          .eq('user_id', userId)
-          .eq('is_active', true);
-        
-        if (assignments && assignments.length > 0) {
-          const assignedTenants = assignments
-            .map((a: any) => a.tenant as Tenant)
-            .filter((t: Tenant) => t.is_active && !allLocations.find(l => l.id === t.id));
-          allLocations = [...allLocations, ...assignedTenants];
-        }
-        
+
         setAccessibleLocations(allLocations);
         
         // Check if there's a saved active location in session storage
@@ -312,42 +331,84 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let isMounted = true;
     let lastVisibilityTime = Date.now();
-    
+    let resumeInProgress = false;
+
     const handleVisibilityChange = async () => {
       // Check visibility and that we have a user and component is still mounted
       if (document.visibilityState === 'visible' && user && isMounted) {
+        // Prevent multiple simultaneous resume operations
+        if (resumeInProgress) {
+          console.log('[Session] Resume already in progress, skipping duplicate event');
+          return;
+        }
+
         const timeSinceHidden = Date.now() - lastVisibilityTime;
-        console.log(`[Session] App returned to foreground after ${Math.round(timeSinceHidden / 1000)}s, refreshing session...`);
-        
+        console.log(`[Session] App returned to foreground after ${Math.round(timeSinceHidden / 1000)}s`);
+
+        // Only refresh if app was hidden for a meaningful amount of time
+        if (timeSinceHidden < 5000) {
+          console.log('[Session] App was only hidden briefly, skipping refresh');
+          return;
+        }
+
+        resumeInProgress = true;
+
         try {
-          // Refresh the Supabase session
-          const { data, error } = await supabase.auth.refreshSession();
-          
+          // Add timeout to session refresh to prevent hanging
+          const sessionRefreshPromise = supabase.auth.refreshSession();
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Session refresh timeout')), 5000)
+          );
+
+          const { data, error } = await Promise.race([
+            sessionRefreshPromise,
+            timeoutPromise
+          ]) as any;
+
           // Guard against state updates after unmount
           if (!isMounted) return;
-          
+
           if (error) {
             console.warn('[Session] Session refresh failed:', error.message);
-            // If refresh fails, try to get current session
-            const { data: sessionData } = await supabase.auth.getSession();
-            if (sessionData.session && isMounted) {
-              setSession(sessionData.session);
-              setUser(sessionData.session.user);
+            // If refresh fails, try to get current session (with timeout)
+            try {
+              const sessionPromise = supabase.auth.getSession();
+              const { data: sessionData } = await Promise.race([
+                sessionPromise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Get session timeout')), 3000))
+              ]) as any;
+
+              if (sessionData?.session && isMounted) {
+                console.log('[Session] Retrieved existing session');
+                setSession(sessionData.session);
+                setUser(sessionData.session.user);
+              } else {
+                console.warn('[Session] No valid session found, user may need to re-login');
+              }
+            } catch (sessionErr) {
+              console.error('[Session] Failed to get session:', sessionErr);
+              // Don't force logout, let existing session continue
             }
-          } else if (data.session) {
+          } else if (data?.session) {
             console.log('[Session] Session refreshed successfully');
-            setSession(data.session);
-            setUser(data.session.user);
+            // Don't update session/user here to prevent triggering fetchUserData cascade
+            // The session is already refreshed in Supabase, pages will work fine
           }
-          
+
           // Dispatch custom event to notify pages to refresh their data
           // Only refresh if app was hidden for more than 30 seconds
-          if (timeSinceHidden > 30000) {
+          if (timeSinceHidden > 30000 && isMounted) {
             console.log('[Session] Dispatching app-resumed event to refresh page data');
-            window.dispatchEvent(new CustomEvent('app-resumed'));
+            // Use setTimeout to ensure event happens after state updates complete
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('app-resumed'));
+            }, 100);
           }
         } catch (err) {
           console.error('[Session] Error during visibility refresh:', err);
+          // Don't crash, just log and continue
+        } finally {
+          resumeInProgress = false;
         }
       } else if (document.visibilityState === 'hidden') {
         lastVisibilityTime = Date.now();

@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FeedbackButton } from "@/components/FeedbackButton";
+import { AppResumeIndicator } from "@/components/AppResumeIndicator";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
@@ -120,6 +121,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
+          <AppResumeIndicator />
           <Toaster />
           <Router />
           <AuthenticatedFeedbackButton />
