@@ -20,6 +20,14 @@ export async function getStripeSecretKey() {
   return getSecretKey();
 }
 
+export async function getStripePublishableKey() {
+  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
+  if (!publishableKey) {
+    throw new Error('STRIPE_PUBLISHABLE_KEY environment variable is not set');
+  }
+  return publishableKey;
+}
+
 let stripeSync: any = null;
 
 export async function getStripeSync() {

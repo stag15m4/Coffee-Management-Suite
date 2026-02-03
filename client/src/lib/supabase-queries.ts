@@ -1,17 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@supabase/supabase-js';
 
-// In dev mode with mock data, create a dummy client that won't be used
-const isDevMode = import.meta.env.VITE_USE_MOCK_DATA === 'true';
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || (isDevMode ? 'https://mock.supabase.co' : '');
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || (isDevMode ? 'mock-key' : '');
-
-export const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    persistSession: !isDevMode,
-    autoRefreshToken: !isDevMode,
-  }
-});
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 export const queryKeys = {
   ingredientCategories: ['ingredient-categories'] as const,
@@ -22,6 +14,7 @@ export const queryKeys = {
   recipes: ['recipes'] as const,
   products: ['products'] as const,
   overhead: ['overhead'] as const,
+  overheadItems: ['overhead-items'] as const,
   recipePricing: ['recipe-pricing'] as const,
   recipeSizeBases: ['recipe-size-bases'] as const,
   equipment: ['equipment'] as const,
@@ -259,6 +252,75 @@ export function useUpdateOverhead() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.overhead });
       queryClient.invalidateQueries({ queryKey: queryKeys.products });
+    },
+  });
+}
+
+export function useOverheadItems() {
+  return useQuery({
+    queryKey: queryKeys.overheadItems,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('overhead_items')
+        .select('*')
+        .order('sort_order');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useAddOverheadItem() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (item: { tenant_id: string; name: string; amount: number; frequency: string; sort_order?: number }) => {
+      const { data, error } = await supabase
+        .from('overhead_items')
+        .insert(item)
+        .select();
+      if (error) throw error;
+      return data?.[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.overheadItems });
+    },
+  });
+}
+
+export function useUpdateOverheadItem() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: { name?: string; amount?: number; frequency?: string; sort_order?: number } }) => {
+      const { data, error } = await supabase
+        .from('overhead_items')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select();
+      if (error) throw error;
+      return data?.[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.overheadItems });
+    },
+  });
+}
+
+export function useDeleteOverheadItem() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('overhead_items')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.overheadItems });
     },
   });
 }

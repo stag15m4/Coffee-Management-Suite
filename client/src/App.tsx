@@ -21,11 +21,12 @@ import AdminBranding from "@/pages/admin-branding";
 import AdminLocations from "@/pages/admin-locations";
 import OrganizationDashboard from "@/pages/organization-dashboard";
 import PlatformAdmin from "@/pages/platform-admin";
+import ResellerManagement from "@/pages/reseller-management";
 import Billing from "@/pages/billing";
 
 function HomePage() {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: '#FFFDF7' }}>
@@ -33,11 +34,11 @@ function HomePage() {
       </div>
     );
   }
-  
+
   if (!user) {
     return <Landing />;
   }
-  
+
   return (
     <ProtectedRoute>
       <Dashboard />
@@ -50,6 +51,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/platform-admin" component={PlatformAdmin} />
+      <Route path="/reseller-management" component={ResellerManagement} />
       <Route path="/admin/users">
         <ProtectedRoute>
           <AdminUsers />

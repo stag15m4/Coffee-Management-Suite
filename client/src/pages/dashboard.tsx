@@ -6,10 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Calculator, DollarSign, Coffee, Receipt, Wrench, RefreshCw, ListTodo, Building2, MapPin, CreditCard } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { useToast } from '@/hooks/use-toast';
+<<<<<<< HEAD
 import { RevenueWidget } from '@/components/dashboard/RevenueWidget';
 import { UpcomingMaintenanceWidget } from '@/components/dashboard/UpcomingMaintenanceWidget';
 import { ActiveTasksWidget } from '@/components/dashboard/ActiveTasksWidget';
 import { RecentOrdersWidget } from '@/components/dashboard/RecentOrdersWidget';
+=======
+>>>>>>> origin/replit-agent
 
 const colors = {
   gold: '#C9A227',
@@ -211,6 +214,7 @@ export default function Dashboard() {
           </Card>
         )}
 
+<<<<<<< HEAD
         {/* Dashboard Insights Widgets */}
         {hasAnyModules && (
           <div className="mb-8">
@@ -232,6 +236,8 @@ export default function Dashboard() {
             Modules
           </h3>
         </div>
+=======
+>>>>>>> origin/replit-agent
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {canAccessModule('recipe-costing') && (
             <ModuleCard

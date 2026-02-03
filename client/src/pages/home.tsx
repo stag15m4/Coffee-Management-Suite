@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Home as HomeIcon } from 'lucide-react';
+import { Home as HomeIcon, Trash2, Check, X, Pencil } from 'lucide-react';
 import { Link } from 'wouter';
+import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
@@ -15,6 +16,10 @@ import {
   useDrinkSizes,
   useRecipes,
   useOverhead,
+  useOverheadItems,
+  useAddOverheadItem,
+  useUpdateOverheadItem,
+  useDeleteOverheadItem,
   useRecipePricing,
   useRecipeSizeBases,
   useUpdateIngredient,
@@ -45,7 +50,7 @@ const formatCurrency = (value: number | string) => {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
+    maximumFractionDigits: 2,
   }).format(num);
 };
 
@@ -221,6 +226,20 @@ interface OverheadSettings {
   cost_per_minute: number;
   minutes_per_drink: number;
   notes?: string;
+  operating_days_per_week?: number;
+  hours_open_per_day?: number;
+  owner_tips_enabled?: boolean;
+}
+
+interface OverheadItem {
+  id: string;
+  tenant_id: string;
+  name: string;
+  amount: number;
+  frequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'annual';
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface IngredientsTabProps {
@@ -1624,10 +1643,48 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   
-  // Filter out bulk sizes for pricing matrix (only show standard drink sizes)
-  const standardDrinkSizes = drinkSizes.filter(s => !s.name.toLowerCase().includes('bulk'));
+  // Filter out bulk sizes and separate drink sizes from food sizes
+  // Exclude bulk from both drink and food sizes
+  const drinkTypeSizes = drinkSizes.filter(s => 
+    !s.name.toLowerCase().includes('bulk') && 
+    (!s.drink_type || s.drink_type.toLowerCase() !== 'food')
+  );
+  const foodSizes = drinkSizes.filter(s => 
+    !s.name.toLowerCase().includes('bulk') &&
+    s.drink_type && s.drink_type.toLowerCase() === 'food'
+  );
+  
+  // For backward compatibility
+  const standardDrinkSizes = drinkTypeSizes;
+  
   // Filter out bulk recipes (they are manufacturing recipes, not for sale directly)
-  const drinkRecipes = recipes.filter(r => !r.is_bulk_recipe);
+  const nonBulkRecipes = recipes.filter(r => !r.is_bulk_recipe);
+  
+  // Get all food size IDs for classification
+  const foodSizeIds = foodSizes.map(s => s.id);
+  const drinkSizeIds = drinkTypeSizes.map(s => s.id);
+  
+  // Helper to check if a recipe has ingredients for any given size IDs
+  const hasIngredientsForSizeIds = (recipe: Recipe, sizeIds: string[]): boolean => {
+    return recipe.recipe_ingredients?.some(ri => sizeIds.includes(ri.size_id)) || false;
+  };
+  
+  // Recipes that have ingredients for food sizes go in the food section
+  const foodRecipes = nonBulkRecipes.filter(r => 
+    hasIngredientsForSizeIds(r, foodSizeIds)
+  );
+  
+  // Recipes that have ingredients for drink sizes go in the drink section
+  // (a recipe can appear in both if it has ingredients for both)
+  const drinkRecipes = nonBulkRecipes.filter(r => 
+    hasIngredientsForSizeIds(r, drinkSizeIds)
+  );
+  
+  // Also include recipes with NO ingredients yet in the drink section as default
+  const recipesWithNoIngredients = nonBulkRecipes.filter(r => 
+    !hasIngredientsForSizeIds(r, foodSizeIds) && !hasIngredientsForSizeIds(r, drinkSizeIds)
+  );
+  const drinkRecipesWithDefaults = [...drinkRecipes, ...recipesWithNoIngredients];
 
   const getSizeBaseTemplateId = (recipeId: string, sizeId: string): string | null => {
     const rsb = recipeSizeBases.find(r => r.recipe_id === recipeId && r.size_id === sizeId);
@@ -1907,7 +1964,7 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
               </tr>
             </thead>
             <tbody>
-              {drinkRecipes.map((recipe, idx) => (
+              {drinkRecipesWithDefaults.map((recipe, idx) => (
                 <tr
                   key={recipe.id}
                   style={{
@@ -1998,6 +2055,134 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
           </table>
         </div>
       </div>
+
+      {/* Food Items Section */}
+      {foodSizes.length > 0 && (
+        <div className="rounded-2xl overflow-hidden shadow-md" style={{ backgroundColor: colors.white }}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ backgroundColor: colors.brown }}>
+                  <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.white }}>Food Items</th>
+                  {foodSizes.map(size => (
+                    <th key={size.id} colSpan={4} className="px-2 py-3 text-center font-semibold" style={{ color: colors.white }}>
+                      {size.name}
+                    </th>
+                  ))}
+                </tr>
+                <tr style={{ backgroundColor: colors.creamDark }}>
+                  <th className="px-4 py-2" style={{ color: colors.brown }}></th>
+                  {foodSizes.map(size => (
+                    <Fragment key={size.id}>
+                      <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Cost</th>
+                      <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Sale</th>
+                      <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Margin</th>
+                      <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Profit</th>
+                    </Fragment>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {foodRecipes.length === 0 ? (
+                  <tr style={{ backgroundColor: colors.white }}>
+                    <td colSpan={1 + foodSizes.length * 4} className="px-4 py-6 text-center" style={{ color: colors.brownLight }}>
+                      No food items yet. Create a recipe with a Food base template.
+                    </td>
+                  </tr>
+                ) : (
+                  foodRecipes.map((recipe, idx) => (
+                    <tr
+                      key={recipe.id}
+                      style={{
+                        backgroundColor: idx % 2 === 0 ? colors.white : colors.cream,
+                        borderBottom: `1px solid ${colors.creamDark}`,
+                      }}
+                      data-testid={`row-pricing-food-${recipe.name}`}
+                    >
+                      <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>
+                        <div>{recipe.name}</div>
+                        <div className="text-xs" style={{ color: colors.brownLight }}>{recipe.category_name}</div>
+                      </td>
+                      {foodSizes.map(size => {
+                        const hasItems = hasIngredientsForSize(recipe, size.id);
+                        if (!hasItems) {
+                          return (
+                            <Fragment key={size.id}>
+                              <td className="px-2 py-2 text-right text-xs" style={{ color: colors.brownLight }}>-</td>
+                              <td className="px-2 py-2 text-right text-xs" style={{ color: colors.brownLight }}>-</td>
+                              <td className="px-2 py-2 text-right text-xs" style={{ color: colors.brownLight }}>-</td>
+                              <td className="px-2 py-2 text-right text-xs" style={{ color: colors.brownLight }}>-</td>
+                            </Fragment>
+                          );
+                        }
+                        const cost = calculateSizeCost(recipe, size.id);
+                        const cellKey = `${recipe.id}-${size.id}`;
+                        const salePrice = getSalePrice(recipe.id, size.id);
+                        const profit = salePrice - cost;
+                        const margin = salePrice > 0 ? (profit / salePrice * 100) : 0;
+                        const marginColor = margin > 31 ? colors.green : margin > 25 ? colors.gold : colors.red;
+                        const isEditing = editingCell === cellKey;
+
+                        return (
+                          <Fragment key={size.id}>
+                            <td className="px-2 py-2 text-right font-mono text-xs" style={{ color: colors.brown }}>
+                              {formatCurrency(cost)}
+                            </td>
+                            <td className="px-1 py-1">
+                              {isEditing ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleSaveSalePrice(recipe.id, size.id);
+                                      if (e.key === 'Escape') setEditingCell(null);
+                                    }}
+                                    className="w-16 px-1 py-0.5 text-right text-xs rounded border"
+                                    style={{ borderColor: colors.gold }}
+                                    autoFocus
+                                    data-testid={`input-sale-price-food-${recipe.id}-${size.id}`}
+                                  />
+                                  <button
+                                    onClick={() => handleSaveSalePrice(recipe.id, size.id)}
+                                    className="text-xs px-1"
+                                    style={{ color: colors.green }}
+                                  >
+                                    Save
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setEditingCell(cellKey);
+                                    setEditValue(salePrice.toString());
+                                  }}
+                                  className="w-full text-right font-mono text-xs font-semibold px-1 py-0.5 rounded hover:bg-opacity-80"
+                                  style={{ color: salePrice > 0 ? colors.brown : colors.brownLight }}
+                                  data-testid={`button-edit-sale-food-${recipe.id}-${size.id}`}
+                                >
+                                  {salePrice > 0 ? formatCurrency(salePrice) : 'Set'}
+                                </button>
+                              )}
+                            </td>
+                            <td className="px-2 py-2 text-right font-mono text-xs font-semibold" style={{ color: salePrice > 0 ? marginColor : colors.brownLight }}>
+                              {salePrice > 0 ? formatPercent(margin) : '-'}
+                            </td>
+                            <td className="px-2 py-2 text-right font-mono text-xs" style={{ color: profit >= 0 ? colors.green : colors.red }}>
+                              {salePrice > 0 ? formatCurrency(profit) : '-'}
+                            </td>
+                          </Fragment>
+                        );
+                      })}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -2011,19 +2196,134 @@ interface SettingsTabProps {
   baseTemplates: BaseTemplate[];
   recipeSizeBases: RecipeSizeBase[];
   recipePricing: RecipeSizePricing[];
+  overheadItems: OverheadItem[];
+  onAddOverheadItem: (item: { name: string; amount: number; frequency: string }) => Promise<void>;
+  onUpdateOverheadItem: (id: string, updates: { name?: string; amount?: number; frequency?: string }) => Promise<void>;
+  onDeleteOverheadItem: (id: string) => Promise<void>;
 }
 
-const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSizes, baseTemplates, recipeSizeBases, recipePricing }: SettingsTabProps) => {
+const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSizes, baseTemplates, recipeSizeBases, recipePricing, overheadItems, onAddOverheadItem, onUpdateOverheadItem, onDeleteOverheadItem }: SettingsTabProps) => {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     cost_per_minute: overhead?.cost_per_minute || 2.26,
     minutes_per_drink: overhead?.minutes_per_drink || 1,
     notes: overhead?.notes || '',
+    operating_days_per_week: overhead?.operating_days_per_week || 7,
+    hours_open_per_day: overhead?.hours_open_per_day || 8,
   });
+  const [newItem, setNewItem] = useState({ name: '', amount: '', frequency: 'monthly' });
+  const [addingItem, setAddingItem] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemForm, setEditingItemForm] = useState({ name: '', amount: '', frequency: '' });
+  const [showPayrollModal, setShowPayrollModal] = useState(false);
+  const [payrollInputs, setPayrollInputs] = useState({ run1: '', run2: '', run3: '' });
+  const [laborFrequency, setLaborFrequency] = useState<'weekly' | 'bi-weekly' | 'monthly' | 'bi-monthly'>('bi-weekly');
+
+  const operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
+  const hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
+  const weeksPerMonth = 4.33;
+  const daysPerMonth = operatingDays * weeksPerMonth;
+  const minutesPerDay = hoursPerDay * 60;
+  const minutesPerMonth = minutesPerDay * daysPerMonth;
+
+  const calculatePeriodAmounts = (amount: number, frequency: string) => {
+    let monthlyAmount = 0;
+    switch (frequency) {
+      case 'daily':
+        monthlyAmount = amount * daysPerMonth;
+        break;
+      case 'weekly':
+        monthlyAmount = amount * weeksPerMonth;
+        break;
+      case 'bi-weekly':
+        monthlyAmount = amount * (weeksPerMonth / 2);
+        break;
+      case 'monthly':
+        monthlyAmount = amount;
+        break;
+      case 'quarterly':
+        monthlyAmount = amount / 3;
+        break;
+      case 'annual':
+        monthlyAmount = amount / 12;
+        break;
+    }
+    return {
+      daily: monthlyAmount / daysPerMonth,
+      weekly: monthlyAmount / weeksPerMonth,
+      monthly: monthlyAmount,
+      quarterly: monthlyAmount * 3,
+      annual: monthlyAmount * 12,
+    };
+  };
+
+  const totals = overheadItems.reduce(
+    (acc, item) => {
+      const amounts = calculatePeriodAmounts(Number(item.amount), item.frequency);
+      return {
+        daily: acc.daily + amounts.daily,
+        weekly: acc.weekly + amounts.weekly,
+        monthly: acc.monthly + amounts.monthly,
+        quarterly: acc.quarterly + amounts.quarterly,
+        annual: acc.annual + amounts.annual,
+      };
+    },
+    { daily: 0, weekly: 0, monthly: 0, quarterly: 0, annual: 0 }
+  );
 
   const handleSave = async () => {
     await onUpdateOverhead(form);
     setEditing(false);
+  };
+
+  const payrollAverage = useMemo(() => {
+    const run1 = payrollInputs.run1 !== '' ? parseFloat(payrollInputs.run1) || 0 : null;
+    const run2 = payrollInputs.run2 !== '' ? parseFloat(payrollInputs.run2) || 0 : null;
+    const run3 = payrollInputs.run3 !== '' ? parseFloat(payrollInputs.run3) || 0 : null;
+    const enteredRuns = [run1, run2, run3].filter(r => r !== null) as number[];
+    if (enteredRuns.length === 0) return 0;
+    return enteredRuns.reduce((a, b) => a + b, 0) / enteredRuns.length;
+  }, [payrollInputs]);
+
+  const payrollRunsEntered = useMemo(() => {
+    let count = 0;
+    if (payrollInputs.run1 !== '') count++;
+    if (payrollInputs.run2 !== '') count++;
+    if (payrollInputs.run3 !== '') count++;
+    return count;
+  }, [payrollInputs]);
+
+  const existingPayrollItem = overheadItems.find(item => item.name === 'Labor');
+
+  const openPayrollModal = () => {
+    if (existingPayrollItem) {
+      const avg = Number(existingPayrollItem.amount);
+      setPayrollInputs({ run1: avg.toString(), run2: '', run3: '' });
+      setLaborFrequency((existingPayrollItem.frequency as 'weekly' | 'bi-weekly' | 'monthly' | 'bi-monthly') || 'bi-weekly');
+    } else {
+      setPayrollInputs({ run1: '', run2: '', run3: '' });
+      setLaborFrequency('bi-weekly');
+    }
+    setShowPayrollModal(true);
+  };
+
+  const handlePayrollSave = async () => {
+    if (payrollAverage <= 0) return;
+    if (existingPayrollItem) {
+      await onUpdateOverheadItem(existingPayrollItem.id, {
+        name: 'Labor',
+        amount: payrollAverage,
+        frequency: laborFrequency,
+      });
+    } else {
+      await onAddOverheadItem({
+        name: 'Labor',
+        amount: payrollAverage,
+        frequency: laborFrequency,
+      });
+    }
+    setShowPayrollModal(false);
+    setPayrollInputs({ run1: '', run2: '', run3: '' });
   };
 
   return (
@@ -2031,54 +2331,101 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
       <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
         <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>Overhead Settings</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
-              Cost per Minute
-            </label>
-            {editing ? (
-              <input
-                type="number"
-                step="0.01"
-                value={form.cost_per_minute}
-                onChange={(e) => setForm({ ...form, cost_per_minute: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3 py-2 rounded-lg border-2 outline-none"
-                style={{ borderColor: colors.gold }}
-                data-testid="input-cost-per-minute"
-              />
-            ) : (
-              <div className="text-2xl font-bold" style={{ color: colors.gold }}>
-                {formatCurrency(overhead?.cost_per_minute || 0)}
-              </div>
-            )}
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
               Minutes per Drink
             </label>
             {editing ? (
               <input
-                type="number"
-                step="0.5"
+                type="text"
+                inputMode="decimal"
                 value={form.minutes_per_drink}
-                onChange={(e) => setForm({ ...form, minutes_per_drink: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                    setForm({ ...form, minutes_per_drink: val === '' ? 0 : parseFloat(val) || 0 });
+                  }
+                }}
+                onFocus={(e) => e.target.select()}
                 className="w-full px-3 py-2 rounded-lg border-2 outline-none"
                 style={{ borderColor: colors.gold }}
                 data-testid="input-minutes-per-drink"
               />
             ) : (
               <div className="text-2xl font-bold" style={{ color: colors.brown }}>
-                {overhead?.minutes_per_drink || 1}
+                {overhead?.minutes_per_drink ? String(overhead.minutes_per_drink).replace(/^0+(?=\d)/, '') : '1'}
               </div>
             )}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+              Operating Days Per Week
+            </label>
+            {editing ? (
+              <input
+                type="number"
+                min="1"
+                max="7"
+                value={form.operating_days_per_week}
+                onChange={(e) => setForm({ ...form, operating_days_per_week: Math.min(7, Math.max(1, parseInt(e.target.value) || 7)) })}
+                onFocus={(e) => e.target.select()}
+                className="w-full px-3 py-2 rounded-lg border-2 outline-none"
+                style={{ borderColor: colors.gold }}
+                data-testid="input-operating-days"
+              />
+            ) : (
+              <div className="text-2xl font-bold" style={{ color: colors.brown }}>
+                {overhead?.operating_days_per_week || 7} days
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+              Hours Open Per Day
+            </label>
+            {editing ? (
+              <input
+                type="number"
+                step="0.5"
+                min="1"
+                max="24"
+                value={form.hours_open_per_day}
+                onChange={(e) => setForm({ ...form, hours_open_per_day: Math.min(24, Math.max(1, parseFloat(e.target.value) || 8)) })}
+                onFocus={(e) => e.target.select()}
+                className="w-full px-3 py-2 rounded-lg border-2 outline-none"
+                style={{ borderColor: colors.gold }}
+                data-testid="input-hours-open"
+              />
+            ) : (
+              <div className="text-2xl font-bold" style={{ color: colors.brown }}>
+                {overhead?.hours_open_per_day || 8} hours
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+              Calculated Cost/Minute
+            </label>
+            <div className="text-2xl font-bold" style={{ color: colors.gold }}>
+              {formatCurrency(minutesPerMonth > 0 ? totals.monthly / minutesPerMonth : 0)}
+            </div>
+            <div className="text-xs" style={{ color: colors.brownLight }}>
+              From overhead calculator
+            </div>
           </div>
         </div>
 
         <div className="mt-4 p-4 rounded-lg" style={{ backgroundColor: colors.cream }}>
           <div className="text-sm" style={{ color: colors.brownLight }}>Overhead per Drink</div>
           <div className="text-3xl font-bold" style={{ color: colors.gold }}>
-            {formatCurrency((overhead?.cost_per_minute || 0) * (overhead?.minutes_per_drink || 1))}
+            {formatCurrency((minutesPerMonth > 0 ? totals.monthly / minutesPerMonth : 0) * (overhead?.minutes_per_drink || 1))}
+          </div>
+          <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
+            Cost/min ({formatCurrency(minutesPerMonth > 0 ? totals.monthly / minutesPerMonth : 0)}) x Minutes/drink ({overhead?.minutes_per_drink || 1})
           </div>
         </div>
 
@@ -2130,6 +2477,276 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
               Edit Settings
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Overhead Calculator */}
+      <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <h3 className="text-lg font-bold" style={{ color: colors.brown }}>Overhead Calculator</h3>
+          <div className="flex gap-2">
+            <button
+              onClick={openPayrollModal}
+              className="px-3 py-1.5 font-semibold rounded-lg text-sm"
+              style={{ backgroundColor: colors.brown, color: colors.white }}
+              data-testid="button-labor"
+            >
+              Labor
+            </button>
+            <button
+              onClick={() => setAddingItem(true)}
+              className="px-3 py-1.5 font-semibold rounded-lg text-sm"
+              style={{ backgroundColor: colors.gold, color: colors.white }}
+              data-testid="button-add-overhead-item"
+            >
+              + Add Item
+            </button>
+          </div>
+        </div>
+        <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
+          Add your shop overhead costs. Amounts are automatically converted to all time periods based on your {operatingDays}-day operating week.
+        </p>
+
+        {/* Table Header */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" style={{ minWidth: '700px' }}>
+            <thead>
+              <tr style={{ backgroundColor: colors.cream }}>
+                <th className="text-left p-2 font-semibold" style={{ color: colors.brown, width: '20%' }}>Item</th>
+                <th className="text-right p-2 font-semibold" style={{ color: colors.brown, width: '12%' }}>Amount</th>
+                <th className="text-center p-2 font-semibold" style={{ color: colors.brown, width: '12%' }}>Frequency</th>
+                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Daily</th>
+                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Weekly</th>
+                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Monthly</th>
+                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Quarterly</th>
+                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Annual</th>
+                <th className="p-2" style={{ width: '40px' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Add New Item Row */}
+              {addingItem && (
+                <tr style={{ backgroundColor: colors.cream }}>
+                  <td className="p-2">
+                    <input
+                      type="text"
+                      placeholder="Item name"
+                      value={newItem.name}
+                      onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                      className="w-full px-2 py-1 rounded border outline-none"
+                      style={{ borderColor: colors.gold }}
+                      data-testid="input-new-item-name"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      step="0.01"
+                      value={newItem.amount}
+                      onChange={(e) => setNewItem({ ...newItem, amount: e.target.value })}
+                      className="w-full px-2 py-1 rounded border outline-none text-right"
+                      style={{ borderColor: colors.gold }}
+                      data-testid="input-new-item-amount"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <select
+                      value={newItem.frequency}
+                      onChange={(e) => setNewItem({ ...newItem, frequency: e.target.value })}
+                      className="w-full px-2 py-1 rounded border outline-none"
+                      style={{ borderColor: colors.gold }}
+                      data-testid="select-new-item-frequency"
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="bi-weekly">Bi-Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="quarterly">Quarterly</option>
+                      <option value="annual">Annual</option>
+                    </select>
+                  </td>
+                  <td colSpan={5} className="p-2 text-right">
+                    <button
+                      onClick={async () => {
+                        if (newItem.name && newItem.amount) {
+                          await onAddOverheadItem({
+                            name: newItem.name,
+                            amount: parseFloat(newItem.amount) || 0,
+                            frequency: newItem.frequency,
+                          });
+                          setNewItem({ name: '', amount: '', frequency: 'monthly' });
+                          setAddingItem(false);
+                        }
+                      }}
+                      className="px-3 py-1 font-semibold rounded text-sm mr-2"
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                      data-testid="button-save-new-item"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => {
+                        setNewItem({ name: '', amount: '', frequency: 'monthly' });
+                        setAddingItem(false);
+                      }}
+                      className="px-3 py-1 font-semibold rounded text-sm"
+                      style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                      data-testid="button-cancel-new-item"
+                    >
+                      Cancel
+                    </button>
+                  </td>
+                </tr>
+              )}
+
+              {/* Existing Items */}
+              {overheadItems.map((item) => {
+                const amounts = calculatePeriodAmounts(Number(item.amount), item.frequency);
+                const isEditing = editingItemId === item.id;
+
+                return (
+                  <tr key={item.id} className="border-b" style={{ borderColor: colors.cream }}>
+                    <td className="p-2">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editingItemForm.name}
+                          onChange={(e) => setEditingItemForm({ ...editingItemForm, name: e.target.value })}
+                          className="w-full px-2 py-1 rounded border outline-none"
+                          style={{ borderColor: colors.gold }}
+                          data-testid={`input-edit-item-name-${item.id}`}
+                        />
+                      ) : (
+                        <span style={{ color: colors.brown }}>{item.name}</span>
+                      )}
+                    </td>
+                    <td className="p-2 text-right">
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editingItemForm.amount}
+                          onChange={(e) => setEditingItemForm({ ...editingItemForm, amount: e.target.value })}
+                          className="w-full px-2 py-1 rounded border outline-none text-right"
+                          style={{ borderColor: colors.gold }}
+                          data-testid={`input-edit-item-amount-${item.id}`}
+                        />
+                      ) : (
+                        <span style={{ color: colors.brown }}>{formatCurrency(Number(item.amount))}</span>
+                      )}
+                    </td>
+                    <td className="p-2 text-center">
+                      {isEditing ? (
+                        <select
+                          value={editingItemForm.frequency}
+                          onChange={(e) => setEditingItemForm({ ...editingItemForm, frequency: e.target.value })}
+                          className="w-full px-2 py-1 rounded border outline-none"
+                          style={{ borderColor: colors.gold }}
+                          data-testid={`select-edit-item-frequency-${item.id}`}
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="bi-weekly">Bi-Weekly</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="quarterly">Quarterly</option>
+                          <option value="annual">Annual</option>
+                        </select>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
+                          {item.frequency}
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.daily)}</td>
+                    <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.weekly)}</td>
+                    <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.monthly)}</td>
+                    <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.quarterly)}</td>
+                    <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.annual)}</td>
+                    <td className="p-2">
+                      {isEditing ? (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={async () => {
+                              await onUpdateOverheadItem(item.id, {
+                                name: editingItemForm.name,
+                                amount: parseFloat(editingItemForm.amount) || 0,
+                                frequency: editingItemForm.frequency,
+                              });
+                              setEditingItemId(null);
+                            }}
+                            className="p-1 rounded"
+                            style={{ color: colors.gold }}
+                            data-testid={`button-save-item-${item.id}`}
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setEditingItemId(null)}
+                            className="p-1 rounded"
+                            style={{ color: colors.brownLight }}
+                            data-testid={`button-cancel-item-${item.id}`}
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingItemId(item.id);
+                              setEditingItemForm({
+                                name: item.name,
+                                amount: String(item.amount),
+                                frequency: item.frequency,
+                              });
+                            }}
+                            className="p-1 rounded"
+                            style={{ color: colors.brownLight }}
+                            data-testid={`button-edit-item-${item.id}`}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => onDeleteOverheadItem(item.id)}
+                            className="p-1 rounded"
+                            style={{ color: colors.brownLight }}
+                            data-testid={`button-delete-item-${item.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {/* Totals Row */}
+              {overheadItems.length > 0 && (
+                <tr style={{ backgroundColor: colors.cream }}>
+                  <td className="p-2 font-bold" style={{ color: colors.brown }}>Total</td>
+                  <td className="p-2"></td>
+                  <td className="p-2"></td>
+                  <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.daily)}</td>
+                  <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.weekly)}</td>
+                  <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.monthly)}</td>
+                  <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.quarterly)}</td>
+                  <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.annual)}</td>
+                  <td className="p-2"></td>
+                </tr>
+              )}
+
+              {/* Empty State */}
+              {overheadItems.length === 0 && !addingItem && (
+                <tr>
+                  <td colSpan={9} className="p-8 text-center" style={{ color: colors.brownLight }}>
+                    No overhead items yet. Click "Add Item" to get started.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -2241,6 +2858,144 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
           </button>
         </div>
       </div>
+
+      {/* Payroll Modal */}
+      {showPayrollModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="rounded-xl p-6 shadow-xl max-w-md w-full" style={{ backgroundColor: colors.white }}>
+            <h3 className="text-lg font-bold mb-2" style={{ color: colors.brown }}>Labor Calculator</h3>
+            <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
+              Enter your last 3 payroll runs (including all taxes) to calculate an average labor cost.
+            </p>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+                  Pay Frequency
+                </label>
+                <select
+                  value={laborFrequency}
+                  onChange={(e) => setLaborFrequency(e.target.value as 'weekly' | 'bi-weekly' | 'monthly' | 'bi-monthly')}
+                  className="w-full px-3 py-2 rounded-lg border-2 outline-none"
+                  style={{ borderColor: colors.gold }}
+                  data-testid="select-labor-frequency"
+                >
+                  <option value="weekly">Weekly</option>
+                  <option value="bi-weekly">Bi-Weekly</option>
+                  <option value="bi-monthly">Bi-Monthly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+                  Payroll Run 1
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={payrollInputs.run1}
+                    onChange={(e) => setPayrollInputs({ ...payrollInputs, run1: e.target.value })}
+                    onFocus={(e) => e.target.select()}
+                    className="w-full pl-7 pr-3 py-2 rounded-lg border-2 outline-none"
+                    style={{ borderColor: colors.gold }}
+                    data-testid="input-payroll-run1"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+                  Payroll Run 2
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={payrollInputs.run2}
+                    onChange={(e) => setPayrollInputs({ ...payrollInputs, run2: e.target.value })}
+                    onFocus={(e) => e.target.select()}
+                    className="w-full pl-7 pr-3 py-2 rounded-lg border-2 outline-none"
+                    style={{ borderColor: colors.gold }}
+                    data-testid="input-payroll-run2"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+                  Payroll Run 3
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={payrollInputs.run3}
+                    onChange={(e) => setPayrollInputs({ ...payrollInputs, run3: e.target.value })}
+                    onFocus={(e) => e.target.select()}
+                    className="w-full pl-7 pr-3 py-2 rounded-lg border-2 outline-none"
+                    style={{ borderColor: colors.gold }}
+                    data-testid="input-payroll-run3"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 border-t" style={{ borderColor: colors.cream }}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs" style={{ color: colors.brownLight }}>
+                    {payrollRunsEntered === 0 ? 'Enter payroll runs above' : 
+                     payrollRunsEntered === 1 ? 'Average of 1 run' :
+                     payrollRunsEntered === 2 ? 'Average of 2 runs' : 
+                     'Average of 3 runs'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium" style={{ color: colors.brownLight }}>
+                    {laborFrequency === 'weekly' ? 'Weekly' : 
+                     laborFrequency === 'bi-weekly' ? 'Bi-Weekly' : 
+                     laborFrequency === 'bi-monthly' ? 'Bi-Monthly' : 'Monthly'} Labor
+                  </span>
+                  <span className="text-lg font-bold" style={{ color: colors.brown }}>
+                    {formatCurrency(payrollAverage)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => {
+                  setShowPayrollModal(false);
+                  setPayrollInputs({ run1: '', run2: '', run3: '' });
+                }}
+                className="flex-1 px-4 py-2 font-semibold rounded-lg"
+                style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                data-testid="button-cancel-payroll"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePayrollSave}
+                disabled={payrollAverage <= 0}
+                className="flex-1 px-4 py-2 font-semibold rounded-lg disabled:opacity-50"
+                style={{ backgroundColor: colors.gold, color: colors.white }}
+                data-testid="button-save-payroll"
+              >
+                {existingPayrollItem ? 'Update Labor' : 'Add Labor'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -2252,9 +3007,10 @@ interface BaseTemplatesTabProps {
   onAddTemplate: (template: { name: string; drink_type: string; description?: string }) => Promise<void>;
   onAddTemplateIngredient: (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number }) => Promise<void>;
   onDeleteTemplateIngredient: (id: string) => Promise<void>;
+  onDeleteTemplate: (id: string) => Promise<void>;
 }
 
-const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient }: BaseTemplatesTabProps) => {
+const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient, onDeleteTemplate }: BaseTemplatesTabProps) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
   const [newTemplate, setNewTemplate] = useState({ name: '', drink_type: 'Hot', description: '' });
@@ -2308,7 +3064,7 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
     setAddingIngredient(null);
   };
 
-  const drinkTypes = ['Hot', 'Cold'];
+  const drinkTypes = ['Hot', 'Cold', 'Food'];
 
   return (
     <div className="space-y-4">
@@ -2381,7 +3137,10 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
 
       <div className="grid gap-4">
         {baseTemplates.map(template => {
-          const templateSizes = drinkSizes.filter(s => s.drink_type === template.drink_type || !s.drink_type);
+          const templateSizes = drinkSizes.filter(s => 
+            (s.drink_type || '').toLowerCase() === (template.drink_type || '').toLowerCase() || 
+            !s.drink_type
+          );
           return (
             <div
               key={template.id}
@@ -2397,10 +3156,24 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
                 <div>
                   <h3 className="font-bold" style={{ color: colors.brown }}>{template.name}</h3>
                   <span className="text-sm" style={{ color: colors.brownLight }}>
-                    {template.drink_type} drinks {template.description ? `- ${template.description}` : ''}
+                    {template.drink_type === 'Food' ? 'Food items' : `${template.drink_type} drinks`} {template.description ? `- ${template.description}` : ''}
                   </span>
                 </div>
-                <span style={{ color: colors.gold }}>{expandedTemplate === template.id ? '▼' : '▶'}</span>
+                <div className="flex items-center gap-3">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteTemplate(template.id);
+                    }}
+                    data-testid={`button-delete-template-${template.id}`}
+                    title="Delete template"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                  <span style={{ color: colors.gold }}>{expandedTemplate === template.id ? '▼' : '▶'}</span>
+                </div>
               </div>
 
               {expandedTemplate === template.id && (
@@ -2721,12 +3494,52 @@ export default function Home() {
   const { data: drinkSizes = [], isLoading: loadingDrinkSizes, isError: errorDrinkSizes } = useDrinkSizes();
   const { data: recipes = [], isLoading: loadingRecipes, isError: errorRecipes } = useRecipes();
   const { data: overhead, isLoading: loadingOverhead, isError: errorOverhead } = useOverhead();
+  const { data: overheadItems = [], isLoading: loadingOverheadItems, isError: errorOverheadItems } = useOverheadItems();
   const { data: pricingData = [], isLoading: loadingPricing, isError: errorPricing } = useRecipePricing();
   const { data: recipeSizeBases = [], isLoading: loadingRecipeSizeBases, isError: errorRecipeSizeBases } = useRecipeSizeBases();
+
+  // Calculate cost per minute from overhead items
+  const calculatedCostPerMinute = useMemo(() => {
+    const operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
+    const hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
+    const weeksPerMonth = 4.33;
+    const daysPerMonth = operatingDays * weeksPerMonth;
+    const minutesPerMonth = hoursPerDay * 60 * daysPerMonth;
+    
+    // Calculate monthly total from overhead items
+    const monthlyTotal = (overheadItems as OverheadItem[]).reduce((total, item) => {
+      let monthlyAmount = 0;
+      const amount = Number(item.amount) || 0;
+      switch (item.frequency) {
+        case 'daily': monthlyAmount = amount * daysPerMonth; break;
+        case 'weekly': monthlyAmount = amount * weeksPerMonth; break;
+        case 'bi-weekly': monthlyAmount = amount * (weeksPerMonth / 2); break;
+        case 'monthly': monthlyAmount = amount; break;
+        case 'quarterly': monthlyAmount = amount / 3; break;
+        case 'annual': monthlyAmount = amount / 12; break;
+      }
+      return total + monthlyAmount;
+    }, 0);
+    
+    return minutesPerMonth > 0 ? monthlyTotal / minutesPerMonth : 0;
+  }, [overhead?.operating_days_per_week, overhead?.hours_open_per_day, overheadItems]);
+
+  // Create enhanced overhead with calculated cost per minute
+  // Always use calculated value from overhead items (even if 0)
+  const enhancedOverhead = useMemo(() => {
+    if (!overhead) return overhead;
+    return {
+      ...overhead,
+      cost_per_minute: calculatedCostPerMinute,
+    };
+  }, [overhead, calculatedCostPerMinute]);
 
   const updateIngredientMutation = useUpdateIngredient();
   const addIngredientMutation = useAddIngredient();
   const updateOverheadMutation = useUpdateOverhead();
+  const addOverheadItemMutation = useAddOverheadItem();
+  const updateOverheadItemMutation = useUpdateOverheadItem();
+  const deleteOverheadItemMutation = useDeleteOverheadItem();
   const updateRecipePricingMutation = useUpdateRecipePricing();
   const updateRecipeSizeBaseMutation = useUpdateRecipeSizeBase();
 
@@ -2765,6 +3578,35 @@ export default function Home() {
       await updateOverheadMutation.mutateAsync({ id: overhead.id, updates });
     } catch (error: any) {
       alert('Error updating overhead: ' + error.message);
+    }
+  };
+
+  const handleAddOverheadItem = async (item: { name: string; amount: number; frequency: string }) => {
+    try {
+      if (!profile?.tenant_id) return;
+      await addOverheadItemMutation.mutateAsync({
+        ...item,
+        tenant_id: profile.tenant_id,
+        sort_order: overheadItems.length,
+      });
+    } catch (error: any) {
+      alert('Error adding overhead item: ' + error.message);
+    }
+  };
+
+  const handleUpdateOverheadItem = async (id: string, updates: { name?: string; amount?: number; frequency?: string }) => {
+    try {
+      await updateOverheadItemMutation.mutateAsync({ id, updates });
+    } catch (error: any) {
+      alert('Error updating overhead item: ' + error.message);
+    }
+  };
+
+  const handleDeleteOverheadItem = async (id: string) => {
+    try {
+      await deleteOverheadItemMutation.mutateAsync(id);
+    } catch (error: any) {
+      alert('Error deleting overhead item: ' + error.message);
     }
   };
 
@@ -3011,7 +3853,7 @@ export default function Home() {
     try {
       const { error } = await supabase
         .from('base_template_ingredients')
-        .insert({ ...ingredient, tenant_id: profile?.tenant_id });
+        .insert(ingredient);
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
@@ -3034,6 +3876,25 @@ export default function Home() {
     }
   };
 
+  const handleDeleteBaseTemplate = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this base template? This will also remove all its ingredients.')) {
+      return;
+    }
+    try {
+      // Delete the template - cascade will handle ingredients (migration 053 required)
+      const { error } = await supabase
+        .from('base_templates')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
+    } catch (error: any) {
+      console.error('Error deleting base template:', error);
+      alert('Error deleting base template: ' + error.message);
+    }
+  };
+
   const handleAddRecipeIngredient = async (ingredient: { recipe_id: string; ingredient_id?: string | null; size_id: string; quantity: number; unit?: string; syrup_recipe_id?: string | null }) => {
     try {
       const insertData: Record<string, any> = {
@@ -3041,7 +3902,6 @@ export default function Home() {
         size_id: ingredient.size_id,
         quantity: ingredient.quantity,
         unit: ingredient.unit,
-        tenant_id: profile?.tenant_id,
       };
       if (ingredient.ingredient_id) {
         insertData.ingredient_id = ingredient.ingredient_id;
@@ -3192,6 +4052,7 @@ export default function Home() {
             onAddTemplate={handleAddBaseTemplate}
             onAddTemplateIngredient={handleAddTemplateIngredient}
             onDeleteTemplateIngredient={handleDeleteTemplateIngredient}
+            onDeleteTemplate={handleDeleteBaseTemplate}
           />
         )}
         {activeTab === 'recipes' && (
@@ -3201,7 +4062,7 @@ export default function Home() {
             productCategories={productCategories}
             baseTemplates={baseTemplates}
             drinkSizes={drinkSizes}
-            overhead={overhead}
+            overhead={enhancedOverhead}
             recipeSizeBases={recipeSizeBases}
             onAddRecipe={handleAddRecipe}
             onUpdateRecipe={handleUpdateRecipe}
@@ -3220,7 +4081,7 @@ export default function Home() {
             ingredients={ingredients}
             baseTemplates={baseTemplates}
             drinkSizes={drinkSizes}
-            overhead={overhead}
+            overhead={enhancedOverhead}
             pricingData={pricingData}
             recipeSizeBases={recipeSizeBases}
             onUpdatePricing={handleUpdatePricing}
@@ -3228,7 +4089,7 @@ export default function Home() {
         )}
         {activeTab === 'settings' && (
           <SettingsTab
-            overhead={overhead}
+            overhead={enhancedOverhead}
             onUpdateOverhead={handleUpdateOverhead}
             ingredients={ingredients}
             recipes={recipes}
@@ -3236,6 +4097,10 @@ export default function Home() {
             baseTemplates={baseTemplates}
             recipeSizeBases={recipeSizeBases}
             recipePricing={pricingData}
+            overheadItems={overheadItems as OverheadItem[]}
+            onAddOverheadItem={handleAddOverheadItem}
+            onUpdateOverheadItem={handleUpdateOverheadItem}
+            onDeleteOverheadItem={handleDeleteOverheadItem}
           />
         )}
       </main>
