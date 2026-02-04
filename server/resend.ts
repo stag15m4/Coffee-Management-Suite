@@ -1,42 +1,17 @@
 // Resend email integration for Coffee Order module and Feedback
 import { Resend } from 'resend';
 
-let connectionSettings: any;
-
-async function getCredentials() {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY 
-    ? 'repl ' + process.env.REPL_IDENTITY 
-    : process.env.WEB_REPL_RENEWAL 
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
-    : null;
-
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY environment variable is not set');
   }
-
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
-      }
-    }
-  ).then(res => res.json()).then(data => data.items?.[0]);
-
-  if (!connectionSettings || (!connectionSettings.settings.api_key)) {
-    throw new Error('Resend not connected');
-  }
-  return { apiKey: connectionSettings.settings.api_key, fromEmail: connectionSettings.settings.from_email };
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@erwinmills.com';
+  return { client: new Resend(apiKey), fromEmail };
 }
 
 export async function getUncachableResendClient() {
-  const { apiKey, fromEmail } = await getCredentials();
-  return {
-    client: new Resend(apiKey),
-    fromEmail
-  };
+  return getResendClient();
 }
 
 export interface OrderEmailData {
@@ -52,8 +27,8 @@ export interface OrderEmailData {
 
 export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: boolean; error?: string }> {
   try {
-    const { client, fromEmail } = await getUncachableResendClient();
-    
+    const { client, fromEmail } = getResendClient();
+
     const itemsHtml = data.orderItems
       .map(item => `<tr>
         <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}</td>
@@ -67,7 +42,7 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #5D4037;">Coffee Order from ${data.tenantName || 'Customer'}</h2>
         <p>Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-        
+
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
           <thead>
             <tr style="background-color: #C9A962; color: white;">
@@ -88,9 +63,9 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
             </tr>
           </tfoot>
         </table>
-        
+
         ${data.notes ? `<p style="background-color: #FFF8E1; padding: 10px; border-radius: 4px;"><strong>Notes:</strong> ${data.notes}</p>` : ''}
-        
+
         <p style="color: #888; font-size: 12px; margin-top: 30px;">
           This order was sent via the Erwin Mills Management Suite.
         </p>
@@ -109,11 +84,11 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
     }
 
     const result = await client.emails.send(emailOptions);
-    
+
     if (result.error) {
       return { success: false, error: result.error.message };
     }
-    
+
     return { success: true };
   } catch (error: any) {
     console.error('Error sending order email:', error);
@@ -137,14 +112,14 @@ export interface FeedbackEmailData {
 // Send feedback email to CMS@erwinmills.com
 export async function sendFeedbackEmail(data: FeedbackEmailData): Promise<{ success: boolean; error?: string }> {
   try {
-    const { client, fromEmail } = await getUncachableResendClient();
-    
+    const { client, fromEmail } = getResendClient();
+
     const typeLabels: Record<string, string> = {
       bug: 'Bug Report',
       suggestion: 'Suggestion',
       general: 'General Feedback'
     };
-    
+
     const typeColors: Record<string, string> = {
       bug: '#dc2626',
       suggestion: '#2563eb',
@@ -156,20 +131,20 @@ export async function sendFeedbackEmail(data: FeedbackEmailData): Promise<{ succ
         <div style="background-color: #C9A227; padding: 20px; text-align: center;">
           <h1 style="color: white; margin: 0;">CMS Feedback</h1>
         </div>
-        
+
         <div style="padding: 20px; background-color: #f9f9f9;">
           <div style="background-color: ${typeColors[data.feedbackType]}; color: white; display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-bottom: 16px;">
             ${typeLabels[data.feedbackType]}
           </div>
-          
+
           <h2 style="color: #4A3728; margin-top: 0;">${data.subject}</h2>
-          
+
           <div style="background-color: white; padding: 16px; border-radius: 8px; border-left: 4px solid ${typeColors[data.feedbackType]};">
             <p style="margin: 0; white-space: pre-wrap; color: #333;">${data.description}</p>
           </div>
-          
+
           <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-          
+
           <h3 style="color: #6B5344; font-size: 14px; margin-bottom: 8px;">Submitted By</h3>
           <table style="font-size: 13px; color: #666;">
             <tr>
@@ -194,7 +169,7 @@ export async function sendFeedbackEmail(data: FeedbackEmailData): Promise<{ succ
             </tr>
           </table>
         </div>
-        
+
         <div style="background-color: #4A3728; padding: 12px; text-align: center;">
           <p style="color: #C9A227; margin: 0; font-size: 12px;">
             Coffee Management Suite - Erwin Mills
@@ -210,11 +185,11 @@ export async function sendFeedbackEmail(data: FeedbackEmailData): Promise<{ succ
       html,
       replyTo: data.userEmail || undefined
     });
-    
+
     if (result.error) {
       return { success: false, error: result.error.message };
     }
-    
+
     return { success: true };
   } catch (error: any) {
     console.error('Error sending feedback email:', error);

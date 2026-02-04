@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { sendOrderEmail, sendFeedbackEmail, type OrderEmailData, type FeedbackEmailData } from "./resend";
-import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
+import { registerObjectStorageRoutes } from "./objectStorageRoutes";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 
@@ -292,33 +292,8 @@ export async function registerRoutes(
 
   app.get('/api/stripe/products', async (req, res) => {
     try {
-      const rows = await stripeService.listProductsWithPrices();
-      
-      const productsMap = new Map();
-      for (const row of rows as any[]) {
-        if (!productsMap.has(row.product_id)) {
-          productsMap.set(row.product_id, {
-            id: row.product_id,
-            name: row.product_name,
-            description: row.product_description,
-            active: row.product_active,
-            metadata: row.product_metadata,
-            prices: []
-          });
-        }
-        if (row.price_id) {
-          productsMap.get(row.product_id).prices.push({
-            id: row.price_id,
-            unit_amount: row.unit_amount,
-            currency: row.currency,
-            recurring: row.recurring,
-            active: row.price_active,
-            metadata: row.price_metadata,
-          });
-        }
-      }
-
-      res.json({ data: Array.from(productsMap.values()) });
+      const products = await stripeService.listProductsWithPrices();
+      res.json({ data: products });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

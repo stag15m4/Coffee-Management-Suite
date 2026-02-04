@@ -55,7 +55,8 @@ temp/
 .tmp/
 .cache/
 
-# Replit specific (optional - remove if you want these tracked)
+# Replit specific
+.replit
 .replit.nix
 .breakpoints
 
