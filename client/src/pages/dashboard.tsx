@@ -159,15 +159,27 @@ export default function Dashboard() {
                 {profile?.role}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={signOut}
-              style={{ borderColor: colors.creamDark, color: colors.brown }}
-              data-testid="button-logout"
-            >
-              Sign Out
-            </Button>
+            <div className="flex gap-2">
+              <Link href="/user-profile">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  style={{ borderColor: colors.gold, color: colors.gold }}
+                  data-testid="button-profile"
+                >
+                  My Profile
+                </Button>
+              </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={signOut}
+                style={{ borderColor: colors.creamDark, color: colors.brown }}
+                data-testid="button-logout"
+              >
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
       </header>

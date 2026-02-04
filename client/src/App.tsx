@@ -19,6 +19,7 @@ import AdminTasks from "@/pages/admin-tasks";
 import AdminUsers from "@/pages/admin-users";
 import AdminBranding from "@/pages/admin-branding";
 import AdminLocations from "@/pages/admin-locations";
+import UserProfile from "@/pages/user-profile";
 import OrganizationDashboard from "@/pages/organization-dashboard";
 import PlatformAdmin from "@/pages/platform-admin";
 import ResellerManagement from "@/pages/reseller-management";
@@ -105,6 +106,11 @@ function Router() {
       <Route path="/billing">
         <ProtectedRoute>
           <Billing />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/user-profile">
+        <ProtectedRoute>
+          <UserProfile />
         </ProtectedRoute>
       </Route>
       <Route path="/" component={HomePage} />
