@@ -12,6 +12,7 @@ export interface UserProfile {
   role: UserRole;
   is_active: boolean;
   avatar_url: string | null;
+  start_date: string | null;
 }
 
 export interface PlatformAdmin {

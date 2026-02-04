@@ -170,6 +170,16 @@ export default function Dashboard() {
                   My Profile
                 </Button>
               </Link>
+              <Link href="/my-team">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  style={{ borderColor: colors.gold, color: colors.gold }}
+                  data-testid="button-my-team"
+                >
+                  My Team
+                </Button>
+              </Link>
               <Button
                 variant="outline"
                 size="sm"
