@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, User, Mail, Lock, Loader2, Home, Camera, Upload } from 'lucide-react';
 import { Link } from 'wouter';
@@ -38,6 +39,8 @@ export default function UserProfile() {
   const [updatingProfile, setUpdatingProfile] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -154,16 +157,6 @@ export default function UserProfile() {
     try {
       const TIMEOUT_MS = 15000;
 
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        throw new Error('Please select an image file');
-      }
-
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        throw new Error('Image size must be less than 5MB');
-      }
-
       // Generate unique filename
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
@@ -229,8 +222,49 @@ export default function UserProfile() {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      handleAvatarUpload(file);
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Invalid file type',
+          description: 'Please select an image file',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: 'File too large',
+          description: 'Image size must be less than 5MB',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImage(reader.result as string);
+        setSelectedFile(file);
+      };
+      reader.readAsDataURL(file);
     }
+
+    // Reset input value so same file can be selected again
+    event.target.value = '';
+  };
+
+  const handleCancelPreview = () => {
+    setPreviewImage(null);
+    setSelectedFile(null);
+  };
+
+  const handleConfirmUpload = async () => {
+    if (!selectedFile) return;
+    await handleAvatarUpload(selectedFile);
+    setPreviewImage(null);
+    setSelectedFile(null);
   };
 
   if (!profile) {
@@ -491,6 +525,63 @@ export default function UserProfile() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Photo Preview Dialog */}
+      <Dialog open={!!previewImage} onOpenChange={(open) => !open && handleCancelPreview()}>
+        <DialogContent className="max-w-md" style={{ backgroundColor: colors.white }}>
+          <DialogHeader>
+            <DialogTitle style={{ color: colors.brown }}>Confirm Profile Photo</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              Preview your photo before uploading. This will replace your current profile picture.
+            </p>
+
+            {/* Preview Image */}
+            <div className="flex justify-center">
+              <div
+                className="w-48 h-48 rounded-full overflow-hidden flex items-center justify-center"
+                style={{ backgroundColor: colors.cream, border: `3px solid ${colors.gold}` }}
+              >
+                {previewImage && (
+                  <img
+                    src={previewImage}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="flex gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={handleCancelPreview}
+                disabled={uploadingAvatar}
+                style={{ borderColor: colors.creamDark, color: colors.brown }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmUpload}
+                disabled={uploadingAvatar}
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
+              >
+                {uploadingAvatar ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  'Confirm & Upload'
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Footer />
     </div>
   );
