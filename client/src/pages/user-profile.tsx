@@ -398,10 +398,10 @@ export default function UserProfile() {
                   className="w-32 h-32 rounded-full overflow-hidden flex items-center justify-center"
                   style={{ backgroundColor: colors.cream, border: `3px solid ${colors.gold}` }}
                 >
-                  {profile.avatar_url ? (
+                  {profile?.avatar_url ? (
                     <img
                       src={profile.avatar_url}
-                      alt={profile.full_name || 'Profile'}
+                      alt={profile?.full_name || 'Profile'}
                       className="w-full h-full object-cover"
                     />
                   ) : (
