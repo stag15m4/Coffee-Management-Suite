@@ -2218,6 +2218,8 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
   const [showPayrollModal, setShowPayrollModal] = useState(false);
   const [payrollInputs, setPayrollInputs] = useState({ run1: '', run2: '', run3: '' });
   const [laborFrequency, setLaborFrequency] = useState<'weekly' | 'bi-weekly' | 'monthly' | 'bi-monthly'>('bi-weekly');
+  const [sortColumn, setSortColumn] = useState<'name' | 'amount' | 'frequency' | 'monthly'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
   const hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
@@ -2256,6 +2258,36 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
       annual: monthlyAmount * 12,
     };
   };
+
+  // Sort handler
+  const handleSort = (column: 'name' | 'amount' | 'frequency' | 'monthly') => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort overhead items
+  const sortedOverheadItems = [...overheadItems].sort((a, b) => {
+    let comparison = 0;
+
+    if (sortColumn === 'name') {
+      comparison = a.name.localeCompare(b.name);
+    } else if (sortColumn === 'amount') {
+      comparison = Number(a.amount) - Number(b.amount);
+    } else if (sortColumn === 'frequency') {
+      const freqOrder = ['daily', 'weekly', 'bi-weekly', 'monthly', 'quarterly', 'annual'];
+      comparison = freqOrder.indexOf(a.frequency) - freqOrder.indexOf(b.frequency);
+    } else if (sortColumn === 'monthly') {
+      const aMonthly = calculatePeriodAmounts(Number(a.amount), a.frequency).monthly;
+      const bMonthly = calculatePeriodAmounts(Number(b.amount), b.frequency).monthly;
+      comparison = aMonthly - bMonthly;
+    }
+
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
 
   const totals = overheadItems.reduce(
     (acc, item) => {
@@ -2512,12 +2544,36 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
           <table className="w-full text-sm" style={{ minWidth: '700px' }}>
             <thead>
               <tr style={{ backgroundColor: colors.cream }}>
-                <th className="text-left p-2 font-semibold" style={{ color: colors.brown, width: '20%' }}>Item</th>
-                <th className="text-right p-2 font-semibold" style={{ color: colors.brown, width: '12%' }}>Amount</th>
-                <th className="text-center p-2 font-semibold" style={{ color: colors.brown, width: '12%' }}>Frequency</th>
+                <th
+                  className="text-left p-2 font-semibold cursor-pointer hover:opacity-70 select-none"
+                  style={{ color: colors.brown, width: '20%' }}
+                  onClick={() => handleSort('name')}
+                >
+                  Item {sortColumn === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </th>
+                <th
+                  className="text-right p-2 font-semibold cursor-pointer hover:opacity-70 select-none"
+                  style={{ color: colors.brown, width: '12%' }}
+                  onClick={() => handleSort('amount')}
+                >
+                  Amount {sortColumn === 'amount' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </th>
+                <th
+                  className="text-center p-2 font-semibold cursor-pointer hover:opacity-70 select-none"
+                  style={{ color: colors.brown, width: '12%' }}
+                  onClick={() => handleSort('frequency')}
+                >
+                  Frequency {sortColumn === 'frequency' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </th>
                 <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Daily</th>
                 <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Weekly</th>
-                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Monthly</th>
+                <th
+                  className="text-right p-2 font-semibold cursor-pointer hover:opacity-70 select-none"
+                  style={{ color: colors.brownLight, width: '11%' }}
+                  onClick={() => handleSort('monthly')}
+                >
+                  Monthly {sortColumn === 'monthly' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </th>
                 <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Quarterly</th>
                 <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Annual</th>
                 <th className="p-2" style={{ width: '40px' }}></th>
@@ -2601,7 +2657,7 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
               )}
 
               {/* Existing Items */}
-              {overheadItems.map((item) => {
+              {sortedOverheadItems.map((item) => {
                 const amounts = calculatePeriodAmounts(Number(item.amount), item.frequency);
                 const isEditing = editingItemId === item.id;
 
