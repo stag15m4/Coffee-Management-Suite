@@ -113,17 +113,25 @@ export function useUpdateIngredient() {
 export function useDeleteIngredient() {
   const queryClient = useQueryClient();
   const { tenant } = useAuth();
-  
+
   return useMutation({
     mutationFn: async (id: number) => {
       if (!tenant?.id) throw new Error('No tenant context');
-      
-      const { error } = await supabase
+
+      // Add timeout to prevent hanging
+      const deletePromise = supabase
         .from('ingredients')
         .delete()
         .eq('id', id)
         .eq('tenant_id', tenant.id);
-      
+
+      const { error } = await Promise.race([
+        deletePromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Delete operation timeout')), 5000)
+        )
+      ]);
+
       if (error) throw error;
     },
     onSuccess: () => {

@@ -171,12 +171,29 @@ export default function Ingredients() {
             <DialogTitle className="font-display text-2xl">Edit Ingredient</DialogTitle>
           </DialogHeader>
           {editingIngredient && (
-            <IngredientForm 
-              defaultValues={editingIngredient}
-              onSubmit={handleUpdate} 
-              isLoading={updateMutation.isPending}
-              buttonLabel="Save Changes"
-            />
+            <div className="space-y-4">
+              <IngredientForm
+                defaultValues={editingIngredient}
+                onSubmit={handleUpdate}
+                isLoading={updateMutation.isPending}
+                buttonLabel="Save Changes"
+              />
+              <div className="pt-4 border-t border-border/50">
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => {
+                    handleDelete(editingIngredient.id);
+                    setEditingIngredient(null);
+                  }}
+                  disabled={deleteMutation.isPending}
+                  data-testid="button-delete-ingredient-dialog"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Ingredient
+                </Button>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>

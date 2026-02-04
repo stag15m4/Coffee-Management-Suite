@@ -801,8 +801,11 @@ export default function TipPayout() {
 
     setExportingHistory(true);
     try {
-      // Fetch all weekly data in range
-      const { data: weeklyData, error: weeklyError } = await supabase
+      // Add timeout wrapper to prevent hanging on slow queries
+      const QUERY_TIMEOUT = 15000; // 15 seconds
+
+      // Fetch all weekly data in range with timeout
+      const weeklyPromise = supabase
         .from('tip_weekly_data')
         .select('*')
         .eq('tenant_id', tenant.id)
@@ -810,16 +813,30 @@ export default function TipPayout() {
         .lte('week_key', historyEndDate)
         .order('week_key');
 
+      const { data: weeklyData, error: weeklyError } = await Promise.race([
+        weeklyPromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Query timeout - please try again')), QUERY_TIMEOUT)
+        )
+      ]);
+
       if (weeklyError) throw weeklyError;
 
-      // Fetch all employee hours in range
-      const { data: hoursData, error: hoursError } = await supabase
+      // Fetch all employee hours in range with timeout
+      const hoursPromise = supabase
         .from('tip_employee_hours')
         .select('*, tip_employees(id, name)')
         .eq('tenant_id', tenant.id)
         .gte('week_key', historyStartDate)
         .lte('week_key', historyEndDate)
         .order('week_key');
+
+      const { data: hoursData, error: hoursError } = await Promise.race([
+        hoursPromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Query timeout - please try again')), QUERY_TIMEOUT)
+        )
+      ]);
 
       if (hoursError) throw hoursError;
 

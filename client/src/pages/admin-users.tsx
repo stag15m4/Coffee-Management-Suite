@@ -215,15 +215,23 @@ export default function AdminUsers() {
 
     setCreating(true);
     try {
+      const TIMEOUT_MS = 10000;
+
       // Save current session tokens before creating new user
-      const { data: sessionData } = await supabase.auth.getSession();
+      const sessionPromise = supabase.auth.getSession();
+      const { data: sessionData } = await Promise.race([
+        sessionPromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Session retrieval timeout')), TIMEOUT_MS)
+        )
+      ]);
       const currentSession = sessionData?.session;
-      
+
       // Generate a temporary random password (user will set their own via password reset)
       const tempPassword = generateSecurePassword() + generateSecurePassword();
-      
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+
+      // Create auth user with timeout
+      const signUpPromise = supabase.auth.signUp({
         email: newEmail,
         password: tempPassword,
         options: {
@@ -233,11 +241,18 @@ export default function AdminUsers() {
         }
       });
 
+      const { data: authData, error: authError } = await Promise.race([
+        signUpPromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Sign up timeout - please try again')), 15000)
+        )
+      ]);
+
       if (authError) throw authError;
 
       if (authData.user) {
-        // Create user profile in database
-        const { error: profileError } = await supabase
+        // Create user profile in database with timeout
+        const profilePromise = supabase
           .from('user_profiles')
           .insert({
             id: authData.user.id,
@@ -248,25 +263,54 @@ export default function AdminUsers() {
             is_active: true,
           });
 
+        const { error: profileError } = await Promise.race([
+          profilePromise,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Profile creation timeout')), TIMEOUT_MS)
+          )
+        ]);
+
         if (profileError) throw profileError;
-        
-        // Send password reset email so user can set their own password
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(newEmail, {
-          redirectTo: `${window.location.origin}/login`
-        });
-        
-        if (resetError) {
-          console.warn('Password reset email failed:', resetError.message);
-          // Don't throw - user is created, they can request reset manually
+
+        // Send password reset email so user can set their own password (with timeout)
+        try {
+          const resetPromise = supabase.auth.resetPasswordForEmail(newEmail, {
+            redirectTo: `${window.location.origin}/login`
+          });
+
+          const { error: resetError } = await Promise.race([
+            resetPromise,
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Email timeout')), TIMEOUT_MS)
+            )
+          ]);
+
+          if (resetError) {
+            console.warn('Password reset email failed:', resetError.message);
+            // Don't throw - user is created, they can request reset manually
+          }
+        } catch (emailErr) {
+          console.warn('Password reset email timeout:', emailErr);
+          // Continue - user is created, they can request reset manually
         }
       }
 
       // IMPORTANT: Restore the original session if it was switched
       if (currentSession) {
-        await supabase.auth.setSession({
+        const setSessionPromise = supabase.auth.setSession({
           access_token: currentSession.access_token,
           refresh_token: currentSession.refresh_token,
         });
+
+        await Promise.race([
+          setSessionPromise,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Session restore timeout')), 5000)
+          )
+        ]);
+
+        // Small delay to ensure session is fully restored before reloading
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       // Show success dialog
