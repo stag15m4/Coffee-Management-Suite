@@ -11,6 +11,7 @@ export interface UserProfile {
   full_name: string | null;
   role: UserRole;
   is_active: boolean;
+  avatar_url: string | null;
 }
 
 export interface PlatformAdmin {

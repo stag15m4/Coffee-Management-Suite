@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, User, Mail, Lock, Loader2, Home } from 'lucide-react';
+import { ArrowLeft, User, Mail, Lock, Loader2, Home, Camera, Upload } from 'lucide-react';
 import { Link } from 'wouter';
 import { Footer } from '@/components/Footer';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
@@ -32,12 +32,15 @@ export default function UserProfile() {
 
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const [updatingProfile, setUpdatingProfile] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleUpdateProfile = async () => {
     if (!profile?.id) return;
@@ -131,7 +134,6 @@ export default function UserProfile() {
       if (error) throw error;
 
       toast({ title: 'Password updated successfully' });
-      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
@@ -142,6 +144,92 @@ export default function UserProfile() {
       });
     } finally {
       setUpdatingPassword(false);
+    }
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!profile?.id || !user?.id) return;
+
+    setUploadingAvatar(true);
+    try {
+      const TIMEOUT_MS = 15000;
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Please select an image file');
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Image size must be less than 5MB');
+      }
+
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      // Delete old avatar if exists
+      if (profile.avatar_url) {
+        const oldPath = profile.avatar_url.split('/').slice(-2).join('/');
+        await supabase.storage.from('avatars').remove([oldPath]);
+      }
+
+      // Upload new avatar
+      const uploadPromise = supabase.storage
+        .from('avatars')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      const { data: uploadData, error: uploadError } = await Promise.race([
+        uploadPromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Upload timeout')), TIMEOUT_MS)
+        )
+      ]);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update profile with new avatar URL
+      const updatePromise = supabase
+        .from('user_profiles')
+        .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', profile.id);
+
+      const { error: updateError } = await Promise.race([
+        updatePromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Profile update timeout')), TIMEOUT_MS)
+        )
+      ]);
+
+      if (updateError) throw updateError;
+
+      toast({ title: 'Profile photo updated successfully' });
+
+      // Reload page to refresh avatar
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error: any) {
+      toast({
+        title: 'Error uploading photo',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      handleAvatarUpload(file);
     }
   };
 
@@ -187,6 +275,83 @@ export default function UserProfile() {
       </header>
 
       <main className="max-w-2xl mx-auto p-6 space-y-6">
+        {/* Profile Photo */}
+        <Card style={{ backgroundColor: colors.white }}>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center gap-4">
+              {/* Avatar Display */}
+              <div className="relative">
+                <div
+                  className="w-32 h-32 rounded-full overflow-hidden flex items-center justify-center"
+                  style={{ backgroundColor: colors.cream, border: `3px solid ${colors.gold}` }}
+                >
+                  {profile.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile.full_name || 'Profile'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-16 h-16" style={{ color: colors.brownLight }} />
+                  )}
+                </div>
+                {uploadingAvatar && (
+                  <div
+                    className="absolute inset-0 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+                  >
+                    <Loader2 className="w-8 h-8 animate-spin text-white" />
+                  </div>
+                )}
+              </div>
+
+              {/* Upload Buttons */}
+              <div className="flex gap-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  variant="outline"
+                  style={{ borderColor: colors.gold, color: colors.gold }}
+                  data-testid="button-upload-photo"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Photo
+                </Button>
+
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  variant="outline"
+                  style={{ borderColor: colors.brown, color: colors.brown }}
+                  data-testid="button-camera-photo"
+                >
+                  <Camera className="w-4 h-4 mr-2" />
+                  Take Photo
+                </Button>
+              </div>
+
+              <p className="text-xs text-center" style={{ color: colors.brownLight }}>
+                Supported formats: JPG, PNG, GIF (max 5MB)
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Profile Information */}
         <Card style={{ backgroundColor: colors.white }}>
           <CardHeader>
