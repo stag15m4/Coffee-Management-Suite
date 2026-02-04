@@ -18,7 +18,6 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  Settings,
   Package,
   Key
 } from 'lucide-react';
@@ -365,32 +364,34 @@ export default function PlatformAdmin() {
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <header className="border-b border-slate-700 bg-slate-800">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Settings className="w-8 h-8 text-purple-400" />
+            <img src="/logo.png" alt="Platform Logo" className="w-8 h-8 object-contain" />
             <div>
-              <h1 className="text-xl font-bold" data-testid="text-platform-admin-title">Platform Admin</h1>
+              <h1 className="text-xl font-bold text-amber-400" data-testid="text-platform-admin-title">Platform Admin</h1>
               <p className="text-sm text-slate-400">{platformAdmin?.email}</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={() => setLocation('/reseller-management')}
-            className="border-slate-600 text-slate-300 hover:bg-slate-700"
-            data-testid="button-reseller-management"
-          >
-            <Key className="w-4 h-4 mr-2" />
-            Wholesale Partners
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleLogout}
-            className="border-slate-600 text-slate-300 hover:bg-slate-700"
-            data-testid="button-logout"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setLocation('/reseller-management')}
+              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              data-testid="button-reseller-management"
+            >
+              <Key className="w-4 h-4 mr-2" />
+              Wholesale Partners
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleLogout}
+              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              data-testid="button-logout"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -533,20 +534,20 @@ export default function PlatformAdmin() {
           {tenants.map((tenant) => (
             <Card key={tenant.id} className="bg-slate-800 border-slate-700">
               <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
                       <Building2 className="w-6 h-6 text-slate-400" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-white" data-testid={`text-tenant-name-${tenant.id}`}>{tenant.name}</h3>
-                      <p className="text-sm text-slate-400">{tenant.slug}</p>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-white truncate" data-testid={`text-tenant-name-${tenant.id}`}>{tenant.name}</h3>
+                      <p className="text-sm text-slate-400 truncate">{tenant.slug}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                    <div className="text-left sm:text-right">
                       <p className="text-sm text-slate-400">{tenant.user_count} users</p>
-                      <div className="flex gap-2 mt-1">
+                      <div className="flex flex-wrap gap-2 mt-1">
                         <Badge 
                           variant={tenant.is_active ? 'default' : 'secondary'}
                           className={tenant.is_active ? 'bg-green-600' : 'bg-slate-600'}
