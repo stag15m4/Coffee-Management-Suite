@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { Button } from '@/components/ui/button';
@@ -41,9 +41,12 @@ export default function UserProfile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const handleUpdateProfile = async () => {
     if (!profile?.id) return;
@@ -267,6 +270,82 @@ export default function UserProfile() {
     setSelectedFile(null);
   };
 
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } },
+        audio: false,
+      });
+
+      setStream(mediaStream);
+      setShowCamera(true);
+
+      // Wait for video element to be available
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+        }
+      }, 100);
+    } catch (error: any) {
+      toast({
+        title: 'Camera access denied',
+        description: 'Please allow camera access to take a photo',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+    }
+    setShowCamera(false);
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context) return;
+
+    // Set canvas size to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Draw video frame to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Convert canvas to blob
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+
+      // Create file from blob
+      const file = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImage(reader.result as string);
+        setSelectedFile(file);
+        stopCamera();
+      };
+      reader.readAsDataURL(file);
+    }, 'image/jpeg', 0.9);
+  };
+
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [stream]);
+
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
@@ -359,16 +438,8 @@ export default function UserProfile() {
                   Upload Photo
                 </Button>
 
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
                 <Button
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={startCamera}
                   disabled={uploadingAvatar}
                   variant="outline"
                   style={{ borderColor: colors.brown, color: colors.brown }}
@@ -525,6 +596,78 @@ export default function UserProfile() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Camera Dialog */}
+      <Dialog open={showCamera} onOpenChange={(open) => !open && stopCamera()}>
+        <DialogContent className="max-w-2xl" style={{ backgroundColor: colors.white }}>
+          <DialogHeader>
+            <DialogTitle style={{ color: colors.brown }}>Take Profile Photo</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              Position your face within the circle and click capture when ready.
+            </p>
+
+            {/* Camera View with Circular Overlay */}
+            <div className="relative flex justify-center">
+              <div className="relative w-full max-w-md aspect-square bg-black rounded-lg overflow-hidden">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+
+                {/* Circular overlay to show crop area */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  {/* Dark overlay with transparent circle in the middle */}
+                  <svg className="absolute inset-0 w-full h-full">
+                    <defs>
+                      <mask id="circleMask">
+                        <rect width="100%" height="100%" fill="white" />
+                        <circle cx="50%" cy="50%" r="40%" fill="black" />
+                      </mask>
+                    </defs>
+                    <rect
+                      width="100%"
+                      height="100%"
+                      fill="rgba(0, 0, 0, 0.6)"
+                      mask="url(#circleMask)"
+                    />
+                  </svg>
+
+                  {/* Circle border */}
+                  <div
+                    className="w-4/5 aspect-square rounded-full border-4"
+                    style={{ borderColor: colors.gold }}
+                  />
+                </div>
+              </div>
+
+              {/* Hidden canvas for capturing */}
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+
+            <DialogFooter className="flex gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={stopCamera}
+                style={{ borderColor: colors.creamDark, color: colors.brown }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={capturePhoto}
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                Capture Photo
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Photo Preview Dialog */}
       <Dialog open={!!previewImage} onOpenChange={(open) => !open && handleCancelPreview()}>
