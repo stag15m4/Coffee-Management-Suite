@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, User, Mail, Lock, Loader2, Home, Camera, Upload } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, User, Mail, Lock, Loader2, Home, Camera, Upload, SwitchCamera, RotateCcw } from 'lucide-react';
 import { Link } from 'wouter';
 import { Footer } from '@/components/Footer';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
@@ -43,6 +44,8 @@ export default function UserProfile() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -270,12 +273,31 @@ export default function UserProfile() {
     setSelectedFile(null);
   };
 
-  const startCamera = async () => {
+  const startCamera = async (deviceId?: string) => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } },
+      // Stop any existing stream first
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+
+      const constraints: MediaStreamConstraints = {
+        video: deviceId
+          ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 1280 } }
+          : { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } },
         audio: false,
-      });
+      };
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      // Enumerate available cameras (labels are only available after permission is granted)
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter((d) => d.kind === 'videoinput');
+      setVideoDevices(cameras);
+
+      // Track which device is active
+      const activeTrack = mediaStream.getVideoTracks()[0];
+      const activeDeviceId = activeTrack?.getSettings()?.deviceId || '';
+      setSelectedDeviceId(activeDeviceId);
 
       setStream(mediaStream);
       setShowCamera(true);
@@ -301,6 +323,19 @@ export default function UserProfile() {
       setStream(null);
     }
     setShowCamera(false);
+  };
+
+  const switchCamera = () => {
+    if (videoDevices.length < 2) return;
+    const currentIndex = videoDevices.findIndex((d) => d.deviceId === selectedDeviceId);
+    const nextIndex = (currentIndex + 1) % videoDevices.length;
+    startCamera(videoDevices[nextIndex].deviceId);
+  };
+
+  const retakePhoto = () => {
+    setPreviewImage(null);
+    setSelectedFile(null);
+    startCamera();
   };
 
   const capturePhoto = () => {
@@ -439,7 +474,7 @@ export default function UserProfile() {
                 </Button>
 
                 <Button
-                  onClick={startCamera}
+                  onClick={() => startCamera()}
                   disabled={uploadingAvatar}
                   variant="outline"
                   style={{ borderColor: colors.brown, color: colors.brown }}
@@ -609,6 +644,28 @@ export default function UserProfile() {
               Position your face within the circle and click capture when ready.
             </p>
 
+            {/* Camera Selector */}
+            {videoDevices.length > 1 && (
+              <Select
+                value={selectedDeviceId}
+                onValueChange={(deviceId) => startCamera(deviceId)}
+              >
+                <SelectTrigger
+                  className="w-full"
+                  style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                >
+                  <SelectValue placeholder="Select camera" />
+                </SelectTrigger>
+                <SelectContent>
+                  {videoDevices.map((device, index) => (
+                    <SelectItem key={device.deviceId} value={device.deviceId}>
+                      {device.label || `Camera ${index + 1}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
             {/* Camera View with Circular Overlay */}
             <div className="relative flex justify-center">
               <div className="relative w-full max-w-md aspect-square bg-black rounded-lg overflow-hidden">
@@ -657,6 +714,16 @@ export default function UserProfile() {
               >
                 Cancel
               </Button>
+              {videoDevices.length > 1 && (
+                <Button
+                  variant="outline"
+                  onClick={switchCamera}
+                  style={{ borderColor: colors.brown, color: colors.brown }}
+                >
+                  <SwitchCamera className="w-4 h-4 mr-2" />
+                  Switch Camera
+                </Button>
+              )}
               <Button
                 onClick={capturePhoto}
                 style={{ backgroundColor: colors.gold, color: colors.brown }}
@@ -705,6 +772,15 @@ export default function UserProfile() {
                 style={{ borderColor: colors.creamDark, color: colors.brown }}
               >
                 Cancel
+              </Button>
+              <Button
+                variant="outline"
+                onClick={retakePhoto}
+                disabled={uploadingAvatar}
+                style={{ borderColor: colors.brown, color: colors.brown }}
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Retake
               </Button>
               <Button
                 onClick={handleConfirmUpload}
