@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase-queries';
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -83,34 +83,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [branding, setBranding] = useState<TenantBranding | null>(null);
   const [enabledModules, setEnabledModules] = useState<ModuleId[]>([]);
   const [loading, setLoading] = useState(true);
-  const [fetchInProgress, setFetchInProgress] = useState<string | null>(null);
-  const [lastFetchedUserId, setLastFetchedUserId] = useState<string | null>(null);
   const [isParentTenant, setIsParentTenant] = useState(false);
+  const fetchInProgressRef = useRef<string | null>(null);
+  const lastFetchedUserIdRef = useRef<string | null>(null);
 
   const fetchUserData = useCallback(async (userId: string, retryCount = 0, force = false): Promise<boolean> => {
     const MAX_RETRIES = 3;
     const TIMEOUT_MS = 8000; // Reduced from 15s to fail faster and allow app to proceed
-    
+
     // Skip if already fetching for this user (deduplication)
-    if (fetchInProgress === userId && !force) {
+    if (fetchInProgressRef.current === userId && !force) {
       return true;
     }
-    
-    // Skip if we already have data for this user (caching) - but always refetch modules
-    if (lastFetchedUserId === userId && (profile || platformAdmin) && !force) {
-      // Even when using cache, always refresh modules to ensure they're current
-      if (profile?.tenant_id) {
-        const { data, error } = await supabase.rpc('get_tenant_enabled_modules', {
-          p_tenant_id: profile.tenant_id
-        });
-        if (!error && data) {
-          setEnabledModules(data as ModuleId[]);
-        }
-      }
+
+    // Skip if we already have data for this user (caching)
+    if (lastFetchedUserIdRef.current === userId && !force) {
       return true;
     }
-    
-    setFetchInProgress(userId);
+
+    fetchInProgressRef.current = userId;
     
     try {
       // Add timeout wrapper for network resilience - returns null on timeout instead of throwing
@@ -151,8 +142,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTenant(null);
         setBranding(null);
         setEnabledModules([]);
-        setLastFetchedUserId(userId);
-        setFetchInProgress(null);
+        lastFetchedUserIdRef.current = userId;
+        fetchInProgressRef.current = null;
         return true;
       }
 
@@ -286,12 +277,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setEnabledModules(((modulesResult as any).data || []) as ModuleId[]);
       }
 
-      setLastFetchedUserId(userId);
-      setFetchInProgress(null);
+      lastFetchedUserIdRef.current = userId;
+      fetchInProgressRef.current = null;
       return true;
     } catch (error: any) {
       console.error('Error fetching user data:', error?.message || error);
-      setFetchInProgress(null);
+      fetchInProgressRef.current = null;
       // Don't clear profile/admin on timeout - keep trying
       if (!error?.message?.includes('timed out')) {
         setProfile(null);
@@ -300,7 +291,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return false;
     }
-  }, [fetchInProgress, lastFetchedUserId, profile, platformAdmin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // Get initial session
@@ -332,7 +324,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => subscription.unsubscribe();
-  }, [fetchUserData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle visibility change (iPad app switching, tab switching)
   // Refresh session and notify pages when app returns to foreground
