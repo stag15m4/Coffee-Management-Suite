@@ -15,21 +15,21 @@ import { eq, sql } from "drizzle-orm";
 export interface IStorage {
   // Ingredients
   getIngredients(): Promise<Ingredient[]>;
-  getIngredient(id: number): Promise<Ingredient | undefined>;
+  getIngredient(id: string): Promise<Ingredient | undefined>;
   createIngredient(ingredient: InsertIngredient): Promise<Ingredient>;
-  updateIngredient(id: number, ingredient: Partial<InsertIngredient>): Promise<Ingredient | undefined>;
-  deleteIngredient(id: number): Promise<void>;
+  updateIngredient(id: string, ingredient: Partial<InsertIngredient>): Promise<Ingredient | undefined>;
+  deleteIngredient(id: string): Promise<void>;
 
   // Recipes
   getRecipes(): Promise<Recipe[]>;
-  getRecipe(id: number): Promise<(Recipe & { ingredients: (RecipeIngredient & { ingredient: Ingredient })[] }) | undefined>;
+  getRecipe(id: string): Promise<(Recipe & { ingredients: (RecipeIngredient & { ingredient: Ingredient })[] }) | undefined>;
   createRecipe(recipe: InsertRecipe): Promise<Recipe>;
-  updateRecipe(id: number, recipe: Partial<InsertRecipe>): Promise<Recipe | undefined>;
-  deleteRecipe(id: number): Promise<void>;
+  updateRecipe(id: string, recipe: Partial<InsertRecipe>): Promise<Recipe | undefined>;
+  deleteRecipe(id: string): Promise<void>;
 
   // Recipe Ingredients
   addRecipeIngredient(recipeIngredient: InsertRecipeIngredient): Promise<RecipeIngredient>;
-  deleteRecipeIngredient(id: number): Promise<void>;
+  deleteRecipeIngredient(id: string): Promise<void>;
 
   // Tenants (Stripe)
   getTenant(tenantId: string): Promise<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null } | null>;
@@ -42,7 +42,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(ingredients);
   }
 
-  async getIngredient(id: number): Promise<Ingredient | undefined> {
+  async getIngredient(id: string): Promise<Ingredient | undefined> {
     const [ingredient] = await db.select().from(ingredients).where(eq(ingredients.id, id));
     return ingredient;
   }
@@ -52,7 +52,7 @@ export class DatabaseStorage implements IStorage {
     return ingredient;
   }
 
-  async updateIngredient(id: number, updates: Partial<InsertIngredient>): Promise<Ingredient | undefined> {
+  async updateIngredient(id: string, updates: Partial<InsertIngredient>): Promise<Ingredient | undefined> {
     const [updated] = await db.update(ingredients)
       .set(updates)
       .where(eq(ingredients.id, id))
@@ -60,7 +60,7 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async deleteIngredient(id: number): Promise<void> {
+  async deleteIngredient(id: string): Promise<void> {
     await db.delete(ingredients).where(eq(ingredients.id, id));
   }
 
@@ -69,9 +69,9 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(recipes);
   }
 
-  async getRecipe(id: number): Promise<(Recipe & { ingredients: (RecipeIngredient & { ingredient: Ingredient })[] }) | undefined> {
+  async getRecipe(id: string): Promise<(Recipe & { ingredients: (RecipeIngredient & { ingredient: Ingredient })[] }) | undefined> {
     const [recipe] = await db.select().from(recipes).where(eq(recipes.id, id));
-    
+
     if (!recipe) return undefined;
 
     const items = await db.query.recipeIngredients.findMany({
@@ -89,7 +89,7 @@ export class DatabaseStorage implements IStorage {
     return recipe;
   }
 
-  async updateRecipe(id: number, updates: Partial<InsertRecipe>): Promise<Recipe | undefined> {
+  async updateRecipe(id: string, updates: Partial<InsertRecipe>): Promise<Recipe | undefined> {
     const [updated] = await db.update(recipes)
       .set(updates)
       .where(eq(recipes.id, id))
@@ -97,7 +97,7 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async deleteRecipe(id: number): Promise<void> {
+  async deleteRecipe(id: string): Promise<void> {
     await db.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, id));
     await db.delete(recipes).where(eq(recipes.id, id));
   }
@@ -108,7 +108,7 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async deleteRecipeIngredient(id: number): Promise<void> {
+  async deleteRecipeIngredient(id: string): Promise<void> {
     await db.delete(recipeIngredients).where(eq(recipeIngredients.id, id));
   }
 

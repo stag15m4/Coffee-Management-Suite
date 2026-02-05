@@ -3,11 +3,11 @@ import { supabase } from "@/lib/supabase-queries";
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface Ingredient {
-  id: number;
+  id: string;
   name: string;
   unit: string;
-  price: string;
-  amount: string;
+  cost: string;
+  quantity: string;
   tenant_id: string;
 }
 
@@ -15,18 +15,18 @@ export type InsertIngredient = Omit<Ingredient, 'id' | 'tenant_id'>;
 
 export function useIngredients() {
   const { tenant } = useAuth();
-  
+
   return useQuery({
     queryKey: ['ingredients', tenant?.id],
     queryFn: async () => {
       if (!tenant?.id) return [];
-      
+
       const { data, error } = await supabase
         .from('ingredients')
         .select('*')
         .eq('tenant_id', tenant.id)
         .order('name');
-      
+
       if (error) throw error;
       return data as Ingredient[];
     },
@@ -34,21 +34,21 @@ export function useIngredients() {
   });
 }
 
-export function useIngredient(id: number) {
+export function useIngredient(id: string) {
   const { tenant } = useAuth();
-  
+
   return useQuery({
     queryKey: ['ingredients', tenant?.id, id],
     queryFn: async () => {
       if (!tenant?.id || !id) return null;
-      
+
       const { data, error } = await supabase
         .from('ingredients')
         .select('*')
         .eq('id', id)
         .eq('tenant_id', tenant.id)
         .single();
-      
+
       if (error) {
         if (error.code === 'PGRST116') return null;
         throw error;
@@ -62,11 +62,11 @@ export function useIngredient(id: number) {
 export function useCreateIngredient() {
   const queryClient = useQueryClient();
   const { tenant } = useAuth();
-  
+
   return useMutation({
     mutationFn: async (data: InsertIngredient) => {
       if (!tenant?.id) throw new Error('No tenant context');
-      
+
       const { data: ingredient, error } = await supabase
         .from('ingredients')
         .insert({
@@ -75,7 +75,7 @@ export function useCreateIngredient() {
         })
         .select()
         .single();
-      
+
       if (error) throw error;
       return ingredient;
     },
@@ -88,11 +88,11 @@ export function useCreateIngredient() {
 export function useUpdateIngredient() {
   const queryClient = useQueryClient();
   const { tenant } = useAuth();
-  
+
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: number } & Partial<InsertIngredient>) => {
+    mutationFn: async ({ id, ...updates }: { id: string } & Partial<InsertIngredient>) => {
       if (!tenant?.id) throw new Error('No tenant context');
-      
+
       const { data: ingredient, error } = await supabase
         .from('ingredients')
         .update(updates)
@@ -100,7 +100,7 @@ export function useUpdateIngredient() {
         .eq('tenant_id', tenant.id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return ingredient;
     },
@@ -115,7 +115,7 @@ export function useDeleteIngredient() {
   const { tenant } = useAuth();
 
   return useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id: string) => {
       if (!tenant?.id) throw new Error('No tenant context');
 
       // Add timeout to prevent hanging

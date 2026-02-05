@@ -19,12 +19,11 @@ export default function Recipes() {
     recipe.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleCreate = async (data: { name: string; servings?: number; instructions?: string | null }) => {
+  const handleCreate = async (data: { name: string; description?: string | null }) => {
     try {
       await createMutation.mutateAsync({
         name: data.name,
-        servings: data.servings || 1,
-        instructions: data.instructions || undefined
+        description: data.description || undefined
       });
       setIsCreateOpen(false);
       toast({ title: "Success", description: "Recipe created!" });
@@ -86,7 +85,7 @@ export default function Recipes() {
                     <ChefHat className="w-6 h-6 text-primary" />
                   </div>
                   <span className="text-xs font-mono bg-secondary px-2 py-1 rounded text-muted-foreground">
-                    {recipe.servings} srv
+                    Recipe
                   </span>
                 </div>
                 
@@ -95,7 +94,7 @@ export default function Recipes() {
                 </h3>
                 
                 <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                  {recipe.instructions || "No instructions provided."}
+                  {recipe.description || "No description provided."}
                 </p>
               </div>
 

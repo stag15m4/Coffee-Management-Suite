@@ -45,7 +45,7 @@ export default function Ingredients() {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Are you sure? This will remove this ingredient from all recipes.")) {
       try {
         await deleteMutation.mutateAsync(id);
@@ -121,17 +121,17 @@ export default function Ingredients() {
                 </TableRow>
               ) : (
                 filteredIngredients?.map((ing) => {
-                  const unitCost = Number(ing.price) / Number(ing.amount);
+                  const unitCost = Number(ing.cost) / Number(ing.quantity);
                   return (
                     <TableRow key={ing.id} className="group hover:bg-secondary/30 transition-colors">
                       <TableCell className="font-medium text-foreground pl-6 font-display text-lg">
                         {ing.name}
                       </TableCell>
                       <TableCell className="font-mono text-xs">
-                        {ing.amount} <span className="text-muted-foreground">{ing.unit}</span>
+                        {ing.quantity} <span className="text-muted-foreground">{ing.unit}</span>
                       </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">
-                        ${Number(ing.price).toFixed(2)}
+                        ${Number(ing.cost).toFixed(2)}
                       </TableCell>
                       <TableCell className="font-mono font-medium text-accent">
                         ${unitCost.toFixed(4)} <span className="text-muted-foreground text-xs font-normal">/ {ing.unit}</span>

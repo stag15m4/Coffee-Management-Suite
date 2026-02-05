@@ -1,27 +1,26 @@
-import { pgTable, text, serial, integer, numeric, uuid, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, numeric, uuid, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
 export const ingredients = pgTable("ingredients", {
-  id: serial("id").primaryKey(),
+  id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   unit: text("unit").notNull(), // e.g., "g", "kg", "oz", "ml"
-  price: numeric("price").notNull(), // Cost per package
-  amount: numeric("amount").notNull(), // Amount in package
+  cost: numeric("cost").notNull(), // Cost per package
+  quantity: numeric("quantity").notNull(), // Amount in package
 });
 
 export const recipes = pgTable("recipes", {
-  id: serial("id").primaryKey(),
+  id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  servings: integer("servings").notNull().default(1),
-  instructions: text("instructions"),
+  description: text("description"),
 });
 
 export const recipeIngredients = pgTable("recipe_ingredients", {
-  id: serial("id").primaryKey(),
-  recipeId: integer("recipe_id").notNull(),
-  ingredientId: integer("ingredient_id").notNull(),
+  id: uuid("id").primaryKey().defaultRandom(),
+  recipeId: uuid("recipe_id").notNull(),
+  ingredientId: uuid("ingredient_id").notNull(),
   quantity: numeric("quantity").notNull(), // Amount used in recipe
 });
 

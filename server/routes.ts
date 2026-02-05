@@ -61,7 +61,7 @@ export async function registerRoutes(
   });
 
   app.get(api.ingredients.get.path, async (req, res) => {
-    const ingredient = await storage.getIngredient(Number(req.params.id));
+    const ingredient = await storage.getIngredient(req.params.id);
     if (!ingredient) {
       return res.status(404).json({ message: 'Ingredient not found' });
     }
@@ -71,7 +71,7 @@ export async function registerRoutes(
   app.put(api.ingredients.update.path, async (req, res) => {
     try {
       const input = api.ingredients.update.input.parse(req.body);
-      const ingredient = await storage.updateIngredient(Number(req.params.id), input);
+      const ingredient = await storage.updateIngredient(req.params.id, input);
       if (!ingredient) {
         return res.status(404).json({ message: 'Ingredient not found' });
       }
@@ -88,7 +88,7 @@ export async function registerRoutes(
   });
 
   app.delete(api.ingredients.delete.path, async (req, res) => {
-    await storage.deleteIngredient(Number(req.params.id));
+    await storage.deleteIngredient(req.params.id);
     res.status(204).end();
   });
 
@@ -215,7 +215,7 @@ export async function registerRoutes(
   });
 
   app.get(api.recipes.get.path, async (req, res) => {
-    const recipe = await storage.getRecipe(Number(req.params.id));
+    const recipe = await storage.getRecipe(req.params.id);
     if (!recipe) {
       return res.status(404).json({ message: 'Recipe not found' });
     }
@@ -225,7 +225,7 @@ export async function registerRoutes(
   app.put(api.recipes.update.path, async (req, res) => {
      try {
       const input = api.recipes.update.input.parse(req.body);
-      const recipe = await storage.updateRecipe(Number(req.params.id), input);
+      const recipe = await storage.updateRecipe(req.params.id, input);
       if (!recipe) {
         return res.status(404).json({ message: 'Recipe not found' });
       }
@@ -242,18 +242,18 @@ export async function registerRoutes(
   });
 
   app.delete(api.recipes.delete.path, async (req, res) => {
-    await storage.deleteRecipe(Number(req.params.id));
+    await storage.deleteRecipe(req.params.id);
     res.status(204).end();
   });
 
   // Recipe Ingredients Routes
   app.post(api.recipeIngredients.create.path, async (req, res) => {
     try {
-      const recipeId = Number(req.params.recipeId);
+      const recipeId = req.params.recipeId;
       const bodySchema = api.recipeIngredients.create.input.extend({
-         recipeId: z.number().default(recipeId) // inject recipeId
+         recipeId: z.string().default(recipeId) // inject recipeId
       });
-      
+
       const input = bodySchema.parse({ ...req.body, recipeId });
       
       const item = await storage.addRecipeIngredient(input);
@@ -270,7 +270,7 @@ export async function registerRoutes(
   });
 
   app.delete(api.recipeIngredients.delete.path, async (req, res) => {
-    await storage.deleteRecipeIngredient(Number(req.params.id));
+    await storage.deleteRecipeIngredient(req.params.id);
     res.status(204).end();
   });
 
@@ -684,35 +684,34 @@ async function seedDatabase() {
     const flour = await storage.createIngredient({
       name: "All-Purpose Flour",
       unit: "kg",
-      price: "2.50",
-      amount: "1",
+      cost: "2.50",
+      quantity: "1",
     });
-    
+
     const sugar = await storage.createIngredient({
       name: "Granulated Sugar",
       unit: "kg",
-      price: "1.80",
-      amount: "1",
+      cost: "1.80",
+      quantity: "1",
     });
 
     const butter = await storage.createIngredient({
       name: "Unsalted Butter",
       unit: "g",
-      price: "4.50",
-      amount: "500",
+      cost: "4.50",
+      quantity: "500",
     });
 
     const eggs = await storage.createIngredient({
       name: "Large Eggs",
       unit: "each",
-      price: "3.00",
-      amount: "12",
+      cost: "3.00",
+      quantity: "12",
     });
 
     const cookieRecipe = await storage.createRecipe({
       name: "Sugar Cookies",
-      servings: 24,
-      instructions: "Mix ingredients. Bake at 350F for 10-12 minutes."
+      description: "Mix ingredients. Bake at 350F for 10-12 minutes."
     });
 
     await storage.addRecipeIngredient({

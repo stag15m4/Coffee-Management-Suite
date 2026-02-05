@@ -6,11 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
-import { z } from "zod";
-
-const formSchema = insertRecipeSchema.extend({
-  servings: z.coerce.number().int().positive("Must be at least 1 serving"),
-});
 
 interface RecipeFormProps {
   defaultValues?: Partial<InsertRecipe>;
@@ -21,11 +16,10 @@ interface RecipeFormProps {
 
 export function RecipeForm({ defaultValues, onSubmit, isLoading, buttonLabel }: RecipeFormProps) {
   const form = useForm<InsertRecipe>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(insertRecipeSchema),
     defaultValues: defaultValues || {
       name: "",
-      servings: 1,
-      instructions: "",
+      description: "",
     },
   });
 
@@ -48,30 +42,16 @@ export function RecipeForm({ defaultValues, onSubmit, isLoading, buttonLabel }: 
 
         <FormField
           control={form.control}
-          name="servings"
+          name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Yields (Servings)</FormLabel>
+              <FormLabel>Description (Optional)</FormLabel>
               <FormControl>
-                <Input type="number" min="1" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="instructions"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Instructions (Optional)</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Add basic preparation steps..." 
+                <Textarea
+                  placeholder="Add a description or preparation steps..."
                   className="min-h-[120px] resize-none"
-                  {...field} 
-                  value={field.value || ""} 
+                  {...field}
+                  value={field.value || ""}
                 />
               </FormControl>
               <FormMessage />
@@ -79,8 +59,8 @@ export function RecipeForm({ defaultValues, onSubmit, isLoading, buttonLabel }: 
           )}
         />
 
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           disabled={isLoading}
           className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 rounded-xl mt-6"
         >

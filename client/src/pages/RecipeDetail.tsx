@@ -8,7 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { RecipeForm } from "@/components/RecipeForm";
-import { ArrowLeft, Trash2, Plus, DollarSign, Users, Scale, AlertCircle } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, DollarSign, Scale, AlertCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,28 +17,28 @@ import { useState } from "react";
 
 const addIngredientSchema = z.object({
   quantity: z.coerce.number().positive("Quantity must be positive"),
-  ingredientId: z.coerce.number().positive("Select an ingredient"),
+  ingredientId: z.string().min(1, "Select an ingredient"),
 });
 
 type AddIngredientForm = z.infer<typeof addIngredientSchema>;
 
 export default function RecipeDetail() {
   const [, params] = useRoute("/recipes/:id");
-  const id = Number(params?.id);
+  const id = params?.id || "";
   const { data: recipe, isLoading } = useRecipe(id);
   const { data: ingredients } = useIngredients();
-  
+
   const updateRecipe = useUpdateRecipe();
   const deleteRecipe = useDeleteRecipe();
   const addIngredient = useAddRecipeIngredient();
   const deleteIngredient = useDeleteRecipeIngredient();
-  
+
   const { toast } = useToast();
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   const form = useForm<AddIngredientForm>({
     resolver: zodResolver(addIngredientSchema),
-    defaultValues: { quantity: 1, ingredientId: 0 },
+    defaultValues: { quantity: 1, ingredientId: "" },
   });
 
   if (isLoading) return <div className="flex h-screen items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
@@ -46,11 +46,9 @@ export default function RecipeDetail() {
 
   // Calculate totals
   const totalCost = recipe.ingredients?.reduce((sum, ri) => {
-    const unitCost = Number(ri.ingredient.price) / Number(ri.ingredient.amount);
+    const unitCost = Number(ri.ingredient.cost) / Number(ri.ingredient.quantity);
     return sum + (unitCost * Number(ri.quantity));
   }, 0) || 0;
-
-  const costPerServing = totalCost / recipe.servings;
 
   const onAddIngredient = async (data: AddIngredientForm) => {
     try {
@@ -91,13 +89,8 @@ export default function RecipeDetail() {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-4xl font-display font-bold text-primary">{recipe.name}</h1>
-              <div className="flex items-center gap-4 mt-2 text-muted-foreground">
-                <span className="flex items-center gap-1 bg-secondary/50 px-2 py-1 rounded text-sm">
-                  <Users className="w-4 h-4" /> {recipe.servings} Servings
-                </span>
-              </div>
             </div>
-            
+
             <div className="flex gap-2">
               <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                 <DialogTrigger asChild>
@@ -105,10 +98,10 @@ export default function RecipeDetail() {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader><DialogTitle>Edit Recipe</DialogTitle></DialogHeader>
-                  <RecipeForm 
-                    defaultValues={recipe} 
-                    onSubmit={onUpdateRecipe} 
-                    isLoading={updateRecipe.isPending} 
+                  <RecipeForm
+                    defaultValues={recipe}
+                    onSubmit={onUpdateRecipe}
+                    isLoading={updateRecipe.isPending}
                     buttonLabel="Update"
                   />
                 </DialogContent>
@@ -131,9 +124,9 @@ export default function RecipeDetail() {
               </TableHeader>
               <TableBody>
                 {recipe.ingredients?.map((ri) => {
-                  const unitCost = Number(ri.ingredient.price) / Number(ri.ingredient.amount);
+                  const unitCost = Number(ri.ingredient.cost) / Number(ri.ingredient.quantity);
                   const lineCost = unitCost * Number(ri.quantity);
-                  
+
                   return (
                     <TableRow key={ri.id} className="group border-border/50">
                       <TableCell className="font-medium">{ri.ingredient.name}</TableCell>
@@ -147,8 +140,8 @@ export default function RecipeDetail() {
                         ${lineCost.toFixed(2)}
                       </TableCell>
                       <TableCell>
-                        <Button 
-                          variant="ghost" size="icon" 
+                        <Button
+                          variant="ghost" size="icon"
                           className="h-6 w-6 text-muted-foreground hover:text-destructive"
                           onClick={() => deleteIngredient.mutate({ recipeId: id, id: ri.id })}
                           data-testid={`button-delete-ingredient-${ri.id}`}
@@ -218,14 +211,14 @@ export default function RecipeDetail() {
               </Form>
             </div>
           </div>
-          
+
           <div className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm">
-            <h3 className="font-display font-bold text-lg mb-4 text-primary">Instructions</h3>
-            {recipe.instructions ? (
-              <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">{recipe.instructions}</p>
+            <h3 className="font-display font-bold text-lg mb-4 text-primary">Description</h3>
+            {recipe.description ? (
+              <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">{recipe.description}</p>
             ) : (
               <div className="flex items-center gap-2 text-muted-foreground/50 italic">
-                <AlertCircle className="w-4 h-4" /> No instructions provided
+                <AlertCircle className="w-4 h-4" /> No description provided
               </div>
             )}
           </div>
@@ -235,34 +228,15 @@ export default function RecipeDetail() {
         <div className="space-y-6">
           <div className="bg-primary text-primary-foreground rounded-2xl p-6 shadow-xl shadow-primary/25 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl" />
-            
+
             <h3 className="font-display font-bold text-xl relative z-10 flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-accent" /> Cost Analysis
             </h3>
-            
+
             <div className="mt-6 space-y-6 relative z-10">
               <div>
                 <p className="text-primary-foreground/60 text-sm uppercase tracking-wider font-semibold">Total Cost</p>
                 <p className="text-4xl font-mono font-bold mt-1 tracking-tight">${totalCost.toFixed(2)}</p>
-              </div>
-              
-              <div className="pt-6 border-t border-white/10">
-                <p className="text-primary-foreground/60 text-sm uppercase tracking-wider font-semibold">Cost Per Serving</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <p className="text-2xl font-mono font-bold text-accent">${costPerServing.toFixed(2)}</p>
-                  <span className="text-sm opacity-60">/ plate</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 pt-4">
-                <div className="bg-white/10 rounded-lg p-3">
-                  <p className="text-xs opacity-60">Suggested Price (30%)</p>
-                  <p className="font-mono font-bold">${(costPerServing / 0.3).toFixed(2)}</p>
-                </div>
-                <div className="bg-white/10 rounded-lg p-3">
-                  <p className="text-xs opacity-60">Profit</p>
-                  <p className="font-mono font-bold text-emerald-300">${((costPerServing / 0.3) - costPerServing).toFixed(2)}</p>
-                </div>
               </div>
             </div>
           </div>
