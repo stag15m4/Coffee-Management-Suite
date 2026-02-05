@@ -9,8 +9,8 @@ import { Loader2 } from "lucide-react";
 import { z } from "zod";
 
 const formSchema = insertIngredientSchema.extend({
-  price: z.coerce.number().positive("Price must be positive"),
-  amount: z.coerce.number().positive("Amount must be positive"),
+  cost: z.coerce.number().positive("Cost must be positive"),
+  quantity: z.coerce.number().positive("Quantity must be positive"),
 });
 
 interface IngredientFormProps {
@@ -28,8 +28,8 @@ export function IngredientForm({ defaultValues, onSubmit, isLoading, buttonLabel
     defaultValues: defaultValues || {
       name: "",
       unit: "g",
-      price: "0",
-      amount: "0",
+      cost: "0",
+      quantity: "0",
     },
   });
 
@@ -53,10 +53,10 @@ export function IngredientForm({ defaultValues, onSubmit, isLoading, buttonLabel
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="price"
+            name="cost"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Package Price ($)</FormLabel>
+                <FormLabel>Package Cost ($)</FormLabel>
                 <FormControl>
                   <Input type="number" step="0.01" {...field} />
                 </FormControl>
@@ -65,12 +65,12 @@ export function IngredientForm({ defaultValues, onSubmit, isLoading, buttonLabel
             )}
           />
 
-           <FormField
+          <FormField
             control={form.control}
-            name="amount"
+            name="quantity"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Package Amount</FormLabel>
+                <FormLabel>Package Quantity</FormLabel>
                 <FormControl>
                   <Input type="number" step="0.01" {...field} />
                 </FormControl>
