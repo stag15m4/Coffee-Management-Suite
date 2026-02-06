@@ -14,7 +14,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
+import { showDeleteUndoToast } from "@/hooks/use-delete-with-undo";
 import { useState } from "react";
+import { CoffeeLoader } from "@/components/CoffeeLoader";
 
 const addIngredientSchema = z.object({
   quantity: z.coerce.number().positive("Quantity must be positive"),
@@ -43,7 +45,7 @@ export default function RecipeDetail() {
     defaultValues: { quantity: 1, ingredientId: "" },
   });
 
-  if (isLoading) return <div className="flex h-screen items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  if (isLoading) return <CoffeeLoader fullScreen />;
   if (!recipe) return <div className="flex flex-col items-center justify-center h-screen gap-4"><h1 className="text-2xl font-bold">Recipe Not Found</h1><Link href="/recipes"><Button>Back to List</Button></Link></div>;
 
   // Calculate totals
@@ -75,6 +77,7 @@ export default function RecipeDetail() {
   const onDeleteRecipe = async () => {
     if (await confirm({ title: `Delete ${recipe?.name || 'this recipe'}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) {
       await deleteRecipe.mutateAsync(id);
+      showDeleteUndoToast({ itemName: recipe?.name || 'Recipe', undo: { type: 'none' } });
       window.location.href = "/recipes";
     }
   };

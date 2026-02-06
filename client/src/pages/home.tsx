@@ -3,10 +3,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Home as HomeIcon, Trash2, Check, X, Pencil, Copy } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 import {
   supabase,
@@ -572,7 +574,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd, onDelete }: 
                 style={{ backgroundColor: colors.gold, color: colors.brown }}
                 data-testid="button-save-new-ingredient"
               >
-                Save
+                Add
               </button>
               <button
                 onClick={() => setShowAddForm(false)}
@@ -3839,6 +3841,10 @@ export default function Home() {
       const { error } = await supabase.from('recipes').delete().eq('id', recipeId);
       if (error) throw error;
       invalidateRecipeData();
+      showDeleteUndoToast({
+        itemName: name,
+        undo: { type: 'none' },
+      });
     } catch (error: any) {
       alert('Error deleting recipe: ' + error.message);
     }
@@ -3932,6 +3938,7 @@ export default function Home() {
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.drinkSizes });
       queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
+      showDeleteUndoToast({ itemName: name, undo: { type: 'none' } });
     } catch (error: any) {
       console.error('Error in handleDeleteBulkSize:', error);
       alert('Error deleting bulk size: ' + error.message);
@@ -4014,6 +4021,7 @@ export default function Home() {
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
+      showDeleteUndoToast({ itemName: name, undo: { type: 'none' } });
     } catch (error: any) {
       console.error('Error deleting base template:', error);
       alert('Error deleting base template: ' + error.message);
@@ -4047,9 +4055,15 @@ export default function Home() {
   };
 
   const handleDeleteIngredient = async (id: string) => {
-    const name = ingredients.find(i => i.id === id)?.name || 'this ingredient';
+    const ingredient = ingredients.find(i => i.id === id);
+    const name = ingredient?.name || 'this ingredient';
     if (!await confirm({ title: `Delete ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) return;
     try {
+      // Strip view-computed columns (category_name, cost_per_unit, cost_per_usage_unit) that don't exist on the ingredients table
+      const savedData = ingredient ? (() => {
+        const { category_name, cost_per_unit, cost_per_usage_unit, ...tableColumns } = ingredient as Record<string, unknown>;
+        return tableColumns;
+      })() : null;
       const { error } = await supabase
         .from('ingredients')
         .delete()
@@ -4057,6 +4071,13 @@ export default function Home() {
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.ingredients });
+      showDeleteUndoToast({
+        itemName: name,
+        undo: savedData
+          ? { type: 'reinsert', table: 'ingredients', data: savedData }
+          : { type: 'none' },
+        invalidateKeys: [queryKeys.ingredients],
+      });
     } catch (error: any) {
       alert('Error deleting ingredient: ' + error.message);
     }
@@ -4077,20 +4098,7 @@ export default function Home() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
-        <div className="text-center">
-          <div 
-            className="w-12 h-12 rounded-full mx-auto mb-4 animate-spin border-4"
-            style={{ 
-              borderColor: colors.creamDark, 
-              borderTopColor: colors.gold 
-            }}
-          />
-          <p style={{ color: colors.brownLight }}>Loading Recipe Cost Manager...</p>
-        </div>
-      </div>
-    );
+    return <CoffeeLoader fullScreen text="Brewing..." />;
   }
 
   if (hasError) {

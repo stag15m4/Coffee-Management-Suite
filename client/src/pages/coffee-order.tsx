@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Download, FileText, Plus, Trash2, Edit2, Save, X, Home } from 'lucide-react';
 import { Link } from 'wouter';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Footer } from '@/components/Footer';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 
 const colors = {
   gold: '#C9A227',
@@ -289,7 +291,11 @@ export default function CoffeeOrder() {
         .eq('tenant_id', tenant.id);
       
       if (error) throw error;
-      toast({ title: 'Product removed' });
+      showDeleteUndoToast({
+        itemName: name,
+        undo: { type: 'soft-reactivate', table: 'tenant_coffee_products', id: productId },
+        onReload: loadData,
+      });
       loadData();
     } catch (error: any) {
       toast({ title: 'Error removing product', description: error.message, variant: 'destructive' });
@@ -833,18 +839,7 @@ export default function CoffeeOrder() {
   }, {} as Record<string, CoffeeProduct[]>);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center" style={{ backgroundColor: colors.cream }}>
-        <div 
-          className="w-12 h-12 rounded-full mx-auto mb-4 animate-spin border-4"
-          style={{ 
-            borderColor: colors.creamDark, 
-            borderTopColor: colors.gold 
-          }}
-        />
-        <p style={{ color: colors.brown }}>Loading...</p>
-      </div>
-    );
+    return <CoffeeLoader fullScreen text="Brewing..." />;
   }
 
   const hasProducts = products.length > 0;

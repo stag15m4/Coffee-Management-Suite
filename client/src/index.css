@@ -105,3 +105,21 @@
     @apply font-display text-xs uppercase tracking-wider text-muted-foreground font-semibold;
   }
 }
+
+/* Coffee loader animations */
+@keyframes stir {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+}
+.coffee-loader-stir {
+  animation: stir 1.4s ease-in-out infinite;
+}
+
+@keyframes steam {
+  0% { opacity: 0; transform: translateY(0); }
+  30% { opacity: 0.5; }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+.coffee-loader-steam-1 { animation: steam 2s ease-out infinite; }
+.coffee-loader-steam-2 { animation: steam 2s ease-out 0.5s infinite; }
+.coffee-loader-steam-3 { animation: steam 2s ease-out 1s infinite; }

@@ -22,6 +22,7 @@ import {
   Package,
   RefreshCw
 } from 'lucide-react';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,7 @@ import {
 } from '@/components/ui/select';
 import { Footer } from '@/components/Footer';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 
 interface Reseller {
   id: string;
@@ -243,12 +245,12 @@ export default function ResellerManagement() {
         headers: getAuthHeaders(),
       });
       if (response.ok) {
-        toast({ title: 'Success', description: 'Reseller deleted' });
         if (view === 'detail') {
           setView('list');
           setSelectedReseller(null);
         }
         loadResellers();
+        showDeleteUndoToast({ itemName: name, undo: { type: 'none' } });
       }
     } catch (error) {
       toast({
@@ -355,11 +357,7 @@ export default function ResellerManagement() {
   };
 
   if (authLoading || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <CoffeeLoader fullScreen />;
   }
 
   if (!isPlatformAdmin) {

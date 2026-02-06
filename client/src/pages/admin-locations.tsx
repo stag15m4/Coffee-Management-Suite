@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { Link } from 'wouter';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -333,10 +334,8 @@ export default function AdminLocations() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full mx-auto mb-4" 
-                 style={{ borderColor: colors.gold, borderTopColor: 'transparent' }} />
-            <p style={{ color: colors.brownLight }}>Loading locations...</p>
+          <div className="py-12">
+            <CoffeeLoader text="Brewing..." />
           </div>
         ) : locations.length === 0 ? (
           <Card style={{ backgroundColor: colors.white, borderStyle: 'dashed' }}>

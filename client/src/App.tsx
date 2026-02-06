@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { AppResumeIndicator } from "@/components/AppResumeIndicator";
+import { CoffeeLoader } from "@/components/CoffeeLoader";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
@@ -30,11 +31,12 @@ function HomePage() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: '#FFFDF7' }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: '#C9A227' }}></div>
-      </div>
-    );
+    return <CoffeeLoader fullScreen progressiveTexts={[
+      "What can I get started for you?",
+      "Grinding fresh beans...",
+      "Brewing a fresh pot...",
+      "Almost ready...",
+    ]} />;
   }
 
   if (!user) {

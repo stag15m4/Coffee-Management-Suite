@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText, Home } from 'lucide-react';
 import { Link } from 'wouter';
@@ -15,6 +16,7 @@ import ExcelJS from 'exceljs';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 import { Footer } from '@/components/Footer';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 
 const colors = {
   gold: '#C9A227',
@@ -337,7 +339,11 @@ export default function CashDeposit() {
         .eq('id', entry.id);
 
       if (error) throw error;
-      toast({ title: 'Entry deleted' });
+      showDeleteUndoToast({
+        itemName: `Entry for ${formatDate(entry.drawer_date)}`,
+        undo: { type: 'reinsert', table: 'cash_activity', data: { ...entry } },
+        onReload: loadEntries,
+      });
       loadEntries();
     } catch (error: any) {
       toast({
@@ -547,17 +553,7 @@ export default function CashDeposit() {
   const diff = difference();
   
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
-        <div className="text-center">
-          <div 
-            className="w-12 h-12 rounded-full mx-auto mb-4 animate-pulse"
-            style={{ backgroundColor: colors.gold }}
-          />
-          <p style={{ color: colors.brown }}>Loading...</p>
-        </div>
-      </div>
-    );
+    return <CoffeeLoader fullScreen text="Brewing..." />;
   }
 
   const formatDateDisplay = (dateStr: string) => {

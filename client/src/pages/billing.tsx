@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Check, CreditCard, Loader2, Settings } from 'lucide-react';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 
 interface Price {
   id: string;
@@ -188,8 +189,8 @@ export default function Billing() {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="py-12">
+            <CoffeeLoader text="Brewing..." />
           </div>
         ) : (
           <>

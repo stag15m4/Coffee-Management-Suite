@@ -20,8 +20,9 @@ import {
   Loader2,
   Settings,
   Package,
-  Key
+  Key,
 } from 'lucide-react';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 import {
   Dialog,
   DialogContent,
@@ -351,11 +352,7 @@ export default function PlatformAdmin() {
   };
 
   if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <Loader2 className="w-8 h-8 animate-spin text-white" />
-      </div>
-    );
+    return <CoffeeLoader fullScreen />;
   }
 
   if (!isPlatformAdmin) {

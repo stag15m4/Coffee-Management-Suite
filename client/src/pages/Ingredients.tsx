@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { IngredientForm } from "@/components/IngredientForm";
 import { Plus, Search, Pencil, Trash2, Package } from "lucide-react";
+import { CoffeeLoader } from "@/components/CoffeeLoader";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { type InsertIngredient, type Ingredient } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
+import { showDeleteUndoToast } from "@/hooks/use-delete-with-undo";
 
 export default function Ingredients() {
   const { data: ingredients, isLoading } = useIngredients();
@@ -49,18 +51,26 @@ export default function Ingredients() {
   };
 
   const handleDelete = async (id: string) => {
-    const name = ingredients?.find(i => i.id === id)?.name || 'this ingredient';
+    const ingredient = ingredients?.find(i => i.id === id);
+    const name = ingredient?.name || 'this ingredient';
     if (await confirm({ title: `Delete ${name}?`, description: 'This will remove it from all recipes.', confirmLabel: 'Delete', variant: 'destructive' })) {
       try {
+        const savedData = ingredient ? { ...ingredient } : null;
         await deleteMutation.mutateAsync(id);
-        toast({ title: "Success", description: "Ingredient deleted" });
+        showDeleteUndoToast({
+          itemName: name,
+          undo: savedData
+            ? { type: 'reinsert', table: 'ingredients', data: savedData }
+            : { type: 'none' },
+          invalidateKeys: [['ingredients']],
+        });
       } catch (error) {
         toast({ variant: "destructive", title: "Error", description: (error as Error).message });
       }
     }
   };
 
-  if (isLoading) return <div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  if (isLoading) return <CoffeeLoader fullScreen />;
 
   return (
     <div className="space-y-8">

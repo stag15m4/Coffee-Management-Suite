@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RecipeForm } from "@/components/RecipeForm";
 import { Plus, Search, ChefHat, ArrowRight } from "lucide-react";
+import { CoffeeLoader } from "@/components/CoffeeLoader";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Recipes() {
@@ -32,7 +33,7 @@ export default function Recipes() {
     }
   };
 
-  if (isLoading) return <div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  if (isLoading) return <CoffeeLoader fullScreen />;
 
   return (
     <div className="space-y-8">

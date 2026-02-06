@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -651,14 +652,7 @@ export default function AdminTasks() {
   };
   
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-4 rounded-full mx-auto mb-4" style={{ borderColor: colors.gold, borderTopColor: 'transparent' }} />
-          <p style={{ color: colors.brown }}>Loading tasks...</p>
-        </div>
-      </div>
-    );
+    return <CoffeeLoader fullScreen text="Brewing..." />;
   }
 
   return (

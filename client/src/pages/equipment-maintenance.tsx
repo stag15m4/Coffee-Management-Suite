@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase-queries';
+import { supabase, queryKeys } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
 import { queryClient } from '@/lib/queryClient';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { 
   useEquipment, 
   useMaintenanceTasks, 
@@ -62,6 +63,7 @@ import { Footer } from '@/components/Footer';
 import { Link } from 'wouter';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 
 const colors = {
   gold: '#C9A227',
@@ -796,7 +798,11 @@ export default function EquipmentMaintenance() {
     
     try {
       await deleteEquipmentMutation.mutateAsync(id);
-      toast({ title: 'Equipment removed successfully' });
+      showDeleteUndoToast({
+        itemName: name,
+        undo: { type: 'soft-reactivate', table: 'equipment', id },
+        invalidateKeys: [queryKeys.equipment, queryKeys.maintenanceTasks],
+      });
     } catch (error: any) {
       toast({ title: 'Error removing equipment', description: error.message, variant: 'destructive' });
     }
@@ -917,7 +923,11 @@ export default function EquipmentMaintenance() {
     
     try {
       await deleteTaskMutation.mutateAsync(id);
-      toast({ title: 'Task removed successfully' });
+      showDeleteUndoToast({
+        itemName: name,
+        undo: { type: 'soft-reactivate', table: 'maintenance_tasks', id },
+        invalidateKeys: [queryKeys.maintenanceTasks],
+      });
     } catch (error: any) {
       toast({ title: 'Error removing task', description: error.message, variant: 'destructive' });
     }
@@ -1138,8 +1148,8 @@ export default function EquipmentMaintenance() {
 
         {isLoading ? (
           <Card style={{ backgroundColor: colors.white, borderColor: colors.gold }}>
-            <CardContent className="p-8 text-center">
-              <p style={{ color: colors.brownLight }}>Loading...</p>
+            <CardContent className="p-8">
+              <CoffeeLoader text="Brewing..." />
             </CardContent>
           </Card>
         ) : activeTab === 'dashboard' ? (

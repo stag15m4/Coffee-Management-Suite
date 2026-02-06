@@ -18,6 +18,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { Footer } from '@/components/Footer';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
 
 const colors = {
@@ -156,27 +157,11 @@ export default function OrganizationDashboard() {
 
   // Handle case where primaryTenant is not loaded yet
   if (!parentTenantId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full mx-auto mb-4" 
-               style={{ borderColor: colors.gold, borderTopColor: 'transparent' }} />
-          <p style={{ color: colors.brownLight }}>Loading organization...</p>
-        </div>
-      </div>
-    );
+    return <CoffeeLoader fullScreen text="Brewing..." />;
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full mx-auto mb-4" 
-               style={{ borderColor: colors.gold, borderTopColor: 'transparent' }} />
-          <p style={{ color: colors.brownLight }}>Loading organization data...</p>
-        </div>
-      </div>
-    );
+    return <CoffeeLoader fullScreen text="Brewing..." />;
   }
 
   const childLocations = locations.filter(l => l.parent_tenant_id === parentTenantId);

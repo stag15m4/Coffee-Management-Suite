@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, User, Mail, Lock, Loader2, Home, Camera, Upload, SwitchCamera, RotateCcw } from 'lucide-react';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Link } from 'wouter';
 import { Footer } from '@/components/Footer';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
@@ -383,14 +384,7 @@ export default function UserProfile() {
   }, [stream]);
 
   if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
-        <div className="text-center">
-          <div className="w-10 h-10 rounded-full animate-pulse mx-auto mb-3" style={{ backgroundColor: colors.gold }} />
-          <p style={{ color: colors.brownLight }}>Loading profile...</p>
-        </div>
-      </div>
-    );
+    return <CoffeeLoader fullScreen text="Brewing..." />;
   }
 
   return (

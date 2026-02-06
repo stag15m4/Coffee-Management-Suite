@@ -1,6 +1,7 @@
 import { useAuth, UserRole, ModuleId } from '@/contexts/AuthContext';
 import { Redirect } from 'wouter';
 import { useState, useEffect } from 'react';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -12,12 +13,12 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
   const { user, profile, isPlatformAdmin, loading, hasRole, canAccessModule, signOut } = useAuth();
   const [profileTimeout, setProfileTimeout] = useState(false);
 
-  // If profile doesn't load within 5 seconds (and not a platform admin), show error
+  // If profile doesn't load within 35 seconds (and not a platform admin), show error
   useEffect(() => {
     if (user && !profile && !isPlatformAdmin && !loading) {
       const timer = setTimeout(() => {
         setProfileTimeout(true);
-      }, 5000);
+      }, 35000);
       return () => clearTimeout(timer);
     } else {
       setProfileTimeout(false);
@@ -25,17 +26,12 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
   }, [user, profile, isPlatformAdmin, loading]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F0E1' }}>
-        <div className="text-center">
-          <div 
-            className="w-12 h-12 rounded-full mx-auto mb-4 animate-pulse"
-            style={{ backgroundColor: '#C9A227' }}
-          />
-          <p style={{ color: '#4A3728' }}>Loading...</p>
-        </div>
-      </div>
-    );
+    return <CoffeeLoader fullScreen progressiveTexts={[
+      "Brewing...",
+      "Grinding fresh beans...",
+      "Making a fresh pot...",
+      "Almost ready...",
+    ]} />;
   }
 
   if (!user) {
@@ -82,17 +78,12 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
         </div>
       );
     }
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F0E1' }}>
-        <div className="text-center">
-          <div 
-            className="w-12 h-12 rounded-full mx-auto mb-4 animate-pulse"
-            style={{ backgroundColor: '#C9A227' }}
-          />
-          <p style={{ color: '#4A3728' }}>Loading profile...</p>
-        </div>
-      </div>
-    );
+    return <CoffeeLoader fullScreen progressiveTexts={[
+      "Brewing...",
+      "Grinding fresh beans...",
+      "Making a fresh pot...",
+      "Almost ready...",
+    ]} />;
   }
 
   if (requiredRole && !hasRole(requiredRole)) {
