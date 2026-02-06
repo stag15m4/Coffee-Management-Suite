@@ -72,6 +72,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // Check if running in dev mode
+  const isDevMode = import.meta.env.VITE_USE_MOCK_DATA === 'true' &&
+                    typeof localStorage !== 'undefined' &&
+                    localStorage.getItem('dev_mode') === 'true';
+
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -295,6 +300,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // If in dev mode, use mock data
+    if (isDevMode) {
+      console.log('[AuthContext] Running in dev mode with mock data');
+
+      // Create mock user
+      const mockUser = {
+        id: 'dev-user-123',
+        email: 'dev@example.com',
+        created_at: new Date().toISOString(),
+      } as User;
+
+      // Create mock profile
+      const mockProfile: UserProfile = {
+        id: 'dev-user-123',
+        tenant_id: 'dev-tenant-123',
+        email: 'dev@example.com',
+        full_name: 'Dev User',
+        role: 'owner',
+        is_active: true,
+        avatar_url: null,
+        start_date: null,
+      };
+
+      // Create mock tenant
+      const mockTenant: Tenant = {
+        id: 'dev-tenant-123',
+        name: 'Dev Coffee Shop',
+        slug: 'dev-coffee-shop',
+        subscription_status: 'active',
+        subscription_plan: 'pro',
+        is_active: true,
+        parent_tenant_id: null,
+      };
+
+      // Create mock branding
+      const mockBranding: TenantBranding = {
+        id: 'dev-branding-123',
+        tenant_id: 'dev-tenant-123',
+        logo_url: null,
+        primary_color: '#C9A227',
+        secondary_color: '#4A3728',
+        accent_color: '#6B5344',
+        background_color: '#FFFDF7',
+        company_name: 'Dev Coffee Shop',
+        tagline: 'Development Mode',
+      };
+
+      // Enable all modules in dev mode
+      const allModules: ModuleId[] = [
+        'recipe-costing',
+        'tip-payout',
+        'cash-deposit',
+        'bulk-ordering',
+        'equipment-maintenance',
+        'admin-tasks',
+      ];
+
+      setUser(mockUser);
+      setProfile(mockProfile);
+      setTenant(mockTenant);
+      setPrimaryTenant(mockTenant);
+      setAccessibleLocations([mockTenant]);
+      setActiveLocationId(mockTenant.id);
+      setBranding(mockBranding);
+      setEnabledModules(allModules);
+      setIsParentTenant(false);
+      setLoading(false);
+
+      return;
+    }
+
     // Get initial session - refresh if token is expired or about to expire
     const initSession = async () => {
       let { data: { session } } = await supabase.auth.getSession();
@@ -362,7 +438,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isDevMode]);
 
   // Handle visibility change (iPad app switching, tab switching)
   // Refresh session and notify pages when app returns to foreground
@@ -502,6 +578,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear dev mode flag
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('dev_mode');
+    }
+
     await supabase.auth.signOut();
     setProfile(null);
     setPlatformAdmin(null);
