@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Home as HomeIcon, Trash2, Check, X, Pencil } from 'lucide-react';
+import { Home as HomeIcon, Trash2, Check, X, Pencil, Copy } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/Footer';
@@ -247,9 +248,10 @@ interface IngredientsTabProps {
   categories: Category[];
   onUpdate: (id: string, updates: Partial<Ingredient>) => Promise<void>;
   onAdd: (ingredient: Partial<Ingredient>) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }
 
-const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: IngredientsTabProps) => {
+const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd, onDelete }: IngredientsTabProps) => {
   const [selectedType, setSelectedType] = useState<string>('FOH Ingredient');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -851,14 +853,36 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd }: Ingredient
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => handleEdit(ingredient)}
-                        className="font-medium hover:underline"
-                        style={{ color: colors.gold }}
-                        data-testid={`button-edit-${ingredient.id}`}
-                      >
-                        Edit
-                      </button>
+                      <div className="flex justify-center gap-1">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleEdit(ingredient)}
+                                className="p-1 rounded"
+                                style={{ color: colors.brownLight }}
+                                data-testid={`button-edit-${ingredient.id}`}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>Edit</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => onDelete(ingredient.id)}
+                                className="p-1 rounded"
+                                style={{ color: colors.brownLight }}
+                                data-testid={`button-delete-${ingredient.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -1231,30 +1255,47 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                     <h3 className="font-bold" style={{ color: colors.brown }}>{recipe.name}</h3>
                     <span className="text-sm" style={{ color: colors.brownLight }}>{recipe.category_name}</span>
                   </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleEditRecipe(recipe); }}
-                    className="text-sm font-medium hover:underline"
-                    style={{ color: colors.gold }}
-                    data-testid={`button-edit-recipe-${recipe.id}`}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onDuplicateRecipe(recipe); }}
-                    className="text-sm font-medium hover:underline"
-                    style={{ color: colors.brownLight }}
-                    data-testid={`button-duplicate-recipe-${recipe.id}`}
-                  >
-                    Duplicate
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onDeleteRecipe(recipe.id); }}
-                    className="text-sm font-medium hover:underline"
-                    style={{ color: '#c53030' }}
-                    data-testid={`button-delete-recipe-${recipe.id}`}
-                  >
-                    Delete
-                  </button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleEditRecipe(recipe); }}
+                          className="p-1 rounded"
+                          style={{ color: colors.brownLight }}
+                          data-testid={`button-edit-recipe-${recipe.id}`}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDuplicateRecipe(recipe); }}
+                          className="p-1 rounded"
+                          style={{ color: colors.brownLight }}
+                          data-testid={`button-duplicate-recipe-${recipe.id}`}
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Duplicate</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDeleteRecipe(recipe.id); }}
+                          className="p-1 rounded"
+                          style={{ color: colors.brownLight }}
+                          data-testid={`button-delete-recipe-${recipe.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               )}
               <span style={{ color: colors.gold }}>{expandedRecipe === recipe.id ? '▼' : '▶'}</span>
@@ -1453,14 +1494,21 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                         <span style={{ color: colors.brown }}>{bulkRecipe?.name || 'Unknown Additive'}</span>
                                         <span style={{ color: colors.brownLight }}>({ri.quantity} oz)</span>
                                         <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
-                                        <button
-                                          onClick={() => onDeleteRecipeIngredient(ri.id)}
-                                          className="ml-1 font-bold"
-                                          style={{ color: colors.red }}
-                                          data-testid={`button-delete-ri-${ri.id}`}
-                                        >
-                                          x
-                                        </button>
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <button
+                                                onClick={() => onDeleteRecipeIngredient(ri.id)}
+                                                className="ml-1 p-0.5 rounded"
+                                                style={{ color: colors.brownLight }}
+                                                data-testid={`button-delete-ri-${ri.id}`}
+                                              >
+                                                <Trash2 className="w-3 h-3" />
+                                              </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Remove</TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
                                       </div>
                                     );
                                   }
@@ -1477,14 +1525,21 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                       <span style={{ color: colors.brown }}>{ing?.name || 'Unknown'}</span>
                                       <span style={{ color: colors.brownLight }}>({ri.quantity} {displayUnit})</span>
                                       <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
-                                      <button
-                                        onClick={() => onDeleteRecipeIngredient(ri.id)}
-                                        className="ml-1 font-bold"
-                                        style={{ color: colors.red }}
-                                        data-testid={`button-delete-ri-${ri.id}`}
-                                      >
-                                        x
-                                      </button>
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <button
+                                              onClick={() => onDeleteRecipeIngredient(ri.id)}
+                                              className="ml-1 p-0.5 rounded"
+                                              style={{ color: colors.brownLight }}
+                                              data-testid={`button-delete-ri-${ri.id}`}
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                            </button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Remove</TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
                                     </div>
                                   );
                                 })}
@@ -2748,29 +2803,41 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
                         </div>
                       ) : (
                         <div className="flex gap-1">
-                          <button
-                            onClick={() => {
-                              setEditingItemId(item.id);
-                              setEditingItemForm({
-                                name: item.name,
-                                amount: String(item.amount),
-                                frequency: item.frequency,
-                              });
-                            }}
-                            className="p-1 rounded"
-                            style={{ color: colors.brownLight }}
-                            data-testid={`button-edit-item-${item.id}`}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => onDeleteOverheadItem(item.id)}
-                            className="p-1 rounded"
-                            style={{ color: colors.brownLight }}
-                            data-testid={`button-delete-item-${item.id}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => {
+                                    setEditingItemId(item.id);
+                                    setEditingItemForm({
+                                      name: item.name,
+                                      amount: String(item.amount),
+                                      frequency: item.frequency,
+                                    });
+                                  }}
+                                  className="p-1 rounded"
+                                  style={{ color: colors.brownLight }}
+                                  data-testid={`button-edit-item-${item.id}`}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>Edit</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => onDeleteOverheadItem(item.id)}
+                                  className="p-1 rounded"
+                                  style={{ color: colors.brownLight }}
+                                  data-testid={`button-delete-item-${item.id}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       )}
                     </td>
@@ -3977,6 +4044,21 @@ export default function Home() {
     }
   };
 
+  const handleDeleteIngredient = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this ingredient?')) return;
+    try {
+      const { error } = await supabase
+        .from('ingredients')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: queryKeys.ingredients });
+    } catch (error: any) {
+      alert('Error deleting ingredient: ' + error.message);
+    }
+  };
+
   const handleDeleteRecipeIngredient = async (id: string) => {
     try {
       const { error } = await supabase
@@ -4095,6 +4177,7 @@ export default function Home() {
             categories={ingredientCategories}
             onUpdate={handleUpdateIngredient}
             onAdd={handleAddIngredient}
+            onDelete={handleDeleteIngredient}
           />
         )}
         {activeTab === 'vendors' && (

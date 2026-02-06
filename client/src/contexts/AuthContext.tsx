@@ -295,24 +295,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // Get initial session - refresh if token is expired or about to expire
+    const initSession = async () => {
+      let { data: { session } } = await supabase.auth.getSession();
+
+      if (session) {
+        // Check if token is expired or expires within 60 seconds
+        const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
+        const isExpired = expiresAt < Date.now() + 60000;
+
+        if (isExpired) {
+          console.log('[Session] Token expired or expiring soon, refreshing...');
+          const { data, error } = await supabase.auth.refreshSession();
+          if (error) {
+            console.warn('[Session] Refresh failed, signing out:', error.message);
+            // Token is expired and can't be refreshed - clear stale session
+            await supabase.auth.signOut();
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+          session = data.session;
+        }
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchUserData(session.user.id);
+        const success = await fetchUserData(session.user.id);
+        // If profile fetch failed, the token may be invalid despite not looking expired
+        if (!success && session) {
+          console.log('[Session] Profile fetch failed, attempting session refresh...');
+          const { data, error } = await supabase.auth.refreshSession();
+          if (!error && data.session) {
+            setSession(data.session);
+            setUser(data.session.user);
+            await fetchUserData(data.session.user.id, 0, true);
+          }
+        }
       }
       setLoading(false);
-    });
+    };
+
+    initSession();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
-          await fetchUserData(session.user.id);
+          // On TOKEN_REFRESHED, force re-fetch profile data with fresh token
+          const force = event === 'TOKEN_REFRESHED';
+          await fetchUserData(session.user.id, 0, force);
         } else {
           setProfile(null);
           setPlatformAdmin(null);
