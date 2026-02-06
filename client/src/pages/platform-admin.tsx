@@ -34,13 +34,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Footer } from '@/components/Footer';
 
 interface TenantWithStats {
@@ -80,6 +73,19 @@ interface PlatformAdminRecord {
   is_active: boolean;
   created_at: string;
 }
+
+const colors = {
+  gold: '#C9A227',
+  brown: '#4A3728',
+  brownLight: '#6B5344',
+  cream: '#F5F0E1',
+  creamDark: '#E8E0CC',
+  white: '#FFFDF7',
+  inputBg: '#FDF8E8',
+  green: '#22c55e',
+  yellow: '#eab308',
+  red: '#ef4444',
+};
 
 export default function PlatformAdmin() {
   const { user, platformAdmin, isPlatformAdmin, loading: authLoading, signOut } = useAuth();
@@ -423,20 +429,21 @@ export default function PlatformAdmin() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="px-6 py-4 border-b border-border/50">
-        <div className="container mx-auto flex items-center justify-between">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.cream }}>
+      <header className="px-6 py-4 border-b" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Settings className="w-8 h-8 text-primary" />
+            <Settings className="w-8 h-8" style={{ color: colors.gold }} />
             <div>
-              <h1 className="text-xl font-bold" data-testid="text-platform-admin-title">Platform Admin</h1>
-              <p className="text-sm text-muted-foreground">{platformAdmin?.email}</p>
+              <h1 className="text-xl font-bold" style={{ color: colors.brown }} data-testid="text-platform-admin-title">Platform Admin</h1>
+              <p className="text-sm" style={{ color: colors.brownLight }}>{platformAdmin?.email}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               onClick={() => setLocation('/reseller-management')}
+              style={{ borderColor: colors.creamDark, color: colors.brown }}
               data-testid="button-reseller-management"
             >
               <Key className="w-4 h-4 mr-2" />
@@ -445,6 +452,7 @@ export default function PlatformAdmin() {
             <Button
               variant="outline"
               onClick={handleLogout}
+              style={{ borderColor: colors.creamDark, color: colors.brown }}
               data-testid="button-logout"
             >
               <LogOut className="w-4 h-4 mr-2" />
@@ -454,68 +462,68 @@ export default function PlatformAdmin() {
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-4 py-8">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="border border-border/50">
+          <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
             <CardHeader className="pb-2">
-              <CardDescription>Total Businesses</CardDescription>
-              <CardTitle className="text-3xl" data-testid="text-total-tenants">{stats.totalTenants}</CardTitle>
+              <CardDescription style={{ color: colors.brownLight }}>Total Businesses</CardDescription>
+              <CardTitle className="text-3xl" style={{ color: colors.brown }} data-testid="text-total-tenants">{stats.totalTenants}</CardTitle>
             </CardHeader>
             <CardContent>
-              <Building2 className="w-8 h-8 text-primary" />
+              <Building2 className="w-8 h-8" style={{ color: colors.gold }} />
             </CardContent>
           </Card>
 
-          <Card className="border border-border/50">
+          <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
             <CardHeader className="pb-2">
-              <CardDescription>Active Businesses</CardDescription>
-              <CardTitle className="text-3xl" data-testid="text-active-tenants">{stats.activeTenants}</CardTitle>
+              <CardDescription style={{ color: colors.brownLight }}>Active Businesses</CardDescription>
+              <CardTitle className="text-3xl" style={{ color: colors.brown }} data-testid="text-active-tenants">{stats.activeTenants}</CardTitle>
             </CardHeader>
             <CardContent>
-              <CheckCircle className="w-8 h-8 text-green-600" />
+              <CheckCircle className="w-8 h-8" style={{ color: colors.green }} />
             </CardContent>
           </Card>
 
-          <Card className="border border-border/50">
+          <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
             <CardHeader className="pb-2">
-              <CardDescription>Total Users</CardDescription>
-              <CardTitle className="text-3xl" data-testid="text-total-users">{stats.totalUsers}</CardTitle>
+              <CardDescription style={{ color: colors.brownLight }}>Total Users</CardDescription>
+              <CardTitle className="text-3xl" style={{ color: colors.brown }} data-testid="text-total-users">{stats.totalUsers}</CardTitle>
             </CardHeader>
             <CardContent>
-              <Users className="w-8 h-8 text-primary" />
+              <Users className="w-8 h-8" style={{ color: colors.gold }} />
             </CardContent>
           </Card>
 
-          <Card className="border border-border/50">
+          <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
             <CardHeader className="pb-2">
-              <CardDescription>On Trial</CardDescription>
-              <CardTitle className="text-3xl" data-testid="text-trial-tenants">{stats.trialTenants}</CardTitle>
+              <CardDescription style={{ color: colors.brownLight }}>On Trial</CardDescription>
+              <CardTitle className="text-3xl" style={{ color: colors.brown }} data-testid="text-trial-tenants">{stats.trialTenants}</CardTitle>
             </CardHeader>
             <CardContent>
-              <Activity className="w-8 h-8 text-amber-500" />
+              <Activity className="w-8 h-8" style={{ color: colors.yellow }} />
             </CardContent>
           </Card>
         </div>
 
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Businesses</h2>
+          <h2 className="text-2xl font-bold" style={{ color: colors.brown }}>Businesses</h2>
           <Dialog open={showNewTenantDialog} onOpenChange={setShowNewTenantDialog}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6 py-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5" data-testid="button-add-business">
+              <Button style={{ backgroundColor: colors.gold, color: colors.brown }} data-testid="button-add-business">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Business
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="font-display text-2xl">Create New Business</DialogTitle>
-                <DialogDescription>
+                <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Create New Business</DialogTitle>
+                <DialogDescription style={{ color: colors.brownLight }}>
                   Set up a new tenant with their owner account
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 mt-4">
                 <div>
-                  <Label htmlFor="tenant-name">Business Name</Label>
+                  <Label style={{ color: colors.brown }} htmlFor="tenant-name">Business Name</Label>
                   <Input
                     id="tenant-name"
                     value={newTenantName}
@@ -524,57 +532,63 @@ export default function PlatformAdmin() {
                       setNewTenantSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-'));
                     }}
                     placeholder="Acme Coffee Shop"
+                    style={{ backgroundColor: colors.inputBg }}
                     data-testid="input-tenant-name"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="tenant-slug">URL Slug</Label>
+                  <Label style={{ color: colors.brown }} htmlFor="tenant-slug">URL Slug</Label>
                   <Input
                     id="tenant-slug"
                     value={newTenantSlug}
                     onChange={(e) => setNewTenantSlug(e.target.value)}
                     placeholder="acme-coffee"
+                    style={{ backgroundColor: colors.inputBg }}
                     data-testid="input-tenant-slug"
                   />
                 </div>
-                <hr className="border-border" />
+                <hr style={{ borderColor: colors.creamDark }} />
                 <div>
-                  <Label htmlFor="owner-name">Owner Name</Label>
+                  <Label style={{ color: colors.brown }} htmlFor="owner-name">Owner Name</Label>
                   <Input
                     id="owner-name"
                     value={ownerName}
                     onChange={(e) => setOwnerName(e.target.value)}
                     placeholder="John Smith"
+                    style={{ backgroundColor: colors.inputBg }}
                     data-testid="input-owner-name"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="owner-email">Owner Email</Label>
+                  <Label style={{ color: colors.brown }} htmlFor="owner-email">Owner Email</Label>
                   <Input
                     id="owner-email"
                     type="email"
                     value={ownerEmail}
                     onChange={(e) => setOwnerEmail(e.target.value)}
                     placeholder="owner@example.com"
+                    style={{ backgroundColor: colors.inputBg }}
                     data-testid="input-owner-email"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="owner-password">Temporary Password</Label>
+                  <Label style={{ color: colors.brown }} htmlFor="owner-password">Temporary Password</Label>
                   <Input
                     id="owner-password"
                     type="password"
                     value={ownerPassword}
                     onChange={(e) => setOwnerPassword(e.target.value)}
                     placeholder="Leave blank if user already exists"
+                    style={{ backgroundColor: colors.inputBg }}
                     data-testid="input-owner-password"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Only needed for new users. Existing accounts will be linked automatically.</p>
+                  <p className="text-xs mt-1" style={{ color: colors.brownLight }}>Only needed for new users. Existing accounts will be linked automatically.</p>
                 </div>
                 <Button
                   onClick={handleCreateTenant}
                   disabled={creating}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className="w-full"
+                  style={{ backgroundColor: colors.gold, color: colors.brown }}
                   data-testid="button-create-tenant"
                 >
                   {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -587,29 +601,31 @@ export default function PlatformAdmin() {
 
         <div className="space-y-4">
           {tenants.map((tenant) => (
-            <Card key={tenant.id} className="border border-border/50 hover:shadow-lg transition-shadow">
+            <Card key={tenant.id} className="hover:shadow-lg transition-shadow" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
               <CardContent className="py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-primary" />
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
+                      <Building2 className="w-6 h-6" style={{ color: colors.gold }} />
                     </div>
                     <div>
-                      <h3 className="font-semibold" data-testid={`text-tenant-name-${tenant.id}`}>{tenant.name}</h3>
-                      <p className="text-sm text-muted-foreground">{tenant.slug}</p>
+                      <h3 className="font-semibold" style={{ color: colors.brown }} data-testid={`text-tenant-name-${tenant.id}`}>{tenant.name}</h3>
+                      <p className="text-sm" style={{ color: colors.brownLight }}>{tenant.slug}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="text-sm text-muted-foreground">{tenant.user_count} users</p>
+                      <p className="text-sm" style={{ color: colors.brownLight }}>{tenant.user_count} users</p>
                       <div className="flex gap-2 mt-1">
                         <Badge
-                          variant={tenant.is_active ? 'default' : 'secondary'}
-                          className={tenant.is_active ? 'bg-green-600' : ''}
+                          style={tenant.is_active
+                            ? { backgroundColor: colors.green, color: '#fff' }
+                            : { backgroundColor: colors.creamDark, color: colors.brown }
+                          }
                         >
                           {tenant.is_active ? 'Active' : 'Inactive'}
                         </Badge>
-                        <Badge variant="outline">
+                        <Badge variant="outline" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
                           {tenant.subscription_status || 'trial'}
                         </Badge>
                       </div>
@@ -618,7 +634,7 @@ export default function PlatformAdmin() {
                       variant="outline"
                       size="sm"
                       onClick={() => openSubscriptionDialog(tenant)}
-                      className="border-primary/50 text-primary hover:bg-primary/10"
+                      style={{ borderColor: colors.gold, color: colors.gold }}
                       data-testid={`button-manage-subscription-${tenant.id}`}
                     >
                       <Package className="w-4 h-4 mr-1" /> Modules
@@ -627,9 +643,9 @@ export default function PlatformAdmin() {
                       variant="outline"
                       size="sm"
                       onClick={() => toggleTenantActive(tenant.id, tenant.is_active)}
-                      className={tenant.is_active
-                        ? "border-red-500 text-red-600 hover:bg-red-500/10"
-                        : "border-green-500 text-green-600 hover:bg-green-500/10"
+                      style={tenant.is_active
+                        ? { borderColor: colors.red, color: colors.red }
+                        : { borderColor: colors.green, color: colors.green }
                       }
                       data-testid={`button-toggle-tenant-${tenant.id}`}
                     >
@@ -650,8 +666,8 @@ export default function PlatformAdmin() {
           ))}
 
           {tenants.length === 0 && !loading && (
-            <Card className="border border-border/50">
-              <CardContent className="py-8 text-center text-muted-foreground">
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
                 No businesses yet. Click "Add Business" to create your first tenant.
               </CardContent>
             </Card>
@@ -660,50 +676,53 @@ export default function PlatformAdmin() {
 
         {/* Platform Admins Section */}
         <div className="flex items-center justify-between mb-6 mt-12">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-primary" />
+          <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: colors.brown }}>
+            <ShieldCheck className="w-6 h-6" style={{ color: colors.gold }} />
             Platform Admins
           </h2>
           <Dialog open={showAddAdminDialog} onOpenChange={setShowAddAdminDialog}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6 py-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5" data-testid="button-add-admin">
+              <Button style={{ backgroundColor: colors.gold, color: colors.brown }} data-testid="button-add-admin">
                 <UserPlus className="w-4 h-4 mr-2" />
                 Add Admin
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="font-display text-2xl">Add Platform Admin</DialogTitle>
-                <DialogDescription>
+                <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Add Platform Admin</DialogTitle>
+                <DialogDescription style={{ color: colors.brownLight }}>
                   Add an existing user as a platform admin. They must already have an account.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 mt-4">
                 <div>
-                  <Label htmlFor="admin-email">Email Address</Label>
+                  <Label style={{ color: colors.brown }} htmlFor="admin-email">Email Address</Label>
                   <Input
                     id="admin-email"
                     type="email"
                     value={newAdminEmail}
                     onChange={(e) => setNewAdminEmail(e.target.value)}
                     placeholder="user@example.com"
+                    style={{ backgroundColor: colors.inputBg }}
                     data-testid="input-admin-email"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="admin-name">Full Name (optional)</Label>
+                  <Label style={{ color: colors.brown }} htmlFor="admin-name">Full Name (optional)</Label>
                   <Input
                     id="admin-name"
                     value={newAdminName}
                     onChange={(e) => setNewAdminName(e.target.value)}
                     placeholder="Jane Doe"
+                    style={{ backgroundColor: colors.inputBg }}
                     data-testid="input-admin-name"
                   />
                 </div>
                 <Button
                   onClick={handleAddAdmin}
                   disabled={addingAdmin}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className="w-full"
+                  style={{ backgroundColor: colors.gold, color: colors.brown }}
                   data-testid="button-confirm-add-admin"
                 >
                   {addingAdmin ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -716,22 +735,24 @@ export default function PlatformAdmin() {
 
         <div className="space-y-4 mb-8">
           {admins.map((admin) => (
-            <Card key={admin.id} className="border border-border/50 hover:shadow-lg transition-shadow">
+            <Card key={admin.id} className="hover:shadow-lg transition-shadow" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
               <CardContent className="py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <ShieldCheck className="w-6 h-6 text-primary" />
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
+                      <ShieldCheck className="w-6 h-6" style={{ color: colors.gold }} />
                     </div>
                     <div>
-                      <h3 className="font-semibold">{admin.full_name || admin.email}</h3>
-                      <p className="text-sm text-muted-foreground">{admin.email}</p>
+                      <h3 className="font-semibold" style={{ color: colors.brown }}>{admin.full_name || admin.email}</h3>
+                      <p className="text-sm" style={{ color: colors.brownLight }}>{admin.email}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <Badge
-                      variant={admin.is_active ? 'default' : 'secondary'}
-                      className={admin.is_active ? 'bg-green-600' : ''}
+                      style={admin.is_active
+                        ? { backgroundColor: colors.green, color: '#fff' }
+                        : { backgroundColor: colors.creamDark, color: colors.brown }
+                      }
                     >
                       {admin.is_active ? 'Active' : 'Inactive'}
                     </Badge>
@@ -741,7 +762,7 @@ export default function PlatformAdmin() {
                         size="sm"
                         onClick={() => handleRemoveAdmin(admin.id)}
                         disabled={removingAdminId === admin.id}
-                        className="border-red-500 text-red-600 hover:bg-red-500/10"
+                        style={{ borderColor: colors.red, color: colors.red }}
                         data-testid={`button-remove-admin-${admin.id}`}
                       >
                         {removingAdminId === admin.id ? (
@@ -760,8 +781,8 @@ export default function PlatformAdmin() {
           ))}
 
           {admins.length === 0 && (
-            <Card className="border border-border/50">
-              <CardContent className="py-8 text-center text-muted-foreground">
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
                 Loading platform admins...
               </CardContent>
             </Card>
@@ -772,30 +793,30 @@ export default function PlatformAdmin() {
         <Dialog open={showSubscriptionDialog} onOpenChange={setShowSubscriptionDialog}>
           <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="font-display text-2xl">Manage Subscription</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Manage Subscription</DialogTitle>
+              <DialogDescription style={{ color: colors.brownLight }}>
                 {selectedTenant?.name} - Configure plan and modules
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 mt-4">
               {/* Premium Suite Toggle */}
               <div
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${
-                  selectedPlan === 'premium'
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border bg-muted/50 hover:border-border/80'
-                }`}
+                className="p-4 rounded-xl border-2 cursor-pointer transition-colors"
+                style={{
+                  borderColor: selectedPlan === 'premium' ? colors.gold : colors.creamDark,
+                  backgroundColor: selectedPlan === 'premium' ? colors.cream : colors.white,
+                }}
                 onClick={() => setSelectedPlan(selectedPlan === 'premium' ? 'alacarte' : 'premium')}
                 data-testid="toggle-premium-suite"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-lg">Premium Suite</p>
-                    <p className="text-sm text-muted-foreground">All {modules.length} modules including Recipe Costing</p>
+                    <p className="font-semibold text-lg" style={{ color: colors.brown }}>Premium Suite</p>
+                    <p className="text-sm" style={{ color: colors.brownLight }}>All {modules.length} modules including Recipe Costing</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-bold text-primary">$99.99</p>
-                    <p className="text-xs text-muted-foreground">/month</p>
+                    <p className="text-xl font-bold" style={{ color: colors.gold }}>$99.99</p>
+                    <p className="text-xs" style={{ color: colors.brownLight }}>/month</p>
                   </div>
                 </div>
                 <Switch
@@ -808,25 +829,25 @@ export default function PlatformAdmin() {
 
               {/* Test & Eval Option (Internal/Unpublished) */}
               <div
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${
-                  selectedPlan === 'test_eval'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-border bg-muted/50 hover:border-border/80'
-                }`}
+                className="p-4 rounded-xl border-2 cursor-pointer transition-colors"
+                style={{
+                  borderColor: selectedPlan === 'test_eval' ? '#3b82f6' : colors.creamDark,
+                  backgroundColor: selectedPlan === 'test_eval' ? '#eff6ff' : colors.white,
+                }}
                 onClick={() => setSelectedPlan(selectedPlan === 'test_eval' ? 'alacarte' : 'test_eval')}
                 data-testid="toggle-test-eval"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-lg">Test & Eval</p>
-                    <p className="text-sm text-muted-foreground">Full access for testing and evaluation</p>
-                    <Badge variant="outline" className="text-xs border-blue-500 text-blue-600 mt-1">
+                    <p className="font-semibold text-lg" style={{ color: colors.brown }}>Test & Eval</p>
+                    <p className="text-sm" style={{ color: colors.brownLight }}>Full access for testing and evaluation</p>
+                    <Badge variant="outline" style={{ borderColor: '#3b82f6', color: '#2563eb' }} className="text-xs mt-1">
                       Internal Only
                     </Badge>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-bold text-green-600">FREE</p>
-                    <p className="text-xs text-muted-foreground">unpublished</p>
+                    <p className="text-xl font-bold" style={{ color: colors.green }}>FREE</p>
+                    <p className="text-xs" style={{ color: colors.brownLight }}>unpublished</p>
                   </div>
                 </div>
                 <Switch
@@ -840,20 +861,20 @@ export default function PlatformAdmin() {
               {/* Free Trial Option */}
               {selectedTenant?.subscription_status === 'trial' && (
                 <div
-                  className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${
-                    selectedPlan === 'free'
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-border bg-muted/50 hover:border-border/80'
-                  }`}
+                  className="p-4 rounded-xl border-2 cursor-pointer transition-colors"
+                  style={{
+                    borderColor: selectedPlan === 'free' ? colors.green : colors.creamDark,
+                    backgroundColor: selectedPlan === 'free' ? '#f0fdf4' : colors.white,
+                  }}
                   onClick={() => setSelectedPlan('free')}
                   data-testid="toggle-free-trial"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold">Free Trial</p>
-                      <p className="text-sm text-muted-foreground">14-day trial with all features</p>
+                      <p className="font-semibold" style={{ color: colors.brown }}>Free Trial</p>
+                      <p className="text-sm" style={{ color: colors.brownLight }}>14-day trial with all features</p>
                     </div>
-                    <Badge className="bg-green-600">FREE</Badge>
+                    <Badge style={{ backgroundColor: colors.green, color: '#fff' }}>FREE</Badge>
                   </div>
                 </div>
               )}
@@ -861,7 +882,7 @@ export default function PlatformAdmin() {
               {/* À La Carte Modules */}
               {selectedPlan !== 'premium' && selectedPlan !== 'test_eval' && selectedPlan !== 'free' && (
                 <div>
-                  <Label className="mb-3 block">À La Carte Modules</Label>
+                  <Label className="mb-3 block" style={{ color: colors.brown }}>À La Carte Modules</Label>
                   <div className="space-y-3">
                     {modules.map((module) => {
                       const isSelected = selectedModules.includes(module.id);
@@ -870,22 +891,22 @@ export default function PlatformAdmin() {
                       return (
                         <div
                           key={module.id}
-                          className={`flex items-center justify-between p-3 rounded-xl ${
-                            isPremiumOnly
-                              ? 'bg-muted/30 opacity-60'
-                              : 'bg-muted/50'
-                          }`}
+                          className="flex items-center justify-between p-3 rounded-xl"
+                          style={{
+                            backgroundColor: isPremiumOnly ? colors.creamDark : colors.cream,
+                            opacity: isPremiumOnly ? 0.6 : 1,
+                          }}
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <p className="font-medium text-sm">{module.name}</p>
+                              <p className="font-medium text-sm" style={{ color: colors.brown }}>{module.name}</p>
                               {isPremiumOnly && (
-                                <Badge variant="outline" className="text-xs border-primary/50 text-primary">
+                                <Badge variant="outline" style={{ borderColor: colors.gold, color: colors.gold }} className="text-xs">
                                   Premium Only
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs" style={{ color: colors.brownLight }}>
                               {isPremiumOnly ? 'Available in Premium Suite' : `$${parseFloat(String(module.monthly_price || 0)).toFixed(2)}/mo`}
                             </p>
                           </div>
@@ -905,12 +926,12 @@ export default function PlatformAdmin() {
               {/* Premium/Test & Eval modules preview */}
               {(selectedPlan === 'premium' || selectedPlan === 'test_eval') && (
                 <div>
-                  <Label className="mb-3 block">Included Modules</Label>
+                  <Label className="mb-3 block" style={{ color: colors.brown }}>Included Modules</Label>
                   <div className="space-y-2">
                     {modules.map((module) => (
-                      <div key={module.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded-xl">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span className="text-sm">{module.name}</span>
+                      <div key={module.id} className="flex items-center gap-2 p-2 rounded-xl" style={{ backgroundColor: colors.cream }}>
+                        <CheckCircle className="w-4 h-4" style={{ color: colors.green }} />
+                        <span className="text-sm" style={{ color: colors.brown }}>{module.name}</span>
                       </div>
                     ))}
                   </div>
@@ -918,9 +939,9 @@ export default function PlatformAdmin() {
               )}
 
               {/* Monthly Total */}
-              <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl">
-                <span className="font-semibold">Monthly Total</span>
-                <span className="text-2xl font-bold text-green-600">
+              <div className="flex items-center justify-between p-4 rounded-xl" style={{ backgroundColor: colors.cream }}>
+                <span className="font-semibold" style={{ color: colors.brown }}>Monthly Total</span>
+                <span className="text-2xl font-bold" style={{ color: colors.green }}>
                   ${calculateMonthlyTotal().toFixed(2)}
                 </span>
               </div>
@@ -928,7 +949,8 @@ export default function PlatformAdmin() {
               <Button
                 onClick={saveSubscriptionSettings}
                 disabled={savingSubscription}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                className="w-full"
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
                 data-testid="button-save-subscription"
               >
                 {savingSubscription ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
