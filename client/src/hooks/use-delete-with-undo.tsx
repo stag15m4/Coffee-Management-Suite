@@ -36,6 +36,20 @@ export function showDeleteUndoToast({
       } else if (undo.type === 'reinsert') {
         // Strip auto-generated timestamp columns that can conflict on re-insert
         const { created_at, updated_at, ...insertData } = undo.data as Record<string, unknown> & { created_at?: unknown; updated_at?: unknown };
+        // Ensure tenant_id is present — view-sourced data (e.g. v_ingredients) may omit it
+        if (!insertData.tenant_id) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('tenant_id')
+              .eq('id', session.user.id)
+              .single();
+            if (profile?.tenant_id) {
+              insertData.tenant_id = profile.tenant_id;
+            }
+          }
+        }
         const { error } = await supabase
           .from(undo.table)
           .insert(insertData);

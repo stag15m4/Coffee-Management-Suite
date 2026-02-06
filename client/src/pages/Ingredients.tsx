@@ -55,7 +55,10 @@ export default function Ingredients() {
     const name = ingredient?.name || 'this ingredient';
     if (await confirm({ title: `Delete ${name}?`, description: 'This will remove it from all recipes.', confirmLabel: 'Delete', variant: 'destructive' })) {
       try {
-        const savedData = ingredient ? { ...ingredient } : null;
+        const savedData = ingredient ? (() => {
+          const { category_name, cost_per_unit, cost_per_usage_unit, ...tableColumns } = ingredient as unknown as Record<string, unknown>;
+          return tableColumns;
+        })() : null;
         await deleteMutation.mutateAsync(id);
         showDeleteUndoToast({
           itemName: name,
