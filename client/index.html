@@ -34,5 +34,18 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Mobile debugging console (only loads in development) -->
+    <script>
+      if (window.location.hostname === 'localhost' || window.location.hostname.includes('github.dev') || window.location.hostname.includes('app.github.dev')) {
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/eruda@3.0.1/eruda.min.js";
+        script.onload = function () {
+          eruda.init();
+          console.log('[Debug] Eruda mobile console loaded - tap the icon in bottom right to open');
+        };
+        document.body.appendChild(script);
+      }
+    </script>
   </body>
 </html>

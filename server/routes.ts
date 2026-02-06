@@ -741,7 +741,7 @@ async function seedDatabase() {
 }
 
 // Call seed
-seedDatabase().catch(console.error);
+// seedDatabase().catch(console.error);
 
 // Coffee Order Email Route
 const sendOrderEmailSchema = z.object({

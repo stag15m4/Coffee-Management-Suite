@@ -202,7 +202,7 @@ export default function TipPayout() {
       setLoading(false);
       return;
     }
-    
+
     setLoading(true);
     try {
       const { data: weekData, error: weekError } = await supabase
@@ -211,9 +211,9 @@ export default function TipPayout() {
         .eq('tenant_id', tenant.id)
         .eq('week_key', weekKey)
         .maybeSingle();
-      
+
       if (weekError) throw weekError;
-      
+
       if (weekData) {
         setWeeklyData(weekData);
         setCashEntries(weekData.cash_entries || [0, 0, 0, 0, 0, 0, 0]);
