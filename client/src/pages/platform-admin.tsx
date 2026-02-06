@@ -690,51 +690,49 @@ export default function PlatformAdmin() {
         {/* Platform Admins Section */}
         <div className="flex items-center justify-between mb-6 mt-12">
           <h2 className="text-2xl font-bold flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-purple-400" />
+            <ShieldCheck className="w-6 h-6 text-primary" />
             Platform Admins
           </h2>
           <Dialog open={showAddAdminDialog} onOpenChange={setShowAddAdminDialog}>
             <DialogTrigger asChild>
-              <Button className="bg-purple-600 hover:bg-purple-700" data-testid="button-add-admin">
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6 py-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5" data-testid="button-add-admin">
                 <UserPlus className="w-4 h-4 mr-2" />
                 Add Admin
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-800 border-slate-700 text-white">
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Add Platform Admin</DialogTitle>
-                <DialogDescription className="text-slate-400">
+                <DialogTitle className="font-display text-2xl">Add Platform Admin</DialogTitle>
+                <DialogDescription>
                   Add an existing user as a platform admin. They must already have an account.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 mt-4">
                 <div>
-                  <Label htmlFor="admin-email" className="text-slate-200">Email Address</Label>
+                  <Label htmlFor="admin-email">Email Address</Label>
                   <Input
                     id="admin-email"
                     type="email"
                     value={newAdminEmail}
                     onChange={(e) => setNewAdminEmail(e.target.value)}
                     placeholder="user@example.com"
-                    className="bg-slate-700 border-slate-600 text-white"
                     data-testid="input-admin-email"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="admin-name" className="text-slate-200">Full Name (optional)</Label>
+                  <Label htmlFor="admin-name">Full Name (optional)</Label>
                   <Input
                     id="admin-name"
                     value={newAdminName}
                     onChange={(e) => setNewAdminName(e.target.value)}
                     placeholder="Jane Doe"
-                    className="bg-slate-700 border-slate-600 text-white"
                     data-testid="input-admin-name"
                   />
                 </div>
                 <Button
                   onClick={handleAddAdmin}
                   disabled={addingAdmin}
-                  className="w-full bg-purple-600 hover:bg-purple-700"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                   data-testid="button-confirm-add-admin"
                 >
                   {addingAdmin ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -747,20 +745,23 @@ export default function PlatformAdmin() {
 
         <div className="space-y-4 mb-8">
           {admins.map((admin) => (
-            <Card key={admin.id} className="bg-slate-800 border-slate-700">
+            <Card key={admin.id} className="border border-border/50 hover:shadow-lg transition-shadow">
               <CardContent className="py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-purple-900/50 flex items-center justify-center">
-                      <ShieldCheck className="w-6 h-6 text-purple-400" />
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <ShieldCheck className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-white">{admin.full_name || admin.email}</h3>
-                      <p className="text-sm text-slate-400">{admin.email}</p>
+                      <h3 className="font-semibold">{admin.full_name || admin.email}</h3>
+                      <p className="text-sm text-muted-foreground">{admin.email}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <Badge className={admin.is_active ? 'bg-green-600' : 'bg-slate-600'}>
+                    <Badge
+                      variant={admin.is_active ? 'default' : 'secondary'}
+                      className={admin.is_active ? 'bg-green-600' : ''}
+                    >
                       {admin.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                     {admin.id !== user?.id && (
@@ -769,7 +770,7 @@ export default function PlatformAdmin() {
                         size="sm"
                         onClick={() => handleRemoveAdmin(admin.id)}
                         disabled={removingAdminId === admin.id}
-                        className="border-red-500 text-red-400 hover:bg-red-500/10"
+                        className="border-red-500 text-red-600 hover:bg-red-500/10"
                         data-testid={`button-remove-admin-${admin.id}`}
                       >
                         {removingAdminId === admin.id ? (
@@ -788,8 +789,8 @@ export default function PlatformAdmin() {
           ))}
 
           {admins.length === 0 && (
-            <Card className="bg-slate-800 border-slate-700">
-              <CardContent className="py-8 text-center text-slate-400">
+            <Card className="border border-border/50">
+              <CardContent className="py-8 text-center text-muted-foreground">
                 Loading platform admins...
               </CardContent>
             </Card>
