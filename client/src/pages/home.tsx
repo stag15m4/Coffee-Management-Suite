@@ -1926,8 +1926,7 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
         <table className="w-full text-sm">
           <thead>
             <tr style={{ backgroundColor: colors.brown }}>
-              <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.white }}>Mixed Drinks</th>
-              <th colSpan={standardDrinkSizes.length + 1} className="px-4 py-3 text-center font-semibold" style={{ color: colors.white }}>Averages</th>
+              <th colSpan={standardDrinkSizes.length + 2} className="px-4 py-3 text-left font-semibold" style={{ color: colors.white }}>Store Averages</th>
             </tr>
             <tr style={{ backgroundColor: colors.creamDark }}>
               <th className="px-4 py-2" style={{ color: colors.brown }}></th>

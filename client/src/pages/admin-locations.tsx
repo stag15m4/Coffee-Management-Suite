@@ -56,6 +56,7 @@ interface Location {
   is_active: boolean;
   created_at: string;
   parent_tenant_id: string | null;
+  starting_drawer_default: number | null;
 }
 
 interface LocationUsage {
@@ -80,7 +81,8 @@ export default function AdminLocations() {
   
   const [formData, setFormData] = useState({
     name: '',
-    slug: ''
+    slug: '',
+    starting_drawer_default: '200.00'
   });
 
   const companyName = branding?.company_name || tenant?.name || 'Organization';
@@ -152,10 +154,11 @@ export default function AdminLocations() {
   };
 
   const handleNameChange = (name: string) => {
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       name,
-      slug: editingLocation ? formData.slug : generateSlug(name)
-    });
+      slug: editingLocation ? prev.slug : generateSlug(name)
+    }));
   };
 
   const handleSave = async () => {
@@ -173,6 +176,7 @@ export default function AdminLocations() {
           .update({
             name: formData.name.trim(),
             slug: formData.slug.trim(),
+            starting_drawer_default: parseFloat(formData.starting_drawer_default) || 200,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingLocation.id);
@@ -186,6 +190,7 @@ export default function AdminLocations() {
           .insert({
             name: formData.name.trim(),
             slug: formData.slug.trim(),
+            starting_drawer_default: parseFloat(formData.starting_drawer_default) || 200,
             parent_tenant_id: tenant.id,
             is_active: true
           });
@@ -196,7 +201,7 @@ export default function AdminLocations() {
 
       setShowAddDialog(false);
       setEditingLocation(null);
-      setFormData({ name: '', slug: '' });
+      setFormData({ name: '', slug: '', starting_drawer_default: '200.00' });
       loadData();
     } catch (error: any) {
       console.error('Error saving location:', error);
@@ -247,7 +252,11 @@ export default function AdminLocations() {
 
   const openEditDialog = (location: Location) => {
     setEditingLocation(location);
-    setFormData({ name: location.name, slug: location.slug });
+    setFormData({
+      name: location.name,
+      slug: location.slug,
+      starting_drawer_default: (location.starting_drawer_default ?? 200).toString()
+    });
     setShowAddDialog(true);
   };
 
@@ -317,7 +326,7 @@ export default function AdminLocations() {
             <Button
               onClick={() => {
                 setEditingLocation(null);
-                setFormData({ name: '', slug: '' });
+                setFormData({ name: '', slug: '', starting_drawer_default: '200.00' });
                 setShowAddDialog(true);
               }}
               disabled={locationUsage !== null && !locationUsage.can_add}
@@ -350,7 +359,7 @@ export default function AdminLocations() {
               <Button
                 onClick={() => {
                   setEditingLocation(null);
-                  setFormData({ name: '', slug: '' });
+                  setFormData({ name: '', slug: '', starting_drawer_default: '200.00' });
                   setShowAddDialog(true);
                 }}
                 disabled={locationUsage !== null && !locationUsage.can_add}
@@ -395,7 +404,7 @@ export default function AdminLocations() {
                           )}
                         </div>
                         <p className="text-sm" style={{ color: colors.brownLight }}>
-                          {location.slug} • {userCounts[location.id] || 0} team members
+                          {location.slug} • {userCounts[location.id] || 0} team members • Drawer: ${(location.starting_drawer_default ?? 200).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -505,6 +514,29 @@ export default function AdminLocations() {
                 This will be used in URLs and must be unique.
               </p>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="starting-drawer" style={{ color: colors.brown }}>Starting Drawer</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  id="starting-drawer"
+                  type="number"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={formData.starting_drawer_default}
+                  onChange={(e) => setFormData({ ...formData, starting_drawer_default: e.target.value })}
+                  onFocus={(e) => e.target.select()}
+                  className="pl-7"
+                  placeholder="200.00"
+                  style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                  data-testid="input-starting-drawer"
+                />
+              </div>
+              <p className="text-xs" style={{ color: colors.brownLight }}>
+                Default starting drawer amount for Cash Deposit entries.
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
@@ -513,7 +545,7 @@ export default function AdminLocations() {
               onClick={() => {
                 setShowAddDialog(false);
                 setEditingLocation(null);
-                setFormData({ name: '', slug: '' });
+                setFormData({ name: '', slug: '', starting_drawer_default: '200.00' });
               }}
               style={{ borderColor: colors.creamDark, color: colors.brown }}
               data-testid="button-cancel"

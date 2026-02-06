@@ -453,76 +453,76 @@ export default function PlatformAdmin() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
-      <header className="border-b border-slate-700 bg-slate-800">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen flex flex-col bg-background">
+      <header className="px-6 py-4 border-b border-border/50">
+        <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Settings className="w-8 h-8 text-purple-400" />
+            <Settings className="w-8 h-8 text-primary" />
             <div>
               <h1 className="text-xl font-bold" data-testid="text-platform-admin-title">Platform Admin</h1>
-              <p className="text-sm text-slate-400">{platformAdmin?.email}</p>
+              <p className="text-sm text-muted-foreground">{platformAdmin?.email}</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={() => setLocation('/reseller-management')}
-            className="border-slate-600 text-slate-300 hover:bg-slate-700"
-            data-testid="button-reseller-management"
-          >
-            <Key className="w-4 h-4 mr-2" />
-            Wholesale Partners
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleLogout}
-            className="border-slate-600 text-slate-300 hover:bg-slate-700"
-            data-testid="button-logout"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setLocation('/reseller-management')}
+              data-testid="button-reseller-management"
+            >
+              <Key className="w-4 h-4 mr-2" />
+              Wholesale Partners
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              data-testid="button-logout"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="border border-border/50">
             <CardHeader className="pb-2">
-              <CardDescription className="text-slate-400">Total Businesses</CardDescription>
-              <CardTitle className="text-3xl text-white" data-testid="text-total-tenants">{stats.totalTenants}</CardTitle>
+              <CardDescription>Total Businesses</CardDescription>
+              <CardTitle className="text-3xl" data-testid="text-total-tenants">{stats.totalTenants}</CardTitle>
             </CardHeader>
             <CardContent>
-              <Building2 className="w-8 h-8 text-blue-400" />
+              <Building2 className="w-8 h-8 text-primary" />
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="border border-border/50">
             <CardHeader className="pb-2">
-              <CardDescription className="text-slate-400">Active Businesses</CardDescription>
-              <CardTitle className="text-3xl text-white" data-testid="text-active-tenants">{stats.activeTenants}</CardTitle>
+              <CardDescription>Active Businesses</CardDescription>
+              <CardTitle className="text-3xl" data-testid="text-active-tenants">{stats.activeTenants}</CardTitle>
             </CardHeader>
             <CardContent>
-              <CheckCircle className="w-8 h-8 text-green-400" />
+              <CheckCircle className="w-8 h-8 text-green-600" />
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="border border-border/50">
             <CardHeader className="pb-2">
-              <CardDescription className="text-slate-400">Total Users</CardDescription>
-              <CardTitle className="text-3xl text-white" data-testid="text-total-users">{stats.totalUsers}</CardTitle>
+              <CardDescription>Total Users</CardDescription>
+              <CardTitle className="text-3xl" data-testid="text-total-users">{stats.totalUsers}</CardTitle>
             </CardHeader>
             <CardContent>
-              <Users className="w-8 h-8 text-purple-400" />
+              <Users className="w-8 h-8 text-primary" />
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="border border-border/50">
             <CardHeader className="pb-2">
-              <CardDescription className="text-slate-400">On Trial</CardDescription>
-              <CardTitle className="text-3xl text-white" data-testid="text-trial-tenants">{stats.trialTenants}</CardTitle>
+              <CardDescription>On Trial</CardDescription>
+              <CardTitle className="text-3xl" data-testid="text-trial-tenants">{stats.trialTenants}</CardTitle>
             </CardHeader>
             <CardContent>
-              <Activity className="w-8 h-8 text-yellow-400" />
+              <Activity className="w-8 h-8 text-amber-500" />
             </CardContent>
           </Card>
         </div>
@@ -531,21 +531,21 @@ export default function PlatformAdmin() {
           <h2 className="text-2xl font-bold">Businesses</h2>
           <Dialog open={showNewTenantDialog} onOpenChange={setShowNewTenantDialog}>
             <DialogTrigger asChild>
-              <Button className="bg-purple-600 hover:bg-purple-700" data-testid="button-add-business">
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6 py-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5" data-testid="button-add-business">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Business
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-800 border-slate-700 text-white">
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Create New Business</DialogTitle>
-                <DialogDescription className="text-slate-400">
+                <DialogTitle className="font-display text-2xl">Create New Business</DialogTitle>
+                <DialogDescription>
                   Set up a new tenant with their owner account
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 mt-4">
                 <div>
-                  <Label htmlFor="tenant-name" className="text-slate-200">Business Name</Label>
+                  <Label htmlFor="tenant-name">Business Name</Label>
                   <Input
                     id="tenant-name"
                     value={newTenantName}
@@ -554,61 +554,56 @@ export default function PlatformAdmin() {
                       setNewTenantSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-'));
                     }}
                     placeholder="Acme Coffee Shop"
-                    className="bg-slate-700 border-slate-600 text-white"
                     data-testid="input-tenant-name"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="tenant-slug" className="text-slate-200">URL Slug</Label>
+                  <Label htmlFor="tenant-slug">URL Slug</Label>
                   <Input
                     id="tenant-slug"
                     value={newTenantSlug}
                     onChange={(e) => setNewTenantSlug(e.target.value)}
                     placeholder="acme-coffee"
-                    className="bg-slate-700 border-slate-600 text-white"
                     data-testid="input-tenant-slug"
                   />
                 </div>
-                <hr className="border-slate-600" />
+                <hr className="border-border" />
                 <div>
-                  <Label htmlFor="owner-name" className="text-slate-200">Owner Name</Label>
+                  <Label htmlFor="owner-name">Owner Name</Label>
                   <Input
                     id="owner-name"
                     value={ownerName}
                     onChange={(e) => setOwnerName(e.target.value)}
                     placeholder="John Smith"
-                    className="bg-slate-700 border-slate-600 text-white"
                     data-testid="input-owner-name"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="owner-email" className="text-slate-200">Owner Email</Label>
+                  <Label htmlFor="owner-email">Owner Email</Label>
                   <Input
                     id="owner-email"
                     type="email"
                     value={ownerEmail}
                     onChange={(e) => setOwnerEmail(e.target.value)}
                     placeholder="owner@example.com"
-                    className="bg-slate-700 border-slate-600 text-white"
                     data-testid="input-owner-email"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="owner-password" className="text-slate-200">Temporary Password</Label>
+                  <Label htmlFor="owner-password">Temporary Password</Label>
                   <Input
                     id="owner-password"
                     type="password"
                     value={ownerPassword}
                     onChange={(e) => setOwnerPassword(e.target.value)}
                     placeholder="Temporary password"
-                    className="bg-slate-700 border-slate-600 text-white"
                     data-testid="input-owner-password"
                   />
                 </div>
-                <Button 
-                  onClick={handleCreateTenant} 
+                <Button
+                  onClick={handleCreateTenant}
                   disabled={creating}
-                  className="w-full bg-purple-600 hover:bg-purple-700"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                   data-testid="button-create-tenant"
                 >
                   {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -621,32 +616,29 @@ export default function PlatformAdmin() {
 
         <div className="space-y-4">
           {tenants.map((tenant) => (
-            <Card key={tenant.id} className="bg-slate-800 border-slate-700">
+            <Card key={tenant.id} className="border border-border/50 hover:shadow-lg transition-shadow">
               <CardContent className="py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-slate-400" />
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Building2 className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-white" data-testid={`text-tenant-name-${tenant.id}`}>{tenant.name}</h3>
-                      <p className="text-sm text-slate-400">{tenant.slug}</p>
+                      <h3 className="font-semibold" data-testid={`text-tenant-name-${tenant.id}`}>{tenant.name}</h3>
+                      <p className="text-sm text-muted-foreground">{tenant.slug}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="text-sm text-slate-400">{tenant.user_count} users</p>
+                      <p className="text-sm text-muted-foreground">{tenant.user_count} users</p>
                       <div className="flex gap-2 mt-1">
-                        <Badge 
+                        <Badge
                           variant={tenant.is_active ? 'default' : 'secondary'}
-                          className={tenant.is_active ? 'bg-green-600' : 'bg-slate-600'}
+                          className={tenant.is_active ? 'bg-green-600' : ''}
                         >
                           {tenant.is_active ? 'Active' : 'Inactive'}
                         </Badge>
-                        <Badge 
-                          variant="outline"
-                          className="border-slate-500 text-slate-300"
-                        >
+                        <Badge variant="outline">
                           {tenant.subscription_status || 'trial'}
                         </Badge>
                       </div>
@@ -655,7 +647,7 @@ export default function PlatformAdmin() {
                       variant="outline"
                       size="sm"
                       onClick={() => openSubscriptionDialog(tenant)}
-                      className="border-purple-500 text-purple-400 hover:bg-purple-500/10"
+                      className="border-primary/50 text-primary hover:bg-primary/10"
                       data-testid={`button-manage-subscription-${tenant.id}`}
                     >
                       <Package className="w-4 h-4 mr-1" /> Modules
@@ -664,9 +656,9 @@ export default function PlatformAdmin() {
                       variant="outline"
                       size="sm"
                       onClick={() => toggleTenantActive(tenant.id, tenant.is_active)}
-                      className={tenant.is_active 
-                        ? "border-red-500 text-red-400 hover:bg-red-500/10" 
-                        : "border-green-500 text-green-400 hover:bg-green-500/10"
+                      className={tenant.is_active
+                        ? "border-red-500 text-red-600 hover:bg-red-500/10"
+                        : "border-green-500 text-green-600 hover:bg-green-500/10"
                       }
                       data-testid={`button-toggle-tenant-${tenant.id}`}
                     >
@@ -687,8 +679,8 @@ export default function PlatformAdmin() {
           ))}
 
           {tenants.length === 0 && !loading && (
-            <Card className="bg-slate-800 border-slate-700">
-              <CardContent className="py-8 text-center text-slate-400">
+            <Card className="border border-border/50">
+              <CardContent className="py-8 text-center text-muted-foreground">
                 No businesses yet. Click "Add Business" to create your first tenant.
               </CardContent>
             </Card>
@@ -806,20 +798,20 @@ export default function PlatformAdmin() {
 
         {/* Subscription Management Dialog */}
         <Dialog open={showSubscriptionDialog} onOpenChange={setShowSubscriptionDialog}>
-          <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Manage Subscription</DialogTitle>
-              <DialogDescription className="text-slate-400">
+              <DialogTitle className="font-display text-2xl">Manage Subscription</DialogTitle>
+              <DialogDescription>
                 {selectedTenant?.name} - Configure plan and modules
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 mt-4">
               {/* Premium Suite Toggle */}
-              <div 
-                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                  selectedPlan === 'premium' 
-                    ? 'border-purple-500 bg-purple-900/30' 
-                    : 'border-slate-600 bg-slate-700 hover:border-slate-500'
+              <div
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${
+                  selectedPlan === 'premium'
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border bg-muted/50 hover:border-border/80'
                 }`}
                 onClick={() => setSelectedPlan(selectedPlan === 'premium' ? 'alacarte' : 'premium')}
                 data-testid="toggle-premium-suite"
@@ -827,11 +819,11 @@ export default function PlatformAdmin() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-lg">Premium Suite</p>
-                    <p className="text-sm text-slate-400">All {modules.length} modules including Recipe Costing</p>
+                    <p className="text-sm text-muted-foreground">All {modules.length} modules including Recipe Costing</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-bold text-purple-400">$99.99</p>
-                    <p className="text-xs text-slate-400">/month</p>
+                    <p className="text-xl font-bold text-primary">$99.99</p>
+                    <p className="text-xs text-muted-foreground">/month</p>
                   </div>
                 </div>
                 <Switch
@@ -843,11 +835,11 @@ export default function PlatformAdmin() {
               </div>
 
               {/* Test & Eval Option (Internal/Unpublished) */}
-              <div 
-                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                  selectedPlan === 'test_eval' 
-                    ? 'border-blue-500 bg-blue-900/30' 
-                    : 'border-slate-600 bg-slate-700 hover:border-slate-500'
+              <div
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${
+                  selectedPlan === 'test_eval'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-border bg-muted/50 hover:border-border/80'
                 }`}
                 onClick={() => setSelectedPlan(selectedPlan === 'test_eval' ? 'alacarte' : 'test_eval')}
                 data-testid="toggle-test-eval"
@@ -855,14 +847,14 @@ export default function PlatformAdmin() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-lg">Test & Eval</p>
-                    <p className="text-sm text-slate-400">Full access for testing and evaluation</p>
-                    <Badge variant="outline" className="text-xs border-blue-500 text-blue-400 mt-1">
+                    <p className="text-sm text-muted-foreground">Full access for testing and evaluation</p>
+                    <Badge variant="outline" className="text-xs border-blue-500 text-blue-600 mt-1">
                       Internal Only
                     </Badge>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-bold text-green-400">FREE</p>
-                    <p className="text-xs text-slate-400">unpublished</p>
+                    <p className="text-xl font-bold text-green-600">FREE</p>
+                    <p className="text-xs text-muted-foreground">unpublished</p>
                   </div>
                 </div>
                 <Switch
@@ -875,11 +867,11 @@ export default function PlatformAdmin() {
 
               {/* Free Trial Option */}
               {selectedTenant?.subscription_status === 'trial' && (
-                <div 
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                    selectedPlan === 'free' 
-                      ? 'border-green-500 bg-green-900/30' 
-                      : 'border-slate-600 bg-slate-700 hover:border-slate-500'
+                <div
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${
+                    selectedPlan === 'free'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-border bg-muted/50 hover:border-border/80'
                   }`}
                   onClick={() => setSelectedPlan('free')}
                   data-testid="toggle-free-trial"
@@ -887,7 +879,7 @@ export default function PlatformAdmin() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold">Free Trial</p>
-                      <p className="text-sm text-slate-400">14-day trial with all features</p>
+                      <p className="text-sm text-muted-foreground">14-day trial with all features</p>
                     </div>
                     <Badge className="bg-green-600">FREE</Badge>
                   </div>
@@ -897,31 +889,31 @@ export default function PlatformAdmin() {
               {/* À La Carte Modules */}
               {selectedPlan !== 'premium' && selectedPlan !== 'test_eval' && selectedPlan !== 'free' && (
                 <div>
-                  <Label className="text-slate-200 mb-3 block">À La Carte Modules</Label>
+                  <Label className="mb-3 block">À La Carte Modules</Label>
                   <div className="space-y-3">
                     {modules.map((module) => {
                       const isSelected = selectedModules.includes(module.id);
                       const isPremiumOnly = module.is_premium_only;
-                      
+
                       return (
-                        <div 
-                          key={module.id} 
-                          className={`flex items-center justify-between p-3 rounded-lg ${
-                            isPremiumOnly 
-                              ? 'bg-slate-700/50 opacity-60' 
-                              : 'bg-slate-700'
+                        <div
+                          key={module.id}
+                          className={`flex items-center justify-between p-3 rounded-xl ${
+                            isPremiumOnly
+                              ? 'bg-muted/30 opacity-60'
+                              : 'bg-muted/50'
                           }`}
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <p className="font-medium text-sm">{module.name}</p>
                               {isPremiumOnly && (
-                                <Badge variant="outline" className="text-xs border-purple-500 text-purple-400">
+                                <Badge variant="outline" className="text-xs border-primary/50 text-primary">
                                   Premium Only
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-muted-foreground">
                               {isPremiumOnly ? 'Available in Premium Suite' : `$${parseFloat(String(module.monthly_price || 0)).toFixed(2)}/mo`}
                             </p>
                           </div>
@@ -941,11 +933,11 @@ export default function PlatformAdmin() {
               {/* Premium/Test & Eval modules preview */}
               {(selectedPlan === 'premium' || selectedPlan === 'test_eval') && (
                 <div>
-                  <Label className="text-slate-200 mb-3 block">Included Modules</Label>
+                  <Label className="mb-3 block">Included Modules</Label>
                   <div className="space-y-2">
                     {modules.map((module) => (
-                      <div key={module.id} className="flex items-center gap-2 p-2 bg-slate-700 rounded-lg">
-                        <CheckCircle className="w-4 h-4 text-green-400" />
+                      <div key={module.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded-xl">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
                         <span className="text-sm">{module.name}</span>
                       </div>
                     ))}
@@ -954,17 +946,17 @@ export default function PlatformAdmin() {
               )}
 
               {/* Monthly Total */}
-              <div className="flex items-center justify-between p-4 bg-slate-900 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl">
                 <span className="font-semibold">Monthly Total</span>
-                <span className="text-2xl font-bold text-green-400">
+                <span className="text-2xl font-bold text-green-600">
                   ${calculateMonthlyTotal().toFixed(2)}
                 </span>
               </div>
 
-              <Button 
-                onClick={saveSubscriptionSettings} 
+              <Button
+                onClick={saveSubscriptionSettings}
                 disabled={savingSubscription}
-                className="w-full bg-purple-600 hover:bg-purple-700"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                 data-testid="button-save-subscription"
               >
                 {savingSubscription ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}

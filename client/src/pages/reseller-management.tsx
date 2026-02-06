@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -31,14 +31,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -364,22 +356,14 @@ export default function ResellerManagement() {
     return null;
   }
 
-  const colors = {
-    cream: '#F5F0E1',
-    gold: '#C9A227',
-    brown: '#4A3728',
-    charcoal: '#1A1A1A',
-    inputBg: '#FFFFFF',
-  };
-
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.cream }}>
-      <header className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: colors.gold }}>
+    <div className="min-h-screen flex flex-col bg-background">
+      <header className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
         <div className="flex items-center gap-4">
           {view === 'detail' && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => { setView('list'); setSelectedReseller(null); }}
               data-testid="button-back"
             >
@@ -387,7 +371,7 @@ export default function ResellerManagement() {
             </Button>
           )}
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: colors.charcoal }}>
+            <h1 className="text-2xl font-bold">
               Wholesale Partners
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -396,8 +380,8 @@ export default function ResellerManagement() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => setLocation('/platform-admin')}
             data-testid="button-platform-admin"
           >
@@ -430,9 +414,9 @@ export default function ResellerManagement() {
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Refresh
                 </Button>
-                <Button 
+                <Button
                   onClick={() => { resetResellerForm(); setShowNewResellerDialog(true); }}
-                  style={{ backgroundColor: colors.gold }}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6 py-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5"
                   data-testid="button-add-reseller"
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -459,7 +443,7 @@ export default function ResellerManagement() {
                   >
                     <CardContent className="flex items-center justify-between p-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.gold }}>
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center bg-primary">
                           <Building2 className="w-6 h-6 text-white" />
                         </div>
                         <div>
@@ -571,10 +555,10 @@ export default function ResellerManagement() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
                   <CardTitle>License Codes</CardTitle>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     onClick={() => setShowGenerateCodesDialog(true)}
-                    style={{ backgroundColor: colors.gold }}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
                     data-testid="button-generate-codes"
                   >
                     <Key className="w-4 h-4 mr-2" />
@@ -715,10 +699,10 @@ export default function ResellerManagement() {
             <Button variant="outline" onClick={() => setShowNewResellerDialog(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleCreateReseller} 
+            <Button
+              onClick={handleCreateReseller}
               disabled={processing || !resellerForm.name || !resellerForm.contactEmail}
-              style={{ backgroundColor: colors.gold }}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
               data-testid="button-submit-reseller"
             >
               {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -799,10 +783,10 @@ export default function ResellerManagement() {
             <Button variant="outline" onClick={() => setShowEditResellerDialog(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleUpdateReseller} 
+            <Button
+              onClick={handleUpdateReseller}
               disabled={processing || !resellerForm.name || !resellerForm.contactEmail}
-              style={{ backgroundColor: colors.gold }}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
               data-testid="button-update-reseller"
             >
               {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -871,10 +855,10 @@ export default function ResellerManagement() {
             <Button variant="outline" onClick={() => setShowGenerateCodesDialog(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleGenerateCodes} 
+            <Button
+              onClick={handleGenerateCodes}
               disabled={processing || generateForm.count < 1}
-              style={{ backgroundColor: colors.gold }}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
               data-testid="button-submit-generate"
             >
               {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

@@ -108,6 +108,7 @@ export default function CashDeposit() {
   });
   const [ownerTipsEnabled, setOwnerTipsEnabled] = useState(true);
   const [ownerTipsLoaded, setOwnerTipsLoaded] = useState(false);
+  const [drawerDefault, setDrawerDefault] = useState(200);
 
   // Load owner_tips_enabled setting from overhead_settings (tenant-scoped)
   useEffect(() => {
@@ -130,6 +131,34 @@ export default function CashDeposit() {
       }
     };
     loadOwnerTipsSetting();
+  }, [tenant?.id]);
+
+  // Load per-location starting drawer default
+  useEffect(() => {
+    const loadDrawerDefault = async () => {
+      if (!tenant?.id) return;
+      try {
+        const { data, error } = await supabase
+          .from('tenants')
+          .select('starting_drawer_default')
+          .eq('id', tenant.id)
+          .maybeSingle();
+        if (!error && data?.starting_drawer_default != null) {
+          const val = parseFloat(data.starting_drawer_default);
+          setDrawerDefault(val);
+          // Update form if it still has the old hardcoded default
+          setFormData(prev => {
+            if (prev.starting_drawer === '200.00' && val !== 200) {
+              return { ...prev, starting_drawer: val.toFixed(2) };
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.error('Error loading drawer default:', err);
+      }
+    };
+    loadDrawerDefault();
   }, [tenant?.id]);
 
   // Save owner_tips_enabled setting when toggled (tenant-scoped)
@@ -216,7 +245,7 @@ export default function CashDeposit() {
       setFormData({
         drawer_date: editingEntry.drawer_date,
         gross_revenue: editingEntry.gross_revenue?.toString() || '',
-        starting_drawer: editingEntry.starting_drawer?.toString() || '200.00',
+        starting_drawer: editingEntry.starting_drawer?.toString() || drawerDefault.toFixed(2),
         actual_deposit: editingEntry.actual_deposit?.toString() || '',
         cash_sales: editingEntry.cash_sales?.toString() || '',
         tip_pool: editingEntry.tip_pool?.toString() || '',
@@ -241,8 +270,8 @@ export default function CashDeposit() {
     const payIn = parseFloat(formData.pay_in) || 0;
     const payOut = parseFloat(formData.pay_out) || 0;
     const cashRefund = parseFloat(formData.cash_refund) || 0;
-    const startingDrawer = parseFloat(formData.starting_drawer) || 200;
-    return cashSales - tipPool - ownerTips - payOut + payIn - cashRefund - (200 - startingDrawer);
+    const startingDrawer = parseFloat(formData.starting_drawer) || drawerDefault;
+    return cashSales - tipPool - ownerTips - payOut + payIn - cashRefund - (drawerDefault - startingDrawer);
   };
 
   const difference = () => {
@@ -311,7 +340,7 @@ export default function CashDeposit() {
     setFormData({
       drawer_date: today,
       gross_revenue: '',
-      starting_drawer: '200.00',
+      starting_drawer: drawerDefault.toFixed(2),
       actual_deposit: '',
       cash_sales: '',
       tip_pool: '',
@@ -771,11 +800,11 @@ export default function CashDeposit() {
                     step="0.01"
                     inputMode="decimal"
                     value={formData.starting_drawer}
-
                     onChange={(e) => updateField('starting_drawer', e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
-                    placeholder="200.00"
+                    placeholder={drawerDefault.toFixed(2)}
                     data-testid="input-starting-drawer"
                   />
                 </div>
