@@ -17,6 +17,7 @@ import {
   LogOut,
   Lock,
   ChevronDown,
+  ArrowLeft,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -82,7 +83,8 @@ const ALL_MODULE_IDS: ModuleId[] = [
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { profile, branding, tenant, enabledModules, canAccessModule, signOut, hasRole } = useAuth();
+  const { profile, branding, tenant, enabledModules, canAccessModule, signOut, hasRole, adminViewingTenant, exitTenantView } = useAuth();
+  const [, setLocation] = useLocation();
 
   const displayName = branding?.company_name || tenant?.name || 'Coffee Suite';
   const isManager = hasRole('manager');
@@ -95,6 +97,21 @@ export function Sidebar() {
       className="w-56 flex-shrink-0 flex flex-col h-screen sticky top-0 border-r overflow-y-auto"
       style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
     >
+      {/* Back to Admin banner */}
+      {adminViewingTenant && (
+        <button
+          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90"
+          style={{ backgroundColor: colors.gold, color: colors.brown }}
+          onClick={() => {
+            exitTenantView();
+            setLocation('/platform-admin');
+          }}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Admin
+        </button>
+      )}
+
       {/* Branding */}
       <div className="p-4 border-b" style={{ borderColor: colors.creamDark }}>
         <Link href="/">

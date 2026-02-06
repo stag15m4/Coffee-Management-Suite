@@ -68,6 +68,9 @@ interface AuthContextType {
   switchLocation: (locationId: string) => Promise<void>;
   retryProfileFetch: () => Promise<boolean>;
   isParentTenant: boolean;
+  adminViewingTenant: boolean;
+  enterTenantView: (tenantId: string) => Promise<void>;
+  exitTenantView: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -90,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [enabledModules, setEnabledModules] = useState<ModuleId[]>([]);
   const [loading, setLoading] = useState(true);
   const [isParentTenant, setIsParentTenant] = useState(false);
+  const [adminViewingTenant, setAdminViewingTenant] = useState(false);
   const fetchInProgressRef = useRef<string | null>(null);
   const lastFetchedUserIdRef = useRef<string | null>(null);
 
@@ -707,6 +711,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.dispatchEvent(new CustomEvent('location-changed', { detail: { locationId } }));
   }, [accessibleLocations]);
 
+  // Platform admin: enter a tenant's dashboard view
+  const enterTenantView = useCallback(async (tenantId: string) => {
+    if (!user || !platformAdmin) return;
+
+    // Load the admin's user profile for this tenant
+    const { data: profileData } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+
+    if (!profileData) {
+      console.error('No user profile found for this tenant');
+      return;
+    }
+
+    // Load tenant, branding, and modules in parallel
+    const [tenantResult, brandingResult, modulesResult] = await Promise.all([
+      supabase.from('tenants').select('*').eq('id', tenantId).single(),
+      supabase.from('tenant_branding').select('*').eq('tenant_id', tenantId).maybeSingle(),
+      supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: tenantId }),
+    ]);
+
+    if (tenantResult.data) {
+      setProfile(profileData);
+      setTenant(tenantResult.data);
+      setPrimaryTenant(tenantResult.data);
+      setAccessibleLocations([tenantResult.data]);
+      setActiveLocationId(tenantResult.data.id);
+      setBranding(brandingResult.data || null);
+      setEnabledModules((modulesResult.data || []) as ModuleId[]);
+      setAdminViewingTenant(true);
+      sessionStorage.setItem('admin_view_tenant_id', tenantId);
+    }
+  }, [user, platformAdmin]);
+
+  // Platform admin: exit tenant view and return to admin panel
+  const exitTenantView = useCallback(() => {
+    sessionStorage.removeItem('admin_view_tenant_id');
+    sessionStorage.removeItem('selected_location_id');
+    setAdminViewingTenant(false);
+    setProfile(null);
+    setTenant(null);
+    setPrimaryTenant(null);
+    setAccessibleLocations([]);
+    setActiveLocationId(null);
+    setBranding(null);
+    setEnabledModules([]);
+  }, []);
+
+  // On load, check if platform admin was viewing a tenant
+  useEffect(() => {
+    if (platformAdmin && !adminViewingTenant) {
+      const savedTenantId = sessionStorage.getItem('admin_view_tenant_id');
+      if (savedTenantId) {
+        enterTenantView(savedTenantId);
+      }
+    }
+  }, [platformAdmin, adminViewingTenant, enterTenantView]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -731,6 +796,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         switchLocation,
         retryProfileFetch,
         isParentTenant,
+        adminViewingTenant,
+        enterTenantView,
+        exitTenantView,
       }}
     >
       {children}

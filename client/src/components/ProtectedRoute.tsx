@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole, module }: ProtectedRouteProps) {
-  const { user, profile, isPlatformAdmin, loading, hasRole, canAccessModule, signOut, retryProfileFetch } = useAuth();
+  const { user, profile, isPlatformAdmin, adminViewingTenant, loading, hasRole, canAccessModule, signOut, retryProfileFetch } = useAuth();
   const [profileTimeout, setProfileTimeout] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const autoRetryCountRef = useRef(0);
@@ -67,8 +67,8 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
     return <Redirect to="/login" />;
   }
 
-  // Platform admins should go to platform admin page
-  if (isPlatformAdmin) {
+  // Platform admins should go to platform admin page (unless viewing a tenant)
+  if (isPlatformAdmin && !adminViewingTenant) {
     return <Redirect to="/platform-admin" />;
   }
 
