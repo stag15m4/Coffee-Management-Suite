@@ -66,6 +66,7 @@ interface AuthContextType {
   canAccessModule: (module: ModuleId) => boolean;
   refreshEnabledModules: () => Promise<void>;
   switchLocation: (locationId: string) => Promise<void>;
+  retryProfileFetch: () => Promise<boolean>;
   isParentTenant: boolean;
 }
 
@@ -652,6 +653,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return hasRole(moduleAccess[module]);
   };
 
+  const retryProfileFetch = useCallback(async (): Promise<boolean> => {
+    if (!user) return false;
+    lastFetchedUserIdRef.current = null; // Clear cache so fetch actually runs
+    fetchInProgressRef.current = null;
+    const success = await fetchUserData(user.id, 0, true);
+    if (!success) {
+      // Try refreshing the session first, then re-fetch
+      const { data, error } = await supabase.auth.refreshSession();
+      if (!error && data.session) {
+        setSession(data.session);
+        setUser(data.session.user);
+        return await fetchUserData(data.session.user.id, 0, true);
+      }
+    }
+    return success;
+  }, [user, fetchUserData]);
+
   const switchLocation = useCallback(async (locationId: string) => {
     // Validate the location is in accessible locations
     const targetLocation = accessibleLocations.find(loc => loc.id === locationId);
@@ -711,6 +729,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         canAccessModule,
         refreshEnabledModules,
         switchLocation,
+        retryProfileFetch,
         isParentTenant,
       }}
     >

@@ -1,6 +1,6 @@
 import { useAuth, UserRole, ModuleId } from '@/contexts/AuthContext';
 import { Redirect } from 'wouter';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 
 interface ProtectedRouteProps {
@@ -10,22 +10,51 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole, module }: ProtectedRouteProps) {
-  const { user, profile, isPlatformAdmin, loading, hasRole, canAccessModule, signOut } = useAuth();
+  const { user, profile, isPlatformAdmin, loading, hasRole, canAccessModule, signOut, retryProfileFetch } = useAuth();
   const [profileTimeout, setProfileTimeout] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const autoRetryCountRef = useRef(0);
 
-  // If profile doesn't load within 35 seconds (and not a platform admin), show error
+  // Auto-retry profile fetch up to 3 times before showing error
   useEffect(() => {
     if (user && !profile && !isPlatformAdmin && !loading) {
-      const timer = setTimeout(() => {
-        setProfileTimeout(true);
-      }, 35000);
+      autoRetryCountRef.current = 0;
+
+      const attemptRetry = async () => {
+        if (autoRetryCountRef.current >= 3) {
+          setProfileTimeout(true);
+          return;
+        }
+        autoRetryCountRef.current++;
+        console.log(`[ProtectedRoute] Auto-retry ${autoRetryCountRef.current}/3...`);
+        const success = await retryProfileFetch();
+        if (!success) {
+          // Wait with backoff before next attempt
+          setTimeout(attemptRetry, 2000 * autoRetryCountRef.current);
+        }
+      };
+
+      // Start first auto-retry after 3 seconds
+      const timer = setTimeout(attemptRetry, 3000);
       return () => clearTimeout(timer);
     } else {
       setProfileTimeout(false);
+      autoRetryCountRef.current = 0;
     }
-  }, [user, profile, isPlatformAdmin, loading]);
+  }, [user, profile, isPlatformAdmin, loading, retryProfileFetch]);
 
-  if (loading) {
+  const handleManualRetry = useCallback(async () => {
+    setRetrying(true);
+    setProfileTimeout(false);
+    autoRetryCountRef.current = 0;
+    const success = await retryProfileFetch();
+    setRetrying(false);
+    if (!success) {
+      setProfileTimeout(true);
+    }
+  }, [retryProfileFetch]);
+
+  if (loading || retrying) {
     return <CoffeeLoader fullScreen progressiveTexts={[
       "Brewing...",
       "Grinding fresh beans...",
@@ -37,12 +66,12 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
   if (!user) {
     return <Redirect to="/login" />;
   }
-  
+
   // Platform admins should go to platform admin page
   if (isPlatformAdmin) {
     return <Redirect to="/platform-admin" />;
   }
-  
+
   // Show loading state while profile is being fetched (but user is authenticated)
   if (!profile) {
     if (profileTimeout) {
@@ -60,7 +89,7 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
             </ul>
             <div className="space-y-2">
               <button
-                onClick={() => window.location.reload()}
+                onClick={handleManualRetry}
                 className="w-full px-4 py-2 rounded-lg font-semibold"
                 style={{ backgroundColor: '#C9A227', color: '#FFFDF7' }}
               >
