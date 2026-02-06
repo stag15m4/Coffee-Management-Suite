@@ -9,11 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Building2, 
-  Users, 
-  Plus, 
-  LogOut, 
+import {
+  Building2,
+  Users,
+  Plus,
+  LogOut,
   Activity,
   CheckCircle,
   XCircle,
@@ -21,6 +21,9 @@ import {
   Settings,
   Package,
   Key,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
 } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import {
@@ -70,6 +73,14 @@ interface ModuleSubscription {
   module_id: string;
 }
 
+interface PlatformAdminRecord {
+  id: string;
+  email: string;
+  full_name: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 export default function PlatformAdmin() {
   const { user, platformAdmin, isPlatformAdmin, loading: authLoading, signOut } = useAuth();
   const [, setLocation] = useLocation();
@@ -100,6 +111,14 @@ export default function PlatformAdmin() {
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [savingSubscription, setSavingSubscription] = useState(false);
 
+  // Platform admin management state
+  const [admins, setAdmins] = useState<PlatformAdminRecord[]>([]);
+  const [showAddAdminDialog, setShowAddAdminDialog] = useState(false);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminName, setNewAdminName] = useState('');
+  const [addingAdmin, setAddingAdmin] = useState(false);
+  const [removingAdminId, setRemovingAdminId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!authLoading && !isPlatformAdmin) {
       setLocation('/login');
@@ -110,6 +129,7 @@ export default function PlatformAdmin() {
     if (isPlatformAdmin) {
       loadTenants();
       loadSubscriptionData();
+      loadAdmins();
     }
   }, [isPlatformAdmin]);
 
@@ -128,6 +148,79 @@ export default function PlatformAdmin() {
       }
     } catch (error: unknown) {
       console.error('Error loading subscription data:', error);
+    }
+  };
+
+  const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'x-user-id': user?.id || '',
+  });
+
+  const loadAdmins = async () => {
+    try {
+      const res = await fetch('/api/platform-admins', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setAdmins(data);
+      }
+    } catch (error) {
+      console.error('Error loading admins:', error);
+    }
+  };
+
+  const handleAddAdmin = async () => {
+    if (!newAdminEmail) {
+      toast({ title: 'Email is required', variant: 'destructive' });
+      return;
+    }
+
+    setAddingAdmin(true);
+    try {
+      const res = await fetch('/api/platform-admins', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ email: newAdminEmail, full_name: newAdminName || null }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast({ title: 'Error adding admin', description: data.error, variant: 'destructive' });
+        return;
+      }
+
+      toast({ title: 'Platform admin added successfully!' });
+      setShowAddAdminDialog(false);
+      setNewAdminEmail('');
+      setNewAdminName('');
+      loadAdmins();
+    } catch (error: any) {
+      toast({ title: 'Error adding admin', description: error.message, variant: 'destructive' });
+    } finally {
+      setAddingAdmin(false);
+    }
+  };
+
+  const handleRemoveAdmin = async (adminId: string) => {
+    setRemovingAdminId(adminId);
+    try {
+      const res = await fetch(`/api/platform-admins/${adminId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast({ title: 'Error removing admin', description: data.error, variant: 'destructive' });
+        return;
+      }
+
+      toast({ title: 'Platform admin removed' });
+      loadAdmins();
+    } catch (error: any) {
+      toast({ title: 'Error removing admin', description: error.message, variant: 'destructive' });
+    } finally {
+      setRemovingAdminId(null);
     }
   };
 
@@ -597,6 +690,115 @@ export default function PlatformAdmin() {
             <Card className="bg-slate-800 border-slate-700">
               <CardContent className="py-8 text-center text-slate-400">
                 No businesses yet. Click "Add Business" to create your first tenant.
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Platform Admins Section */}
+        <div className="flex items-center justify-between mb-6 mt-12">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <ShieldCheck className="w-6 h-6 text-purple-400" />
+            Platform Admins
+          </h2>
+          <Dialog open={showAddAdminDialog} onOpenChange={setShowAddAdminDialog}>
+            <DialogTrigger asChild>
+              <Button className="bg-purple-600 hover:bg-purple-700" data-testid="button-add-admin">
+                <UserPlus className="w-4 h-4 mr-2" />
+                Add Admin
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-slate-800 border-slate-700 text-white">
+              <DialogHeader>
+                <DialogTitle>Add Platform Admin</DialogTitle>
+                <DialogDescription className="text-slate-400">
+                  Add an existing user as a platform admin. They must already have an account.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                <div>
+                  <Label htmlFor="admin-email" className="text-slate-200">Email Address</Label>
+                  <Input
+                    id="admin-email"
+                    type="email"
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    className="bg-slate-700 border-slate-600 text-white"
+                    data-testid="input-admin-email"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="admin-name" className="text-slate-200">Full Name (optional)</Label>
+                  <Input
+                    id="admin-name"
+                    value={newAdminName}
+                    onChange={(e) => setNewAdminName(e.target.value)}
+                    placeholder="Jane Doe"
+                    className="bg-slate-700 border-slate-600 text-white"
+                    data-testid="input-admin-name"
+                  />
+                </div>
+                <Button
+                  onClick={handleAddAdmin}
+                  disabled={addingAdmin}
+                  className="w-full bg-purple-600 hover:bg-purple-700"
+                  data-testid="button-confirm-add-admin"
+                >
+                  {addingAdmin ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Add Platform Admin
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <div className="space-y-4 mb-8">
+          {admins.map((admin) => (
+            <Card key={admin.id} className="bg-slate-800 border-slate-700">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-purple-900/50 flex items-center justify-center">
+                      <ShieldCheck className="w-6 h-6 text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white">{admin.full_name || admin.email}</h3>
+                      <p className="text-sm text-slate-400">{admin.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Badge className={admin.is_active ? 'bg-green-600' : 'bg-slate-600'}>
+                      {admin.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                    {admin.id !== user?.id && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRemoveAdmin(admin.id)}
+                        disabled={removingAdminId === admin.id}
+                        className="border-red-500 text-red-400 hover:bg-red-500/10"
+                        data-testid={`button-remove-admin-${admin.id}`}
+                      >
+                        {removingAdminId === admin.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Trash2 className="w-4 h-4 mr-1" /> Remove
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
+          {admins.length === 0 && (
+            <Card className="bg-slate-800 border-slate-700">
+              <CardContent className="py-8 text-center text-slate-400">
+                Loading platform admins...
               </CardContent>
             </Card>
           )}

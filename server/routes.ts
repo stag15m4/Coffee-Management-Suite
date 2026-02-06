@@ -674,6 +674,89 @@ export async function registerRoutes(
     }
   });
 
+  // =====================================================
+  // PLATFORM ADMIN MANAGEMENT ROUTES
+  // =====================================================
+
+  // List all platform admins
+  app.get('/api/platform-admins', requirePlatformAdmin, async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT id, email, full_name, is_active, created_at
+        FROM platform_admins
+        ORDER BY created_at ASC
+      `);
+      res.json(result.rows);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add a new platform admin by email
+  app.post('/api/platform-admins', requirePlatformAdmin, async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      // Look up the user in auth.users by email
+      const userResult = await db.execute(sql`
+        SELECT id, email FROM auth.users WHERE email = ${email} LIMIT 1
+      `);
+
+      if (!userResult.rows.length) {
+        return res.status(404).json({ error: 'No user found with that email. They must have an account first.' });
+      }
+
+      const authUser = userResult.rows[0] as { id: string; email: string };
+
+      // Check if already a platform admin
+      const existingResult = await db.execute(sql`
+        SELECT id FROM platform_admins WHERE id = ${authUser.id}::uuid
+      `);
+
+      if (existingResult.rows.length) {
+        return res.status(409).json({ error: 'This user is already a platform admin' });
+      }
+
+      // Insert into platform_admins
+      const insertResult = await db.execute(sql`
+        INSERT INTO platform_admins (id, email, full_name, is_active)
+        VALUES (${authUser.id}::uuid, ${authUser.email}, ${req.body.full_name || null}, true)
+        RETURNING id, email, full_name, is_active, created_at
+      `);
+
+      res.status(201).json(insertResult.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Remove a platform admin
+  app.delete('/api/platform-admins/:id', requirePlatformAdmin, async (req, res) => {
+    try {
+      const requesterId = req.headers['x-user-id'] as string;
+
+      // Prevent removing yourself
+      if (req.params.id === requesterId) {
+        return res.status(400).json({ error: 'You cannot remove yourself as a platform admin' });
+      }
+
+      const result = await db.execute(sql`
+        DELETE FROM platform_admins WHERE id = ${req.params.id}::uuid RETURNING *
+      `);
+
+      if (!result.rows.length) {
+        return res.status(404).json({ error: 'Platform admin not found' });
+      }
+
+      res.status(204).end();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }
 
