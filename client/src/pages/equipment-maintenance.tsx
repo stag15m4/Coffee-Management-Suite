@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, queryKeys } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
@@ -674,8 +674,23 @@ export default function EquipmentMaintenance() {
   const [completionDate, setCompletionDate] = useState('');
   const [isHistoricalEntry, setIsHistoricalEntry] = useState(false);
   
-  const overdueCount = tasks.filter(t => getTaskStatus(t) === 'overdue').length;
-  const dueSoonCount = tasks.filter(t => getTaskStatus(t) === 'due-soon').length;
+  // Sort tasks: overdue first, then due-soon, then good. Within each group, earlier due dates first.
+  const sortedTasks = useMemo(() => {
+    const statusPriority: Record<TaskStatus, number> = { 'overdue': 0, 'due-soon': 1, 'good': 2 };
+    return [...tasks].sort((a, b) => {
+      const aPriority = statusPriority[getTaskStatus(a)];
+      const bPriority = statusPriority[getTaskStatus(b)];
+      if (aPriority !== bPriority) return aPriority - bPriority;
+      // Within same status group, sort by next_due_at (earliest first, nulls last)
+      if (a.next_due_at && b.next_due_at) return new Date(a.next_due_at).getTime() - new Date(b.next_due_at).getTime();
+      if (a.next_due_at) return -1;
+      if (b.next_due_at) return 1;
+      return 0;
+    });
+  }, [tasks]);
+
+  const overdueCount = sortedTasks.filter(t => getTaskStatus(t) === 'overdue').length;
+  const dueSoonCount = sortedTasks.filter(t => getTaskStatus(t) === 'due-soon').length;
   
   const handleAddEquipment = async () => {
     if (!newEquipmentName.trim()) {
@@ -1205,13 +1220,13 @@ export default function EquipmentMaintenance() {
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="divide-y" style={{ borderColor: colors.creamDark }}>
-                      {tasks.map(task => {
+                      {sortedTasks.map(task => {
                         const status = getTaskStatus(task);
                         const statusColor = getStatusColor(status);
-                        
+
                         return (
-                          <div 
-                            key={task.id} 
+                          <div
+                            key={task.id}
                             className="p-4 flex items-center justify-between gap-4"
                             data-testid={`task-row-${task.id}`}
                           >
@@ -1965,7 +1980,7 @@ export default function EquipmentMaintenance() {
               </Card>
             ) : (
               <div className="grid gap-4">
-                {tasks.map(task => {
+                {sortedTasks.map(task => {
                   const status = getTaskStatus(task);
                   const statusColor = getStatusColor(status);
                   
