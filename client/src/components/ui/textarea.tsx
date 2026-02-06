@@ -5,7 +5,22 @@ import { cn } from "@/lib/utils"
 const Textarea = React.forwardRef<
   HTMLTextAreaElement,
   React.ComponentProps<"textarea">
->(({ className, ...props }, ref) => {
+>(({ className, onFocus, ...props }, ref) => {
+  const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+    // Select all text on focus — tab selects all; click naturally overrides with cursor placement
+    e.target.select();
+
+    // iOS scroll jump prevention
+    const scrollY = window.scrollY;
+    const restore = () => window.scrollTo(0, scrollY);
+    requestAnimationFrame(restore);
+    setTimeout(restore, 50);
+    setTimeout(restore, 100);
+    setTimeout(restore, 150);
+
+    onFocus?.(e);
+  };
+
   return (
     <textarea
       className={cn(
@@ -13,6 +28,7 @@ const Textarea = React.forwardRef<
         className
       )}
       ref={ref}
+      onFocus={handleFocus}
       {...props}
     />
   )

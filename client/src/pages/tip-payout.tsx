@@ -1190,31 +1190,6 @@ export default function TipPayout() {
     }
   };
 
-  // Prevent iOS scroll jump on input focus and during typing
-  const scrollLockRef = { current: false, scrollY: 0 };
-  
-  const preventScrollJump = (e: React.FocusEvent<HTMLInputElement>) => {
-    scrollLockRef.scrollY = window.scrollY;
-    scrollLockRef.current = true;
-    
-    // Restore scroll position multiple times to catch iOS delayed scrolling
-    const restore = () => {
-      if (scrollLockRef.current) {
-        window.scrollTo(0, scrollLockRef.scrollY);
-      }
-    };
-    
-    requestAnimationFrame(restore);
-    setTimeout(restore, 50);
-    setTimeout(restore, 100);
-    setTimeout(restore, 150);
-    
-    // Release lock after keyboard is fully open
-    setTimeout(() => {
-      scrollLockRef.current = false;
-    }, 300);
-  };
-
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
       <header className="px-6 py-6 relative">
@@ -1394,7 +1369,7 @@ export default function TipPayout() {
                       inputMode="decimal"
                       tabIndex={i * 2 + 1}
                       value={cashEntries[i] || ''}
-                      onFocus={preventScrollJump}
+
                       onChange={(e) => {
                         const newEntries = [...cashEntries];
                         newEntries[i] = parseFloat(e.target.value) || 0;
@@ -1425,7 +1400,7 @@ export default function TipPayout() {
                       inputMode="decimal"
                       tabIndex={i * 2 + 2}
                       value={ccEntries[i] || ''}
-                      onFocus={preventScrollJump}
+
                       onChange={(e) => {
                         const newEntries = [...ccEntries];
                         newEntries[i] = parseFloat(e.target.value) || 0;
@@ -1485,7 +1460,6 @@ export default function TipPayout() {
                   placeholder="0"
                   inputMode="numeric"
                   value={hoursInput}
-                  onFocus={preventScrollJump}
                   onChange={(e) => setHoursInput(e.target.value)}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   data-testid="input-hours"
@@ -1500,7 +1474,6 @@ export default function TipPayout() {
                   placeholder="0"
                   inputMode="numeric"
                   value={minutesInput}
-                  onFocus={preventScrollJump}
                   onChange={(e) => setMinutesInput(e.target.value)}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   data-testid="input-minutes"
@@ -1537,7 +1510,6 @@ export default function TipPayout() {
                   placeholder="0"
                   inputMode="numeric"
                   value={teamHoursCheck}
-                  onFocus={preventScrollJump}
                   onChange={(e) => setTeamHoursCheck(e.target.value)}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   data-testid="input-team-hours"
@@ -1552,7 +1524,6 @@ export default function TipPayout() {
                   placeholder="0"
                   inputMode="numeric"
                   value={teamMinutesCheck}
-                  onFocus={preventScrollJump}
                   onChange={(e) => setTeamMinutesCheck(e.target.value)}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   data-testid="input-team-minutes"

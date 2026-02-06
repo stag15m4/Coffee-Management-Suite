@@ -10,6 +10,7 @@ import { ArrowLeft, Download, FileText, Plus, Trash2, Edit2, Save, X, Home } fro
 import { Link } from 'wouter';
 import { Footer } from '@/components/Footer';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 
 const colors = {
   gold: '#C9A227',
@@ -64,7 +65,8 @@ export default function CoffeeOrder() {
   const orgName = primaryTenant?.name || branding?.company_name || '';
   const logoUrl = branding?.logo_url || defaultLogo;
   const { toast } = useToast();
-  
+  const { confirm, ConfirmDialog } = useConfirmDialog();
+
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showProductManagement, setShowProductManagement] = useState(false);
@@ -276,7 +278,8 @@ export default function CoffeeOrder() {
 
   const deleteProduct = async (productId: string) => {
     if (!tenant?.id) return;
-    if (!confirm('Are you sure you want to remove this product?')) return;
+    const name = products.find(p => p.id === productId)?.name || 'this product';
+    if (!await confirm({ title: `Remove ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Remove', variant: 'destructive' })) return;
     
     try {
       const { error } = await supabase
@@ -929,37 +932,34 @@ export default function CoffeeOrder() {
             <div className="grid gap-4 md:grid-cols-2 mb-6">
               <div>
                 <label className="block text-sm mb-2 font-medium" style={{ color: colors.brownLight }}>Vendor Name</label>
-                <input
+                <Input
                   type="text"
                   placeholder="e.g., Five Star Coffee Roasters"
                   value={vendorForm.display_name}
                   onChange={(e) => setVendorForm(prev => ({ ...prev, display_name: e.target.value }))}
-                  className="w-full px-4 py-2 rounded-md text-sm"
-                  style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                   data-testid="input-vendor-name"
                 />
               </div>
               <div>
                 <label className="block text-sm mb-2 font-medium" style={{ color: colors.brownLight }}>Vendor Email</label>
-                <input
+                <Input
                   type="email"
                   placeholder="orders@vendor.com"
                   value={vendorForm.contact_email}
                   onChange={(e) => setVendorForm(prev => ({ ...prev, contact_email: e.target.value }))}
-                  className="w-full px-4 py-2 rounded-md text-sm"
-                  style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                   data-testid="input-vendor-email"
                 />
               </div>
               <div>
                 <label className="block text-sm mb-2 font-medium" style={{ color: colors.brownLight }}>CC Email (optional)</label>
-                <input
+                <Input
                   type="email"
                   placeholder="your@email.com"
                   value={vendorForm.cc_email}
                   onChange={(e) => setVendorForm(prev => ({ ...prev, cc_email: e.target.value }))}
-                  className="w-full px-4 py-2 rounded-md text-sm"
-                  style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                   data-testid="input-cc-email"
                 />
               </div>
@@ -982,40 +982,37 @@ export default function CoffeeOrder() {
             <div className="rounded-lg p-4 mb-4" style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}` }}>
               <h4 className="text-sm font-medium mb-3" style={{ color: colors.brown }}>Add New Product</h4>
               <div className="grid gap-3 md:grid-cols-5">
-                <input
+                <Input
                   type="text"
                   placeholder="Product Name"
                   value={newProduct.name}
                   onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
-                  className="px-3 py-2 rounded-md text-sm"
-                  style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                  style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                   data-testid="input-new-product-name"
                 />
-                <input
+                <Input
                   type="text"
                   placeholder="Size (e.g., 5lb)"
                   value={newProduct.size}
                   onChange={(e) => setNewProduct(prev => ({ ...prev, size: e.target.value }))}
-                  className="px-3 py-2 rounded-md text-sm"
-                  style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                  style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                   data-testid="input-new-product-size"
                 />
-                <input
+                <Input
                   type="text"
-                  placeholder="Category (e.g., 5lb)"
+                  placeholder="Category"
                   value={newProduct.category}
                   onChange={(e) => setNewProduct(prev => ({ ...prev, category: e.target.value }))}
-                  className="px-3 py-2 rounded-md text-sm"
-                  style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                  style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                   data-testid="input-new-product-category"
                 />
-                <input
+                <Input
                   type="text"
                   placeholder="Price"
+                  inputMode="decimal"
                   value={newProduct.default_price}
                   onChange={(e) => setNewProduct(prev => ({ ...prev, default_price: e.target.value }))}
-                  className="px-3 py-2 rounded-md text-sm"
-                  style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                  style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                   data-testid="input-new-product-price"
                 />
                 <button
@@ -1041,37 +1038,38 @@ export default function CoffeeOrder() {
                     {editingProductId === product.id ? (
                       <>
                         <div className="flex gap-2 flex-1 mr-2 flex-wrap">
-                          <input
+                          <Input
                             type="text"
                             placeholder="Name"
                             value={editProductForm.name}
                             onChange={(e) => setEditProductForm(prev => ({ ...prev, name: e.target.value }))}
-                            className="px-2 py-1 rounded text-sm flex-1 min-w-[100px]"
-                            style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                            className="flex-1 min-w-[100px]"
+                            style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                           />
-                          <input
+                          <Input
                             type="text"
                             placeholder="Size"
                             value={editProductForm.size}
                             onChange={(e) => setEditProductForm(prev => ({ ...prev, size: e.target.value }))}
-                            className="px-2 py-1 rounded text-sm w-16"
-                            style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                            className="w-16"
+                            style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                           />
-                          <input
+                          <Input
                             type="text"
                             placeholder="Category"
                             value={editProductForm.category}
                             onChange={(e) => setEditProductForm(prev => ({ ...prev, category: e.target.value }))}
-                            className="px-2 py-1 rounded text-sm w-16"
-                            style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                            className="w-16"
+                            style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                           />
-                          <input
+                          <Input
                             type="text"
                             placeholder="Price"
+                            inputMode="decimal"
                             value={editProductForm.default_price}
                             onChange={(e) => setEditProductForm(prev => ({ ...prev, default_price: e.target.value }))}
-                            className="px-2 py-1 rounded text-sm w-16"
-                            style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                            className="w-16"
+                            style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                           />
                         </div>
                         <div className="flex gap-2">
@@ -1297,6 +1295,7 @@ export default function CoffeeOrder() {
         </div>
       </main>
       <Footer />
+      {ConfirmDialog}
     </div>
   );
 }

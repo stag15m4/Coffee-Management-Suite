@@ -61,6 +61,7 @@ import { SiGooglecalendar } from 'react-icons/si';
 import { Footer } from '@/components/Footer';
 import { Link } from 'wouter';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 
 const colors = {
   gold: '#C9A227',
@@ -522,7 +523,8 @@ export default function EquipmentMaintenance() {
   const orgName = primaryTenant?.name || branding?.company_name || '';
   const logoUrl = branding?.logo_url || defaultLogo;
   const { toast } = useToast();
-  
+  const { confirm, ConfirmDialog } = useConfirmDialog();
+
   const { data: equipment = [], isLoading: loadingEquipment, error: equipmentError, isError: equipmentHasError } = useEquipment();
   const { data: tasks = [], isLoading: loadingTasks, error: tasksError, isError: tasksHasError } = useMaintenanceTasks();
   
@@ -789,7 +791,8 @@ export default function EquipmentMaintenance() {
   };
   
   const handleDeleteEquipment = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this equipment? All related maintenance tasks will also be removed.')) return;
+    const name = equipment.find(e => e.id === id)?.name || 'this equipment';
+    if (!await confirm({ title: `Remove ${name}?`, description: 'All related maintenance tasks will also be removed.', confirmLabel: 'Remove', variant: 'destructive' })) return;
     
     try {
       await deleteEquipmentMutation.mutateAsync(id);
@@ -908,7 +911,9 @@ export default function EquipmentMaintenance() {
   };
   
   const handleDeleteTask = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this maintenance task?')) return;
+    const task = tasks.find(t => t.id === id);
+    const name = task?.name || 'this maintenance task';
+    if (!await confirm({ title: `Remove ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Remove', variant: 'destructive' })) return;
     
     try {
       await deleteTaskMutation.mutateAsync(id);
@@ -1051,31 +1056,6 @@ export default function EquipmentMaintenance() {
   
   // Don't stay in loading state if there's an error - show content anyway
   const isLoading = (loadingEquipment && !equipmentHasError) || (loadingTasks && !tasksHasError);
-
-  // Prevent iOS scroll jump on input focus and during typing
-  const scrollLockRef = { current: false, scrollY: 0 };
-  
-  const preventScrollJump = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    scrollLockRef.scrollY = window.scrollY;
-    scrollLockRef.current = true;
-    
-    // Restore scroll position multiple times to catch iOS delayed scrolling
-    const restore = () => {
-      if (scrollLockRef.current) {
-        window.scrollTo(0, scrollLockRef.scrollY);
-      }
-    };
-    
-    requestAnimationFrame(restore);
-    setTimeout(restore, 50);
-    setTimeout(restore, 100);
-    setTimeout(restore, 150);
-    
-    // Release lock after keyboard is fully open
-    setTimeout(() => {
-      scrollLockRef.current = false;
-    }, 300);
-  };
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
@@ -1305,7 +1285,6 @@ export default function EquipmentMaintenance() {
                       placeholder="e.g., Grinder 1, La Marzocco"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       data-testid="input-equipment-name"
-                      onFocus={preventScrollJump}
                     />
                   </div>
                   <div>
@@ -1343,7 +1322,6 @@ export default function EquipmentMaintenance() {
                         className={categories.length > 0 ? 'mt-2' : ''}
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                         data-testid="input-equipment-category"
-                        onFocus={preventScrollJump}
                       />
                     )}
                   </div>
@@ -1379,7 +1357,6 @@ export default function EquipmentMaintenance() {
                           onChange={e => setNewEquipmentPurchaseDate(e.target.value)}
                           style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                           data-testid="input-equipment-purchase-date"
-                          onFocus={preventScrollJump}
                         />
                       </div>
                       <div>
@@ -1392,7 +1369,6 @@ export default function EquipmentMaintenance() {
                           placeholder="e.g., 12, 24, 36"
                           style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                           data-testid="input-equipment-warranty-months"
-                          onFocus={preventScrollJump}
                           inputMode="numeric"
                         />
                       </div>
@@ -1512,7 +1488,6 @@ export default function EquipmentMaintenance() {
                             onChange={e => setEditingEquipment({ ...editingEquipment, name: e.target.value })}
                             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                             data-testid="input-edit-equipment-name"
-                            onFocus={preventScrollJump}
                           />
                           <div>
                             {categories.length > 0 && (
@@ -1548,7 +1523,6 @@ export default function EquipmentMaintenance() {
                                 className={categories.length > 0 ? 'mt-2' : ''}
                                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                                 data-testid="input-edit-equipment-category"
-                                onFocus={preventScrollJump}
                               />
                             )}
                           </div>
@@ -1581,7 +1555,6 @@ export default function EquipmentMaintenance() {
                                   onChange={e => setEditingEquipment({ ...editingEquipment, purchase_date: e.target.value || null })}
                                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                                   data-testid="input-edit-equipment-purchase-date"
-                                  onFocus={preventScrollJump}
                                 />
                               </div>
                               <div>
@@ -1594,7 +1567,6 @@ export default function EquipmentMaintenance() {
                                   placeholder="e.g., 12, 24, 36"
                                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                                   data-testid="input-edit-equipment-warranty-months"
-                                  onFocus={preventScrollJump}
                                   inputMode="numeric"
                                 />
                               </div>
@@ -1835,7 +1807,6 @@ export default function EquipmentMaintenance() {
                       placeholder="e.g., Change burrs, Clean ice bin"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       data-testid="input-task-name"
-                      onFocus={preventScrollJump}
                     />
                   </div>
                   <div>
@@ -1872,7 +1843,6 @@ export default function EquipmentMaintenance() {
                           placeholder="e.g., 180 for 6 months"
                           style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                           data-testid="input-interval-days"
-                          onFocus={preventScrollJump}
                           inputMode="numeric"
                         />
                         <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
@@ -1887,7 +1857,6 @@ export default function EquipmentMaintenance() {
                           onChange={e => setNewTaskLastServiced(e.target.value)}
                           style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                           data-testid="input-last-serviced"
-                          onFocus={preventScrollJump}
                         />
                         <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
                           When was this last done? The next due date will be calculated from this.
@@ -1904,7 +1873,6 @@ export default function EquipmentMaintenance() {
                           placeholder="e.g., lbs, shots, cycles"
                           style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                           data-testid="input-usage-label"
-                          onFocus={preventScrollJump}
                         />
                       </div>
                       <div>
@@ -1916,7 +1884,6 @@ export default function EquipmentMaintenance() {
                           placeholder="e.g., 1000"
                           style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                           data-testid="input-interval-units"
-                          onFocus={preventScrollJump}
                           inputMode="numeric"
                         />
                       </div>
@@ -1937,7 +1904,6 @@ export default function EquipmentMaintenance() {
                         className="pl-7"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                         data-testid="input-estimated-cost"
-                        onFocus={preventScrollJump}
                         inputMode="decimal"
                       />
                     </div>
@@ -2173,7 +2139,6 @@ export default function EquipmentMaintenance() {
                       onChange={e => setCompletionUsage(e.target.value)}
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       data-testid="input-completion-usage"
-                      onFocus={preventScrollJump}
                       inputMode="numeric"
                     />
                     <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
@@ -2192,7 +2157,6 @@ export default function EquipmentMaintenance() {
                     placeholder="0.00"
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                     data-testid="input-completion-cost"
-                    onFocus={preventScrollJump}
                     inputMode="decimal"
                   />
                 </div>
@@ -2231,7 +2195,6 @@ export default function EquipmentMaintenance() {
                       onChange={e => setCompletionDate(e.target.value)}
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       data-testid="input-completion-date"
-                      onFocus={preventScrollJump}
                     />
                   </div>
                 )}
@@ -2286,7 +2249,6 @@ export default function EquipmentMaintenance() {
                     onChange={e => setEditLastServicedDate(e.target.value)}
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                     data-testid="input-edit-last-serviced-date"
-                    onFocus={preventScrollJump}
                   />
                   <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
                     The next due date will be calculated as: Last Serviced + {editingTaskLastServiced.interval_days} days
@@ -2354,7 +2316,6 @@ export default function EquipmentMaintenance() {
                     placeholder="e.g., Clean burrs, Descale"
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                     data-testid="input-edit-task-name"
-                    onFocus={preventScrollJump}
                   />
                 </div>
                 
@@ -2366,7 +2327,6 @@ export default function EquipmentMaintenance() {
                     placeholder="Optional details"
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                     data-testid="input-edit-task-description"
-                    onFocus={preventScrollJump}
                   />
                 </div>
                 
@@ -2393,7 +2353,6 @@ export default function EquipmentMaintenance() {
                       placeholder="e.g., 14"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       data-testid="input-edit-task-interval-days"
-                      onFocus={preventScrollJump}
                       inputMode="numeric"
                     />
                   </div>
@@ -2407,7 +2366,6 @@ export default function EquipmentMaintenance() {
                         placeholder="e.g., lbs, shots"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                         data-testid="input-edit-task-usage-label"
-                        onFocus={preventScrollJump}
                       />
                     </div>
                     <div>
@@ -2419,7 +2377,6 @@ export default function EquipmentMaintenance() {
                         placeholder="e.g., 1000"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                         data-testid="input-edit-task-interval-units"
-                        onFocus={preventScrollJump}
                         inputMode="numeric"
                       />
                     </div>
@@ -2436,7 +2393,6 @@ export default function EquipmentMaintenance() {
                     placeholder="e.g., 25.00"
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                     data-testid="input-edit-task-estimated-cost"
-                    onFocus={preventScrollJump}
                     inputMode="decimal"
                   />
                 </div>
@@ -2465,6 +2421,7 @@ export default function EquipmentMaintenance() {
         )}
       </main>
       <Footer />
+      {ConfirmDialog}
     </div>
   );
 }

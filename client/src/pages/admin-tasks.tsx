@@ -661,31 +661,6 @@ export default function AdminTasks() {
     );
   }
 
-  // Prevent iOS scroll jump on input focus and during typing
-  const scrollLockRef = { current: false, scrollY: 0 };
-  
-  const preventScrollJump = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    scrollLockRef.scrollY = window.scrollY;
-    scrollLockRef.current = true;
-    
-    // Restore scroll position multiple times to catch iOS delayed scrolling
-    const restore = () => {
-      if (scrollLockRef.current) {
-        window.scrollTo(0, scrollLockRef.scrollY);
-      }
-    };
-    
-    requestAnimationFrame(restore);
-    setTimeout(restore, 50);
-    setTimeout(restore, 100);
-    setTimeout(restore, 150);
-    
-    // Release lock after keyboard is fully open
-    setTimeout(() => {
-      scrollLockRef.current = false;
-    }, 300);
-  };
-  
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.cream }}>
       <header className="px-6 py-6 relative">
@@ -814,7 +789,7 @@ export default function AdminTasks() {
                   <Input
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
-                    onFocus={preventScrollJump}
+
                     placeholder="Category name"
                     style={{ backgroundColor: colors.inputBg }}
                     data-testid="input-new-category"
@@ -826,7 +801,7 @@ export default function AdminTasks() {
                     type="color"
                     value={newCategoryColor}
                     onChange={(e) => setNewCategoryColor(e.target.value)}
-                    onFocus={preventScrollJump}
+
                     className="w-16 h-9 p-1"
                     data-testid="input-category-color"
                   />
@@ -849,7 +824,7 @@ export default function AdminTasks() {
                         <Input
                           value={editingCategory.name}
                           onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                          onFocus={preventScrollJump}
+      
                           className="flex-1"
                           style={{ backgroundColor: colors.inputBg }}
                         />
@@ -857,7 +832,7 @@ export default function AdminTasks() {
                           type="color"
                           value={editingCategory.color}
                           onChange={(e) => setEditingCategory({ ...editingCategory, color: e.target.value })}
-                          onFocus={preventScrollJump}
+      
                           className="w-12 h-8 p-1"
                         />
                         <Button size="icon" variant="ghost" onClick={handleUpdateCategory}>
@@ -907,7 +882,7 @@ export default function AdminTasks() {
                     <Input
                       value={taskForm.title}
                       onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))}
-                      onFocus={preventScrollJump}
+  
                       placeholder="Task title"
                       required
                       style={{ backgroundColor: colors.inputBg }}
@@ -982,7 +957,7 @@ export default function AdminTasks() {
                       type="date"
                       value={taskForm.due_date}
                       onChange={(e) => setTaskForm(prev => ({ ...prev, due_date: e.target.value }))}
-                      onFocus={preventScrollJump}
+  
                       style={{ backgroundColor: colors.inputBg }}
                       data-testid="input-due-date"
                     />
@@ -1015,7 +990,7 @@ export default function AdminTasks() {
                         min="0"
                         value={taskForm.estimated_cost}
                         onChange={(e) => setTaskForm(prev => ({ ...prev, estimated_cost: e.target.value }))}
-                        onFocus={preventScrollJump}
+    
                         inputMode="numeric"
                         placeholder="0.00"
                         className="pl-7"
@@ -1034,7 +1009,7 @@ export default function AdminTasks() {
                       <Input
                         type="file"
                         onChange={handleFileUpload}
-                        onFocus={preventScrollJump}
+    
                         disabled={isUploading}
                         accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                         className="flex-1"
@@ -1361,7 +1336,7 @@ export default function AdminTasks() {
                     <Input
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
-                      onFocus={preventScrollJump}
+  
                       placeholder="Add a comment..."
                       style={{ backgroundColor: colors.inputBg }}
                       data-testid="input-comment"

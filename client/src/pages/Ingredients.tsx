@@ -9,6 +9,7 @@ import { Plus, Search, Pencil, Trash2, Package } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { type InsertIngredient, type Ingredient } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
 
 export default function Ingredients() {
   const { data: ingredients, isLoading } = useIngredients();
@@ -16,7 +17,8 @@ export default function Ingredients() {
   const updateMutation = useUpdateIngredient();
   const deleteMutation = useDeleteIngredient();
   const { toast } = useToast();
-  
+  const { confirm, ConfirmDialog } = useConfirmDialog();
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
   const [search, setSearch] = useState("");
@@ -47,7 +49,8 @@ export default function Ingredients() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure? This will remove this ingredient from all recipes.")) {
+    const name = ingredients?.find(i => i.id === id)?.name || 'this ingredient';
+    if (await confirm({ title: `Delete ${name}?`, description: 'This will remove it from all recipes.', confirmLabel: 'Delete', variant: 'destructive' })) {
       try {
         await deleteMutation.mutateAsync(id);
         toast({ title: "Success", description: "Ingredient deleted" });
@@ -210,6 +213,7 @@ export default function Ingredients() {
           )}
         </DialogContent>
       </Dialog>
+      {ConfirmDialog}
     </div>
   );
 }

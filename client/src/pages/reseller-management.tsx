@@ -46,6 +46,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Footer } from '@/components/Footer';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 
 interface Reseller {
   id: string;
@@ -80,6 +81,7 @@ export default function ResellerManagement() {
   const { user, isPlatformAdmin, loading: authLoading, signOut } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { confirm, ConfirmDialog } = useConfirmDialog();
 
   const [resellers, setResellers] = useState<Reseller[]>([]);
   const [selectedReseller, setSelectedReseller] = useState<Reseller | null>(null);
@@ -230,7 +232,8 @@ export default function ResellerManagement() {
   };
 
   const handleDeleteReseller = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this reseller? This will also delete all their license codes.')) {
+    const name = resellers.find(r => r.id === id)?.name || 'this reseller';
+    if (!await confirm({ title: `Delete ${name}?`, description: 'This will also delete all their license codes.', confirmLabel: 'Delete', variant: 'destructive' })) {
       return;
     }
 
@@ -882,6 +885,7 @@ export default function ResellerManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {ConfirmDialog}
     </div>
   );
 }

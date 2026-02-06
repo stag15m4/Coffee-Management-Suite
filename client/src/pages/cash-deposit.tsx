@@ -14,6 +14,7 @@ import { Link } from 'wouter';
 import ExcelJS from 'exceljs';
 import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 import { Footer } from '@/components/Footer';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 
 const colors = {
   gold: '#C9A227',
@@ -75,7 +76,8 @@ const formatWeekRange = (weekStart: string) => {
 export default function CashDeposit() {
   const { profile, tenant, branding, primaryTenant } = useAuth();
   const { toast } = useToast();
-  
+  const { confirm, ConfirmDialog } = useConfirmDialog();
+
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
   const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
@@ -326,7 +328,7 @@ export default function CashDeposit() {
   };
 
   const handleDelete = async (entry: CashEntry) => {
-    if (!confirm(`Delete entry for ${formatDate(entry.drawer_date)}?`)) return;
+    if (!await confirm({ title: `Delete entry for ${formatDate(entry.drawer_date)}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) return;
 
     try {
       const { error } = await supabase
@@ -606,34 +608,6 @@ export default function CashDeposit() {
     }
   };
 
-  // Prevent iOS scroll jump on input focus and during typing
-  const scrollLockRef = { current: false, scrollY: 0 };
-  
-  const preventScrollJump = (e: React.FocusEvent<HTMLInputElement>) => {
-    scrollLockRef.scrollY = window.scrollY;
-    scrollLockRef.current = true;
-    
-    // Select all text on focus so typing overwrites placeholder values
-    e.target.select();
-    
-    // Restore scroll position multiple times to catch iOS delayed scrolling
-    const restore = () => {
-      if (scrollLockRef.current) {
-        window.scrollTo(0, scrollLockRef.scrollY);
-      }
-    };
-    
-    requestAnimationFrame(restore);
-    setTimeout(restore, 50);
-    setTimeout(restore, 100);
-    setTimeout(restore, 150);
-    
-    // Release lock after keyboard is fully open
-    setTimeout(() => {
-      scrollLockRef.current = false;
-    }, 300);
-  };
-
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
       <header className="px-6 py-6 relative">
@@ -802,7 +776,7 @@ export default function CashDeposit() {
                     step="0.01"
                     inputMode="decimal"
                     value={formData.gross_revenue}
-                    onFocus={preventScrollJump}
+
                     onChange={(e) => updateField('gross_revenue', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -820,7 +794,7 @@ export default function CashDeposit() {
                     step="0.01"
                     inputMode="decimal"
                     value={formData.starting_drawer}
-                    onFocus={preventScrollJump}
+
                     onChange={(e) => updateField('starting_drawer', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -838,7 +812,7 @@ export default function CashDeposit() {
                     step="0.01"
                     inputMode="decimal"
                     value={formData.cash_sales}
-                    onFocus={preventScrollJump}
+
                     onChange={(e) => updateField('cash_sales', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -859,7 +833,7 @@ export default function CashDeposit() {
                     step="0.01"
                     inputMode="decimal"
                     value={formData.tip_pool}
-                    onFocus={preventScrollJump}
+
                     onChange={(e) => updateField('tip_pool', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -892,7 +866,7 @@ export default function CashDeposit() {
                     step="0.01"
                     inputMode="decimal"
                     value={formData.owner_tips}
-                    onFocus={preventScrollJump}
+
                     onChange={(e) => updateField('owner_tips', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: ownerTipsEnabled && ownerTipsLoaded ? colors.inputBg : colors.creamDark }}
@@ -911,7 +885,7 @@ export default function CashDeposit() {
                     step="0.01"
                     inputMode="decimal"
                     value={formData.pay_in}
-                    onFocus={preventScrollJump}
+
                     onChange={(e) => updateField('pay_in', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -929,7 +903,7 @@ export default function CashDeposit() {
                     step="0.01"
                     inputMode="decimal"
                     value={formData.pay_out}
-                    onFocus={preventScrollJump}
+
                     onChange={(e) => updateField('pay_out', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -947,7 +921,7 @@ export default function CashDeposit() {
                     step="0.01"
                     inputMode="decimal"
                     value={formData.cash_refund}
-                    onFocus={preventScrollJump}
+
                     onChange={(e) => updateField('cash_refund', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -968,7 +942,7 @@ export default function CashDeposit() {
                     step="0.01"
                     inputMode="decimal"
                     value={formData.actual_deposit}
-                    onFocus={preventScrollJump}
+
                     onChange={(e) => updateField('actual_deposit', e.target.value)}
                     className="pl-7"
                     style={{ backgroundColor: colors.inputBg }}
@@ -1182,6 +1156,7 @@ export default function CashDeposit() {
       </Card>
       </div>
       <Footer />
+      {ConfirmDialog}
     </div>
   );
 }

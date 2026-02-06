@@ -20,6 +20,7 @@ const colors = {
   cream: '#F5F0E1',
   creamDark: '#E8E0CC',
   white: '#FFFDF7',
+  inputBg: '#FDF8E8',
 };
 
 export default function UserProfile() {
@@ -507,7 +508,7 @@ export default function UserProfile() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Your full name"
-                style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-full-name"
               />
             </div>
@@ -519,7 +520,7 @@ export default function UserProfile() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your.email@example.com"
-                style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-email"
               />
               <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
@@ -569,7 +570,7 @@ export default function UserProfile() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Enter new password"
-                style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-new-password"
               />
               <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
@@ -584,7 +585,7 @@ export default function UserProfile() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm new password"
-                style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-confirm-password"
               />
             </div>
@@ -652,7 +653,7 @@ export default function UserProfile() {
               >
                 <SelectTrigger
                   className="w-full"
-                  style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 >
                   <SelectValue placeholder="Select camera" />
                 </SelectTrigger>

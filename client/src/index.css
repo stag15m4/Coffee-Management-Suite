@@ -85,6 +85,17 @@
     @apply font-display font-bold tracking-tight text-primary;
   }
   
+  /* Hide placeholder text on focus — empty fields show only blinking cursor */
+  input:focus::placeholder,
+  textarea:focus::placeholder {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    transition: opacity 0.15s ease;
+  }
+
   /* Modern table styles */
   .table-container {
     @apply w-full overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm;

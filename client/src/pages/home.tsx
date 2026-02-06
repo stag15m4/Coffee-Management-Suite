@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Home as HomeIcon, Trash2, Check, X, Pencil, Copy } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/Footer';
@@ -1398,11 +1399,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                               </span>
                               {isBulkRecipe && (
                                 <button
-                                  onClick={() => {
-                                    if (confirm(`Delete batch size "${size.name}"? This cannot be undone.`)) {
-                                      onDeleteBulkSize(size.id);
-                                    }
-                                  }}
+                                  onClick={() => onDeleteBulkSize(size.id)}
                                   className="text-xs px-1"
                                   style={{ color: colors.red }}
                                   data-testid={`button-delete-bulk-size-${size.id}`}
@@ -3603,6 +3600,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('pricing');
   const queryClient = useQueryClient();
   const { profile, tenant, branding, primaryTenant } = useAuth();
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
@@ -3819,7 +3817,8 @@ export default function Home() {
   };
 
   const handleDeleteRecipe = async (recipeId: string) => {
-    if (!confirm('Are you sure you want to delete this recipe? This cannot be undone.')) {
+    const name = recipes.find(r => r.id === recipeId)?.name || 'this recipe';
+    if (!await confirm({ title: `Delete ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) {
       return;
     }
     try {
@@ -3907,6 +3906,8 @@ export default function Home() {
   };
 
   const handleDeleteBulkSize = async (sizeId: string) => {
+    const name = drinkSizes.find(s => s.id === sizeId)?.name || 'this batch size';
+    if (!await confirm({ title: `Delete ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) return;
     try {
       const { error: ingredientError } = await supabase
         .from('recipe_ingredients')
@@ -4000,7 +4001,8 @@ export default function Home() {
   };
 
   const handleDeleteBaseTemplate = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this base template? This will also remove all its ingredients.')) {
+    const name = baseTemplates.find(t => t.id === id)?.name || 'this base template';
+    if (!await confirm({ title: `Delete ${name}?`, description: 'This will also remove all its ingredients.', confirmLabel: 'Delete', variant: 'destructive' })) {
       return;
     }
     try {
@@ -4045,7 +4047,8 @@ export default function Home() {
   };
 
   const handleDeleteIngredient = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this ingredient?')) return;
+    const name = ingredients.find(i => i.id === id)?.name || 'this ingredient';
+    if (!await confirm({ title: `Delete ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) return;
     try {
       const { error } = await supabase
         .from('ingredients')
@@ -4244,6 +4247,7 @@ export default function Home() {
         )}
       </main>
       <Footer />
+      {ConfirmDialog}
     </div>
   );
 }

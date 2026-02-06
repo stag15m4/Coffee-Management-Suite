@@ -13,6 +13,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
 import { useState } from "react";
 
 const addIngredientSchema = z.object({
@@ -34,6 +35,7 @@ export default function RecipeDetail() {
   const deleteIngredient = useDeleteRecipeIngredient();
 
   const { toast } = useToast();
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   const form = useForm<AddIngredientForm>({
@@ -71,7 +73,7 @@ export default function RecipeDetail() {
   };
 
   const onDeleteRecipe = async () => {
-    if (confirm("Are you sure? This cannot be undone.")) {
+    if (await confirm({ title: `Delete ${recipe?.name || 'this recipe'}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) {
       await deleteRecipe.mutateAsync(id);
       window.location.href = "/recipes";
     }
@@ -244,6 +246,7 @@ export default function RecipeDetail() {
           </div>
         </div>
       </div>
+      {ConfirmDialog}
     </div>
   );
 }

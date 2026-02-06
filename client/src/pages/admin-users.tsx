@@ -41,6 +41,7 @@ const colors = {
   creamDark: '#E8E0CC',
   white: '#FFFDF7',
   red: '#C74B4B',
+  inputBg: '#FDF8E8',
 };
 
 interface UserProfile {
@@ -480,7 +481,7 @@ export default function AdminUsers() {
                       value={newEmail}
                       onChange={(e) => setNewEmail(e.target.value)}
                       placeholder="team@example.com"
-                      style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       data-testid="input-new-user-email"
                     />
                   </div>
@@ -490,15 +491,15 @@ export default function AdminUsers() {
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       placeholder="John Doe"
-                      style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       data-testid="input-new-user-name"
                     />
                   </div>
                   <div>
                     <Label style={{ color: colors.brown }}>Role</Label>
                     <Select value={newRole} onValueChange={(v: any) => setNewRole(v)}>
-                      <SelectTrigger 
-                        style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}
+                      <SelectTrigger
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                         data-testid="select-new-user-role"
                       >
                         <SelectValue />

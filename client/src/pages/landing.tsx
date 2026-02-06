@@ -25,7 +25,7 @@ import {
   BarChart3,
   X
 } from 'lucide-react';
-import logoPath from '@assets/Subject_1769202087116.png';
+import logoPath from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
   gold: '#C9A227',

@@ -58,7 +58,7 @@ export function IngredientForm({ defaultValues, onSubmit, isLoading, buttonLabel
               <FormItem>
                 <FormLabel>Package Cost ($)</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.01" {...field} />
+                  <Input type="number" step="0.01" inputMode="decimal" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -72,7 +72,7 @@ export function IngredientForm({ defaultValues, onSubmit, isLoading, buttonLabel
               <FormItem>
                 <FormLabel>Package Quantity</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.01" {...field} />
+                  <Input type="number" step="0.01" inputMode="decimal" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

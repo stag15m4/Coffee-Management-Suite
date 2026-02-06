@@ -3,7 +3,24 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, onFocus, ...props }, ref) => {
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      // Select all text on focus — tab selects all; click naturally overrides with cursor placement
+      e.target.select();
+
+      // iOS scroll jump prevention: save scroll position and restore it
+      // after the virtual keyboard animation shifts the viewport
+      const scrollY = window.scrollY;
+      const restore = () => window.scrollTo(0, scrollY);
+      requestAnimationFrame(restore);
+      setTimeout(restore, 50);
+      setTimeout(restore, 100);
+      setTimeout(restore, 150);
+
+      // Call any additional onFocus handler from the caller
+      onFocus?.(e);
+    };
+
     // h-9 to match icon buttons and default buttons.
     return (
       <input
@@ -13,6 +30,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
+        onFocus={handleFocus}
         {...props}
       />
     )
