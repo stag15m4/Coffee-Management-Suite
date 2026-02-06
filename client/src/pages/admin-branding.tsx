@@ -5,10 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save, RotateCcw, Home } from 'lucide-react';
-import { Link } from 'wouter';
+import { ArrowLeft, Save, RotateCcw } from 'lucide-react';
 import { Footer } from '@/components/Footer';
-import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
   gold: '#C9A227',
@@ -33,7 +31,6 @@ export default function AdminBranding() {
   const isChildLocation = !!tenant?.parent_tenant_id;
   const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
   const orgName = primaryTenant?.name || branding?.company_name || '';
-  const headerLogoUrl = branding?.logo_url || defaultLogo;
   const { toast } = useToast();
   
   const [companyName, setCompanyName] = useState('');
@@ -116,41 +113,27 @@ export default function AdminBranding() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <header className="px-6 py-6 relative">
-        <Link
-          href="/"
-          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm"
-          style={{ backgroundColor: colors.gold, color: colors.white }}
-          data-testid="link-dashboard"
-        >
-          <Home className="w-4 h-4" />
-          Main Dashboard
-        </Link>
-        <Button
-          onClick={saveBranding}
-          disabled={saving}
-          className="absolute top-4 right-4"
-          style={{ backgroundColor: colors.gold, color: colors.brown }}
-          data-testid="button-save-branding"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          {saving ? 'Saving...' : 'Save Changes'}
-        </Button>
-        <div className="max-w-7xl mx-auto text-center pt-10">
-          <img
-            src={headerLogoUrl}
-            alt={displayName}
-            className="h-20 mx-auto mb-3"
-            data-testid="img-logo"
-          />
-          <h2 className="text-xl font-semibold" style={{ color: colors.brown }}>
-            Branding Settings
-          </h2>
-          {isChildLocation && orgName && (
-            <p className="text-sm" style={{ color: colors.brownLight }}>
-              {displayName} • Part of {orgName}
-            </p>
-          )}
+      <header className="px-6 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-lg font-bold" style={{ color: colors.brown }}>
+              Branding Settings
+            </h2>
+            {isChildLocation && orgName && (
+              <p className="text-sm" style={{ color: colors.brownLight }}>
+                {displayName} • {orgName}
+              </p>
+            )}
+          </div>
+          <Button
+            onClick={saveBranding}
+            disabled={saving}
+            style={{ backgroundColor: colors.gold, color: colors.brown }}
+            data-testid="button-save-branding"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
         </div>
       </header>
 

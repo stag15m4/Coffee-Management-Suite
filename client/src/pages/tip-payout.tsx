@@ -9,10 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Download, Plus, UserPlus, Clock, DollarSign, CheckCircle, AlertCircle, FileText, Users, UserX, RotateCcw, History, Home } from 'lucide-react';
-import { Link } from 'wouter';
+import { ArrowLeft, Download, Plus, UserPlus, Clock, DollarSign, CheckCircle, AlertCircle, FileText, Users, UserX, RotateCcw, History } from 'lucide-react';
 import { Footer } from '@/components/Footer';
-import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
   gold: '#C9A227',
@@ -102,8 +100,6 @@ export default function TipPayout() {
   const isChildLocation = !!tenant?.parent_tenant_id;
   const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
   const orgName = primaryTenant?.name || branding?.company_name || '';
-  const logoUrl = branding?.logo_url || defaultLogo;
-  
   const [employees, setEmployees] = useState<TipEmployee[]>([]);
   const [weekKey, setWeekKey] = useState(getMonday());
   const [weeklyData, setWeeklyData] = useState<WeeklyTipData | null>(null);
@@ -1192,29 +1188,14 @@ export default function TipPayout() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <header className="px-6 py-6 relative">
-        <Link
-          href="/"
-          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm"
-          style={{ backgroundColor: colors.gold, color: colors.white }}
-          data-testid="link-dashboard"
-        >
-          <Home className="w-4 h-4" />
-          Main Dashboard
-        </Link>
-        <div className="max-w-7xl mx-auto text-center pt-10">
-          <img
-            src={logoUrl}
-            alt={displayName}
-            className="h-20 mx-auto mb-3"
-            data-testid="img-logo"
-          />
-          <h2 className="text-xl font-semibold" style={{ color: colors.brown }}>
+      <header className="px-6 py-4">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-lg font-bold" style={{ color: colors.brown }}>
             Tip Payout Calculator
           </h2>
           {isChildLocation && orgName && (
             <p className="text-sm" style={{ color: colors.brownLight }}>
-              {displayName} • Part of {orgName}
+              {displayName} • {orgName}
             </p>
           )}
         </div>

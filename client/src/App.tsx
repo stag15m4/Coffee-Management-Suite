@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AppLayout } from "@/components/AppLayout";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { AppResumeIndicator } from "@/components/AppResumeIndicator";
 import { CoffeeLoader } from "@/components/CoffeeLoader";
@@ -45,7 +46,9 @@ function HomePage() {
 
   return (
     <ProtectedRoute>
-      <Dashboard />
+      <AppLayout>
+        <Dashboard />
+      </AppLayout>
     </ProtectedRoute>
   );
 }
@@ -58,67 +61,67 @@ function Router() {
       <Route path="/reseller-management" component={ResellerManagement} />
       <Route path="/admin/users">
         <ProtectedRoute>
-          <AdminUsers />
+          <AppLayout><AdminUsers /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/admin/branding">
         <ProtectedRoute>
-          <AdminBranding />
+          <AppLayout><AdminBranding /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/admin/locations">
         <ProtectedRoute>
-          <AdminLocations />
+          <AppLayout><AdminLocations /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/organization">
         <ProtectedRoute>
-          <OrganizationDashboard />
+          <AppLayout><OrganizationDashboard /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/recipe-costing">
         <ProtectedRoute module="recipe-costing">
-          <Home />
+          <AppLayout><Home /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/cash-deposit">
         <ProtectedRoute module="cash-deposit">
-          <CashDeposit />
+          <AppLayout><CashDeposit /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/tip-payout">
         <ProtectedRoute module="tip-payout">
-          <TipPayout />
+          <AppLayout><TipPayout /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/coffee-order">
         <ProtectedRoute module="bulk-ordering">
-          <CoffeeOrder />
+          <AppLayout><CoffeeOrder /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/equipment-maintenance">
         <ProtectedRoute module="equipment-maintenance">
-          <EquipmentMaintenance />
+          <AppLayout><EquipmentMaintenance /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/admin-tasks">
         <ProtectedRoute module="admin-tasks">
-          <AdminTasks />
+          <AppLayout><AdminTasks /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/billing">
         <ProtectedRoute>
-          <Billing />
+          <AppLayout><Billing /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/user-profile">
         <ProtectedRoute>
-          <UserProfile />
+          <AppLayout><UserProfile /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/my-team">
         <ProtectedRoute>
-          <MyTeam />
+          <AppLayout><MyTeam /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/" component={HomePage} />

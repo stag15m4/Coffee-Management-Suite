@@ -6,10 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { User, Calendar, Mail, ArrowLeft, Lock, TrendingUp } from 'lucide-react';
-import { Link, useLocation } from 'wouter';
+import { User, Calendar, Mail, Lock, TrendingUp } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { Footer } from '@/components/Footer';
-import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
   gold: '#C9A227',
@@ -87,8 +86,6 @@ export default function MyTeam() {
   const isChildLocation = !!tenant?.parent_tenant_id;
   const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
   const orgName = primaryTenant?.name || branding?.company_name || '';
-  const logoUrl = branding?.logo_url || defaultLogo;
-
   // Fetch all team members
   const { data: teamMembers, isLoading } = useQuery({
     queryKey: ['team-members', tenant?.id],
@@ -219,27 +216,14 @@ export default function MyTeam() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <header className="px-6 py-6 relative">
-        <Link
-          href="/"
-          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm"
-          style={{ backgroundColor: colors.gold, color: colors.white }}
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </Link>
-        <div className="max-w-7xl mx-auto text-center pt-10">
-          <img
-            src={logoUrl}
-            alt={displayName}
-            className="h-20 mx-auto mb-3"
-          />
-          <h2 className="text-xl font-semibold" style={{ color: colors.brown }}>
+      <header className="px-6 py-4">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-lg font-bold" style={{ color: colors.brown }}>
             My Team
           </h2>
           {isChildLocation && orgName && (
             <p className="text-sm" style={{ color: colors.brownLight }}>
-              {displayName} • Part of {orgName}
+              {displayName} • {orgName}
             </p>
           )}
         </div>

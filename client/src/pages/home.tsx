@@ -1,15 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Home as HomeIcon, Trash2, Check, X, Pencil, Copy } from 'lucide-react';
+import { Trash2, Check, X, Pencil, Copy } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
-import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
-import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 import {
   supabase,
   queryKeys,
@@ -3635,8 +3633,19 @@ const VendorsTab = ({ ingredients, onUpdateIngredientCost }: VendorsTabProps) =>
 import { Fragment } from 'react';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState('pricing');
+  const initialTab = new URLSearchParams(window.location.search).get('tab') || 'pricing';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const queryClient = useQueryClient();
+
+  // Sync tab state when sidebar sub-nav changes the URL
+  useEffect(() => {
+    const onPopState = () => {
+      const tab = new URLSearchParams(window.location.search).get('tab');
+      if (tab) setActiveTab(tab);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
   const { profile, tenant, branding, primaryTenant } = useAuth();
   const { confirm, ConfirmDialog } = useConfirmDialog();
   
@@ -3644,8 +3653,6 @@ export default function Home() {
   const isChildLocation = !!tenant?.parent_tenant_id;
   const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
   const orgName = primaryTenant?.name || branding?.company_name || '';
-  const logoUrl = branding?.logo_url || defaultLogo;
-
   const { data: ingredientCategories = [], isLoading: loadingCategories, isError: errorCategories } = useIngredientCategories();
   const { data: ingredients = [], isLoading: loadingIngredients, isError: errorIngredients } = useIngredients();
   const { data: productCategories = [], isLoading: loadingProductCategories, isError: errorProductCategories } = useProductCategories();
@@ -4171,29 +4178,14 @@ export default function Home() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <header className="px-6 py-6 relative">
-        <Link
-          href="/"
-          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm"
-          style={{ backgroundColor: colors.gold, color: colors.white }}
-          data-testid="link-dashboard"
-        >
-          <HomeIcon className="w-4 h-4" />
-          Main Dashboard
-        </Link>
-        <div className="max-w-7xl mx-auto text-center pt-10">
-          <img
-            src={logoUrl}
-            alt={displayName}
-            className="h-20 mx-auto mb-3"
-            data-testid="img-logo"
-          />
-          <h2 className="text-xl font-semibold" style={{ color: colors.brown }}>
+      <header className="px-6 py-4">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-lg font-bold" style={{ color: colors.brown }}>
             Recipe Cost Manager
           </h2>
           {isChildLocation && orgName && (
             <p className="text-sm" style={{ color: colors.brownLight }}>
-              {displayName} • Part of {orgName}
+              {displayName} • {orgName}
             </p>
           )}
         </div>

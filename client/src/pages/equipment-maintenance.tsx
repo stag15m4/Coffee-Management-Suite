@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, queryKeys } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
@@ -45,7 +45,6 @@ import {
   Check,
   X,
   RotateCcw,
-  Home,
   Shield,
   ShieldOff,
   Upload,
@@ -60,8 +59,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SiGooglecalendar } from 'react-icons/si';
 import { Footer } from '@/components/Footer';
-import { Link } from 'wouter';
-import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 
@@ -523,7 +520,6 @@ export default function EquipmentMaintenance() {
   const isChildLocation = !!tenant?.parent_tenant_id;
   const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
   const orgName = primaryTenant?.name || branding?.company_name || '';
-  const logoUrl = branding?.logo_url || defaultLogo;
   const { toast } = useToast();
   const { confirm, ConfirmDialog } = useConfirmDialog();
 
@@ -601,7 +597,18 @@ export default function EquipmentMaintenance() {
     throw lastError;
   }, []);
   
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'equipment' | 'tasks'>('dashboard');
+  const initialTab = (new URLSearchParams(window.location.search).get('tab') || 'dashboard') as 'dashboard' | 'equipment' | 'tasks';
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'equipment' | 'tasks'>(initialTab);
+
+  // Sync tab state when sidebar sub-nav changes the URL
+  useEffect(() => {
+    const onPopState = () => {
+      const tab = new URLSearchParams(window.location.search).get('tab') as 'dashboard' | 'equipment' | 'tasks' | null;
+      if (tab) setActiveTab(tab);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
   const [showAddEquipment, setShowAddEquipment] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
@@ -1084,49 +1091,36 @@ export default function EquipmentMaintenance() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <header className="px-6 py-6 relative">
-        <Link
-          href="/"
-          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm"
-          style={{ backgroundColor: colors.gold, color: colors.white }}
-          data-testid="link-dashboard"
-        >
-          <Home className="w-4 h-4" />
-          Main Dashboard
-        </Link>
-        <div className="absolute top-4 right-4 flex items-center gap-2">
-          {overdueCount > 0 && (
-            <Badge 
-              style={{ backgroundColor: colors.red, color: 'white' }}
-              data-testid="badge-overdue-count"
-            >
-              {overdueCount} Overdue
-            </Badge>
-          )}
-          {dueSoonCount > 0 && (
-            <Badge 
-              style={{ backgroundColor: colors.yellow, color: colors.brown }}
-              data-testid="badge-due-soon-count"
-            >
-              {dueSoonCount} Due Soon
-            </Badge>
-          )}
-        </div>
-        <div className="max-w-7xl mx-auto text-center pt-10">
-          <img
-            src={logoUrl}
-            alt={displayName}
-            className="h-20 mx-auto mb-3"
-            data-testid="img-logo"
-          />
-          <h2 className="text-xl font-semibold" style={{ color: colors.brown }}>
-            Equipment Maintenance
-          </h2>
-          {isChildLocation && orgName && (
-            <p className="text-sm" style={{ color: colors.brownLight }}>
-              {displayName} • Part of {orgName}
-            </p>
-          )}
+      <header className="px-4 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-lg font-bold" style={{ color: colors.brown }}>
+              Equipment Maintenance
+            </h2>
+            {isChildLocation && orgName && (
+              <p className="text-sm" style={{ color: colors.brownLight }}>
+                {displayName} • {orgName}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {overdueCount > 0 && (
+              <Badge
+                style={{ backgroundColor: colors.red, color: 'white' }}
+                data-testid="badge-overdue-count"
+              >
+                {overdueCount} Overdue
+              </Badge>
+            )}
+            {dueSoonCount > 0 && (
+              <Badge
+                style={{ backgroundColor: colors.yellow, color: colors.brown }}
+                data-testid="badge-due-soon-count"
+              >
+                {dueSoonCount} Due Soon
+              </Badge>
+            )}
+          </div>
         </div>
       </header>
 

@@ -35,7 +35,6 @@ import {
   Edit2,
   Check,
   X,
-  Home,
   Upload,
   FileText,
   ExternalLink,
@@ -49,8 +48,6 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { Footer } from '@/components/Footer';
-import { Link } from 'wouter';
-import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 
 const colors = {
   gold: '#C9A227',
@@ -183,7 +180,6 @@ export default function AdminTasks() {
   const isChildLocation = !!tenant?.parent_tenant_id;
   const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
   const orgName = primaryTenant?.name || branding?.company_name || '';
-  const logoUrl = branding?.logo_url || defaultLogo;
   const { toast } = useToast();
   const { uploadFile, isUploading } = useUpload();
   
@@ -657,52 +653,39 @@ export default function AdminTasks() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.cream }}>
-      <header className="px-6 py-6 relative">
-        <Link
-          href="/"
-          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm"
-          style={{ backgroundColor: colors.gold, color: colors.white }}
-          data-testid="link-dashboard"
-        >
-          <Home className="w-4 h-4" />
-          Main Dashboard
-        </Link>
-        <div className="absolute top-4 right-4 flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSettings(!showSettings)}
-            style={{ borderColor: colors.gold, color: colors.brown }}
-            data-testid="button-settings"
-          >
-            <Settings className="w-4 h-4 mr-1" />
-            Settings
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => { resetTaskForm(); setShowTaskForm(true); }}
-            style={{ backgroundColor: colors.gold, color: colors.brown }}
-            data-testid="button-new-task"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            New Task
-          </Button>
-        </div>
-        <div className="max-w-7xl mx-auto text-center pt-10">
-          <img
-            src={logoUrl}
-            alt={displayName}
-            className="mx-auto mb-3"
-            style={{ height: 80, width: 'auto' }}
-          />
-          <h2 className="text-xl font-bold" style={{ color: colors.gold }}>
-            Administrative Tasks
-          </h2>
-          {isChildLocation && orgName && (
-            <p className="text-sm" style={{ color: colors.brownLight }}>
-              {displayName} • Part of {orgName}
-            </p>
-          )}
+      <header className="px-4 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-lg font-bold" style={{ color: colors.brown }}>
+              Administrative Tasks
+            </h2>
+            {isChildLocation && orgName && (
+              <p className="text-sm" style={{ color: colors.brownLight }}>
+                {displayName} • {orgName}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSettings(!showSettings)}
+              style={{ borderColor: colors.gold, color: colors.brown }}
+              data-testid="button-settings"
+            >
+              <Settings className="w-4 h-4 mr-1" />
+              Settings
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => { resetTaskForm(); setShowTaskForm(true); }}
+              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              data-testid="button-new-task"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              New Task
+            </Button>
+          </div>
         </div>
       </header>
       

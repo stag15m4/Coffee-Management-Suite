@@ -10,10 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText, Home } from 'lucide-react';
-import { Link } from 'wouter';
+import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText } from 'lucide-react';
 import ExcelJS from 'exceljs';
-import defaultLogo from '@assets/Erwin-Mills-Logo_1767709452739.png';
 import { Footer } from '@/components/Footer';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
@@ -84,8 +82,6 @@ export default function CashDeposit() {
   const isChildLocation = !!tenant?.parent_tenant_id;
   const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
   const orgName = primaryTenant?.name || branding?.company_name || '';
-  const logoUrl = branding?.logo_url || defaultLogo;
-  
   const today = new Date().toISOString().split('T')[0];
   const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
   
@@ -606,29 +602,14 @@ export default function CashDeposit() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
-      <header className="px-6 py-6 relative">
-        <Link
-          href="/"
-          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm"
-          style={{ backgroundColor: colors.gold, color: colors.white }}
-          data-testid="link-dashboard"
-        >
-          <Home className="w-4 h-4" />
-          Main Dashboard
-        </Link>
-        <div className="max-w-7xl mx-auto text-center pt-10">
-          <img
-            src={logoUrl}
-            alt={displayName}
-            className="h-20 mx-auto mb-3"
-            data-testid="img-logo"
-          />
-          <h2 className="text-xl font-semibold" style={{ color: colors.brown }} data-testid="text-page-title">
+      <header className="px-6 py-4">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-lg font-bold" style={{ color: colors.brown }} data-testid="text-page-title">
             Cash Activity Tracker
           </h2>
           {isChildLocation && orgName && (
             <p className="text-sm" style={{ color: colors.brownLight }}>
-              {displayName} • Part of {orgName}
+              {displayName} • {orgName}
             </p>
           )}
         </div>
