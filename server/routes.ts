@@ -701,29 +701,29 @@ export async function registerRoutes(
         VALUES (${tenant.id}::uuid, '#C4A052', '#3D2B1F', '#8B7355', '#F5F0E1', ${name})
       `);
 
-      // 3. Check if user already exists in auth.users
-      const existingUser = await db.execute(sql`
-        SELECT id, email FROM auth.users WHERE email = ${ownerEmail} LIMIT 1
-      `);
-
+      // 3. Find or create user via Supabase admin API
+      const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
       let userId: string;
 
-      if (existingUser.rows.length) {
-        // User exists — use their existing ID
-        userId = (existingUser.rows[0] as { id: string }).id;
+      // Try to create the user first
+      const { data: newUserData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: ownerEmail,
+        password: ownerPassword || undefined,
+        email_confirm: true,
+        user_metadata: { full_name: ownerName || ownerEmail.split('@')[0] },
+      });
+
+      if (newUserData?.user) {
+        userId = newUserData.user.id;
       } else {
-        // User doesn't exist — create via Supabase admin API
-        if (!ownerPassword) {
-          return res.status(400).json({ error: 'Password is required for new users' });
+        // User likely already exists — look them up
+        const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        if (listError) throw listError;
+        const existing = listData.users.find((u: any) => u.email === ownerEmail);
+        if (!existing) {
+          throw new Error(createError?.message || 'Could not find or create user with this email');
         }
-        const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
-        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-          email: ownerEmail,
-          password: ownerPassword,
-          email_confirm: true,
-        });
-        if (authError) throw authError;
-        userId = authData.user.id;
+        userId = existing.id;
       }
 
       // 4. Upsert user_profiles — set them as owner of this tenant
@@ -769,16 +769,15 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Email is required' });
       }
 
-      // Look up the user in auth.users by email
-      const userResult = await db.execute(sql`
-        SELECT id, email FROM auth.users WHERE email = ${email} LIMIT 1
-      `);
+      // Look up the user via Supabase admin API
+      const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
+      const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (listError) throw listError;
+      const authUser = listData.users.find((u: any) => u.email === email);
 
-      if (!userResult.rows.length) {
+      if (!authUser) {
         return res.status(404).json({ error: 'No user found with that email. They must have an account first.' });
       }
-
-      const authUser = userResult.rows[0] as { id: string; email: string };
 
       // Check if already a platform admin
       const existingResult = await db.execute(sql`
