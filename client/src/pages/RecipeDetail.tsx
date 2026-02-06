@@ -128,7 +128,7 @@ export default function RecipeDetail() {
                   const lineCost = unitCost * Number(ri.quantity);
 
                   return (
-                    <TableRow key={ri.id} className="group border-border/50">
+                    <TableRow key={ri.id} className="group hover:bg-secondary/30 transition-colors border-border/50">
                       <TableCell className="font-medium">{ri.ingredient.name}</TableCell>
                       <TableCell className="font-mono text-xs">
                         {ri.quantity} <span className="text-muted-foreground">{ri.ingredient.unit}</span>
@@ -140,14 +140,16 @@ export default function RecipeDetail() {
                         ${lineCost.toFixed(2)}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost" size="icon"
-                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                          onClick={() => deleteIngredient.mutate({ recipeId: id, id: ri.id })}
-                          data-testid={`button-delete-ingredient-${ri.id}`}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                        <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteIngredient.mutate({ recipeId: id, id: ri.id })}
+                            data-testid={`button-delete-ingredient-${ri.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
