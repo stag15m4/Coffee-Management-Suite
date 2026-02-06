@@ -354,62 +354,32 @@ export default function PlatformAdmin() {
   };
 
   const handleCreateTenant = async () => {
-    if (!newTenantName || !newTenantSlug || !ownerEmail || !ownerPassword) {
-      toast({ title: 'All fields required', variant: 'destructive' });
+    if (!newTenantName || !newTenantSlug || !ownerEmail) {
+      toast({ title: 'Business name, slug, and owner email are required', variant: 'destructive' });
       return;
     }
 
     setCreating(true);
     try {
-      const { data: tenantData, error: tenantError } = await supabase
-        .from('tenants')
-        .insert({
+      const res = await fetch('/api/tenants', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
           name: newTenantName,
-          slug: newTenantSlug.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-        })
-        .select()
-        .single();
-
-      if (tenantError) throw tenantError;
-
-      const { data: brandingData, error: brandingError } = await supabase
-        .from('tenant_branding')
-        .insert({
-          tenant_id: tenantData.id,
-          primary_color: '#C4A052',
-          secondary_color: '#3D2B1F',
-          accent_color: '#8B7355',
-          background_color: '#F5F0E1',
-          company_name: newTenantName,
-        });
-
-      if (brandingError) {
-        console.error('Branding error:', brandingError);
-      }
-
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: ownerEmail,
-        password: ownerPassword,
+          slug: newTenantSlug,
+          ownerEmail,
+          ownerName: ownerName || undefined,
+          ownerPassword: ownerPassword || undefined,
+        }),
       });
 
-      if (authError) throw authError;
+      const data = await res.json();
 
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .insert({
-            id: authData.user.id,
-            tenant_id: tenantData.id,
-            email: ownerEmail,
-            full_name: ownerName || ownerEmail.split('@')[0],
-            role: 'owner',
-            is_active: true,
-          });
-
-        if (profileError) throw profileError;
+      if (!res.ok) {
+        throw new Error(data.error);
       }
 
-      toast({ title: 'Tenant created successfully!' });
+      toast({ title: 'Business created successfully!' });
       setShowNewTenantDialog(false);
       setNewTenantName('');
       setNewTenantSlug('');
@@ -596,9 +566,10 @@ export default function PlatformAdmin() {
                     type="password"
                     value={ownerPassword}
                     onChange={(e) => setOwnerPassword(e.target.value)}
-                    placeholder="Temporary password"
+                    placeholder="Leave blank if user already exists"
                     data-testid="input-owner-password"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Only needed for new users. Existing accounts will be linked automatically.</p>
                 </div>
                 <Button
                   onClick={handleCreateTenant}

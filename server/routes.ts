@@ -675,6 +675,75 @@ export async function registerRoutes(
   });
 
   // =====================================================
+  // TENANT CREATION (handles existing users)
+  // =====================================================
+
+  app.post('/api/tenants', requirePlatformAdmin, async (req, res) => {
+    try {
+      const { name, slug, ownerEmail, ownerName, ownerPassword } = req.body;
+      if (!name || !slug || !ownerEmail) {
+        return res.status(400).json({ error: 'name, slug, and ownerEmail are required' });
+      }
+
+      const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+
+      // 1. Create the tenant
+      const tenantResult = await db.execute(sql`
+        INSERT INTO tenants (name, slug)
+        VALUES (${name}, ${cleanSlug})
+        RETURNING id, name, slug
+      `);
+      const tenant = tenantResult.rows[0] as { id: string; name: string; slug: string };
+
+      // 2. Create tenant branding
+      await db.execute(sql`
+        INSERT INTO tenant_branding (tenant_id, primary_color, secondary_color, accent_color, background_color, company_name)
+        VALUES (${tenant.id}::uuid, '#C4A052', '#3D2B1F', '#8B7355', '#F5F0E1', ${name})
+      `);
+
+      // 3. Check if user already exists in auth.users
+      const existingUser = await db.execute(sql`
+        SELECT id, email FROM auth.users WHERE email = ${ownerEmail} LIMIT 1
+      `);
+
+      let userId: string;
+
+      if (existingUser.rows.length) {
+        // User exists — use their existing ID
+        userId = (existingUser.rows[0] as { id: string }).id;
+      } else {
+        // User doesn't exist — create via Supabase admin API
+        if (!ownerPassword) {
+          return res.status(400).json({ error: 'Password is required for new users' });
+        }
+        const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+          email: ownerEmail,
+          password: ownerPassword,
+          email_confirm: true,
+        });
+        if (authError) throw authError;
+        userId = authData.user.id;
+      }
+
+      // 4. Upsert user_profiles — set them as owner of this tenant
+      await db.execute(sql`
+        INSERT INTO user_profiles (id, tenant_id, email, full_name, role, is_active)
+        VALUES (${userId}::uuid, ${tenant.id}::uuid, ${ownerEmail}, ${ownerName || ownerEmail.split('@')[0]}, 'owner', true)
+        ON CONFLICT (id) DO UPDATE SET
+          tenant_id = ${tenant.id}::uuid,
+          role = 'owner',
+          is_active = true
+      `);
+
+      res.status(201).json({ tenant, userId });
+    } catch (error: any) {
+      // If tenant was created but later steps failed, try to clean up
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =====================================================
   // PLATFORM ADMIN MANAGEMENT ROUTES
   // =====================================================
 
