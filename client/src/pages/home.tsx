@@ -209,6 +209,7 @@ interface BaseTemplateIngredient {
   ingredient_id: string;
   size_id: string;
   quantity: number;
+  unit?: string;
   ingredient?: Ingredient;
   size?: DrinkSize;
 }
@@ -1447,6 +1448,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                     {baseTemplateItems.map(bi => {
                                       const ing = ingredients.find(i => i.id === bi.ingredient_id);
                                       const itemCost = ing ? bi.quantity * getIngredientCostPerUnit(ing) : 0;
+                                      const displayUnit = bi.unit || ing?.usage_unit || ing?.unit || 'each';
                                       return (
                                         <div
                                           key={bi.id}
@@ -1454,7 +1456,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                           style={{ backgroundColor: colors.creamDark }}
                                         >
                                           <span style={{ color: colors.brown }}>{ing?.name || 'Unknown'}</span>
-                                          <span style={{ color: colors.brownLight }}>x{bi.quantity}</span>
+                                          <span style={{ color: colors.brownLight }}>({bi.quantity} {displayUnit})</span>
                                           <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
                                         </div>
                                       );
@@ -3127,7 +3129,7 @@ interface BaseTemplatesTabProps {
   ingredients: Ingredient[];
   drinkSizes: DrinkSize[];
   onAddTemplate: (template: { name: string; drink_type: string; description?: string }) => Promise<void>;
-  onAddTemplateIngredient: (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number }) => Promise<void>;
+  onAddTemplateIngredient: (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => Promise<void>;
   onDeleteTemplateIngredient: (id: string) => Promise<void>;
   onDeleteTemplate: (id: string) => Promise<void>;
 }
@@ -3137,7 +3139,7 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
   const [newTemplate, setNewTemplate] = useState({ name: '', drink_type: 'Hot', description: '' });
   const [addingIngredient, setAddingIngredient] = useState<{ templateId: string; sizeId: string } | null>(null);
-  const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity: '1' });
+  const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity: '1', unit: '' });
   const [copying, setCopying] = useState(false);
 
   const handleCopyFromSize = async (template: BaseTemplate, targetSizeId: string, sourceSizeId: string) => {
@@ -3154,6 +3156,7 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
           ingredient_id: ing.ingredient_id,
           size_id: targetSizeId,
           quantity: ing.quantity,
+          unit: ing.unit || 'each',
         });
       }
     } finally {
@@ -3176,13 +3179,16 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
       alert('Please select an ingredient');
       return;
     }
+    const selectedIng = ingredients.find(i => i.id === newIngredient.ingredient_id);
+    const unit = newIngredient.unit || selectedIng?.usage_unit || selectedIng?.unit || 'each';
     await onAddTemplateIngredient({
       base_template_id: templateId,
       ingredient_id: newIngredient.ingredient_id,
       size_id: sizeId,
       quantity: parseFloat(newIngredient.quantity) || 1,
+      unit,
     });
-    setNewIngredient({ ingredient_id: '', quantity: '1' });
+    setNewIngredient({ ingredient_id: '', quantity: '1', unit: '' });
     setAddingIngredient(null);
   };
 
@@ -3343,10 +3349,11 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
 
                           {sizeIngredients.map(ing => {
                             const ingredient = ingredients.find(i => i.id === ing.ingredient_id);
+                            const displayUnit = ing.unit || ingredient?.usage_unit || ingredient?.unit || 'each';
                             return (
                               <div key={ing.id} className="flex items-center justify-between text-sm mb-1">
                                 <span style={{ color: colors.brownLight }}>
-                                  {ingredient?.name || 'Unknown'} x{ing.quantity}
+                                  {ingredient?.name || 'Unknown'} — {ing.quantity} {displayUnit}
                                 </span>
                                 <button
                                   onClick={() => onDeleteTemplateIngredient(ing.id)}
@@ -3364,29 +3371,58 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
                             <div className="mt-2 space-y-2">
                               <select
                                 value={newIngredient.ingredient_id}
-                                onChange={(e) => setNewIngredient({ ...newIngredient, ingredient_id: e.target.value })}
+                                onChange={(e) => {
+                                  const sel = ingredients.find(i => i.id === e.target.value);
+                                  setNewIngredient({
+                                    ...newIngredient,
+                                    ingredient_id: e.target.value,
+                                    unit: sel?.usage_unit || sel?.unit || 'each',
+                                  });
+                                }}
                                 className="w-full px-2 py-1 rounded border text-sm"
                                 style={{ borderColor: colors.gold }}
                                 data-testid={`select-ing-${size.id}`}
                               >
                                 <option value="">Select ingredient</option>
                                 {ingredients
-                                  .filter(ing => (ing.ingredient_type || '').toLowerCase() === 'disposable')
                                   .sort((a, b) => a.name.localeCompare(b.name))
                                   .map(ing => (
-                                  <option key={ing.id} value={ing.id}>{ing.name}</option>
+                                  <option key={ing.id} value={ing.id}>{ing.name} ({ing.ingredient_type || 'FOH Ingredient'})</option>
                                 ))}
                               </select>
-                              <input
-                                type="number"
-                                step="0.1"
-                                value={newIngredient.quantity}
-                                onChange={(e) => setNewIngredient({ ...newIngredient, quantity: e.target.value })}
-                                className="w-full px-2 py-1 rounded border text-sm"
-                                style={{ borderColor: colors.gold }}
-                                placeholder="Quantity"
-                                data-testid={`input-qty-${size.id}`}
-                              />
+                              <div className="flex gap-2">
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={newIngredient.quantity}
+                                  onChange={(e) => setNewIngredient({ ...newIngredient, quantity: e.target.value })}
+                                  className="flex-1 px-2 py-1 rounded border text-sm"
+                                  style={{ borderColor: colors.gold }}
+                                  placeholder="Qty"
+                                  data-testid={`input-qty-${size.id}`}
+                                />
+                                <select
+                                  value={(() => {
+                                    if (newIngredient.unit) return newIngredient.unit;
+                                    const sel = ingredients.find(i => i.id === newIngredient.ingredient_id);
+                                    return sel?.usage_unit || sel?.unit || 'each';
+                                  })()}
+                                  onChange={(e) => setNewIngredient({ ...newIngredient, unit: e.target.value })}
+                                  className="flex-1 px-2 py-1 rounded border text-sm"
+                                  style={{ borderColor: colors.gold }}
+                                  data-testid={`select-unit-${size.id}`}
+                                >
+                                  {(() => {
+                                    const sel = ingredients.find(i => i.id === newIngredient.ingredient_id);
+                                    const defaultUnit = sel?.usage_unit || sel?.unit || 'each';
+                                    const units = ['each', 'oz', 'lb', 'gram', 'ml'];
+                                    const sortedUnits = [defaultUnit, ...units.filter(u => u !== defaultUnit)];
+                                    return sortedUnits.map(u => (
+                                      <option key={u} value={u}>{u}</option>
+                                    ));
+                                  })()}
+                                </select>
+                              </div>
                               <div className="flex gap-1">
                                 <button
                                   onClick={() => handleAddIngredient(template.id, size.id)}
@@ -3980,11 +4016,17 @@ export default function Home() {
     }
   };
 
-  const handleAddTemplateIngredient = async (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number }) => {
+  const handleAddTemplateIngredient = async (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => {
     try {
       const { error } = await supabase
         .from('base_template_ingredients')
-        .insert(ingredient);
+        .insert({
+          base_template_id: ingredient.base_template_id,
+          ingredient_id: ingredient.ingredient_id,
+          size_id: ingredient.size_id,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit || 'each',
+        });
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
@@ -4060,9 +4102,10 @@ export default function Home() {
     if (!await confirm({ title: `Delete ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) return;
     try {
       // Strip view-computed columns (category_name, cost_per_unit, cost_per_usage_unit) that don't exist on the ingredients table
+      // Ensure tenant_id is included since v_ingredients view may not return it
       const savedData = ingredient ? (() => {
         const { category_name, cost_per_unit, cost_per_usage_unit, ...tableColumns } = ingredient as Record<string, unknown>;
-        return tableColumns;
+        return { ...tableColumns, tenant_id: tableColumns.tenant_id || profile?.tenant_id };
       })() : null;
       const { error } = await supabase
         .from('ingredients')
