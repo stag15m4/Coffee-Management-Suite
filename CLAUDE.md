@@ -77,6 +77,8 @@ Optional: `STRIPE_SECRET_KEY`, `RESEND_API_KEY`, `VITE_USE_MOCK_DATA`
 
 ## Git Workflow
 
+**On session start:** Run `git fetch` and check if the current branch is behind the remote. If there are new commits to pull, pull them before making any changes.
+
 After making changes, always commit and push to the remote branch. If unsure about the commit message or scope, ask the user before pushing. Never leave work uncommitted at the end of a session.
 
 ## Gotchas
