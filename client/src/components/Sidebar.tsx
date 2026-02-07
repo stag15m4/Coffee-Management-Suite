@@ -153,53 +153,6 @@ export function Sidebar() {
         </Link>
       </div>
 
-      {/* Location switcher */}
-      {hasMultipleLocations && (
-        <div ref={locationDropdownRef} className="px-3 py-2 border-b relative" style={{ borderColor: colors.creamDark }}>
-          <button
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors hover:bg-gray-50"
-            style={{ color: colors.brown }}
-            onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}
-          >
-            <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.gold }} />
-            <span className="truncate font-medium">{tenant?.name || 'Select location'}</span>
-            <ChevronDown
-              className={`w-3 h-3 ml-auto flex-shrink-0 transition-transform ${locationDropdownOpen ? 'rotate-180' : ''}`}
-              style={{ color: colors.brownLight }}
-            />
-          </button>
-          {locationDropdownOpen && (
-            <div
-              className="absolute left-3 right-3 mt-1 rounded-md shadow-lg border z-50 py-1"
-              style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-            >
-              {accessibleLocations.map((loc) => {
-                const isActive = loc.id === tenant?.id;
-                return (
-                  <button
-                    key={loc.id}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-gray-50"
-                    style={{
-                      color: isActive ? colors.gold : colors.brown,
-                      fontWeight: isActive ? 600 : 400,
-                    }}
-                    onClick={async () => {
-                      if (!isActive) {
-                        await switchLocation(loc.id);
-                      }
-                      setLocationDropdownOpen(false);
-                    }}
-                  >
-                    {isActive && <Check className="w-3 h-3 flex-shrink-0" />}
-                    <span className={`truncate ${isActive ? '' : 'ml-5'}`}>{loc.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Main navigation */}
       <nav className="flex-1 p-3 space-y-1">
         {/* Dashboard */}
@@ -219,6 +172,53 @@ export function Sidebar() {
             Modules
           </p>
         </div>
+
+        {/* Location switcher */}
+        {hasMultipleLocations && (
+          <div ref={locationDropdownRef} className="relative px-2 pb-1">
+            <button
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors hover:bg-gray-50"
+              style={{ color: colors.brown }}
+              onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}
+            >
+              <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.gold }} />
+              <span className="truncate font-medium">{tenant?.name || 'Select location'}</span>
+              <ChevronDown
+                className={`w-3 h-3 ml-auto flex-shrink-0 transition-transform ${locationDropdownOpen ? 'rotate-180' : ''}`}
+                style={{ color: colors.brownLight }}
+              />
+            </button>
+            {locationDropdownOpen && (
+              <div
+                className="absolute left-2 right-2 mt-1 rounded-md shadow-lg border z-50 py-1"
+                style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+              >
+                {accessibleLocations.map((loc) => {
+                  const isActive = loc.id === tenant?.id;
+                  return (
+                    <button
+                      key={loc.id}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-gray-50"
+                      style={{
+                        color: isActive ? colors.gold : colors.brown,
+                        fontWeight: isActive ? 600 : 400,
+                      }}
+                      onClick={async () => {
+                        if (!isActive) {
+                          await switchLocation(loc.id);
+                        }
+                        setLocationDropdownOpen(false);
+                      }}
+                    >
+                      {isActive && <Check className="w-3 h-3 flex-shrink-0" />}
+                      <span className={`truncate ${isActive ? '' : 'ml-5'}`}>{loc.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Enabled modules */}
         {enabledModules.map((moduleId) => {

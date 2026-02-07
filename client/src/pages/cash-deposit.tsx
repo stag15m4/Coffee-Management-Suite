@@ -1060,106 +1060,110 @@ export default function CashDeposit() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Transaction History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {entries.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No entries for this date range. Add your first entry above!
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {sortedWeeks.map(weekStart => {
-                const weekEntries = entriesByWeek[weekStart].sort((a, b) => b.drawer_date.localeCompare(a.drawer_date));
-                const weekGross = weekEntries.reduce((sum, e) => sum + (e.gross_revenue || 0), 0);
-                const weekDeposits = weekEntries.reduce((sum, e) => sum + (e.actual_deposit || 0), 0);
+      <div>
+        <h2 className="text-xl font-bold mb-4" style={{ color: colors.brown }}>Transaction History</h2>
+        {entries.length === 0 ? (
+          <div className="text-center py-8" style={{ color: colors.brownLight }}>
+            No entries for this date range. Add your first entry above!
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {sortedWeeks.map(weekStart => {
+              const weekEntries = entriesByWeek[weekStart].sort((a, b) => b.drawer_date.localeCompare(a.drawer_date));
+              const weekGross = weekEntries.reduce((sum, e) => sum + (e.gross_revenue || 0), 0);
+              const weekDeposits = weekEntries.reduce((sum, e) => sum + (e.actual_deposit || 0), 0);
 
-                return (
-                  <div key={weekStart}>
-                    <div className="bg-primary text-primary-foreground px-4 py-2 rounded-t-md font-medium text-sm">
-                      Week: {formatWeekRange(weekStart)} | Gross: {formatCurrency(weekGross)} | Deposits: {formatCurrency(weekDeposits)}
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-muted">
-                            <th className="text-left p-2">Date</th>
-                            <th className="text-right p-2">Gross Rev</th>
-                            <th className="text-right p-2">Cash Sales</th>
-                            <th className="text-right p-2">Tip Pool</th>
-                            <th className="text-right p-2">Actual Dep</th>
-                            <th className="text-right p-2">Calc Dep</th>
-                            <th className="text-right p-2">Diff</th>
-                            <th className="text-right p-2">Net Cash</th>
-                            <th className="text-right p-2">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {weekEntries.map(entry => {
-                            const entryDiff = (entry.actual_deposit || 0) - (entry.calculated_deposit || 0);
-                            const entryNetCash = (entry.actual_deposit || 0) - (entry.pay_in || 0);
-                            
-                            return (
-                              <tr key={entry.id} className="border-b hover:bg-muted/50" data-testid={`row-entry-${entry.id}`}>
-                                <td className="p-2 font-medium">
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => handleToggleFlag(entry)}
-                                      className={`w-3 h-3 rounded-full ${entry.flagged ? 'bg-red-500' : 'bg-gray-300'}`}
-                                      data-testid={`button-flag-${entry.id}`}
-                                    />
-                                    {formatDate(entry.drawer_date)}
-                                  </div>
-                                </td>
-                                <td className="p-2 text-right">{formatCurrency(entry.gross_revenue)}</td>
-                                <td className="p-2 text-right">{formatCurrency(entry.cash_sales)}</td>
-                                <td className="p-2 text-right">{formatCurrency(entry.tip_pool)}</td>
-                                <td className="p-2 text-right">{formatCurrency(entry.actual_deposit)}</td>
-                                <td className="p-2 text-right">{formatCurrency(entry.calculated_deposit)}</td>
-                                <td className={`p-2 text-right font-medium ${
-                                  Math.abs(entryDiff) < 0.01 ? 'text-green-600' :
-                                  entryDiff > 0 ? 'text-yellow-600' : 'text-red-600'
-                                }`}>
-                                  {formatCurrency(entryDiff)}
-                                </td>
-                                <td className="p-2 text-right font-bold text-primary">
-                                  {formatCurrency(entryNetCash)}
-                                </td>
-                                <td className="p-2 text-right">
-                                  <div className="flex items-center justify-end gap-1">
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => setEditingEntry(entry)}
-                                      data-testid={`button-edit-${entry.id}`}
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => handleDelete(entry)}
-                                      data-testid={`button-delete-${entry.id}`}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+              return (
+                <div key={weekStart} className="rounded-2xl overflow-hidden shadow-md" style={{ backgroundColor: colors.white }}>
+                  <div className="px-4 py-3 font-semibold text-sm" style={{ backgroundColor: colors.brown, color: colors.cream }}>
+                    Week: {formatWeekRange(weekStart)} | Gross: {formatCurrency(weekGross)} | Deposits: {formatCurrency(weekDeposits)}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr style={{ backgroundColor: colors.creamDark }}>
+                          <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.brown }}>Date</th>
+                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Gross Rev</th>
+                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Cash Sales</th>
+                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Tip Pool</th>
+                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Actual Dep</th>
+                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Calc Dep</th>
+                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Diff</th>
+                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.gold }}>Net Cash</th>
+                          <th className="px-4 py-3 text-center font-semibold" style={{ color: colors.brown }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {weekEntries.map((entry, idx) => {
+                          const entryDiff = (entry.actual_deposit || 0) - (entry.calculated_deposit || 0);
+                          const entryNetCash = (entry.actual_deposit || 0) - (entry.pay_in || 0);
+
+                          return (
+                            <tr
+                              key={entry.id}
+                              style={{
+                                backgroundColor: idx % 2 === 0 ? colors.white : colors.cream,
+                                borderBottom: `1px solid ${colors.creamDark}`,
+                              }}
+                              data-testid={`row-entry-${entry.id}`}
+                            >
+                              <td className="px-4 py-3 font-medium" style={{ color: colors.brown }}>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleToggleFlag(entry)}
+                                    className="w-3 h-3 rounded-full"
+                                    style={{ backgroundColor: entry.flagged ? '#ef4444' : colors.creamDark }}
+                                    data-testid={`button-flag-${entry.id}`}
+                                  />
+                                  {formatDate(entry.drawer_date)}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-right" style={{ color: colors.brown }}>{formatCurrency(entry.gross_revenue)}</td>
+                              <td className="px-4 py-3 text-right" style={{ color: colors.brown }}>{formatCurrency(entry.cash_sales)}</td>
+                              <td className="px-4 py-3 text-right" style={{ color: colors.brown }}>{formatCurrency(entry.tip_pool)}</td>
+                              <td className="px-4 py-3 text-right" style={{ color: colors.brown }}>{formatCurrency(entry.actual_deposit)}</td>
+                              <td className="px-4 py-3 text-right" style={{ color: colors.brownLight }}>{formatCurrency(entry.calculated_deposit)}</td>
+                              <td className="px-4 py-3 text-right font-medium" style={{
+                                color: Math.abs(entryDiff) < 0.01 ? colors.green :
+                                  entryDiff > 0 ? '#eab308' : '#ef4444'
+                              }}>
+                                {formatCurrency(entryDiff)}
+                              </td>
+                              <td className="px-4 py-3 text-right font-bold" style={{ color: colors.gold }}>
+                                {formatCurrency(entryNetCash)}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => setEditingEntry(entry)}
+                                    data-testid={`button-edit-${entry.id}`}
+                                  >
+                                    <Pencil className="h-4 w-4" style={{ color: colors.brownLight }} />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleDelete(entry)}
+                                    data-testid={`button-delete-${entry.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" style={{ color: colors.brownLight }} />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
       </div>
       <Footer />
       {ConfirmDialog}

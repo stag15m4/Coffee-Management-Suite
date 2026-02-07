@@ -255,10 +255,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (savedLocationId && savedLocationId !== tenantData.id) {
           // Validate the saved location is in accessible locations list
           const savedLocation = allLocations.find(loc => loc.id === savedLocationId);
-          
+
           if (savedLocation) {
             setTenant(savedLocation);
             setActiveLocationId(savedLocationId);
+
+            // Load branding and modules for the saved location (not the profile's tenant)
+            const [savedBrandingResult, savedModulesResult] = await Promise.all([
+              supabase.from('tenant_branding').select('*').eq('tenant_id', savedLocationId).maybeSingle(),
+              supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: savedLocationId }),
+            ]);
+            if (savedBrandingResult.data) setBranding(savedBrandingResult.data);
+            if (savedModulesResult.data) setEnabledModules(savedModulesResult.data as ModuleId[]);
           } else {
             sessionStorage.removeItem('selected_location_id');
             setActiveLocationId(tenantData.id);
@@ -597,29 +605,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshEnabledModules = useCallback(async () => {
-    if (!profile?.tenant_id) return;
-    
+    // Use the current tenant (which may differ from profile.tenant_id after location switch)
+    const currentTenantId = tenant?.id || profile?.tenant_id;
+    if (!currentTenantId) return;
+
     try {
       const { data, error } = await supabase.rpc('get_tenant_enabled_modules', {
-        p_tenant_id: profile.tenant_id
+        p_tenant_id: currentTenantId
       });
-      
-      console.log('DEBUG: Refresh modules result:', JSON.stringify({ data, error }));
-      
+
       if (error) {
         console.warn('Module refresh RPC failed:', error.message);
-        // Security: Any error defaults to no modules
         setEnabledModules([]);
       } else {
-        // Accept empty array as legitimate response
         setEnabledModules((data || []) as ModuleId[]);
       }
     } catch (err: any) {
       console.error('Error refreshing modules:', err);
-      // Security: Any error defaults to no modules
       setEnabledModules([]);
     }
-  }, [profile?.tenant_id]);
+  }, [tenant?.id, profile?.tenant_id]);
 
   const hasRole = (requiredRole: UserRole): boolean => {
     if (!profile) return false;
@@ -765,13 +770,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // On load, check if platform admin was viewing a tenant
   useEffect(() => {
-    if (platformAdmin && !adminViewingTenant && !profile) {
+    if (platformAdmin && !adminViewingTenant) {
       const savedTenantId = sessionStorage.getItem('admin_view_tenant_id');
       if (savedTenantId) {
         enterTenantView(savedTenantId);
       }
     }
-  }, [platformAdmin, adminViewingTenant, profile, enterTenantView]);
+  }, [platformAdmin, adminViewingTenant, enterTenantView]);
 
   return (
     <AuthContext.Provider
