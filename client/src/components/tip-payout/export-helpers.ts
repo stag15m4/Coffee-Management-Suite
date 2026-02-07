@@ -110,8 +110,8 @@ const pdfBaseStyles = `
     margin-top: 15px;
   }
   th {
-    background-color: #C9A227;
-    color: #4A3728;
+    background-color: #4A3728;
+    color: #FFFFFF;
     padding: 10px 12px;
     text-align: left;
     font-weight: bold;
@@ -607,13 +607,66 @@ export function buildHistoricalIndividualHtml(params: HistoricalIndividualParams
 
 export function buildLoadingHtml(): string {
   return `
+    <!DOCTYPE html>
     <html>
-    <body style="font-family: Arial; text-align: center; padding-top: 80px;">
-      <h2 style="color: #2C2416;">Loading historical data...</h2>
-      <p style="color: #666;">Please wait while we retrieve your tip payout history.</p>
-      <button onclick="window.close()" style="margin-top: 30px; padding: 8px 16px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 14px;">
-        Cancel & Close
-      </button>
+    <head>
+      <title>Loading...</title>
+      <style>
+        @keyframes stir {
+          0%, 100% { transform: rotate(-8deg); }
+          50% { transform: rotate(8deg); }
+        }
+        @keyframes steam {
+          0% { opacity: 0; transform: translateY(0); }
+          50% { opacity: 0.6; }
+          100% { opacity: 0; transform: translateY(-10px); }
+        }
+        body {
+          margin: 0;
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: #F5F0E1;
+          font-family: Arial, sans-serif;
+        }
+        .loader {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+        }
+        .loader p {
+          font-size: 14px;
+          font-weight: 500;
+          color: #4A3728;
+          margin: 0;
+        }
+        .stir { animation: stir 1.4s ease-in-out infinite; transform-origin: 36px 31px; }
+        .steam-1 { animation: steam 2s ease-out infinite; }
+        .steam-2 { animation: steam 2s ease-out 0.5s infinite; }
+        .steam-3 { animation: steam 2s ease-out 1s infinite; }
+      </style>
+    </head>
+    <body>
+      <div class="loader">
+        <svg width="72" height="72" viewBox="0 0 80 80" fill="none">
+          <ellipse cx="36" cy="68" rx="28" ry="5" fill="#E8E0CC" stroke="#D4C9A8" stroke-width="1"/>
+          <path d="M 18 30 L 21 63 Q 36 68 51 63 L 54 30" fill="#FFFDF7" stroke="#D4C9A8" stroke-width="1.2" stroke-linejoin="round"/>
+          <path d="M 54 36 C 64 36 67 48 67 48 C 67 48 64 60 54 58" fill="none" stroke="#D4C9A8" stroke-width="3" stroke-linecap="round"/>
+          <ellipse cx="36" cy="30" rx="18" ry="6.5" fill="#FFFDF7" stroke="#D4C9A8" stroke-width="1.2"/>
+          <ellipse cx="36" cy="31" rx="15.5" ry="5" fill="#5C3D2E"/>
+          <ellipse cx="31" cy="30" rx="5" ry="2" fill="#7A5440" opacity="0.5"/>
+          <g class="stir">
+            <line x1="36" y1="31" x2="52" y2="15" stroke="#C9A227" stroke-width="2.2" stroke-linecap="round"/>
+            <ellipse cx="53.5" cy="13.5" rx="3.2" ry="2" fill="#C9A227" stroke="#B8911F" stroke-width="0.6" transform="rotate(-45 53.5 13.5)"/>
+          </g>
+          <path class="steam-1" d="M 28 24 Q 26 18 28 12 Q 30 6 28 2" stroke="#C9A227" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0"/>
+          <path class="steam-2" d="M 36 22 Q 38 16 36 10 Q 34 4 36 0" stroke="#C9A227" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0"/>
+          <path class="steam-3" d="M 44 24 Q 46 18 44 12 Q 42 6 44 2" stroke="#C9A227" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0"/>
+        </svg>
+        <p>Loading historical data...</p>
+      </div>
     </body>
     </html>
   `;

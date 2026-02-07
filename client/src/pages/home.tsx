@@ -593,7 +593,7 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd, onDelete }: 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ backgroundColor: colors.creamDark }}>
+              <tr style={{ backgroundColor: colors.brown }}>
                 <th className="px-2 py-3 text-center">
                   <input
                     type="checkbox"
@@ -604,16 +604,16 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd, onDelete }: 
                     data-testid="checkbox-select-all"
                   />
                 </th>
-                <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.brown }}>Ingredient</th>
-                <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.brown }}>Category</th>
-                <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Cost</th>
-                <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Quantity</th>
-                <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Cost/Unit</th>
-                <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Usage Unit</th>
+                <th className="px-4 py-3 text-left font-semibold text-white">Ingredient</th>
+                <th className="px-4 py-3 text-left font-semibold text-white">Category</th>
+                <th className="px-4 py-3 text-right font-semibold text-white">Cost</th>
+                <th className="px-4 py-3 text-right font-semibold text-white">Quantity</th>
+                <th className="px-4 py-3 text-right font-semibold text-white">Cost/Unit</th>
+                <th className="px-4 py-3 text-right font-semibold text-white">Usage Unit</th>
                 <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.gold }}>Cost/Usage</th>
-                <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.brown }}>Vendor</th>
-                <th className="px-4 py-3 text-center font-semibold" style={{ color: colors.brown }}>Last Updated</th>
-                <th className="px-4 py-3 text-center font-semibold" style={{ color: colors.brown }}>Actions</th>
+                <th className="px-4 py-3 text-left font-semibold text-white">Vendor</th>
+                <th className="px-4 py-3 text-center font-semibold text-white">Last Updated</th>
+                <th className="px-4 py-3 text-center font-semibold text-white">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -2597,39 +2597,39 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
         <div className="overflow-x-auto">
           <table className="w-full text-sm" style={{ minWidth: '700px' }}>
             <thead>
-              <tr style={{ backgroundColor: colors.cream }}>
+              <tr style={{ backgroundColor: colors.brown }}>
                 <th
-                  className="text-left p-2 font-semibold cursor-pointer hover:opacity-70 select-none"
-                  style={{ color: colors.brown, width: '20%' }}
+                  className="text-left p-2 font-semibold text-white cursor-pointer hover:opacity-70 select-none"
+                  style={{ width: '20%' }}
                   onClick={() => handleSort('name')}
                 >
                   Item {sortColumn === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
                 <th
-                  className="text-right p-2 font-semibold cursor-pointer hover:opacity-70 select-none"
-                  style={{ color: colors.brown, width: '12%' }}
+                  className="text-right p-2 font-semibold text-white cursor-pointer hover:opacity-70 select-none"
+                  style={{ width: '12%' }}
                   onClick={() => handleSort('amount')}
                 >
                   Amount {sortColumn === 'amount' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
                 <th
-                  className="text-center p-2 font-semibold cursor-pointer hover:opacity-70 select-none"
-                  style={{ color: colors.brown, width: '12%' }}
+                  className="text-center p-2 font-semibold text-white cursor-pointer hover:opacity-70 select-none"
+                  style={{ width: '12%' }}
                   onClick={() => handleSort('frequency')}
                 >
                   Frequency {sortColumn === 'frequency' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Daily</th>
-                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Weekly</th>
+                <th className="text-right p-2 font-semibold text-white/70" style={{ width: '11%' }}>Daily</th>
+                <th className="text-right p-2 font-semibold text-white/70" style={{ width: '11%' }}>Weekly</th>
                 <th
-                  className="text-right p-2 font-semibold cursor-pointer hover:opacity-70 select-none"
-                  style={{ color: colors.brownLight, width: '11%' }}
+                  className="text-right p-2 font-semibold text-white/70 cursor-pointer hover:opacity-70 select-none"
+                  style={{ width: '11%' }}
                   onClick={() => handleSort('monthly')}
                 >
                   Monthly {sortColumn === 'monthly' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Quarterly</th>
-                <th className="text-right p-2 font-semibold" style={{ color: colors.brownLight, width: '11%' }}>Annual</th>
+                <th className="text-right p-2 font-semibold text-white/70" style={{ width: '11%' }}>Quarterly</th>
+                <th className="text-right p-2 font-semibold text-white/70" style={{ width: '11%' }}>Annual</th>
                 <th className="p-2" style={{ width: '40px' }}></th>
               </tr>
             </thead>
@@ -3526,17 +3526,17 @@ const VendorsTab = ({ ingredients, onUpdateIngredientCost }: VendorsTabProps) =>
           >
             <div
               className="px-4 py-3 flex items-center justify-between"
-              style={{ backgroundColor: colors.creamDark }}
+              style={{ backgroundColor: colors.brown }}
             >
               <div>
-                <h3 className="font-bold" style={{ color: colors.brown }}>{vendor.name}</h3>
-                <span className="text-sm" style={{ color: colors.brownLight }}>
+                <h3 className="font-bold text-white">{vendor.name}</h3>
+                <span className="text-sm text-white/60">
                   {vendor.itemCount} items
                 </span>
               </div>
               <div className="text-right">
-                <div className="text-sm" style={{ color: colors.brownLight }}>Total Spend</div>
-                <div className="font-bold font-mono" style={{ color: colors.gold }}>
+                <div className="text-sm text-white/60">Total Spend</div>
+                <div className="font-bold font-mono text-white">
                   {formatCurrency(vendor.totalValue)}
                 </div>
               </div>
@@ -3545,12 +3545,12 @@ const VendorsTab = ({ ingredients, onUpdateIngredientCost }: VendorsTabProps) =>
             <div className="p-4">
               <table className="w-full text-sm">
                 <thead>
-                  <tr style={{ borderBottom: `1px solid ${colors.creamDark}` }}>
-                    <th className="py-2 text-left font-medium" style={{ color: colors.brownLight }}>Product</th>
-                    <th className="py-2 text-left font-medium" style={{ color: colors.brownLight }}>Category</th>
-                    <th className="py-2 text-right font-medium" style={{ color: colors.brownLight }}>Cost</th>
-                    <th className="py-2 text-right font-medium" style={{ color: colors.brownLight }}>Quantity</th>
-                    <th className="py-2 text-left font-medium" style={{ color: colors.brownLight }}>Item #</th>
+                  <tr style={{ borderBottom: `2px solid ${colors.creamDark}` }}>
+                    <th className="py-2 px-2 text-left font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Product</th>
+                    <th className="py-2 px-2 text-left font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Category</th>
+                    <th className="py-2 px-2 text-right font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Cost</th>
+                    <th className="py-2 px-2 text-right font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Quantity</th>
+                    <th className="py-2 px-2 text-left font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Item #</th>
                   </tr>
                 </thead>
                 <tbody>

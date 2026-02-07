@@ -517,7 +517,7 @@ export default function TipPayout() {
 
       <main className="max-w-4xl mx-auto p-4 space-y-4">
         <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-          <CardContent className="p-5 space-y-0">
+          <CardContent className="p-5 space-y-6">
             <DailyTipsEntry
               colors={colors}
               weekKey={weekKey}
@@ -542,8 +542,6 @@ export default function TipPayout() {
               savingTips={savingTips}
             />
 
-            <hr className="my-5" style={{ borderColor: colors.creamDark }} />
-
             <EmployeeHoursEntry
               colors={colors}
               employees={employees}
@@ -562,8 +560,6 @@ export default function TipPayout() {
               onAddNewEmployee={() => setManageDialogOpen(true)}
             />
 
-            <hr className="my-5" style={{ borderColor: colors.creamDark }} />
-
             <PayoutSummary
               colors={colors}
               calculation={{ cashTotal, ccTotal, ccAfterFee, totalPool, totalTeamHours, hourlyRate, weekRange }}
@@ -571,8 +567,6 @@ export default function TipPayout() {
               onExportCSV={exportCSV}
               onExportPDF={exportPDF}
             />
-
-            <hr className="my-5" style={{ borderColor: colors.creamDark }} />
 
             <TeamHoursVerify
               colors={colors}

@@ -1081,16 +1081,16 @@ export default function CashDeposit() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr style={{ backgroundColor: colors.creamDark }}>
-                          <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.brown }}>Date</th>
-                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Gross Rev</th>
-                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Cash Sales</th>
-                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Tip Pool</th>
-                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Actual Dep</th>
-                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Calc Dep</th>
-                          <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.brown }}>Diff</th>
+                        <tr style={{ backgroundColor: colors.brown }}>
+                          <th className="px-4 py-3 text-left font-semibold text-white">Date</th>
+                          <th className="px-4 py-3 text-right font-semibold text-white">Gross Rev</th>
+                          <th className="px-4 py-3 text-right font-semibold text-white">Cash Sales</th>
+                          <th className="px-4 py-3 text-right font-semibold text-white">Tip Pool</th>
+                          <th className="px-4 py-3 text-right font-semibold text-white">Actual Dep</th>
+                          <th className="px-4 py-3 text-right font-semibold text-white">Calc Dep</th>
+                          <th className="px-4 py-3 text-right font-semibold text-white">Diff</th>
                           <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.gold }}>Net Cash</th>
-                          <th className="px-4 py-3 text-center font-semibold" style={{ color: colors.brown }}>Actions</th>
+                          <th className="px-4 py-3 text-center font-semibold text-white">Actions</th>
                         </tr>
                       </thead>
                       <tbody>

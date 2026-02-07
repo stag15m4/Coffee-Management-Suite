@@ -64,11 +64,11 @@ export function EmployeeHoursEntry({
       <Table>
         <TableCaption className="sr-only">Employee hours for the week</TableCaption>
         <TableHeader>
-          <TableRow style={{ backgroundColor: colors.inputBg }}>
-            <TableHead style={{ color: colors.brown }} className="border-b">Employee</TableHead>
-            <TableHead style={{ color: colors.brown }} className="border-b">Hours</TableHead>
-            <TableHead style={{ color: colors.brown }} className="text-right border-b">Payout</TableHead>
-            <TableHead className="w-16 border-b" />
+          <TableRow>
+            <TableHead>Employee</TableHead>
+            <TableHead>Hours</TableHead>
+            <TableHead className="text-right">Payout</TableHead>
+            <TableHead className="w-16" />
           </TableRow>
         </TableHeader>
         <TableBody>

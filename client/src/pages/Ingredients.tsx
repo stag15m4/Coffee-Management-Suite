@@ -118,7 +118,7 @@ export default function Ingredients() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent bg-secondary/20">
+              <TableRow>
                 <TableHead className="w-[40%] pl-6">Name</TableHead>
                 <TableHead>Pack Size</TableHead>
                 <TableHead>Pack Cost</TableHead>

@@ -119,7 +119,7 @@ export default function RecipeDetail() {
             <h3 className="font-display font-bold text-lg mb-4 text-primary">Ingredients</h3>
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent border-border/50">
+                <TableRow>
                   <TableHead className="w-[40%]">Ingredient</TableHead>
                   <TableHead>Qty</TableHead>
                   <TableHead>Unit Cost</TableHead>
