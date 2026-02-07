@@ -47,25 +47,33 @@ VALUES ('equipment-photos', 'equipment-photos', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage policies for equipment-photos bucket
-CREATE POLICY IF NOT EXISTS "Authenticated users can upload equipment photos"
-ON storage.objects FOR INSERT
-TO authenticated
-WITH CHECK (bucket_id = 'equipment-photos');
+DO $$ BEGIN
+  CREATE POLICY "Authenticated users can upload equipment photos"
+  ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'equipment-photos');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can update equipment photos"
-ON storage.objects FOR UPDATE
-TO authenticated
-USING (bucket_id = 'equipment-photos');
+DO $$ BEGIN
+  CREATE POLICY "Authenticated users can update equipment photos"
+  ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'equipment-photos');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can delete equipment photos"
-ON storage.objects FOR DELETE
-TO authenticated
-USING (bucket_id = 'equipment-photos');
+DO $$ BEGIN
+  CREATE POLICY "Authenticated users can delete equipment photos"
+  ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'equipment-photos');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY IF NOT EXISTS "Anyone can view equipment photos"
-ON storage.objects FOR SELECT
-TO public
-USING (bucket_id = 'equipment-photos');
+DO $$ BEGIN
+  CREATE POLICY "Anyone can view equipment photos"
+  ON storage.objects FOR SELECT TO public
+  USING (bucket_id = 'equipment-photos');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 5. Migrate existing document data to equipment_attachments
 INSERT INTO equipment_attachments (tenant_id, equipment_id, attachment_type, name, url, file_type)
