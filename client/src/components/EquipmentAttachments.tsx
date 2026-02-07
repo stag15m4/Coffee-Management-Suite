@@ -8,7 +8,7 @@ import {
   useAddEquipmentAttachment,
   useDeleteEquipmentAttachment,
 } from '@/lib/supabase-queries';
-import { FileText, Globe, Trash2, Plus, Link, Loader2, Paperclip, ExternalLink } from 'lucide-react';
+import { FileText, Globe, Trash2, Plus, Link, Loader2, Paperclip, ExternalLink, X, Eye } from 'lucide-react';
 
 const colors = {
   gold: '#C9A227',
@@ -36,6 +36,7 @@ export function EquipmentAttachments({ equipmentId, tenantId, readOnly }: Equipm
   const [showAddLink, setShowAddLink] = useState(false);
   const [linkName, setLinkName] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [previewAttachment, setPreviewAttachment] = useState<{ name: string; url: string; file_type: string | null } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { uploadFile, isUploading } = useUpload({
@@ -108,27 +109,89 @@ export function EquipmentAttachments({ equipmentId, tenantId, readOnly }: Equipm
   if (readOnly) {
     if (attachments.length === 0) return null;
     return (
-      <div className="mt-2 space-y-1">
-        {attachments.map((att) => (
-          <div key={att.id} className="flex items-center gap-1.5">
-            {att.attachment_type === 'file' ? (
-              <FileText className="w-3 h-3 flex-shrink-0" style={{ color: colors.brownLight }} />
-            ) : (
-              <Globe className="w-3 h-3 flex-shrink-0" style={{ color: colors.brownLight }} />
-            )}
-            <a
-              href={att.attachment_type === 'link' ? att.url : att.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs hover:underline truncate"
-              style={{ color: colors.gold }}
+      <>
+        <div className="mt-2 space-y-1">
+          {attachments.map((att) => (
+            <div key={att.id} className="flex items-center gap-1.5">
+              {att.attachment_type === 'file' ? (
+                <FileText className="w-3 h-3 flex-shrink-0" style={{ color: colors.brownLight }} />
+              ) : (
+                <Globe className="w-3 h-3 flex-shrink-0" style={{ color: colors.brownLight }} />
+              )}
+              {att.attachment_type === 'file' ? (
+                <button
+                  type="button"
+                  onClick={() => setPreviewAttachment({ name: att.name, url: att.url, file_type: att.file_type })}
+                  className="text-xs hover:underline truncate text-left"
+                  style={{ color: colors.gold }}
+                >
+                  {att.name}
+                  <Eye className="w-2.5 h-2.5 inline ml-1" />
+                </button>
+              ) : (
+                <a
+                  href={att.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs hover:underline truncate"
+                  style={{ color: colors.gold }}
+                >
+                  {att.name}
+                  <ExternalLink className="w-2.5 h-2.5 inline ml-1" />
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* File preview overlay */}
+        {previewAttachment && (
+          <div
+            className="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-50"
+            onClick={() => setPreviewAttachment(null)}
+          >
+            <button
+              className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+              onClick={() => setPreviewAttachment(null)}
             >
-              {att.name}
-              <ExternalLink className="w-2.5 h-2.5 inline ml-1" />
-            </a>
+              <X className="w-8 h-8" />
+            </button>
+            <div
+              className="flex flex-col items-center gap-4 max-w-[95vw] max-h-[85vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {previewAttachment.file_type?.startsWith('image/') ? (
+                <img
+                  src={previewAttachment.url}
+                  alt={previewAttachment.name}
+                  className="max-w-[95vw] max-h-[75vh] rounded-lg object-contain"
+                />
+              ) : previewAttachment.file_type === 'application/pdf' ? (
+                <iframe
+                  src={previewAttachment.url}
+                  title={previewAttachment.name}
+                  className="w-[90vw] h-[75vh] rounded-lg bg-white"
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-3 p-8">
+                  <FileText className="w-16 h-16 text-white/70" />
+                  <p className="text-white text-lg">{previewAttachment.name}</p>
+                </div>
+              )}
+              <a
+                href={previewAttachment.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open in New Tab
+              </a>
+            </div>
           </div>
-        ))}
-      </div>
+        )}
+      </>
     );
   }
 
@@ -156,15 +219,28 @@ export function EquipmentAttachments({ equipmentId, tenantId, readOnly }: Equipm
               ) : (
                 <Globe className="w-4 h-4 flex-shrink-0" style={{ color: colors.brownLight }} />
               )}
-              <a
-                href={att.attachment_type === 'link' ? att.url : att.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm hover:underline truncate flex-1"
-                style={{ color: colors.brown }}
-              >
-                {att.name}
-              </a>
+              {att.attachment_type === 'file' ? (
+                <button
+                  type="button"
+                  onClick={() => setPreviewAttachment({ name: att.name, url: att.url, file_type: att.file_type })}
+                  className="text-sm hover:underline truncate flex-1 text-left flex items-center gap-1"
+                  style={{ color: colors.brown }}
+                >
+                  {att.name}
+                  <Eye className="w-3 h-3 inline flex-shrink-0" style={{ color: colors.brownLight }} />
+                </button>
+              ) : (
+                <a
+                  href={att.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm hover:underline truncate flex-1"
+                  style={{ color: colors.brown }}
+                >
+                  {att.name}
+                  <ExternalLink className="w-3 h-3 inline ml-1" />
+                </a>
+              )}
               <button
                 type="button"
                 onClick={() => handleDelete(att.id, att.name)}
@@ -214,6 +290,54 @@ export function EquipmentAttachments({ equipmentId, tenantId, readOnly }: Equipm
           Add Link
         </Button>
       </div>
+
+      {/* File preview overlay */}
+      {previewAttachment && (
+        <div
+          className="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-50"
+          onClick={() => setPreviewAttachment(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+            onClick={() => setPreviewAttachment(null)}
+          >
+            <X className="w-8 h-8" />
+          </button>
+          <div
+            className="flex flex-col items-center gap-4 max-w-[95vw] max-h-[85vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {previewAttachment.file_type?.startsWith('image/') ? (
+              <img
+                src={previewAttachment.url}
+                alt={previewAttachment.name}
+                className="max-w-[95vw] max-h-[75vh] rounded-lg object-contain"
+              />
+            ) : previewAttachment.file_type === 'application/pdf' ? (
+              <iframe
+                src={previewAttachment.url}
+                title={previewAttachment.name}
+                className="w-[90vw] h-[75vh] rounded-lg bg-white"
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-3 p-8">
+                <FileText className="w-16 h-16 text-white/70" />
+                <p className="text-white text-lg">{previewAttachment.name}</p>
+              </div>
+            )}
+            <a
+              href={previewAttachment.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+              style={{ backgroundColor: colors.gold, color: colors.brown }}
+            >
+              <ExternalLink className="w-4 h-4" />
+              Open in New Tab
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Add link form */}
       {showAddLink && (
