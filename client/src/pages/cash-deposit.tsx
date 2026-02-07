@@ -849,36 +849,20 @@ export default function CashDeposit() {
                 </div>
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label style={{ color: ownerTipsEnabled ? colors.brown : colors.brownLight }}>Owner Tips</Label>
-                  <button
-                    type="button"
-                    onClick={toggleOwnerTips}
-                    disabled={!ownerTipsLoaded}
-                    className="text-xs px-2 py-1 rounded disabled:opacity-50"
-                    style={{ 
-                      backgroundColor: ownerTipsEnabled ? colors.gold : colors.creamDark, 
-                      color: ownerTipsEnabled ? colors.white : colors.brownLight 
-                    }}
-                    data-testid="button-toggle-owner-tips"
-                  >
-                    {ownerTipsEnabled ? 'On' : 'Off'}
-                  </button>
-                </div>
+                <Label style={{ color: colors.brown }}>Cash Refund</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
                     type="number"
                     step="0.01"
                     inputMode="decimal"
-                    value={formData.owner_tips}
+                    value={formData.cash_refund}
 
-                    onChange={(e) => updateField('owner_tips', e.target.value)}
+                    onChange={(e) => updateField('cash_refund', e.target.value)}
                     className="pl-7"
-                    style={{ backgroundColor: ownerTipsEnabled && ownerTipsLoaded ? colors.inputBg : colors.creamDark }}
+                    style={{ backgroundColor: colors.inputBg }}
                     placeholder="0.00"
-                    disabled={!ownerTipsEnabled || !ownerTipsLoaded}
-                    data-testid="input-owner-tips"
+                    data-testid="input-cash-refund"
                   />
                 </div>
               </div>
@@ -919,20 +903,36 @@ export default function CashDeposit() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label style={{ color: colors.brown }}>Cash Refund</Label>
+                <div className="flex items-center justify-between">
+                  <Label style={{ color: ownerTipsEnabled ? colors.brown : colors.brownLight }}>Owner Tips</Label>
+                  <button
+                    type="button"
+                    onClick={toggleOwnerTips}
+                    disabled={!ownerTipsLoaded}
+                    className="text-xs px-2 py-1 rounded disabled:opacity-50"
+                    style={{
+                      backgroundColor: ownerTipsEnabled ? colors.gold : colors.creamDark,
+                      color: ownerTipsEnabled ? colors.white : colors.brownLight
+                    }}
+                    data-testid="button-toggle-owner-tips"
+                  >
+                    {ownerTipsEnabled ? 'On' : 'Off'}
+                  </button>
+                </div>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
                     type="number"
                     step="0.01"
                     inputMode="decimal"
-                    value={formData.cash_refund}
+                    value={formData.owner_tips}
 
-                    onChange={(e) => updateField('cash_refund', e.target.value)}
+                    onChange={(e) => updateField('owner_tips', e.target.value)}
                     className="pl-7"
-                    style={{ backgroundColor: colors.inputBg }}
+                    style={{ backgroundColor: ownerTipsEnabled && ownerTipsLoaded ? colors.inputBg : colors.creamDark }}
                     placeholder="0.00"
-                    data-testid="input-cash-refund"
+                    disabled={!ownerTipsEnabled || !ownerTipsLoaded}
+                    data-testid="input-owner-tips"
                   />
                 </div>
               </div>

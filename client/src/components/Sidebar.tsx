@@ -131,22 +131,22 @@ export function Sidebar() {
       )}
 
       {/* Branding */}
-      <div className="p-4 border-b" style={{ borderColor: colors.creamDark }}>
+      <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: colors.creamDark }}>
         <Link href="/">
-          <button className="flex items-center gap-2 w-full text-left">
+          <button className="flex flex-col items-center gap-1.5 w-full">
             {branding?.logo_url ? (
-              <img src={branding.logo_url} alt={displayName} className="h-8 w-auto" />
+              <img src={branding.logo_url} alt={displayName} className="h-10 w-auto" />
             ) : (
               <div
-                className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
+                className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: branding?.primary_color || colors.gold }}
               >
-                <span className="text-xs font-bold" style={{ color: colors.brown }}>
+                <span className="text-sm font-bold" style={{ color: colors.brown }}>
                   {displayName.substring(0, 2).toUpperCase()}
                 </span>
               </div>
             )}
-            <span className="text-sm font-bold truncate" style={{ color: colors.brown }}>
+            <span className="text-sm font-bold text-center leading-tight" style={{ color: colors.brown }}>
               {displayName}
             </span>
           </button>
