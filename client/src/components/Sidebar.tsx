@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
@@ -278,10 +278,11 @@ function ExpandableModule({
 }) {
   const [expanded, setExpanded] = useState(isOnModule);
   const Icon = nav.icon;
+  const searchString = useSearch();
 
   // Get the active tab from the URL search params
   const activeTab = isOnModule
-    ? new URLSearchParams(window.location.search).get('tab') || nav.tabs![0].key
+    ? new URLSearchParams(searchString).get('tab') || nav.tabs![0].key
     : null;
 
   return (

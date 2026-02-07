@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { useSearch, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, queryKeys } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
@@ -597,18 +598,12 @@ export default function EquipmentMaintenance() {
     throw lastError;
   }, []);
   
-  const initialTab = (new URLSearchParams(window.location.search).get('tab') || 'dashboard') as 'dashboard' | 'equipment' | 'tasks';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'equipment' | 'tasks'>(initialTab);
-
-  // Sync tab state when sidebar sub-nav changes the URL
-  useEffect(() => {
-    const onPopState = () => {
-      const tab = new URLSearchParams(window.location.search).get('tab') as 'dashboard' | 'equipment' | 'tasks' | null;
-      if (tab) setActiveTab(tab);
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
+  const searchString = useSearch();
+  const [, setLocation] = useLocation();
+  const activeTab = (new URLSearchParams(searchString).get('tab') || 'dashboard') as 'dashboard' | 'equipment' | 'tasks';
+  const setActiveTab = useCallback((tab: 'dashboard' | 'equipment' | 'tasks') => {
+    setLocation(`/equipment-maintenance?tab=${tab}`);
+  }, [setLocation]);
   const [showAddEquipment, setShowAddEquipment] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);

@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearch, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { Trash2, Check, X, Pencil, Copy } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
@@ -3632,19 +3633,13 @@ const VendorsTab = ({ ingredients, onUpdateIngredientCost }: VendorsTabProps) =>
 import { Fragment } from 'react';
 
 export default function Home() {
-  const initialTab = new URLSearchParams(window.location.search).get('tab') || 'pricing';
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const searchString = useSearch();
+  const [, setLocation] = useLocation();
+  const activeTab = new URLSearchParams(searchString).get('tab') || 'pricing';
+  const setActiveTab = useCallback((tab: string) => {
+    setLocation(`/recipe-costing?tab=${tab}`);
+  }, [setLocation]);
   const queryClient = useQueryClient();
-
-  // Sync tab state when sidebar sub-nav changes the URL
-  useEffect(() => {
-    const onPopState = () => {
-      const tab = new URLSearchParams(window.location.search).get('tab');
-      if (tab) setActiveTab(tab);
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
   const { profile, tenant, branding, primaryTenant } = useAuth();
   const { confirm, ConfirmDialog } = useConfirmDialog();
   
