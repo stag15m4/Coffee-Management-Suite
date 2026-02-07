@@ -825,6 +825,44 @@ export async function registerRoutes(
     }
   });
 
+  // Ensure platform admin has a user_profiles entry in a tenant (creates one if missing)
+  app.post('/api/platform-admin/ensure-profile', requirePlatformAdmin, async (req, res) => {
+    try {
+      const userId = req.headers['x-user-id'] as string;
+      const { tenant_id } = req.body;
+      if (!tenant_id) {
+        return res.status(400).json({ error: 'tenant_id is required' });
+      }
+
+      // Check if profile already exists
+      const existing = await db.execute(sql`
+        SELECT id FROM user_profiles WHERE id = ${userId} AND tenant_id = ${tenant_id}
+      `);
+      if (existing.rows.length > 0) {
+        return res.json({ created: false });
+      }
+
+      // Get admin info for the profile
+      const adminResult = await db.execute(sql`
+        SELECT email, full_name FROM platform_admins WHERE id = ${userId}
+      `);
+      if (adminResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Admin not found' });
+      }
+      const admin = adminResult.rows[0] as { email: string; full_name: string };
+
+      // Create the profile with owner role
+      await db.execute(sql`
+        INSERT INTO user_profiles (id, tenant_id, email, full_name, role, is_active)
+        VALUES (${userId}, ${tenant_id}, ${admin.email}, ${admin.full_name}, 'owner', true)
+      `);
+
+      res.json({ created: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }
 
