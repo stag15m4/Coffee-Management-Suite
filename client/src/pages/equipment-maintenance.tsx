@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearch, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, queryKeys } from '@/lib/supabase-queries';
@@ -622,7 +622,41 @@ export default function EquipmentMaintenance() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
+  const [editingEquipment, setEditingEquipmentRaw] = useState<Equipment | null>(null);
+  const originalEquipmentRef = useRef<Equipment | null>(null);
+
+  // Wrap setEditingEquipment to track original state
+  const setEditingEquipment = useCallback((eq: Equipment | null | ((prev: Equipment | null) => Equipment | null)) => {
+    setEditingEquipmentRaw((prev) => {
+      const next = typeof eq === 'function' ? eq(prev) : eq;
+      // When starting to edit (null -> item), save the original
+      if (prev === null && next !== null) {
+        originalEquipmentRef.current = { ...next };
+      }
+      // When stopping edit (item -> null), clear original
+      if (next === null) {
+        originalEquipmentRef.current = null;
+      }
+      return next;
+    });
+  }, []);
+
+  const hasUnsavedEquipmentChanges = useCallback(() => {
+    if (!editingEquipment || !originalEquipmentRef.current) return false;
+    const orig = originalEquipmentRef.current;
+    return (
+      editingEquipment.name !== orig.name ||
+      editingEquipment.category !== orig.category ||
+      editingEquipment.notes !== orig.notes ||
+      editingEquipment.has_warranty !== orig.has_warranty ||
+      editingEquipment.purchase_date !== orig.purchase_date ||
+      editingEquipment.warranty_duration_months !== orig.warranty_duration_months ||
+      editingEquipment.warranty_notes !== orig.warranty_notes ||
+      editingEquipment.photo_url !== orig.photo_url ||
+      editingEquipment.in_service_date !== orig.in_service_date
+    );
+  }, [editingEquipment]);
+
   const [completingTask, setCompletingTask] = useState<MaintenanceTask | null>(null);
   const [editingTaskLastServiced, setEditingTaskLastServiced] = useState<MaintenanceTask | null>(null);
   const [editLastServicedDate, setEditLastServicedDate] = useState('');
@@ -764,9 +798,9 @@ export default function EquipmentMaintenance() {
     }
   };
   
-  const handleUpdateEquipment = async () => {
+  const saveEquipment = useCallback(async (closeAfterSave: boolean) => {
     if (!editingEquipment) return;
-    
+
     if (editingEquipment.has_warranty) {
       if (!editingEquipment.purchase_date) {
         toast({ title: 'Please enter purchase date for warranty tracking', variant: 'destructive' });
@@ -777,7 +811,7 @@ export default function EquipmentMaintenance() {
         return;
       }
     }
-    
+
     setIsSaving(true);
     setSaveError(null);
     try {
@@ -795,8 +829,13 @@ export default function EquipmentMaintenance() {
           in_service_date: editingEquipment.in_service_date,
         }
       }));
-      
-      setEditingEquipment(null);
+
+      // Update original ref so changes are no longer "unsaved"
+      originalEquipmentRef.current = { ...editingEquipment };
+
+      if (closeAfterSave) {
+        setEditingEquipment(null);
+      }
       toast({ title: 'Equipment updated successfully' });
     } catch (error: any) {
       setSaveError(error.message);
@@ -804,8 +843,47 @@ export default function EquipmentMaintenance() {
     } finally {
       setIsSaving(false);
     }
-  };
-  
+  }, [editingEquipment, toast, withRetry, updateEquipmentMutation, setEditingEquipment]);
+
+  const handleUpdateEquipment = useCallback(() => saveEquipment(true), [saveEquipment]);
+
+  const handleAutoSaveEquipment = useCallback(() => {
+    if (hasUnsavedEquipmentChanges()) {
+      saveEquipment(false);
+    }
+  }, [hasUnsavedEquipmentChanges, saveEquipment]);
+
+  const handleCancelEditEquipment = useCallback(async () => {
+    if (hasUnsavedEquipmentChanges()) {
+      const shouldSave = await confirm({
+        title: 'Unsaved Changes',
+        description: 'You have unsaved changes to this equipment. Would you like to save them?',
+        confirmLabel: 'Save',
+        cancelLabel: 'Discard',
+      });
+      if (shouldSave) {
+        await saveEquipment(true);
+        return;
+      }
+    }
+    setEditingEquipment(null);
+  }, [hasUnsavedEquipmentChanges, saveEquipment, confirm, setEditingEquipment]);
+
+  const handleEditEquipment = useCallback(async (item: Equipment) => {
+    if (editingEquipment && editingEquipment.id !== item.id && hasUnsavedEquipmentChanges()) {
+      const shouldSave = await confirm({
+        title: 'Unsaved Changes',
+        description: `You have unsaved changes to "${editingEquipment.name}". Would you like to save them?`,
+        confirmLabel: 'Save',
+        cancelLabel: 'Discard',
+      });
+      if (shouldSave) {
+        await saveEquipment(false);
+      }
+    }
+    setEditingEquipment(item);
+  }, [editingEquipment, hasUnsavedEquipmentChanges, confirm, saveEquipment, setEditingEquipment]);
+
   const handleDeleteEquipment = async (id: string) => {
     const name = equipment.find(e => e.id === id)?.name || 'this equipment';
     if (!await confirm({ title: `Remove ${name}?`, description: 'All related maintenance tasks will also be removed.', confirmLabel: 'Remove', variant: 'destructive' })) return;
@@ -1914,6 +1992,7 @@ export default function EquipmentMaintenance() {
                           <EquipmentAttachments
                             equipmentId={editingEquipment.id}
                             tenantId={editingEquipment.tenant_id}
+                            onAttachmentAdded={handleAutoSaveEquipment}
                           />
 
                           <div className="flex gap-2">
@@ -1930,7 +2009,7 @@ export default function EquipmentMaintenance() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => setEditingEquipment(null)}
+                              onClick={handleCancelEditEquipment}
                               style={{ borderColor: colors.creamDark, color: colors.brown }}
                               data-testid="button-cancel-edit-equipment"
                             >
@@ -2026,7 +2105,7 @@ export default function EquipmentMaintenance() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => setEditingEquipment(item)}
+                              onClick={() => handleEditEquipment(item)}
                               style={{ color: colors.brown }}
                               data-testid={`button-edit-equipment-${item.id}`}
                             >

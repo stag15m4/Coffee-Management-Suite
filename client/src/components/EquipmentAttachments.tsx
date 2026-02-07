@@ -25,9 +25,10 @@ interface EquipmentAttachmentsProps {
   equipmentId: string;
   tenantId: string;
   readOnly?: boolean;
+  onAttachmentAdded?: () => void;
 }
 
-export function EquipmentAttachments({ equipmentId, tenantId, readOnly }: EquipmentAttachmentsProps) {
+export function EquipmentAttachments({ equipmentId, tenantId, readOnly, onAttachmentAdded }: EquipmentAttachmentsProps) {
   const { toast } = useToast();
   const { data: attachments = [], isLoading } = useEquipmentAttachments(equipmentId);
   const addAttachment = useAddEquipmentAttachment();
@@ -61,6 +62,7 @@ export function EquipmentAttachments({ equipmentId, tenantId, readOnly }: Equipm
           file_type: file.type || undefined,
         });
         toast({ title: 'File attached' });
+        onAttachmentAdded?.();
       } catch {
         toast({ title: 'Failed to save attachment', variant: 'destructive' });
       }
@@ -89,6 +91,7 @@ export function EquipmentAttachments({ equipmentId, tenantId, readOnly }: Equipm
       setLinkUrl('');
       setShowAddLink(false);
       toast({ title: 'Link attached' });
+      onAttachmentAdded?.();
     } catch {
       toast({ title: 'Failed to save link', variant: 'destructive' });
     }
