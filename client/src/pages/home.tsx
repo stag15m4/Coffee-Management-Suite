@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearch, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { Trash2, Check, X, Pencil, Copy } from 'lucide-react';
+import { Trash2, Check, X, Pencil, Copy, Plus } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
@@ -3166,15 +3167,22 @@ interface BaseTemplatesTabProps {
   onAddTemplateIngredient: (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => Promise<void>;
   onDeleteTemplateIngredient: (id: string) => Promise<void>;
   onDeleteTemplate: (id: string) => Promise<void>;
+  onAddDrinkSize: (size: { name: string; size_oz: number; drink_type: string }) => Promise<string>;
+  onRemoveTemplateSize: (templateId: string, sizeId: string) => Promise<void>;
 }
 
-const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient, onDeleteTemplate }: BaseTemplatesTabProps) => {
+const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient, onDeleteTemplate, onAddDrinkSize, onRemoveTemplateSize }: BaseTemplatesTabProps) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
   const [newTemplate, setNewTemplate] = useState({ name: '', drink_type: 'Hot', description: '' });
   const [addingIngredient, setAddingIngredient] = useState<{ templateId: string; sizeId: string } | null>(null);
   const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity: '1', unit: '' });
   const [copying, setCopying] = useState(false);
+  const [pendingSizes, setPendingSizes] = useState<Record<string, string[]>>({});
+  const [addingSizeFor, setAddingSizeFor] = useState<string | null>(null);
+  const [creatingSize, setCreatingSize] = useState(false);
+  const [newSizeName, setNewSizeName] = useState('');
+  const [newSizeOz, setNewSizeOz] = useState('');
 
   const handleCopyFromSize = async (template: BaseTemplate, targetSizeId: string, sourceSizeId: string) => {
     const sourceIngredients = (template.ingredients || []).filter(i => i.size_id === sourceSizeId);
@@ -3299,10 +3307,10 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
 
       <div className="grid gap-4">
         {baseTemplates.map(template => {
-          const templateSizes = drinkSizes.filter(s => 
-            (s.drink_type || '').toLowerCase() === (template.drink_type || '').toLowerCase() || 
-            !s.drink_type
-          );
+          const usedSizeIds = Array.from(new Set((template.ingredients || []).map(i => i.size_id)));
+          const pendingForTemplate = (pendingSizes[template.id] || []).filter(id => !usedSizeIds.includes(id));
+          const allShownSizeIds = [...usedSizeIds, ...pendingForTemplate];
+          const templateSizes = drinkSizes.filter(s => allShownSizeIds.includes(s.id));
           return (
             <div
               key={template.id}
@@ -3341,13 +3349,14 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
               {expandedTemplate === template.id && (
                 <div className="p-4">
                   <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
-                    Add disposables (cups, lids, sleeves, etc.) for each size:
+                    Add items for each size:
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {templateSizes.map(size => {
                       const sizeIngredients = (template.ingredients || []).filter(i => i.size_id === size.id);
                       const isAdding = addingIngredient?.templateId === template.id && addingIngredient?.sizeId === size.id;
+                      const isPending = sizeIngredients.length === 0;
 
                       return (
                         <div
@@ -3355,30 +3364,25 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
                           className="rounded-lg p-3"
                           style={{ backgroundColor: colors.cream }}
                         >
-                          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center justify-between gap-2 mb-2">
                             <div className="font-semibold" style={{ color: colors.brown }}>{size.name}</div>
-                            {templateSizes.filter(s => s.id !== size.id && (template.ingredients || []).some(i => i.size_id === s.id)).length > 0 && (
-                              <select
-                                onChange={(e) => {
-                                  if (e.target.value) {
-                                    handleCopyFromSize(template, size.id, e.target.value);
-                                    e.target.value = '';
+                              <button
+                                onClick={async () => {
+                                  if (sizeIngredients.length > 0) {
+                                    if (!window.confirm(`Remove "${size.name}" and all its items from this template?`)) return;
+                                    await onRemoveTemplateSize(template.id, size.id);
                                   }
+                                  setPendingSizes(prev => ({
+                                    ...prev,
+                                    [template.id]: (prev[template.id] || []).filter(id => id !== size.id),
+                                  }));
                                 }}
-                                disabled={copying}
-                                className="text-xs px-2 py-1 rounded border"
-                                style={{ borderColor: colors.gold, color: colors.brownLight }}
-                                data-testid={`select-copy-${size.id}`}
+                                className="p-0.5 rounded hover:bg-black/5"
+                                title="Remove size"
+                                data-testid={`button-remove-size-${size.id}`}
                               >
-                                <option value="">Copy from...</option>
-                                {templateSizes
-                                  .filter(s => s.id !== size.id && (template.ingredients || []).some(i => i.size_id === s.id))
-                                  .map(s => (
-                                    <option key={s.id} value={s.id}>{s.name}</option>
-                                  ))
-                                }
-                              </select>
-                            )}
+                                <X className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />
+                              </button>
                           </div>
 
                           {sizeIngredients.map(ing => {
@@ -3391,11 +3395,11 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
                                 </span>
                                 <button
                                   onClick={() => onDeleteTemplateIngredient(ing.id)}
-                                  className="text-xs px-2 py-1 rounded"
-                                  style={{ color: colors.red }}
+                                  className="p-1 rounded hover:bg-red-50 shrink-0"
+                                  title="Remove item"
                                   data-testid={`button-delete-ing-${ing.id}`}
                                 >
-                                  Remove
+                                  <Trash2 className="w-3.5 h-3.5" style={{ color: colors.red }} />
                                 </button>
                               </div>
                             );
@@ -3477,18 +3481,212 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
                               </div>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => setAddingIngredient({ templateId: template.id, sizeId: size.id })}
-                              className="mt-2 text-sm font-medium"
-                              style={{ color: colors.gold }}
-                              data-testid={`button-add-ing-${size.id}`}
-                            >
-                              + Add Item
-                            </button>
+                            <div className="mt-2 flex flex-wrap items-center gap-3">
+                              <button
+                                onClick={() => setAddingIngredient({ templateId: template.id, sizeId: size.id })}
+                                className="text-sm font-medium"
+                                style={{ color: colors.gold }}
+                                data-testid={`button-add-ing-${size.id}`}
+                              >
+                                + Add Item
+                              </button>
+                              {sizeIngredients.length === 0 && templateSizes.filter(s => s.id !== size.id && (template.ingredients || []).some(i => i.size_id === s.id)).length > 0 && (
+                                <select
+                                  onChange={(e) => {
+                                    if (e.target.value) {
+                                      handleCopyFromSize(template, size.id, e.target.value);
+                                      e.target.value = '';
+                                    }
+                                  }}
+                                  disabled={copying}
+                                  className="text-xs px-2 py-1 rounded border"
+                                  style={{ borderColor: colors.gold, color: colors.brownLight }}
+                                  data-testid={`select-copy-${size.id}`}
+                                >
+                                  <option value="">Copy from...</option>
+                                  {templateSizes
+                                    .filter(s => s.id !== size.id && (template.ingredients || []).some(i => i.size_id === s.id))
+                                    .map(s => (
+                                      <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))
+                                  }
+                                </select>
+                              )}
+                            </div>
                           )}
                         </div>
                       );
                     })}
+
+                    {/* Add Size button */}
+                    <Popover open={addingSizeFor === template.id} onOpenChange={(open) => {
+                      setAddingSizeFor(open ? template.id : null);
+                      if (!open) {
+                        setCreatingSize(false);
+                        setNewSizeName('');
+                        setNewSizeOz('');
+                      }
+                    }}>
+                      <PopoverTrigger asChild>
+                        <button
+                          className="rounded-lg p-3 border-2 border-dashed flex flex-col items-center justify-center gap-2 min-h-[80px] transition-colors hover:border-solid"
+                          style={{ borderColor: colors.gold, color: colors.brownLight }}
+                          data-testid={`button-add-size-${template.id}`}
+                        >
+                          <Plus className="w-5 h-5" />
+                          <span className="text-sm font-medium">Add Size</span>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-0" align="start">
+                        {creatingSize ? (
+                          <div className="p-3 space-y-2">
+                            <p className="text-sm font-semibold" style={{ color: colors.brown }}>New Size</p>
+                            <input
+                              type="text"
+                              placeholder="Name (e.g., 24oz Cold, Small Box)"
+                              value={newSizeName}
+                              onChange={(e) => setNewSizeName(e.target.value)}
+                              className="w-full px-2 py-1.5 rounded border text-sm"
+                              style={{ borderColor: colors.gold }}
+                              autoFocus
+                              data-testid="input-new-size-name"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Size (oz) — 0 for non-drinks"
+                              value={newSizeOz}
+                              onChange={(e) => setNewSizeOz(e.target.value)}
+                              className="w-full px-2 py-1.5 rounded border text-sm"
+                              style={{ borderColor: colors.gold }}
+                              data-testid="input-new-size-oz"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={async () => {
+                                  if (!newSizeName.trim()) return;
+                                  try {
+                                    const newId = await onAddDrinkSize({
+                                      name: newSizeName.trim(),
+                                      size_oz: parseFloat(newSizeOz) || 0,
+                                      drink_type: template.drink_type,
+                                    });
+                                    setPendingSizes(prev => ({
+                                      ...prev,
+                                      [template.id]: [...(prev[template.id] || []), newId],
+                                    }));
+                                    setAddingSizeFor(null);
+                                    setCreatingSize(false);
+                                    setNewSizeName('');
+                                    setNewSizeOz('');
+                                  } catch (err: any) {
+                                    alert('Error creating size: ' + err.message);
+                                  }
+                                }}
+                                className="flex-1 px-2 py-1.5 rounded text-sm font-medium"
+                                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                                data-testid="button-save-new-size"
+                              >
+                                Create
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setCreatingSize(false);
+                                  setNewSizeName('');
+                                  setNewSizeOz('');
+                                }}
+                                className="flex-1 px-2 py-1.5 rounded text-sm font-medium"
+                                style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                              >
+                                Back
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="py-1">
+                            {(() => {
+                              const matchingType = drinkSizes.filter(s =>
+                                (s.drink_type || '').toLowerCase() === (template.drink_type || '').toLowerCase()
+                                && !allShownSizeIds.includes(s.id)
+                              );
+                              const otherSizes = drinkSizes.filter(s =>
+                                (s.drink_type || '').toLowerCase() !== (template.drink_type || '').toLowerCase()
+                                && !allShownSizeIds.includes(s.id)
+                                && s.drink_type !== 'bulk'
+                              );
+
+                              return (
+                                <>
+                                  {matchingType.length > 0 && (
+                                    <>
+                                      <p className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider" style={{ color: colors.brownLight }}>
+                                        {template.drink_type} sizes
+                                      </p>
+                                      {matchingType.map(size => (
+                                        <button
+                                          key={size.id}
+                                          onClick={() => {
+                                            setPendingSizes(prev => ({
+                                              ...prev,
+                                              [template.id]: [...(prev[template.id] || []), size.id],
+                                            }));
+                                            setAddingSizeFor(null);
+                                          }}
+                                          className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 transition-colors"
+                                          style={{ color: colors.brown }}
+                                          data-testid={`option-size-${size.id}`}
+                                        >
+                                          {size.name}
+                                        </button>
+                                      ))}
+                                    </>
+                                  )}
+                                  {otherSizes.length > 0 && (
+                                    <>
+                                      <div className="border-t my-1" style={{ borderColor: colors.creamDark }} />
+                                      <p className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider" style={{ color: colors.brownLight }}>
+                                        Other sizes
+                                      </p>
+                                      {otherSizes.map(size => (
+                                        <button
+                                          key={size.id}
+                                          onClick={() => {
+                                            setPendingSizes(prev => ({
+                                              ...prev,
+                                              [template.id]: [...(prev[template.id] || []), size.id],
+                                            }));
+                                            setAddingSizeFor(null);
+                                          }}
+                                          className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 transition-colors"
+                                          style={{ color: colors.brown }}
+                                          data-testid={`option-size-${size.id}`}
+                                        >
+                                          {size.name} <span className="text-xs" style={{ color: colors.brownLight }}>({size.drink_type})</span>
+                                        </button>
+                                      ))}
+                                    </>
+                                  )}
+                                  {matchingType.length === 0 && otherSizes.length === 0 && (
+                                    <p className="px-3 py-2 text-sm" style={{ color: colors.brownLight }}>
+                                      No more existing sizes available.
+                                    </p>
+                                  )}
+                                  <div className="border-t my-1" style={{ borderColor: colors.creamDark }} />
+                                  <button
+                                    onClick={() => setCreatingSize(true)}
+                                    className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-black/5 transition-colors flex items-center gap-2"
+                                    style={{ color: colors.gold }}
+                                    data-testid="button-create-new-size"
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    Create new size
+                                  </button>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
               )}
@@ -4019,6 +4217,35 @@ export default function Home() {
     }
   };
 
+  const handleAddDrinkSize = async (size: { name: string; size_oz: number; drink_type: string }): Promise<string> => {
+    const { data: maxOrder } = await supabase
+      .from('drink_sizes')
+      .select('display_order')
+      .order('display_order', { ascending: false })
+      .limit(1);
+    const nextOrder = (maxOrder?.[0]?.display_order || 0) + 1;
+
+    const { data, error } = await supabase
+      .from('drink_sizes')
+      .insert({ name: size.name, size_oz: size.size_oz, display_order: nextOrder, drink_type: size.drink_type, tenant_id: profile?.tenant_id })
+      .select('id')
+      .single();
+
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: queryKeys.drinkSizes });
+    return data.id;
+  };
+
+  const handleRemoveTemplateSize = async (templateId: string, sizeId: string) => {
+    const { error } = await supabase
+      .from('base_template_ingredients')
+      .delete()
+      .eq('base_template_id', templateId)
+      .eq('size_id', sizeId);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
+  };
+
   const handleAddBaseTemplate = async (template: { name: string; drink_type: string; description?: string }) => {
     try {
       // Get tenant_id from an existing base_template since profile may not be loaded
@@ -4271,6 +4498,8 @@ export default function Home() {
             onAddTemplateIngredient={handleAddTemplateIngredient}
             onDeleteTemplateIngredient={handleDeleteTemplateIngredient}
             onDeleteTemplate={handleDeleteBaseTemplate}
+            onAddDrinkSize={handleAddDrinkSize}
+            onRemoveTemplateSize={handleRemoveTemplateSize}
           />
         )}
         {activeTab === 'recipes' && !adminViewingTenant && (
