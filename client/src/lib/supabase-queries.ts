@@ -20,6 +20,7 @@ export const queryKeys = {
   equipment: ['equipment'] as const,
   maintenanceTasks: ['maintenance-tasks'] as const,
   maintenanceLogs: ['maintenance-logs'] as const,
+  equipmentAttachments: ['equipment-attachments'] as const,
 };
 
 export function useIngredientCategories() {
@@ -401,6 +402,7 @@ export interface Equipment {
   document_url: string | null;
   document_name: string | null;
   in_service_date: string | null;
+  photo_url: string | null;
 }
 
 export interface MaintenanceTask {
@@ -514,6 +516,7 @@ export function useAddEquipment() {
       document_url?: string;
       document_name?: string;
       in_service_date?: string;
+      photo_url?: string;
     }) => {
       const { data, error } = await supabase
         .from('equipment')
@@ -552,7 +555,7 @@ export function useUpdateEquipment() {
 
 export function useDeleteEquipment() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -564,6 +567,79 @@ export function useDeleteEquipment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.equipment });
       queryClient.invalidateQueries({ queryKey: queryKeys.maintenanceTasks });
+    },
+  });
+}
+
+// =====================================================
+// EQUIPMENT ATTACHMENTS
+// =====================================================
+
+export interface EquipmentAttachment {
+  id: string;
+  tenant_id: string;
+  equipment_id: string;
+  attachment_type: 'file' | 'link';
+  name: string;
+  url: string;
+  file_type: string | null;
+  created_at: string;
+}
+
+export function useEquipmentAttachments(equipmentId?: string) {
+  return useQuery({
+    queryKey: [...queryKeys.equipmentAttachments, equipmentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('equipment_attachments')
+        .select('*')
+        .eq('equipment_id', equipmentId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as EquipmentAttachment[];
+    },
+    enabled: !!equipmentId,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useAddEquipmentAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (attachment: {
+      tenant_id: string;
+      equipment_id: string;
+      attachment_type: 'file' | 'link';
+      name: string;
+      url: string;
+      file_type?: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('equipment_attachments')
+        .insert(attachment)
+        .select();
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Insert failed - check RLS policies.');
+      return data[0] as EquipmentAttachment;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.equipmentAttachments });
+    },
+  });
+}
+
+export function useDeleteEquipmentAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('equipment_attachments')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.equipmentAttachments });
     },
   });
 }

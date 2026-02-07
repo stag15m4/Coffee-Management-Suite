@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSearch, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, queryKeys } from '@/lib/supabase-queries';
@@ -20,7 +20,8 @@ import {
   type Equipment,
   type MaintenanceTask
 } from '@/lib/supabase-queries';
-import { useUpload } from '@/hooks/use-upload';
+import { PhotoCapture } from '@/components/PhotoCapture';
+import { EquipmentAttachments } from '@/components/EquipmentAttachments';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,9 +49,6 @@ import {
   RotateCcw,
   Shield,
   ShieldOff,
-  Upload,
-  FileText,
-  ExternalLink
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -391,6 +389,12 @@ async function exportEquipmentRecords(
           <p>Exported: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
         </div>
       
+      ${equipment.photo_url ? `
+      <div style="margin-bottom: 15px;">
+        <img src="${equipment.photo_url}" alt="${equipment.name}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #E8E0CC;" />
+      </div>
+      ` : ''}
+
       <div class="section-title">Equipment Information</div>
         <div class="info-grid">
           <span class="info-label">Name:</span>
@@ -409,12 +413,12 @@ async function exportEquipmentRecords(
           <span class="info-label">Added:</span>
           <span class="info-value">${new Date(equipment.created_at).toLocaleDateString()}</span>
 
-          ${equipment.in_service_date ? `
+          ${equipment.in_service_date && !equipment.has_warranty ? `
           <span class="info-label">In Service:</span>
           <span class="info-value">${new Date(equipment.in_service_date).toLocaleDateString()}</span>
           ` : ''}
         </div>
-        
+
         ${equipment.has_warranty ? `
         <div class="section-title">Warranty Information</div>
         <div class="info-grid">
@@ -424,10 +428,13 @@ async function exportEquipmentRecords(
               ${warrantyStatus === 'covered' ? 'Under Warranty' : 'Warranty Expired'}
             </span>
           </span>
-          
+
           <span class="info-label">Purchase Date:</span>
           <span class="info-value">${equipment.purchase_date ? new Date(equipment.purchase_date).toLocaleDateString() : 'N/A'}</span>
-          
+
+          <span class="info-label">In Service:</span>
+          <span class="info-value">${new Date(equipment.in_service_date || equipment.purchase_date || '').toLocaleDateString()}</span>
+
           <span class="info-label">Duration:</span>
           <span class="info-value">${equipment.warranty_duration_months} months</span>
           
@@ -631,41 +638,37 @@ export default function EquipmentMaintenance() {
   const [newEquipmentPurchaseDate, setNewEquipmentPurchaseDate] = useState('');
   const [newEquipmentWarrantyMonths, setNewEquipmentWarrantyMonths] = useState('');
   const [newEquipmentWarrantyNotes, setNewEquipmentWarrantyNotes] = useState('');
-  const [newEquipmentDocumentUrl, setNewEquipmentDocumentUrl] = useState('');
-  const [newEquipmentDocumentName, setNewEquipmentDocumentName] = useState('');
   const [newEquipmentInServiceDate, setNewEquipmentInServiceDate] = useState('');
-  
-  const newEquipmentFileInputRef = useRef<HTMLInputElement>(null);
-  const editEquipmentFileInputRef = useRef<HTMLInputElement>(null);
-  
-  const { uploadFile, isUploading: isUploadingNew } = useUpload({
-    onSuccess: (response) => {
-      setNewEquipmentDocumentUrl(response.objectPath);
-    },
-    onError: (error) => {
-      toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
-    }
-  });
-  
-  const [pendingEditFileName, setPendingEditFileName] = useState<string | null>(null);
-  
-  const { uploadFile: uploadEditFile, isUploading: isUploadingEdit } = useUpload({
-    onSuccess: (response) => {
-      if (editingEquipment && pendingEditFileName) {
-        setEditingEquipment({ 
-          ...editingEquipment, 
-          document_url: response.objectPath,
-          document_name: pendingEditFileName
-        });
+  const [newEquipmentPhotoUrl, setNewEquipmentPhotoUrl] = useState('');
+  const [isUploadingNewPhoto, setIsUploadingNewPhoto] = useState(false);
+  const [isUploadingEditPhoto, setIsUploadingEditPhoto] = useState(false);
+
+  const handleEquipmentPhotoUpload = async (file: File, mode: 'new' | 'edit') => {
+    const setUploading = mode === 'new' ? setIsUploadingNewPhoto : setIsUploadingEditPhoto;
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `${profile?.tenant_id}/${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('equipment-photos')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from('equipment-photos')
+        .getPublicUrl(fileName);
+      if (mode === 'new') {
+        setNewEquipmentPhotoUrl(publicUrl);
+      } else if (editingEquipment) {
+        setEditingEquipment({ ...editingEquipment, photo_url: publicUrl });
       }
-      setPendingEditFileName(null);
-    },
-    onError: (error) => {
-      setPendingEditFileName(null);
-      toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+      toast({ title: 'Photo uploaded' });
+    } catch (error: any) {
+      toast({ title: 'Photo upload failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
     }
-  });
-  
+  };
+
   const [newTaskEquipmentId, setNewTaskEquipmentId] = useState('');
   const [newTaskName, setNewTaskName] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
@@ -734,8 +737,7 @@ export default function EquipmentMaintenance() {
         purchase_date: newEquipmentHasWarranty && newEquipmentPurchaseDate ? newEquipmentPurchaseDate : undefined,
         warranty_duration_months: newEquipmentHasWarranty && newEquipmentWarrantyMonths ? parseInt(newEquipmentWarrantyMonths) : undefined,
         warranty_notes: newEquipmentHasWarranty && newEquipmentWarrantyNotes.trim() ? newEquipmentWarrantyNotes.trim() : undefined,
-        document_url: newEquipmentDocumentUrl || undefined,
-        document_name: newEquipmentDocumentName || undefined,
+        photo_url: newEquipmentPhotoUrl || undefined,
         in_service_date: newEquipmentInServiceDate || undefined,
       }));
 
@@ -746,9 +748,8 @@ export default function EquipmentMaintenance() {
       setNewEquipmentPurchaseDate('');
       setNewEquipmentWarrantyMonths('');
       setNewEquipmentWarrantyNotes('');
-      setNewEquipmentDocumentUrl('');
-      setNewEquipmentDocumentName('');
       setNewEquipmentInServiceDate('');
+      setNewEquipmentPhotoUrl('');
       setShowAddEquipment(false);
       toast({ title: 'Equipment added successfully' });
     } catch (error: any) {
@@ -756,22 +757,6 @@ export default function EquipmentMaintenance() {
       toast({ title: 'Error adding equipment', description: error.message, variant: 'destructive' });
     } finally {
       setIsSaving(false);
-    }
-  };
-  
-  const handleNewEquipmentFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setNewEquipmentDocumentName(file.name);
-      await uploadFile(file);
-    }
-  };
-  
-  const handleEditEquipmentFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && editingEquipment) {
-      setPendingEditFileName(file.name);
-      await uploadEditFile(file);
     }
   };
   
@@ -802,8 +787,7 @@ export default function EquipmentMaintenance() {
           purchase_date: editingEquipment.has_warranty ? editingEquipment.purchase_date : null,
           warranty_duration_months: editingEquipment.has_warranty ? editingEquipment.warranty_duration_months : null,
           warranty_notes: editingEquipment.has_warranty ? editingEquipment.warranty_notes : null,
-          document_url: editingEquipment.document_url,
-          document_name: editingEquipment.document_name,
+          photo_url: editingEquipment.photo_url,
           in_service_date: editingEquipment.in_service_date,
         }
       }));
@@ -1310,6 +1294,15 @@ export default function EquipmentMaintenance() {
                       data-testid="input-equipment-name"
                     />
                   </div>
+                  <PhotoCapture
+                    currentPhotoUrl={newEquipmentPhotoUrl || null}
+                    onPhotoSelected={async (file) => handleEquipmentPhotoUpload(file, 'new')}
+                    onPhotoRemoved={() => setNewEquipmentPhotoUrl('')}
+                    isUploading={isUploadingNewPhoto}
+                    shape="square"
+                    size={96}
+                    label="Equipment Photo"
+                  />
                   <div>
                     <Label style={{ color: colors.brown }}>Category</Label>
                     {categories.length > 0 && (
@@ -1365,7 +1358,7 @@ export default function EquipmentMaintenance() {
                       type="date"
                       value={newEquipmentInServiceDate}
                       onChange={e => setNewEquipmentInServiceDate(e.target.value)}
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
                       data-testid="input-equipment-in-service-date"
                     />
                   </div>
@@ -1416,53 +1409,13 @@ export default function EquipmentMaintenance() {
                           data-testid="input-equipment-warranty-notes"
                         />
                       </div>
-                      <div>
-                        <Label style={{ color: colors.brown }}>Warranty Document (Invoice, Receipt)</Label>
-                        <input
-                          type="file"
-                          ref={newEquipmentFileInputRef}
-                          onChange={handleNewEquipmentFileChange}
-                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                          className="hidden"
-                          data-testid="input-equipment-document"
-                        />
-                        <div className="flex items-center gap-2 mt-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => newEquipmentFileInputRef.current?.click()}
-                            disabled={isUploadingNew}
-                            style={{ borderColor: colors.creamDark, color: colors.brown }}
-                            data-testid="button-upload-document"
-                          >
-                            <Upload className="w-4 h-4 mr-2" />
-                            {isUploadingNew ? 'Uploading...' : 'Upload Document'}
-                          </Button>
-                          {newEquipmentDocumentName && (
-                            <div className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
-                              <FileText className="w-4 h-4" style={{ color: colors.gold }} />
-                              <span>{newEquipmentDocumentName}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setNewEquipmentDocumentUrl('');
-                                  setNewEquipmentDocumentName('');
-                                }}
-                                className="h-6 w-6 p-0"
-                                data-testid="button-remove-document"
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
                     </div>
                   )}
-                  
+
+                  <p className="text-xs" style={{ color: colors.brownLight }}>
+                    Save first, then edit to add attachments (manuals, warranty docs, links).
+                  </p>
+
                   <div className="flex gap-2">
                     <Button
                       onClick={handleAddEquipment}
@@ -1483,9 +1436,8 @@ export default function EquipmentMaintenance() {
                         setNewEquipmentPurchaseDate('');
                         setNewEquipmentWarrantyMonths('');
                         setNewEquipmentWarrantyNotes('');
-                        setNewEquipmentDocumentUrl('');
-                        setNewEquipmentDocumentName('');
                         setNewEquipmentInServiceDate('');
+                        setNewEquipmentPhotoUrl('');
                       }}
                       style={{ borderColor: colors.creamDark, color: colors.brown }}
                       data-testid="button-cancel-equipment"
@@ -1523,6 +1475,15 @@ export default function EquipmentMaintenance() {
                             onChange={e => setEditingEquipment({ ...editingEquipment, name: e.target.value })}
                             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                             data-testid="input-edit-equipment-name"
+                          />
+                          <PhotoCapture
+                            currentPhotoUrl={editingEquipment.photo_url}
+                            onPhotoSelected={async (file) => handleEquipmentPhotoUpload(file, 'edit')}
+                            onPhotoRemoved={() => setEditingEquipment({ ...editingEquipment, photo_url: null })}
+                            isUploading={isUploadingEditPhoto}
+                            shape="square"
+                            size={96}
+                            label="Equipment Photo"
                           />
                           <div>
                             {categories.length > 0 && (
@@ -1575,7 +1536,7 @@ export default function EquipmentMaintenance() {
                               type="date"
                               value={editingEquipment.in_service_date || ''}
                               onChange={e => setEditingEquipment({ ...editingEquipment, in_service_date: e.target.value || null })}
-                              style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                              style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
                               data-testid="input-edit-equipment-in-service-date"
                             />
                           </div>
@@ -1626,57 +1587,19 @@ export default function EquipmentMaintenance() {
                                   data-testid="input-edit-equipment-warranty-notes"
                                 />
                               </div>
-                              <div>
-                                <Label style={{ color: colors.brown }}>Warranty Document</Label>
-                                <input
-                                  type="file"
-                                  ref={editEquipmentFileInputRef}
-                                  onChange={handleEditEquipmentFileChange}
-                                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                  className="hidden"
-                                  data-testid="input-edit-equipment-document"
-                                />
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => editEquipmentFileInputRef.current?.click()}
-                                    disabled={isUploadingEdit}
-                                    style={{ borderColor: colors.creamDark, color: colors.brown }}
-                                    data-testid="button-edit-upload-document"
-                                  >
-                                    <Upload className="w-4 h-4 mr-2" />
-                                    {isUploadingEdit ? 'Uploading...' : editingEquipment.document_url ? 'Replace Document' : 'Upload Document'}
-                                  </Button>
-                                  {(editingEquipment.document_name || (isUploadingEdit && pendingEditFileName)) && (
-                                    <div className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
-                                      <FileText className="w-4 h-4" style={{ color: colors.gold }} />
-                                      <span>{isUploadingEdit ? pendingEditFileName : editingEquipment.document_name}</span>
-                                      {!isUploadingEdit && (
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => setEditingEquipment({ ...editingEquipment, document_url: null, document_name: null })}
-                                          className="h-6 w-6 p-0"
-                                          data-testid="button-edit-remove-document"
-                                        >
-                                          <X className="w-4 h-4" />
-                                        </Button>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
                             </div>
                           )}
-                          
+
+                          <EquipmentAttachments
+                            equipmentId={editingEquipment.id}
+                            tenantId={editingEquipment.tenant_id}
+                          />
+
                           <div className="flex gap-2">
                             <Button
                               size="sm"
                               onClick={handleUpdateEquipment}
-                              disabled={updateEquipmentMutation.isPending || isUploadingEdit}
+                              disabled={updateEquipmentMutation.isPending}
                               style={{ backgroundColor: colors.gold, color: colors.brown }}
                               data-testid="button-save-edit-equipment"
                             >
@@ -1697,6 +1620,14 @@ export default function EquipmentMaintenance() {
                         </div>
                       ) : (
                         <div className="flex items-start justify-between gap-4">
+                          {item.photo_url && (
+                            <div
+                              className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0"
+                              style={{ border: `2px solid ${colors.creamDark}` }}
+                            >
+                              <img src={item.photo_url} alt={item.name} className="w-full h-full object-cover" />
+                            </div>
+                          )}
                           <div className="flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium" style={{ color: colors.brown }}>{item.name}</span>
@@ -1729,36 +1660,28 @@ export default function EquipmentMaintenance() {
                             {item.notes && (
                               <p className="text-sm mt-2" style={{ color: colors.brownLight }}>{item.notes}</p>
                             )}
-                            {item.in_service_date && (
-                              <p className="text-xs mt-2" style={{ color: colors.brownLight }}>
-                                In Service: {new Date(item.in_service_date).toLocaleDateString()}
-                              </p>
-                            )}
                             {item.has_warranty && item.purchase_date && (
                               <div className="mt-2 text-xs space-y-1" style={{ color: colors.brownLight }}>
                                 <p>Purchased: {new Date(item.purchase_date).toLocaleDateString()}</p>
+                                <p>In Service: {new Date(item.in_service_date || item.purchase_date).toLocaleDateString()}</p>
                                 {item.warranty_duration_months && (
                                   <p>{formatWarrantyInfo(item)}</p>
                                 )}
                                 {item.warranty_notes && (
                                   <p className="italic">{item.warranty_notes}</p>
                                 )}
-                                {item.document_url && item.document_name && (
-                                  <a
-                                    href={item.document_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 hover:underline"
-                                    style={{ color: colors.gold }}
-                                    data-testid={`link-document-${item.id}`}
-                                  >
-                                    <FileText className="w-3 h-3" />
-                                    {item.document_name}
-                                    <ExternalLink className="w-3 h-3" />
-                                  </a>
-                                )}
                               </div>
                             )}
+                            {!(item.has_warranty && item.purchase_date) && (
+                              <p className="text-xs mt-2" style={{ color: colors.brownLight }}>
+                                In Service: {item.in_service_date ? new Date(item.in_service_date).toLocaleDateString() : 'Not set'}
+                              </p>
+                            )}
+                            <EquipmentAttachments
+                              equipmentId={item.id}
+                              tenantId={item.tenant_id}
+                              readOnly
+                            />
                             <p className="text-xs mt-2" style={{ color: colors.brownLight }}>
                               {tasks.filter(t => t.equipment_id === item.id).length} maintenance tasks
                             </p>
