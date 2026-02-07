@@ -49,6 +49,7 @@ import {
   RotateCcw,
   Shield,
   ShieldOff,
+  ChevronDown,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -612,12 +613,13 @@ export default function EquipmentMaintenance() {
   
   const searchString = useSearch();
   const [, setLocation] = useLocation();
-  const activeTab = (new URLSearchParams(searchString).get('tab') || 'dashboard') as 'dashboard' | 'equipment' | 'tasks';
-  const setActiveTab = useCallback((tab: 'dashboard' | 'equipment' | 'tasks') => {
+  const activeTab = (new URLSearchParams(searchString).get('tab') || 'dashboard') as 'dashboard' | 'equipment';
+  const setActiveTab = useCallback((tab: 'dashboard' | 'equipment') => {
     setLocation(`/equipment-maintenance?tab=${tab}`);
   }, [setLocation]);
   const [showAddEquipment, setShowAddEquipment] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
   const [completingTask, setCompletingTask] = useState<MaintenanceTask | null>(null);
   const [editingTaskLastServiced, setEditingTaskLastServiced] = useState<MaintenanceTask | null>(null);
@@ -1132,15 +1134,6 @@ export default function EquipmentMaintenance() {
             <Settings className="w-4 h-4 mr-2" />
             Equipment
           </Button>
-          <Button
-            variant={activeTab === 'tasks' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('tasks')}
-            style={activeTab === 'tasks' ? { backgroundColor: colors.gold, color: colors.brown } : { borderColor: colors.gold, color: colors.brown }}
-            data-testid="tab-tasks"
-          >
-            <Clock className="w-4 h-4 mr-2" />
-            Tasks
-          </Button>
         </div>
 
         {isLoading ? (
@@ -1198,71 +1191,211 @@ export default function EquipmentMaintenance() {
 
                 <Card style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }}>
                   <CardHeader className="pb-2">
-                    <CardTitle style={{ color: colors.brown }}>Maintenance Tasks</CardTitle>
+                    <div className="flex justify-between items-center">
+                      <CardTitle style={{ color: colors.brown }}>Maintenance Tasks</CardTitle>
+                      <Button
+                        size="sm"
+                        onClick={() => setShowAddTask(true)}
+                        disabled={equipment.length === 0}
+                        style={{ backgroundColor: colors.gold, color: colors.brown }}
+                        data-testid="button-add-task"
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add Task
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="divide-y" style={{ borderColor: colors.creamDark }}>
                       {sortedTasks.map(task => {
                         const status = getTaskStatus(task);
                         const statusColor = getStatusColor(status);
+                        const isExpanded = expandedTaskId === task.id;
 
                         return (
                           <div
                             key={task.id}
-                            className="p-4 flex items-center justify-between gap-4"
                             data-testid={`task-row-${task.id}`}
                           >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div
-                                className="w-3 h-3 rounded-full flex-shrink-0"
-                                style={{ backgroundColor: statusColor }}
-                              />
-                              {task.equipment?.photo_url && (
+                            {/* Compact row — always visible */}
+                            <div
+                              className="p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-[#FDF8E8] transition-colors"
+                              onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
                                 <div
-                                  className="w-8 h-8 rounded overflow-hidden flex-shrink-0"
-                                  style={{ border: `1.5px solid ${colors.creamDark}` }}
-                                >
-                                  <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
-                                </div>
-                              )}
-                              <div className="min-w-0">
-                                <div className="font-medium truncate" style={{ color: colors.brown }}>
-                                  {task.name}
-                                </div>
-                                <div className="text-sm truncate" style={{ color: colors.brownLight }}>
-                                  {task.equipment?.name}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-3 flex-shrink-0">
-                              <div className="text-right">
-                                <Badge 
-                                  style={{ 
-                                    backgroundColor: statusColor, 
-                                    color: status === 'due-soon' ? colors.brown : 'white' 
-                                  }}
-                                >
-                                  {getStatusLabel(status)}
-                                </Badge>
-                                <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
-                                  {formatDueInfo(task)}
+                                  className="w-3 h-3 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: statusColor }}
+                                />
+                                {task.equipment?.photo_url && (
+                                  <div
+                                    className="w-8 h-8 rounded overflow-hidden flex-shrink-0"
+                                    style={{ border: `1.5px solid ${colors.creamDark}` }}
+                                  >
+                                    <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate" style={{ color: colors.brown }}>
+                                    {task.name}
+                                  </div>
+                                  <div className="text-sm truncate" style={{ color: colors.brownLight }}>
+                                    {task.equipment?.name}
+                                  </div>
                                 </div>
                               </div>
-                              
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  setCompletingTask(task);
-                                  setCompletionUsage(task.current_usage?.toString() || '0');
-                                }}
-                                style={{ backgroundColor: colors.gold, color: colors.brown }}
-                                data-testid={`button-complete-${task.id}`}
-                              >
-                                <Check className="w-4 h-4 mr-1" />
-                                Done
-                              </Button>
+
+                              <div className="flex items-center gap-3 flex-shrink-0">
+                                <div className="text-right">
+                                  <Badge
+                                    style={{
+                                      backgroundColor: statusColor,
+                                      color: status === 'due-soon' ? colors.brown : 'white'
+                                    }}
+                                  >
+                                    {getStatusLabel(status)}
+                                  </Badge>
+                                  <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                                    {formatDueInfo(task)}
+                                  </div>
+                                </div>
+                                <ChevronDown
+                                  className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                  style={{ color: colors.brownLight }}
+                                />
+                              </div>
                             </div>
+
+                            {/* Expanded details */}
+                            {isExpanded && (
+                              <div className="px-4 pb-4 pt-0 border-t" style={{ borderColor: colors.creamDark, backgroundColor: colors.cream }}>
+                                <div className="pt-3 space-y-3">
+                                  {task.description && (
+                                    <p className="text-sm" style={{ color: colors.brownLight }}>{task.description}</p>
+                                  )}
+                                  {task.estimated_cost != null && Number(task.estimated_cost) > 0 && (
+                                    <div className="text-sm" style={{ color: colors.brown }}>
+                                      Estimated cost: <span className="font-semibold">${Number(task.estimated_cost).toFixed(2)}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-4 text-xs flex-wrap" style={{ color: colors.brownLight }}>
+                                    {task.interval_type === 'time' ? (
+                                      <>
+                                        <span className="flex items-center gap-1">
+                                          <Calendar className="w-3 h-3" />
+                                          Every {task.interval_days} days
+                                        </span>
+                                        <span>{formatDueInfo(task)}</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span className="flex items-center gap-1">
+                                          <RotateCcw className="w-3 h-3" />
+                                          Every {task.interval_units} {task.usage_unit_label}
+                                        </span>
+                                        <span>Current: {task.current_usage || 0} {task.usage_unit_label}</span>
+                                        <span>{formatDueInfo(task)}</span>
+                                      </>
+                                    )}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingTaskLastServiced(task);
+                                        setEditLastServicedDate(task.last_completed_at
+                                          ? new Date(task.last_completed_at).toISOString().split('T')[0]
+                                          : '');
+                                      }}
+                                      className="flex items-center gap-1 hover:underline cursor-pointer"
+                                      style={{ color: colors.gold }}
+                                      data-testid={`button-edit-last-serviced-${task.id}`}
+                                    >
+                                      <Calendar className="w-3 h-3" />
+                                      {task.last_completed_at
+                                        ? `Last: ${new Date(task.last_completed_at).toLocaleDateString()}`
+                                        : 'Set Last Serviced'}
+                                      <Edit2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                  <div className="flex gap-2 pt-1">
+                                    <Button
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCompletingTask(task);
+                                        setCompletionUsage(task.current_usage?.toString() || '0');
+                                      }}
+                                      style={{ backgroundColor: colors.gold, color: colors.brown }}
+                                      data-testid={`button-log-maintenance-${task.id}`}
+                                    >
+                                      <Check className="w-4 h-4 mr-1" />
+                                      Log
+                                    </Button>
+                                    {task.next_due_at && (
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={(e) => e.stopPropagation()}
+                                            style={{ borderColor: colors.creamDark, color: colors.brown }}
+                                            data-testid={`button-add-to-calendar-${task.id}`}
+                                          >
+                                            <CalendarPlus className="w-4 h-4 mr-1" />
+                                            Calendar
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          <DropdownMenuItem
+                                            onClick={() => window.open(generateGoogleCalendarUrl(task, task.equipment?.name || ''), '_blank')}
+                                          >
+                                            <SiGooglecalendar className="w-4 h-4 mr-2" />
+                                            Add to Google Calendar
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem
+                                            onClick={() => window.open(generateOutlookCalendarUrl(task, task.equipment?.name || ''), '_blank')}
+                                          >
+                                            <Calendar className="w-4 h-4 mr-2" />
+                                            Add to Outlook Calendar
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem
+                                            onClick={() => downloadICalFile(task, task.equipment?.name || '')}
+                                          >
+                                            <Download className="w-4 h-4 mr-2" />
+                                            Download for Apple/Other
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    )}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openEditTask(task);
+                                      }}
+                                      style={{ borderColor: colors.creamDark, color: colors.brown }}
+                                      data-testid={`button-edit-task-${task.id}`}
+                                    >
+                                      <Edit2 className="w-4 h-4 mr-1" />
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteTask(task.id);
+                                      }}
+                                      style={{ borderColor: colors.creamDark, color: colors.red }}
+                                      data-testid={`button-delete-task-${task.id}`}
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-1" />
+                                      Delete
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -1271,8 +1404,172 @@ export default function EquipmentMaintenance() {
                 </Card>
               </>
             )}
+
+            {/* Add Task form */}
+            {showAddTask && (
+              <Card style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg" style={{ color: colors.brown }}>Add Maintenance Task</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label style={{ color: colors.brown }}>Equipment *</Label>
+                    <Select value={newTaskEquipmentId} onValueChange={setNewTaskEquipmentId}>
+                      <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} data-testid="select-task-equipment">
+                        <SelectValue placeholder="Select equipment" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {equipment.map(e => (
+                          <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label style={{ color: colors.brown }}>Task Name *</Label>
+                    <Input
+                      value={newTaskName}
+                      onChange={e => setNewTaskName(e.target.value)}
+                      placeholder="e.g., Change burrs, Clean ice bin"
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                      data-testid="input-task-name"
+                    />
+                  </div>
+                  <div>
+                    <Label style={{ color: colors.brown }}>Description</Label>
+                    <Textarea
+                      value={newTaskDescription}
+                      onChange={e => setNewTaskDescription(e.target.value)}
+                      placeholder="Optional details about this task"
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                      data-testid="input-task-description"
+                    />
+                  </div>
+                  <div>
+                    <Label style={{ color: colors.brown }}>Interval Type *</Label>
+                    <Select value={newTaskIntervalType} onValueChange={(v: 'time' | 'usage') => setNewTaskIntervalType(v)}>
+                      <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} data-testid="select-interval-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="time">Time-Based (every X days)</SelectItem>
+                        <SelectItem value="usage">Usage-Based (every X units)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {newTaskIntervalType === 'time' ? (
+                    <>
+                      <div>
+                        <Label style={{ color: colors.brown }}>Interval (days) *</Label>
+                        <Input
+                          type="number"
+                          value={newTaskIntervalDays}
+                          onChange={e => setNewTaskIntervalDays(e.target.value)}
+                          placeholder="e.g., 180 for 6 months"
+                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                          data-testid="input-interval-days"
+                          inputMode="numeric"
+                        />
+                        <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                          Common: 14 days (2 weeks), 30 days (1 month), 90 days (3 months), 180 days (6 months), 365 days (1 year)
+                        </p>
+                      </div>
+                      <div>
+                        <Label style={{ color: colors.brown }}>Last Serviced Date (optional)</Label>
+                        <Input
+                          type="date"
+                          value={newTaskLastServiced}
+                          onChange={e => setNewTaskLastServiced(e.target.value)}
+                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                          data-testid="input-last-serviced"
+                        />
+                        <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                          When was this last done? The next due date will be calculated from this.
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <Label style={{ color: colors.brown }}>Usage Unit Label *</Label>
+                        <Input
+                          value={newTaskUsageLabel}
+                          onChange={e => setNewTaskUsageLabel(e.target.value)}
+                          placeholder="e.g., lbs, shots, cycles"
+                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                          data-testid="input-usage-label"
+                        />
+                      </div>
+                      <div>
+                        <Label style={{ color: colors.brown }}>Interval (units) *</Label>
+                        <Input
+                          type="number"
+                          value={newTaskIntervalUnits}
+                          onChange={e => setNewTaskIntervalUnits(e.target.value)}
+                          placeholder="e.g., 1000"
+                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                          data-testid="input-interval-units"
+                          inputMode="numeric"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div>
+                    <Label style={{ color: colors.brown }}>Estimated Cost</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: colors.brownLight }}>$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newTaskEstimatedCost}
+                        onChange={e => setNewTaskEstimatedCost(e.target.value)}
+                        placeholder="0.00"
+                        className="pl-7"
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                        data-testid="input-estimated-cost"
+                        inputMode="decimal"
+                      />
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                      Approximate cost for expense forecasting
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleAddTask}
+                      disabled={addTaskMutation.isPending}
+                      style={{ backgroundColor: colors.gold, color: colors.brown }}
+                      data-testid="button-save-task"
+                    >
+                      {addTaskMutation.isPending ? 'Saving...' : 'Save Task'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowAddTask(false);
+                        setNewTaskEquipmentId('');
+                        setNewTaskName('');
+                        setNewTaskDescription('');
+                        setNewTaskIntervalType('time');
+                        setNewTaskIntervalDays('');
+                        setNewTaskIntervalUnits('');
+                        setNewTaskUsageLabel('');
+                      }}
+                      style={{ borderColor: colors.creamDark, color: colors.brown }}
+                      data-testid="button-cancel-task"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
-        ) : activeTab === 'equipment' ? (
+        ) : (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="font-semibold" style={{ color: colors.brown }}>Equipment List</h2>
@@ -1734,373 +2031,6 @@ export default function EquipmentMaintenance() {
                     </CardContent>
                   </Card>
                 ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="font-semibold" style={{ color: colors.brown }}>Maintenance Tasks</h2>
-              <Button
-                onClick={() => setShowAddTask(true)}
-                disabled={equipment.length === 0}
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
-                data-testid="button-add-task"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Task
-              </Button>
-            </div>
-
-            {equipment.length === 0 && (
-              <Card style={{ backgroundColor: colors.white, borderColor: colors.gold }}>
-                <CardContent className="p-4 text-center">
-                  <p style={{ color: colors.brownLight }}>
-                    Add equipment first before creating maintenance tasks.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
-            {showAddTask && (
-              <Card style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg" style={{ color: colors.brown }}>Add Maintenance Task</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label style={{ color: colors.brown }}>Equipment *</Label>
-                    <Select value={newTaskEquipmentId} onValueChange={setNewTaskEquipmentId}>
-                      <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} data-testid="select-task-equipment">
-                        <SelectValue placeholder="Select equipment" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {equipment.map(e => (
-                          <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label style={{ color: colors.brown }}>Task Name *</Label>
-                    <Input
-                      value={newTaskName}
-                      onChange={e => setNewTaskName(e.target.value)}
-                      placeholder="e.g., Change burrs, Clean ice bin"
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                      data-testid="input-task-name"
-                    />
-                  </div>
-                  <div>
-                    <Label style={{ color: colors.brown }}>Description</Label>
-                    <Textarea
-                      value={newTaskDescription}
-                      onChange={e => setNewTaskDescription(e.target.value)}
-                      placeholder="Optional details about this task"
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                      data-testid="input-task-description"
-                    />
-                  </div>
-                  <div>
-                    <Label style={{ color: colors.brown }}>Interval Type *</Label>
-                    <Select value={newTaskIntervalType} onValueChange={(v: 'time' | 'usage') => setNewTaskIntervalType(v)}>
-                      <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} data-testid="select-interval-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="time">Time-Based (every X days)</SelectItem>
-                        <SelectItem value="usage">Usage-Based (every X units)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  {newTaskIntervalType === 'time' ? (
-                    <>
-                      <div>
-                        <Label style={{ color: colors.brown }}>Interval (days) *</Label>
-                        <Input
-                          type="number"
-                          value={newTaskIntervalDays}
-                          onChange={e => setNewTaskIntervalDays(e.target.value)}
-                          placeholder="e.g., 180 for 6 months"
-                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                          data-testid="input-interval-days"
-                          inputMode="numeric"
-                        />
-                        <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
-                          Common: 14 days (2 weeks), 30 days (1 month), 90 days (3 months), 180 days (6 months), 365 days (1 year)
-                        </p>
-                      </div>
-                      <div>
-                        <Label style={{ color: colors.brown }}>Last Serviced Date (optional)</Label>
-                        <Input
-                          type="date"
-                          value={newTaskLastServiced}
-                          onChange={e => setNewTaskLastServiced(e.target.value)}
-                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                          data-testid="input-last-serviced"
-                        />
-                        <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
-                          When was this last done? The next due date will be calculated from this.
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <Label style={{ color: colors.brown }}>Usage Unit Label *</Label>
-                        <Input
-                          value={newTaskUsageLabel}
-                          onChange={e => setNewTaskUsageLabel(e.target.value)}
-                          placeholder="e.g., lbs, shots, cycles"
-                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                          data-testid="input-usage-label"
-                        />
-                      </div>
-                      <div>
-                        <Label style={{ color: colors.brown }}>Interval (units) *</Label>
-                        <Input
-                          type="number"
-                          value={newTaskIntervalUnits}
-                          onChange={e => setNewTaskIntervalUnits(e.target.value)}
-                          placeholder="e.g., 1000"
-                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                          data-testid="input-interval-units"
-                          inputMode="numeric"
-                        />
-                      </div>
-                    </>
-                  )}
-                  
-                  <div>
-                    <Label style={{ color: colors.brown }}>Estimated Cost</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: colors.brownLight }}>$</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={newTaskEstimatedCost}
-                        onChange={e => setNewTaskEstimatedCost(e.target.value)}
-                        placeholder="0.00"
-                        className="pl-7"
-                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                        data-testid="input-estimated-cost"
-                        inputMode="decimal"
-                      />
-                    </div>
-                    <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
-                      Approximate cost for expense forecasting
-                    </p>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleAddTask}
-                      disabled={addTaskMutation.isPending}
-                      style={{ backgroundColor: colors.gold, color: colors.brown }}
-                      data-testid="button-save-task"
-                    >
-                      {addTaskMutation.isPending ? 'Saving...' : 'Save Task'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowAddTask(false);
-                        setNewTaskEquipmentId('');
-                        setNewTaskName('');
-                        setNewTaskDescription('');
-                        setNewTaskIntervalType('time');
-                        setNewTaskIntervalDays('');
-                        setNewTaskIntervalUnits('');
-                        setNewTaskUsageLabel('');
-                      }}
-                      style={{ borderColor: colors.creamDark, color: colors.brown }}
-                      data-testid="button-cancel-task"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {tasks.length === 0 && equipment.length > 0 ? (
-              <Card style={{ backgroundColor: colors.white, borderColor: colors.gold }}>
-                <CardContent className="p-8 text-center">
-                  <Clock className="w-12 h-12 mx-auto mb-4" style={{ color: colors.brownLight }} />
-                  <h3 className="font-semibold mb-2" style={{ color: colors.brown }}>No Maintenance Tasks</h3>
-                  <p className="text-sm" style={{ color: colors.brownLight }}>
-                    Create maintenance tasks to track equipment upkeep.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4">
-                {sortedTasks.map(task => {
-                  const status = getTaskStatus(task);
-                  const statusColor = getStatusColor(status);
-                  
-                  return (
-                    <Card 
-                      key={task.id} 
-                      style={{ backgroundColor: colors.white, borderColor: colors.creamDark, borderLeftWidth: 4, borderLeftColor: statusColor }}
-                      data-testid={`task-card-${task.id}`}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          {task.equipment?.photo_url && (
-                            <div
-                              className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0"
-                              style={{ border: `2px solid ${colors.creamDark}` }}
-                            >
-                              <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
-                            </div>
-                          )}
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium" style={{ color: colors.brown }}>{task.name}</span>
-                              {task.estimated_cost != null && Number(task.estimated_cost) > 0 && (
-                                <Badge
-                                  variant="outline"
-                                  className="font-semibold"
-                                  style={{
-                                    borderColor: colors.gold,
-                                    color: colors.brown,
-                                    backgroundColor: colors.cream
-                                  }}
-                                >
-                                  ~${Number(task.estimated_cost).toFixed(2)}
-                                </Badge>
-                              )}
-                              <Badge
-                                style={{
-                                  backgroundColor: statusColor,
-                                  color: status === 'due-soon' ? colors.brown : 'white'
-                                }}
-                              >
-                                {getStatusLabel(status)}
-                              </Badge>
-                            </div>
-                            <div className="text-sm mt-1" style={{ color: colors.brownLight }}>
-                              {task.equipment?.name}
-                            </div>
-                            {task.description && (
-                              <p className="text-sm mt-2" style={{ color: colors.brownLight }}>{task.description}</p>
-                            )}
-                            <div className="flex items-center gap-4 mt-3 text-xs flex-wrap" style={{ color: colors.brownLight }}>
-                              {task.interval_type === 'time' ? (
-                                <>
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
-                                    Every {task.interval_days} days
-                                  </span>
-                                  <span>{formatDueInfo(task)}</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="flex items-center gap-1">
-                                    <RotateCcw className="w-3 h-3" />
-                                    Every {task.interval_units} {task.usage_unit_label}
-                                  </span>
-                                  <span>Current: {task.current_usage || 0} {task.usage_unit_label}</span>
-                                  <span>{formatDueInfo(task)}</span>
-                                </>
-                              )}
-                              <button
-                                onClick={() => {
-                                  setEditingTaskLastServiced(task);
-                                  setEditLastServicedDate(task.last_completed_at 
-                                    ? new Date(task.last_completed_at).toISOString().split('T')[0] 
-                                    : '');
-                                }}
-                                className="flex items-center gap-1 hover:underline cursor-pointer"
-                                style={{ color: colors.gold }}
-                                data-testid={`button-edit-last-serviced-${task.id}`}
-                              >
-                                <Calendar className="w-3 h-3" />
-                                {task.last_completed_at 
-                                  ? `Last: ${new Date(task.last_completed_at).toLocaleDateString()}`
-                                  : 'Set Last Serviced'}
-                                <Edit2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setCompletingTask(task);
-                                setCompletionUsage(task.current_usage?.toString() || '0');
-                              }}
-                              style={{ backgroundColor: colors.gold, color: colors.brown }}
-                              data-testid={`button-log-maintenance-${task.id}`}
-                            >
-                              <Check className="w-4 h-4 mr-1" />
-                              Log
-                            </Button>
-                            {task.next_due_at && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    style={{ color: colors.brown }}
-                                    data-testid={`button-add-to-calendar-${task.id}`}
-                                  >
-                                    <CalendarPlus className="w-4 h-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() => window.open(generateGoogleCalendarUrl(task, task.equipment?.name || ''), '_blank')}
-                                    data-testid={`menu-google-calendar-${task.id}`}
-                                  >
-                                    <SiGooglecalendar className="w-4 h-4 mr-2" />
-                                    Add to Google Calendar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => window.open(generateOutlookCalendarUrl(task, task.equipment?.name || ''), '_blank')}
-                                    data-testid={`menu-outlook-calendar-${task.id}`}
-                                  >
-                                    <Calendar className="w-4 h-4 mr-2" />
-                                    Add to Outlook Calendar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => downloadICalFile(task, task.equipment?.name || '')}
-                                    data-testid={`menu-ical-download-${task.id}`}
-                                  >
-                                    <Download className="w-4 h-4 mr-2" />
-                                    Download for Apple/Other
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => openEditTask(task)}
-                              title="Edit task"
-                              style={{ color: colors.brown }}
-                              data-testid={`button-edit-task-${task.id}`}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleDeleteTask(task.id)}
-                              style={{ color: colors.red }}
-                              data-testid={`button-delete-task-${task.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
               </div>
             )}
           </div>

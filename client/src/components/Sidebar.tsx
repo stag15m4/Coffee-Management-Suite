@@ -69,7 +69,6 @@ const MODULE_NAV: Record<ModuleId, NavItem> = {
     tabs: [
       { key: 'dashboard', label: 'Dashboard' },
       { key: 'equipment', label: 'Equipment' },
-      { key: 'tasks', label: 'Tasks' },
     ],
   },
   'admin-tasks': { href: '/admin-tasks', label: 'Tasks', icon: ListTodo },
