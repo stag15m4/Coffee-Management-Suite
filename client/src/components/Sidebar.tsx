@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
 import {
@@ -19,6 +19,8 @@ import {
   ChevronDown,
   ArrowLeft,
   Shield,
+  MapPin,
+  Check,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -84,12 +86,27 @@ const ALL_MODULE_IDS: ModuleId[] = [
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { profile, branding, tenant, enabledModules, canAccessModule, signOut, hasRole, isPlatformAdmin, adminViewingTenant, exitTenantView } = useAuth();
+  const { profile, branding, tenant, accessibleLocations, switchLocation, enabledModules, canAccessModule, signOut, hasRole, isPlatformAdmin, adminViewingTenant, exitTenantView } = useAuth();
   const [, setLocation] = useLocation();
+  const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
+  const locationDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close location dropdown on outside click
+  useEffect(() => {
+    if (!locationDropdownOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (locationDropdownRef.current && !locationDropdownRef.current.contains(e.target as Node)) {
+        setLocationDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [locationDropdownOpen]);
 
   const displayName = branding?.company_name || tenant?.name || 'Coffee Suite';
   const isManager = hasRole('manager');
   const isOwner = profile?.role === 'owner';
+  const hasMultipleLocations = accessibleLocations.length > 1;
 
   const disabledModules = ALL_MODULE_IDS.filter((m) => !enabledModules.includes(m));
 
@@ -135,6 +152,53 @@ export function Sidebar() {
           </button>
         </Link>
       </div>
+
+      {/* Location switcher */}
+      {hasMultipleLocations && (
+        <div ref={locationDropdownRef} className="px-3 py-2 border-b relative" style={{ borderColor: colors.creamDark }}>
+          <button
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors hover:bg-gray-50"
+            style={{ color: colors.brown }}
+            onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}
+          >
+            <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.gold }} />
+            <span className="truncate font-medium">{tenant?.name || 'Select location'}</span>
+            <ChevronDown
+              className={`w-3 h-3 ml-auto flex-shrink-0 transition-transform ${locationDropdownOpen ? 'rotate-180' : ''}`}
+              style={{ color: colors.brownLight }}
+            />
+          </button>
+          {locationDropdownOpen && (
+            <div
+              className="absolute left-3 right-3 mt-1 rounded-md shadow-lg border z-50 py-1"
+              style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+            >
+              {accessibleLocations.map((loc) => {
+                const isActive = loc.id === tenant?.id;
+                return (
+                  <button
+                    key={loc.id}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-gray-50"
+                    style={{
+                      color: isActive ? colors.gold : colors.brown,
+                      fontWeight: isActive ? 600 : 400,
+                    }}
+                    onClick={async () => {
+                      if (!isActive) {
+                        await switchLocation(loc.id);
+                      }
+                      setLocationDropdownOpen(false);
+                    }}
+                  >
+                    {isActive && <Check className="w-3 h-3 flex-shrink-0" />}
+                    <span className={`truncate ${isActive ? '' : 'ml-5'}`}>{loc.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main navigation */}
       <nav className="flex-1 p-3 space-y-1">
