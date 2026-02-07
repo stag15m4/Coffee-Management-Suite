@@ -1213,10 +1213,18 @@ export default function EquipmentMaintenance() {
                             data-testid={`task-row-${task.id}`}
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <div 
+                              <div
                                 className="w-3 h-3 rounded-full flex-shrink-0"
                                 style={{ backgroundColor: statusColor }}
                               />
+                              {task.equipment?.photo_url && (
+                                <div
+                                  className="w-8 h-8 rounded overflow-hidden flex-shrink-0"
+                                  style={{ border: `1.5px solid ${colors.creamDark}` }}
+                                >
+                                  <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
+                                </div>
+                              )}
                               <div className="min-w-0">
                                 <div className="font-medium truncate" style={{ color: colors.brown }}>
                                   {task.name}
@@ -1941,26 +1949,34 @@ export default function EquipmentMaintenance() {
                     >
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-4">
+                          {task.equipment?.photo_url && (
+                            <div
+                              className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0"
+                              style={{ border: `2px solid ${colors.creamDark}` }}
+                            >
+                              <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
+                            </div>
+                          )}
                           <div className="flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium" style={{ color: colors.brown }}>{task.name}</span>
                               {task.estimated_cost != null && Number(task.estimated_cost) > 0 && (
-                                <Badge 
+                                <Badge
                                   variant="outline"
                                   className="font-semibold"
-                                  style={{ 
-                                    borderColor: colors.gold, 
+                                  style={{
+                                    borderColor: colors.gold,
                                     color: colors.brown,
-                                    backgroundColor: colors.cream 
+                                    backgroundColor: colors.cream
                                   }}
                                 >
                                   ~${Number(task.estimated_cost).toFixed(2)}
                                 </Badge>
                               )}
-                              <Badge 
-                                style={{ 
-                                  backgroundColor: statusColor, 
-                                  color: status === 'due-soon' ? colors.brown : 'white' 
+                              <Badge
+                                style={{
+                                  backgroundColor: statusColor,
+                                  color: status === 'due-soon' ? colors.brown : 'white'
                                 }}
                               >
                                 {getStatusLabel(status)}
