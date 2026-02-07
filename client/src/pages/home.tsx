@@ -1402,8 +1402,8 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                               {isBulkRecipe && (
                                 <button
                                   onClick={() => onDeleteBulkSize(size.id)}
-                                  className="text-xs px-1"
-                                  style={{ color: colors.red }}
+                                  className="text-xs px-2 py-0.5 rounded font-medium"
+                                  style={{ color: colors.red, border: `1px solid ${colors.red}` }}
                                   data-testid={`button-delete-bulk-size-${size.id}`}
                                 >
                                   Delete
@@ -1655,8 +1655,8 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                 setAddingIngredient({ recipeId: recipe.id, sizeId: size.id });
                                 setNewIngredient({ ingredient_id: '', quantity: '1', unit: '' });
                               }}
-                              className="text-sm font-medium"
-                              style={{ color: colors.gold }}
+                              className="text-sm px-3 py-1 rounded font-medium"
+                              style={{ color: colors.gold, border: `1px solid ${colors.gold}` }}
                               data-testid={`button-add-ri-${size.id}`}
                             >
                               + Add Ingredient
