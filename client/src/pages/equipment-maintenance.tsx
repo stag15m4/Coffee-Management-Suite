@@ -22,6 +22,7 @@ import {
 } from '@/lib/supabase-queries';
 import { PhotoCapture } from '@/components/PhotoCapture';
 import { EquipmentAttachments } from '@/components/EquipmentAttachments';
+import { TaskAttachments } from '@/components/TaskAttachments';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1326,6 +1327,11 @@ export default function EquipmentMaintenance() {
                                       <Edit2 className="w-3 h-3" />
                                     </button>
                                   </div>
+                                  {/* Task attachments & video tutorials */}
+                                  {profile?.tenant_id && (
+                                    <TaskAttachments taskId={task.id} tenantId={profile.tenant_id} />
+                                  )}
+
                                   <div className="flex gap-2 pt-1">
                                     <Button
                                       size="sm"

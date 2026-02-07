@@ -21,6 +21,7 @@ export const queryKeys = {
   maintenanceTasks: ['maintenance-tasks'] as const,
   maintenanceLogs: ['maintenance-logs'] as const,
   equipmentAttachments: ['equipment-attachments'] as const,
+  taskAttachments: ['task-attachments'] as const,
 };
 
 export function useIngredientCategories() {
@@ -640,6 +641,79 @@ export function useDeleteEquipmentAttachment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.equipmentAttachments });
+    },
+  });
+}
+
+// =====================================================
+// TASK ATTACHMENTS
+// =====================================================
+
+export interface TaskAttachment {
+  id: string;
+  tenant_id: string;
+  task_id: string;
+  attachment_type: 'file' | 'link' | 'video';
+  name: string;
+  url: string;
+  file_type: string | null;
+  created_at: string;
+}
+
+export function useTaskAttachments(taskId?: string) {
+  return useQuery({
+    queryKey: [...queryKeys.taskAttachments, taskId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('maintenance_task_attachments')
+        .select('*')
+        .eq('task_id', taskId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as TaskAttachment[];
+    },
+    enabled: !!taskId,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useAddTaskAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (attachment: {
+      tenant_id: string;
+      task_id: string;
+      attachment_type: 'file' | 'link' | 'video';
+      name: string;
+      url: string;
+      file_type?: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('maintenance_task_attachments')
+        .insert(attachment)
+        .select();
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Insert failed - check RLS policies.');
+      return data[0] as TaskAttachment;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.taskAttachments });
+    },
+  });
+}
+
+export function useDeleteTaskAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('maintenance_task_attachments')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.taskAttachments });
     },
   });
 }
