@@ -89,7 +89,7 @@ const colors = {
 };
 
 export default function PlatformAdmin() {
-  const { user, platformAdmin, isPlatformAdmin, loading: authLoading, signOut, enterTenantView } = useAuth();
+  const { user, platformAdmin, isPlatformAdmin, profile, accessibleLocations, loading: authLoading, signOut, enterTenantView } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -125,7 +125,6 @@ export default function PlatformAdmin() {
   const [newAdminName, setNewAdminName] = useState('');
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [removingAdminId, setRemovingAdminId] = useState<string | null>(null);
-  const [adminTenantIds, setAdminTenantIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!authLoading && !isPlatformAdmin) {
@@ -138,20 +137,8 @@ export default function PlatformAdmin() {
       loadTenants();
       loadSubscriptionData();
       loadAdmins();
-      loadAdminTenantMemberships();
     }
   }, [isPlatformAdmin]);
-
-  const loadAdminTenantMemberships = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('tenant_id')
-      .eq('id', user.id);
-    if (data) {
-      setAdminTenantIds(new Set(data.map((p: { tenant_id: string }) => p.tenant_id)));
-    }
-  };
 
   const loadSubscriptionData = async () => {
     try {
@@ -644,7 +631,7 @@ export default function PlatformAdmin() {
                         </Badge>
                       </div>
                     </div>
-                    {adminTenantIds.has(tenant.id) && (
+                    {accessibleLocations.some(loc => loc.id === tenant.id) && (
                       <Button
                         variant="outline"
                         size="sm"
