@@ -178,28 +178,28 @@ async function fetchMaintenanceTasks(tenantId: string): Promise<ActionItem[]> {
     .select(
       `
       id,
-      task_type,
-      next_due_date,
+      name,
+      next_due_at,
       equipment:equipment!inner(id, name, tenant_id)
     `
     )
     .eq('equipment.tenant_id', tenantId)
     .eq('is_active', true)
-    .lte('next_due_date', sevenDaysFromNow)
-    .order('next_due_date', { ascending: true })
+    .lte('next_due_at', sevenDaysFromNow)
+    .order('next_due_at', { ascending: true })
     .limit(15);
 
   if (error) throw error;
 
   return (tasks || []).map((task: any) => {
-    const dueDate = task.next_due_date || '';
+    const dueDate = task.next_due_at ? task.next_due_at.split('T')[0] : '';
     let urgency: ActionItem['urgency'] = 'this-week';
     if (dueDate < today) urgency = 'overdue';
     else if (dueDate === today) urgency = 'today';
 
     return {
       id: task.id,
-      title: `${task.equipment?.name || 'Equipment'} — ${task.task_type}`,
+      title: `${task.equipment?.name || 'Equipment'} — ${task.name}`,
       type: 'maintenance' as const,
       assigneeName: null,
       dueDate,
