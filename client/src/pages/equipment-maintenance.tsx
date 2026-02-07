@@ -620,6 +620,7 @@ export default function EquipmentMaintenance() {
   const [showAddEquipment, setShowAddEquipment] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
   const [completingTask, setCompletingTask] = useState<MaintenanceTask | null>(null);
   const [editingTaskLastServiced, setEditingTaskLastServiced] = useState<MaintenanceTask | null>(null);
@@ -1229,8 +1230,8 @@ export default function EquipmentMaintenance() {
                                 />
                                 {task.equipment?.photo_url && (
                                   <div
-                                    className="w-8 h-8 rounded overflow-hidden flex-shrink-0"
-                                    style={{ border: `1.5px solid ${colors.creamDark}` }}
+                                    className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0"
+                                    style={{ border: `2px solid ${colors.creamDark}` }}
                                   >
                                     <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
                                   </div>
@@ -1270,6 +1271,15 @@ export default function EquipmentMaintenance() {
                             {isExpanded && (
                               <div className="px-4 pb-4 pt-0 border-t" style={{ borderColor: colors.creamDark, backgroundColor: colors.cream }}>
                                 <div className="pt-3 space-y-3">
+                                  {task.equipment?.photo_url && (
+                                    <div
+                                      className="w-64 h-64 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                                      style={{ border: `2px solid ${colors.creamDark}` }}
+                                      onClick={(e) => { e.stopPropagation(); setLightboxUrl(task.equipment!.photo_url!); }}
+                                    >
+                                      <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
+                                    </div>
+                                  )}
                                   {task.description && (
                                     <p className="text-sm" style={{ color: colors.brownLight }}>{task.description}</p>
                                   )}
@@ -2033,6 +2043,27 @@ export default function EquipmentMaintenance() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Photo lightbox */}
+        {lightboxUrl && (
+          <div
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 cursor-pointer"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <button
+              className="absolute top-4 right-4 text-white hover:text-gray-300"
+              onClick={() => setLightboxUrl(null)}
+            >
+              <X className="w-8 h-8" />
+            </button>
+            <img
+              src={lightboxUrl}
+              alt="Equipment photo"
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         )}
 
