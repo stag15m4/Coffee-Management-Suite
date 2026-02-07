@@ -400,6 +400,7 @@ export interface Equipment {
   warranty_notes: string | null;
   document_url: string | null;
   document_name: string | null;
+  in_service_date: string | null;
 }
 
 export interface MaintenanceTask {
@@ -512,6 +513,7 @@ export function useAddEquipment() {
       warranty_notes?: string;
       document_url?: string;
       document_name?: string;
+      in_service_date?: string;
     }) => {
       const { data, error } = await supabase
         .from('equipment')

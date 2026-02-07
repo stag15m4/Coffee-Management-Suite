@@ -408,6 +408,11 @@ async function exportEquipmentRecords(
           
           <span class="info-label">Added:</span>
           <span class="info-value">${new Date(equipment.created_at).toLocaleDateString()}</span>
+
+          ${equipment.in_service_date ? `
+          <span class="info-label">In Service:</span>
+          <span class="info-value">${new Date(equipment.in_service_date).toLocaleDateString()}</span>
+          ` : ''}
         </div>
         
         ${equipment.has_warranty ? `
@@ -628,6 +633,7 @@ export default function EquipmentMaintenance() {
   const [newEquipmentWarrantyNotes, setNewEquipmentWarrantyNotes] = useState('');
   const [newEquipmentDocumentUrl, setNewEquipmentDocumentUrl] = useState('');
   const [newEquipmentDocumentName, setNewEquipmentDocumentName] = useState('');
+  const [newEquipmentInServiceDate, setNewEquipmentInServiceDate] = useState('');
   
   const newEquipmentFileInputRef = useRef<HTMLInputElement>(null);
   const editEquipmentFileInputRef = useRef<HTMLInputElement>(null);
@@ -730,8 +736,9 @@ export default function EquipmentMaintenance() {
         warranty_notes: newEquipmentHasWarranty && newEquipmentWarrantyNotes.trim() ? newEquipmentWarrantyNotes.trim() : undefined,
         document_url: newEquipmentDocumentUrl || undefined,
         document_name: newEquipmentDocumentName || undefined,
+        in_service_date: newEquipmentInServiceDate || undefined,
       }));
-      
+
       setNewEquipmentName('');
       setNewEquipmentCategory('');
       setNewEquipmentNotes('');
@@ -741,6 +748,7 @@ export default function EquipmentMaintenance() {
       setNewEquipmentWarrantyNotes('');
       setNewEquipmentDocumentUrl('');
       setNewEquipmentDocumentName('');
+      setNewEquipmentInServiceDate('');
       setShowAddEquipment(false);
       toast({ title: 'Equipment added successfully' });
     } catch (error: any) {
@@ -796,6 +804,7 @@ export default function EquipmentMaintenance() {
           warranty_notes: editingEquipment.has_warranty ? editingEquipment.warranty_notes : null,
           document_url: editingEquipment.document_url,
           document_name: editingEquipment.document_name,
+          in_service_date: editingEquipment.in_service_date,
         }
       }));
       
@@ -1350,6 +1359,17 @@ export default function EquipmentMaintenance() {
                     />
                   </div>
                   
+                  <div>
+                    <Label style={{ color: colors.brown }}>In Service Date</Label>
+                    <Input
+                      type="date"
+                      value={newEquipmentInServiceDate}
+                      onChange={e => setNewEquipmentInServiceDate(e.target.value)}
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                      data-testid="input-equipment-in-service-date"
+                    />
+                  </div>
+
                   <div className="pt-2 border-t" style={{ borderColor: colors.creamDark }}>
                     <div className="flex items-center justify-between">
                       <Label style={{ color: colors.brown }}>Has Warranty?</Label>
@@ -1465,6 +1485,7 @@ export default function EquipmentMaintenance() {
                         setNewEquipmentWarrantyNotes('');
                         setNewEquipmentDocumentUrl('');
                         setNewEquipmentDocumentName('');
+                        setNewEquipmentInServiceDate('');
                       }}
                       style={{ borderColor: colors.creamDark, color: colors.brown }}
                       data-testid="button-cancel-equipment"
@@ -1548,6 +1569,17 @@ export default function EquipmentMaintenance() {
                             data-testid="input-edit-equipment-notes"
                           />
                           
+                          <div>
+                            <Label style={{ color: colors.brown }}>In Service Date</Label>
+                            <Input
+                              type="date"
+                              value={editingEquipment.in_service_date || ''}
+                              onChange={e => setEditingEquipment({ ...editingEquipment, in_service_date: e.target.value || null })}
+                              style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                              data-testid="input-edit-equipment-in-service-date"
+                            />
+                          </div>
+
                           <div className="pt-2 border-t" style={{ borderColor: colors.creamDark }}>
                             <div className="flex items-center justify-between">
                               <Label style={{ color: colors.brown }}>Has Warranty?</Label>
@@ -1696,6 +1728,11 @@ export default function EquipmentMaintenance() {
                             </div>
                             {item.notes && (
                               <p className="text-sm mt-2" style={{ color: colors.brownLight }}>{item.notes}</p>
+                            )}
+                            {item.in_service_date && (
+                              <p className="text-xs mt-2" style={{ color: colors.brownLight }}>
+                                In Service: {new Date(item.in_service_date).toLocaleDateString()}
+                              </p>
                             )}
                             {item.has_warranty && item.purchase_date && (
                               <div className="mt-2 text-xs space-y-1" style={{ color: colors.brownLight }}>
