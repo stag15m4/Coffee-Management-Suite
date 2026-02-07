@@ -56,7 +56,7 @@ const MODULE_NAV: Record<ModuleId, NavItem> = {
       { key: 'recipes', label: 'Recipes' },
       { key: 'vendors', label: 'Vendors' },
       { key: 'bases', label: 'Bases' },
-      { key: 'settings', label: 'Settings' },
+      { key: 'settings', label: 'Overhead' },
     ],
   },
   'tip-payout': { href: '/tip-payout', label: 'Tip Payout', icon: DollarSign },

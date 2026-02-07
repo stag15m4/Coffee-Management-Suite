@@ -180,6 +180,7 @@ interface Recipe {
   base_template_name?: string;
   is_active: boolean;
   is_bulk_recipe?: boolean;
+  minutes_per_drink?: number | null;
   tenant_id: string;
   products?: Product[];
   recipe_ingredients?: RecipeIngredient[];
@@ -914,7 +915,7 @@ interface RecipesTabProps {
   overhead: OverheadSettings | null;
   recipeSizeBases: RecipeSizeBase[];
   onAddRecipe: (recipe: { name: string; category_id: string; base_template_id?: string; is_bulk_recipe?: boolean }) => Promise<void>;
-  onUpdateRecipe: (id: string, updates: { name?: string; category_id?: string; base_template_id?: string | null; is_bulk_recipe?: boolean }) => Promise<void>;
+  onUpdateRecipe: (id: string, updates: { name?: string; category_id?: string; base_template_id?: string | null; is_bulk_recipe?: boolean; minutes_per_drink?: number | null }) => Promise<void>;
   onAddRecipeIngredient: (ingredient: { recipe_id: string; ingredient_id?: string | null; size_id: string; quantity: number; unit?: string; syrup_recipe_id?: string | null }) => Promise<void>;
   onDeleteRecipeIngredient: (id: string) => Promise<void>;
   onUpdateRecipeSizeBase: (recipeId: string, sizeId: string, baseTemplateId: string | null) => Promise<void>;
@@ -929,7 +930,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<string | null>(null);
-  const [editRecipeForm, setEditRecipeForm] = useState({ name: '', category_id: '', base_template_id: '', is_bulk_recipe: false });
+  const [editRecipeForm, setEditRecipeForm] = useState({ name: '', category_id: '', base_template_id: '', is_bulk_recipe: false, minutes_per_drink: '' });
   const [newRecipe, setNewRecipe] = useState({
     name: '',
     category_id: '',
@@ -1015,15 +1016,16 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
         }
         // Add overhead cost to base (only for drink bases, not bulk recipes)
         if (overhead && baseTemplate) {
-          const overheadCost = (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0);
+          const recipeMinutes = recipe.minutes_per_drink ?? overhead.minutes_per_drink ?? 1;
+          const overheadCost = (overhead.cost_per_minute || 0) * recipeMinutes;
           totalCost += overheadCost;
         }
       }
     }
-    
+
     return totalCost;
   };
-  
+
   // Overhead is now manually added to bases, not automatically calculated
 
   const getBaseTemplateItems = (recipe: Recipe, sizeId: string): BaseTemplateIngredient[] => {
@@ -1040,6 +1042,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
       category_id: recipe.category_id,
       base_template_id: recipe.base_template_id || '',
       is_bulk_recipe: recipe.is_bulk_recipe || false,
+      minutes_per_drink: recipe.minutes_per_drink != null ? String(recipe.minutes_per_drink) : '',
     });
   };
 
@@ -1049,6 +1052,7 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
       category_id: editRecipeForm.category_id,
       base_template_id: editRecipeForm.base_template_id || null,
       is_bulk_recipe: editRecipeForm.is_bulk_recipe,
+      minutes_per_drink: editRecipeForm.minutes_per_drink !== '' ? parseFloat(editRecipeForm.minutes_per_drink) : null,
     });
     setEditingRecipe(null);
   };
@@ -1235,6 +1239,25 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                     />
                     <span className="text-sm" style={{ color: colors.brown }}>Bulk</span>
                   </label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={editRecipeForm.minutes_per_drink}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                          setEditRecipeForm({ ...editRecipeForm, minutes_per_drink: val });
+                        }
+                      }}
+                      onFocus={(e) => e.target.select()}
+                      placeholder={String(overhead?.minutes_per_drink ?? 1)}
+                      className="w-16 px-2 py-1 rounded border-0 text-right"
+                      style={{ backgroundColor: colors.inputBg, color: colors.brown }}
+                      data-testid={`input-edit-recipe-minutes-${recipe.id}`}
+                    />
+                    <span className="text-xs" style={{ color: colors.brownLight }}>min</span>
+                  </div>
                   <button
                     onClick={() => handleSaveRecipe(recipe.id)}
                     className="px-3 py-1 rounded font-medium"
@@ -1255,7 +1278,14 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
               ) : (
                 <div className="flex items-center gap-3">
                   <div>
-                    <h3 className="font-bold" style={{ color: colors.brown }}>{recipe.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold" style={{ color: colors.brown }}>{recipe.name}</h3>
+                      {recipe.minutes_per_drink != null && (
+                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
+                          {recipe.minutes_per_drink}m
+                        </span>
+                      )}
+                    </div>
                     <span className="text-sm" style={{ color: colors.brownLight }}>{recipe.category_name}</span>
                   </div>
                   <TooltipProvider>
@@ -1440,7 +1470,10 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                 </select>
                               </div>
 
-                              {(baseTemplateItems.length > 0 || (currentBaseId && overhead && (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0) > 0)) && (
+                              {(() => {
+                                const ohMinutes = recipe.minutes_per_drink ?? overhead?.minutes_per_drink ?? 1;
+                                const ohCost = (overhead?.cost_per_minute || 0) * ohMinutes;
+                                return (baseTemplateItems.length > 0 || (currentBaseId && ohCost > 0)) ? (
                                 <div className="mb-2">
                                   <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Base (Disposables):</span>
                                   <div className="flex flex-wrap gap-2 mt-1">
@@ -1460,18 +1493,18 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                                         </div>
                                       );
                                     })}
-                                    {currentBaseId && overhead && (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0) > 0 && (
+                                    {currentBaseId && overhead && ohCost > 0 && (
                                       <div
                                         className="flex items-center gap-1 px-2 py-1 rounded text-xs"
                                         style={{ backgroundColor: colors.white, border: `1px dashed ${colors.brownLight}` }}
                                       >
                                         <span style={{ color: colors.brown }}>Shop Overhead</span>
-                                        <span style={{ color: colors.gold }}>({formatCurrency((overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0))})</span>
+                                        <span style={{ color: colors.gold }}>({formatCurrency(ohCost)}{recipe.minutes_per_drink != null ? ` · ${ohMinutes}m` : ''})</span>
                                       </div>
                                     )}
                                   </div>
                                 </div>
-                              )}
+                              ) : null; })()}
                             </>
                           )}
 
@@ -1826,11 +1859,12 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
       }
       // Add overhead cost to base
       if (overhead && baseTemplate) {
-        const overheadCost = (overhead.cost_per_minute || 0) * (overhead.minutes_per_drink || 0);
+        const recipeMinutes = recipe.minutes_per_drink ?? overhead.minutes_per_drink ?? 1;
+        const overheadCost = (overhead.cost_per_minute || 0) * recipeMinutes;
         totalCost += overheadCost;
       }
     }
-    
+
     return totalCost;
   };
 
@@ -2414,158 +2448,6 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
-        <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>Overhead Settings</h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
-              Minutes per Drink
-            </label>
-            {editing ? (
-              <input
-                type="text"
-                inputMode="decimal"
-                value={form.minutes_per_drink}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                    setForm({ ...form, minutes_per_drink: val === '' ? 0 : parseFloat(val) || 0 });
-                  }
-                }}
-                onFocus={(e) => e.target.select()}
-                className="w-full px-3 py-2 rounded-lg border-2 outline-none"
-                style={{ borderColor: colors.gold }}
-                data-testid="input-minutes-per-drink"
-              />
-            ) : (
-              <div className="text-2xl font-bold" style={{ color: colors.brown }}>
-                {overhead?.minutes_per_drink ? String(overhead.minutes_per_drink).replace(/^0+(?=\d)/, '') : '1'}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
-              Operating Days Per Week
-            </label>
-            {editing ? (
-              <input
-                type="number"
-                min="1"
-                max="7"
-                value={form.operating_days_per_week}
-                onChange={(e) => setForm({ ...form, operating_days_per_week: Math.min(7, Math.max(1, parseInt(e.target.value) || 7)) })}
-                onFocus={(e) => e.target.select()}
-                className="w-full px-3 py-2 rounded-lg border-2 outline-none"
-                style={{ borderColor: colors.gold }}
-                data-testid="input-operating-days"
-              />
-            ) : (
-              <div className="text-2xl font-bold" style={{ color: colors.brown }}>
-                {overhead?.operating_days_per_week || 7} days
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
-              Hours Open Per Day
-            </label>
-            {editing ? (
-              <input
-                type="number"
-                step="0.5"
-                min="1"
-                max="24"
-                value={form.hours_open_per_day}
-                onChange={(e) => setForm({ ...form, hours_open_per_day: Math.min(24, Math.max(1, parseFloat(e.target.value) || 8)) })}
-                onFocus={(e) => e.target.select()}
-                className="w-full px-3 py-2 rounded-lg border-2 outline-none"
-                style={{ borderColor: colors.gold }}
-                data-testid="input-hours-open"
-              />
-            ) : (
-              <div className="text-2xl font-bold" style={{ color: colors.brown }}>
-                {overhead?.hours_open_per_day || 8} hours
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
-              Calculated Cost/Minute
-            </label>
-            <div className="text-2xl font-bold" style={{ color: colors.gold }}>
-              {formatCurrency(minutesPerMonth > 0 ? totals.monthly / minutesPerMonth : 0)}
-            </div>
-            <div className="text-xs" style={{ color: colors.brownLight }}>
-              From overhead calculator
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 p-4 rounded-lg" style={{ backgroundColor: colors.cream }}>
-          <div className="text-sm" style={{ color: colors.brownLight }}>Overhead per Drink</div>
-          <div className="text-3xl font-bold" style={{ color: colors.gold }}>
-            {formatCurrency((minutesPerMonth > 0 ? totals.monthly / minutesPerMonth : 0) * (overhead?.minutes_per_drink || 1))}
-          </div>
-          <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
-            Cost/min ({formatCurrency(minutesPerMonth > 0 ? totals.monthly / minutesPerMonth : 0)}) x Minutes/drink ({overhead?.minutes_per_drink || 1})
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
-            Notes
-          </label>
-          {editing ? (
-            <textarea
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border-2 outline-none"
-              style={{ borderColor: colors.gold }}
-              rows={2}
-              data-testid="input-notes"
-            />
-          ) : (
-            <p style={{ color: colors.brownLight }}>{overhead?.notes || 'No notes'}</p>
-          )}
-        </div>
-
-        <div className="mt-4">
-          {editing ? (
-            <div className="flex gap-2">
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 font-semibold rounded-lg"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
-                data-testid="button-save-settings"
-              >
-                Save Changes
-              </button>
-              <button
-                onClick={() => setEditing(false)}
-                className="px-4 py-2 font-semibold rounded-lg"
-                style={{ backgroundColor: colors.creamDark, color: colors.brown }}
-                data-testid="button-cancel-settings"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setEditing(true)}
-              className="px-4 py-2 font-semibold rounded-lg"
-              style={{ backgroundColor: colors.gold, color: colors.white }}
-              data-testid="button-edit-settings"
-            >
-              Edit Settings
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Overhead Calculator */}
       <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -2872,6 +2754,159 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
         </div>
       </div>
 
+      {/* Overhead Settings */}
+      <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
+        <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>Overhead Settings</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+              Minutes per Drink
+            </label>
+            {editing ? (
+              <input
+                type="text"
+                inputMode="decimal"
+                value={form.minutes_per_drink}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                    setForm({ ...form, minutes_per_drink: val === '' ? 0 : parseFloat(val) || 0 });
+                  }
+                }}
+                onFocus={(e) => e.target.select()}
+                className="w-full px-3 py-2 rounded-lg border-2 outline-none"
+                style={{ borderColor: colors.gold }}
+                data-testid="input-minutes-per-drink"
+              />
+            ) : (
+              <div className="text-2xl font-bold" style={{ color: colors.brown }}>
+                {overhead?.minutes_per_drink ? String(overhead.minutes_per_drink).replace(/^0+(?=\d)/, '') : '1'}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+              Operating Days Per Week
+            </label>
+            {editing ? (
+              <input
+                type="number"
+                min="1"
+                max="7"
+                value={form.operating_days_per_week}
+                onChange={(e) => setForm({ ...form, operating_days_per_week: Math.min(7, Math.max(1, parseInt(e.target.value) || 7)) })}
+                onFocus={(e) => e.target.select()}
+                className="w-full px-3 py-2 rounded-lg border-2 outline-none"
+                style={{ borderColor: colors.gold }}
+                data-testid="input-operating-days"
+              />
+            ) : (
+              <div className="text-2xl font-bold" style={{ color: colors.brown }}>
+                {overhead?.operating_days_per_week || 7} days
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+              Hours Open Per Day
+            </label>
+            {editing ? (
+              <input
+                type="number"
+                step="0.5"
+                min="1"
+                max="24"
+                value={form.hours_open_per_day}
+                onChange={(e) => setForm({ ...form, hours_open_per_day: Math.min(24, Math.max(1, parseFloat(e.target.value) || 8)) })}
+                onFocus={(e) => e.target.select()}
+                className="w-full px-3 py-2 rounded-lg border-2 outline-none"
+                style={{ borderColor: colors.gold }}
+                data-testid="input-hours-open"
+              />
+            ) : (
+              <div className="text-2xl font-bold" style={{ color: colors.brown }}>
+                {overhead?.hours_open_per_day || 8} hours
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+              Calculated Cost/Minute
+            </label>
+            <div className="text-2xl font-bold" style={{ color: colors.gold }}>
+              {formatCurrency(minutesPerMonth > 0 ? totals.monthly / minutesPerMonth : 0)}
+            </div>
+            <div className="text-xs" style={{ color: colors.brownLight }}>
+              From overhead calculator
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 p-4 rounded-lg" style={{ backgroundColor: colors.cream }}>
+          <div className="text-sm" style={{ color: colors.brownLight }}>Overhead per Drink</div>
+          <div className="text-3xl font-bold" style={{ color: colors.gold }}>
+            {formatCurrency((minutesPerMonth > 0 ? totals.monthly / minutesPerMonth : 0) * (overhead?.minutes_per_drink || 1))}
+          </div>
+          <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
+            Cost/min ({formatCurrency(minutesPerMonth > 0 ? totals.monthly / minutesPerMonth : 0)}) x Minutes/drink ({overhead?.minutes_per_drink || 1})
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+            Notes
+          </label>
+          {editing ? (
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg border-2 outline-none"
+              style={{ borderColor: colors.gold }}
+              rows={2}
+              data-testid="input-notes"
+            />
+          ) : (
+            <p style={{ color: colors.brownLight }}>{overhead?.notes || 'No notes'}</p>
+          )}
+        </div>
+
+        <div className="mt-4">
+          {editing ? (
+            <div className="flex gap-2">
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 font-semibold rounded-lg"
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                data-testid="button-save-settings"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                className="px-4 py-2 font-semibold rounded-lg"
+                style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                data-testid="button-cancel-settings"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditing(true)}
+              className="px-4 py-2 font-semibold rounded-lg"
+              style={{ backgroundColor: colors.gold, color: colors.white }}
+              data-testid="button-edit-settings"
+            >
+              Edit Settings
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Export Section */}
       <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
         <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>Export Data</h3>
@@ -2910,9 +2945,10 @@ const SettingsTab = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSi
           <button
             onClick={() => {
               let csv = 'Recipe Name,Category,Size,Base Template,Ingredient Cost,Overhead,Total Cost,Sale Price,Margin %,Profit\n';
-              const overheadCost = (overhead?.cost_per_minute || 0) * (overhead?.minutes_per_drink || 1);
-              
+
               recipes.forEach(recipe => {
+                const recipeMinutes = recipe.minutes_per_drink ?? overhead?.minutes_per_drink ?? 1;
+                const overheadCost = (overhead?.cost_per_minute || 0) * recipeMinutes;
                 const category = recipe.category_name || '';
                 
                 drinkSizes.forEach(size => {
@@ -3814,6 +3850,7 @@ export default function Home() {
           base_template_id: recipe.base_template_id || null,
           is_active: true,
           is_bulk_recipe: recipe.is_bulk_recipe || false,
+          minutes_per_drink: recipe.minutes_per_drink ?? null,
           tenant_id: profile?.tenant_id,
         })
         .select()
@@ -3907,7 +3944,7 @@ export default function Home() {
     }
   };
 
-  const handleUpdateRecipe = async (id: string, updates: { name?: string; category_id?: string; base_template_id?: string | null; is_bulk_recipe?: boolean }) => {
+  const handleUpdateRecipe = async (id: string, updates: { name?: string; category_id?: string; base_template_id?: string | null; is_bulk_recipe?: boolean; minutes_per_drink?: number | null }) => {
     try {
       const { error } = await supabase
         .from('recipes')
@@ -4206,7 +4243,7 @@ export default function Home() {
               Bases
             </TabButton>
             <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')}>
-              Settings
+              Overhead
             </TabButton>
           </div>
         </div>
