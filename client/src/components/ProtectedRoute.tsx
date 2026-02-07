@@ -67,8 +67,8 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
     return <Redirect to="/login" />;
   }
 
-  // Platform admins should go to platform admin page (unless viewing a tenant)
-  if (isPlatformAdmin && !adminViewingTenant) {
+  // Platform admins with no tenant profile should go to platform admin page
+  if (isPlatformAdmin && !adminViewingTenant && !profile) {
     return <Redirect to="/platform-admin" />;
   }
 

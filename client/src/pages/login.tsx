@@ -85,7 +85,7 @@ export default function Login() {
         // Reset loading state once auth check is complete
         setIsLoading(false);
         
-        if (isPlatformAdmin) {
+        if (isPlatformAdmin && !profile) {
           window.location.href = '/platform-admin';
         } else if (profile) {
           // Check if user has multiple accessible locations

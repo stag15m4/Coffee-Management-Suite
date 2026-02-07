@@ -146,15 +146,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Platform admin check - adminResult.error:', adminResult ? (adminResult as any).error : 'no result');
 
       // Check if platform admin
-      if (adminResult && (adminResult as any).data && !(adminResult as any).error) {
+      const isPlatAdmin = adminResult && (adminResult as any).data && !(adminResult as any).error;
+      if (isPlatAdmin) {
         setPlatformAdmin((adminResult as any).data);
-        setProfile(null);
-        setTenant(null);
-        setBranding(null);
-        setEnabledModules([]);
-        lastFetchedUserIdRef.current = userId;
-        fetchInProgressRef.current = null;
-        return true;
       }
 
       // Check for regular user profile - handle null/error cases
@@ -174,6 +168,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const profileData = profileResult ? (profileResult as any).data : null;
       if (!profileData) {
+        if (isPlatAdmin) {
+          // Platform admin with no tenant profile — that's fine
+          setProfile(null);
+          setTenant(null);
+          setBranding(null);
+          setEnabledModules([]);
+          lastFetchedUserIdRef.current = userId;
+          fetchInProgressRef.current = null;
+          return true;
+        }
         console.error('No profile found for user:', userId);
         setProfile(null);
         setPlatformAdmin(null);
@@ -181,7 +185,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setProfile(profileData);
-      setPlatformAdmin(null);
 
       // Fetch tenant, branding, and modules ALL in parallel with timeouts - use allSettled for resilience
       const [tenantSettled, brandingSettled, modulesSettled] = await Promise.allSettled([
@@ -715,18 +718,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const enterTenantView = useCallback(async (tenantId: string) => {
     if (!user || !platformAdmin) return;
 
-    // Load the admin's user profile for this tenant
+    // Try to load the admin's user profile for this tenant
     const { data: profileData } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('id', user.id)
       .eq('tenant_id', tenantId)
       .maybeSingle();
-
-    if (!profileData) {
-      console.error('No user profile found for this tenant');
-      return;
-    }
 
     // Load tenant, branding, and modules in parallel
     const [tenantResult, brandingResult, modulesResult] = await Promise.all([
@@ -736,7 +734,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ]);
 
     if (tenantResult.data) {
-      setProfile(profileData);
+      // Use real profile if admin is a member, otherwise create a synthetic owner profile
+      const effectiveProfile: UserProfile = profileData || {
+        id: user.id,
+        tenant_id: tenantId,
+        email: platformAdmin.email,
+        full_name: platformAdmin.full_name,
+        role: 'owner' as UserRole,
+        is_active: true,
+        avatar_url: null,
+        start_date: null,
+      };
+
+      setProfile(effectiveProfile);
       setTenant(tenantResult.data);
       setPrimaryTenant(tenantResult.data);
       setAccessibleLocations([tenantResult.data]);
@@ -764,13 +774,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // On load, check if platform admin was viewing a tenant
   useEffect(() => {
-    if (platformAdmin && !adminViewingTenant) {
+    if (platformAdmin && !adminViewingTenant && !profile) {
       const savedTenantId = sessionStorage.getItem('admin_view_tenant_id');
       if (savedTenantId) {
         enterTenantView(savedTenantId);
       }
     }
-  }, [platformAdmin, adminViewingTenant, enterTenantView]);
+  }, [platformAdmin, adminViewingTenant, profile, enterTenantView]);
 
   return (
     <AuthContext.Provider

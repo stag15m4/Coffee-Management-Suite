@@ -18,6 +18,7 @@ import {
   Lock,
   ChevronDown,
   ArrowLeft,
+  Shield,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -83,7 +84,7 @@ const ALL_MODULE_IDS: ModuleId[] = [
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { profile, branding, tenant, enabledModules, canAccessModule, signOut, hasRole, adminViewingTenant, exitTenantView } = useAuth();
+  const { profile, branding, tenant, enabledModules, canAccessModule, signOut, hasRole, isPlatformAdmin, adminViewingTenant, exitTenantView } = useAuth();
   const [, setLocation] = useLocation();
 
   const displayName = branding?.company_name || tenant?.name || 'Coffee Suite';
@@ -254,6 +255,14 @@ export function Sidebar() {
           icon={User}
           isActive={location === '/user-profile'}
         />
+        {isPlatformAdmin && !adminViewingTenant && (
+          <SidebarLink
+            href="/platform-admin"
+            label="Platform Admin"
+            icon={Shield}
+            isActive={location === '/platform-admin'}
+          />
+        )}
         <button
           className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-sm hover:bg-gray-50 transition-colors"
           style={{ color: colors.brownLight }}
