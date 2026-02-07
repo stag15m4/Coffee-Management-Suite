@@ -89,7 +89,7 @@ const colors = {
 };
 
 export default function PlatformAdmin() {
-  const { user, platformAdmin, isPlatformAdmin, profile, accessibleLocations, loading: authLoading, signOut, enterTenantView } = useAuth();
+  const { user, platformAdmin, isPlatformAdmin, loading: authLoading, signOut, enterTenantView } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -126,6 +126,9 @@ export default function PlatformAdmin() {
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [removingAdminId, setRemovingAdminId] = useState<string | null>(null);
 
+  // Tenant IDs where this admin has a user profile
+  const [myTenantIds, setMyTenantIds] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     if (!authLoading && !isPlatformAdmin) {
       setLocation('/login');
@@ -137,8 +140,20 @@ export default function PlatformAdmin() {
       loadTenants();
       loadSubscriptionData();
       loadAdmins();
+      loadMyTenants();
     }
   }, [isPlatformAdmin]);
+
+  const loadMyTenants = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('tenant_id')
+      .eq('id', user.id);
+    if (data) {
+      setMyTenantIds(new Set(data.map(p => p.tenant_id)));
+    }
+  };
 
   const loadSubscriptionData = async () => {
     try {
@@ -631,7 +646,7 @@ export default function PlatformAdmin() {
                         </Badge>
                       </div>
                     </div>
-                    {accessibleLocations.some(loc => loc.id === tenant.id) && (
+                    {myTenantIds.has(tenant.id) && (
                       <Button
                         variant="outline"
                         size="sm"
