@@ -129,15 +129,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       };
       
-      // Fetch platform admin AND user profiles in parallel - use allSettled so one failure doesn't block the other
-      const [adminSettled, profilesSettled] = await Promise.allSettled([
+      // Fetch platform admin AND user profile in parallel - use allSettled so one failure doesn't block the other
+      const [adminSettled, profileSettled] = await Promise.allSettled([
         withTimeout(supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle(), 'Admin query'),
-        withTimeout(supabase.from('user_profiles').select('*').eq('id', userId), 'Profiles query')
+        withTimeout(supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle(), 'Profile query')
       ]);
 
       // Extract results safely
       const adminResult = adminSettled.status === 'fulfilled' ? adminSettled.value : null;
-      const profilesResult = profilesSettled.status === 'fulfilled' ? profilesSettled.value : null;
+      const profileResult = profileSettled.status === 'fulfilled' ? profileSettled.value : null;
 
       // Check if platform admin
       const isPlatAdmin = adminResult && (adminResult as any).data && !(adminResult as any).error;
@@ -145,14 +145,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setPlatformAdmin((adminResult as any).data);
       }
 
-      // Check for regular user profiles - handle null/error cases
-      const profilesError = profilesResult ? (profilesResult as any).error : null;
-      if (profilesError) {
-        console.error('Profiles query error:', profilesError.message);
+      // Check for regular user profile - handle null/error cases
+      const profileError = profileResult ? (profileResult as any).error : null;
+      if (profileError) {
+        console.error('Profile query error:', profileError.message);
         // Retry on network errors
-        if (profilesError.message?.includes('Load failed') ||
-            profilesError.message?.includes('fetch') ||
-            profilesError.message?.includes('network')) {
+        if (profileError.message?.includes('Load failed') ||
+            profileError.message?.includes('fetch') ||
+            profileError.message?.includes('network')) {
           if (retryCount < MAX_RETRIES) {
             console.log(`Retrying profile fetch (attempt ${retryCount + 2}/${MAX_RETRIES + 1})...`);
             await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
@@ -160,14 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       }
-      const allProfiles: UserProfile[] = profilesResult ? (profilesResult as any).data || [] : [];
-
-      // Pick the right profile: prefer last-used location, then first available
-      let profileData: UserProfile | null = null;
-      if (allProfiles.length > 0) {
-        const savedLocationId = sessionStorage.getItem('selected_location_id');
-        profileData = allProfiles.find(p => p.tenant_id === savedLocationId) || allProfiles[0];
-      }
+      const profileData = profileResult ? (profileResult as any).data : null;
 
       if (!profileData) {
         if (isPlatAdmin) {
@@ -716,43 +709,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.dispatchEvent(new CustomEvent('location-changed', { detail: { locationId } }));
   }, [accessibleLocations]);
 
-  // Platform admin: enter a tenant's dashboard view
+  // Platform admin: enter a tenant's dashboard view (requires profile or assignment)
   const enterTenantView = useCallback(async (tenantId: string) => {
     if (!user || !platformAdmin) return;
 
-    // Ensure a real user_profiles entry exists for this admin in the tenant
-    await fetch('/api/platform-admin/ensure-profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
-      body: JSON.stringify({ tenant_id: tenantId }),
-    });
-
-    // Load the admin's profile for this tenant
-    const { data: profileData } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .eq('tenant_id', tenantId)
-      .maybeSingle();
-
-    // Load tenant, branding, and modules in parallel
-    const [tenantResult, brandingResult, modulesResult] = await Promise.all([
+    // Load profile, assignment, and tenant data in parallel
+    const [profileResult, assignmentResult, tenantResult, brandingResult, modulesResult] = await Promise.all([
+      supabase.from('user_profiles').select('*').eq('id', user.id).eq('tenant_id', tenantId).maybeSingle(),
+      supabase.from('user_tenant_assignments').select('role').eq('user_id', user.id).eq('tenant_id', tenantId).eq('is_active', true).maybeSingle(),
       supabase.from('tenants').select('*').eq('id', tenantId).single(),
       supabase.from('tenant_branding').select('*').eq('tenant_id', tenantId).maybeSingle(),
       supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: tenantId }),
     ]);
 
-    if (tenantResult.data && profileData) {
-      setProfile(profileData);
-      setTenant(tenantResult.data);
-      setPrimaryTenant(tenantResult.data);
-      setAccessibleLocations([tenantResult.data]);
-      setActiveLocationId(tenantResult.data.id);
-      setBranding(brandingResult.data || null);
-      setEnabledModules((modulesResult.data || []) as ModuleId[]);
-      setAdminViewingTenant(true);
-      sessionStorage.setItem('admin_view_tenant_id', tenantId);
-    }
+    if (!tenantResult.data) return;
+
+    // Use direct profile if available, otherwise build one from the assignment
+    const effectiveProfile: UserProfile = profileResult.data || (assignmentResult.data ? {
+      id: user.id,
+      tenant_id: tenantId,
+      email: platformAdmin.email,
+      full_name: platformAdmin.full_name,
+      role: (assignmentResult.data.role || 'owner') as UserRole,
+      is_active: true,
+      avatar_url: null,
+      start_date: null,
+    } : null as any);
+
+    if (!effectiveProfile) return;
+
+    setProfile(effectiveProfile);
+    setTenant(tenantResult.data);
+    setPrimaryTenant(tenantResult.data);
+    setAccessibleLocations([tenantResult.data]);
+    setActiveLocationId(tenantResult.data.id);
+    setBranding(brandingResult.data || null);
+    setEnabledModules((modulesResult.data || []) as ModuleId[]);
+    setAdminViewingTenant(true);
+    sessionStorage.setItem('admin_view_tenant_id', tenantId);
   }, [user, platformAdmin]);
 
   // Platform admin: exit tenant view and return to admin panel

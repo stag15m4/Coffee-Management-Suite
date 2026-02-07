@@ -146,13 +146,14 @@ export default function PlatformAdmin() {
 
   const loadMyTenants = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('tenant_id')
-      .eq('id', user.id);
-    if (data) {
-      setMyTenantIds(new Set(data.map(p => p.tenant_id)));
-    }
+    const [profileResult, assignmentsResult] = await Promise.all([
+      supabase.from('user_profiles').select('tenant_id').eq('id', user.id),
+      supabase.from('user_tenant_assignments').select('tenant_id').eq('user_id', user.id).eq('is_active', true),
+    ]);
+    const ids = new Set<string>();
+    profileResult.data?.forEach(p => ids.add(p.tenant_id));
+    assignmentsResult.data?.forEach(a => ids.add(a.tenant_id));
+    setMyTenantIds(ids);
   };
 
   const loadSubscriptionData = async () => {
