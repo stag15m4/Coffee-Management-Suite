@@ -3640,7 +3640,7 @@ export default function Home() {
     setLocation(`/recipe-costing?tab=${tab}`);
   }, [setLocation]);
   const queryClient = useQueryClient();
-  const { profile, tenant, branding, primaryTenant } = useAuth();
+  const { profile, tenant, branding, primaryTenant, adminViewingTenant } = useAuth();
   const { confirm, ConfirmDialog } = useConfirmDialog();
   
   // Location-aware branding
@@ -4194,9 +4194,11 @@ export default function Home() {
             <TabButton active={activeTab === 'ingredients'} onClick={() => setActiveTab('ingredients')}>
               Ingredients
             </TabButton>
-            <TabButton active={activeTab === 'recipes'} onClick={() => setActiveTab('recipes')}>
-              Recipes
-            </TabButton>
+            {!adminViewingTenant && (
+              <TabButton active={activeTab === 'recipes'} onClick={() => setActiveTab('recipes')}>
+                Recipes
+              </TabButton>
+            )}
             <TabButton active={activeTab === 'vendors'} onClick={() => setActiveTab('vendors')}>
               Vendors
             </TabButton>
@@ -4234,7 +4236,7 @@ export default function Home() {
             onDeleteTemplate={handleDeleteBaseTemplate}
           />
         )}
-        {activeTab === 'recipes' && (
+        {activeTab === 'recipes' && !adminViewingTenant && (
           <RecipesTab
             recipes={recipes}
             ingredients={ingredients}

@@ -279,10 +279,16 @@ function ExpandableModule({
   const [expanded, setExpanded] = useState(isOnModule);
   const Icon = nav.icon;
   const searchString = useSearch();
+  const { adminViewingTenant } = useAuth();
+
+  // Hide recipes tab from platform admins to protect proprietary recipes
+  const visibleTabs = adminViewingTenant
+    ? nav.tabs?.filter((tab) => tab.key !== 'recipes')
+    : nav.tabs;
 
   // Get the active tab from the URL search params
   const activeTab = isOnModule
-    ? new URLSearchParams(searchString).get('tab') || nav.tabs![0].key
+    ? new URLSearchParams(searchString).get('tab') || visibleTabs![0].key
     : null;
 
   return (
@@ -312,9 +318,9 @@ function ExpandableModule({
           />
         </button>
       </div>
-      {expanded && nav.tabs && (
+      {expanded && visibleTabs && (
         <div className="ml-6 mt-0.5 space-y-0.5">
-          {nav.tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const isActiveTab = isOnModule && activeTab === tab.key;
             return (
               <Link key={tab.key} href={`${nav.href}?tab=${tab.key}`}>
