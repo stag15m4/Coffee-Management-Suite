@@ -9,7 +9,7 @@ import {
   useDeleteTaskAttachment,
 } from '@/lib/supabase-queries';
 import { VideoCapture } from './VideoCapture';
-import { FileText, Globe, Video, Trash2, Plus, Link, Loader2, Paperclip, ExternalLink } from 'lucide-react';
+import { FileText, Globe, Video, Trash2, Plus, Link, Loader2, Paperclip, ExternalLink, Play, X } from 'lucide-react';
 
 const colors = {
   gold: '#C9A227',
@@ -36,6 +36,7 @@ export function TaskAttachments({ taskId, tenantId }: TaskAttachmentsProps) {
   const [showAddLink, setShowAddLink] = useState(false);
   const [linkName, setLinkName] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [fullscreenVideoUrl, setFullscreenVideoUrl] = useState<string | null>(null);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -147,13 +148,21 @@ export function TaskAttachments({ taskId, tenantId }: TaskAttachmentsProps) {
                   className="rounded overflow-hidden"
                   style={{ backgroundColor: colors.inputBg }}
                 >
-                  <video
-                    src={att.url}
-                    controls
-                    preload="metadata"
-                    className="w-full max-w-md rounded-t"
-                    style={{ maxHeight: 240 }}
-                  />
+                  <div
+                    className="relative w-full max-w-md aspect-video bg-black rounded-t cursor-pointer group"
+                    onClick={() => setFullscreenVideoUrl(att.url)}
+                  >
+                    <video
+                      src={att.url}
+                      preload="metadata"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+                      <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
+                        <Play className="w-6 h-6 ml-0.5" style={{ color: colors.brown }} />
+                      </div>
+                    </div>
+                  </div>
                   <div className="flex items-center justify-between p-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <Video className="w-4 h-4 flex-shrink-0" style={{ color: colors.brownLight }} />
@@ -271,6 +280,28 @@ export function TaskAttachments({ taskId, tenantId }: TaskAttachmentsProps) {
           >
             {addAttachment.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save'}
           </Button>
+        </div>
+      )}
+
+      {/* Fullscreen video overlay */}
+      {fullscreenVideoUrl && (
+        <div
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
+          onClick={() => setFullscreenVideoUrl(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+            onClick={() => setFullscreenVideoUrl(null)}
+          >
+            <X className="w-8 h-8" />
+          </button>
+          <video
+            src={fullscreenVideoUrl}
+            controls
+            autoPlay
+            className="max-w-[95vw] max-h-[90vh] rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>
