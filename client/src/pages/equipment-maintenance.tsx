@@ -141,22 +141,28 @@ function formatDateForCalendar(date: Date): string {
 
 type WarrantyStatus = 'covered' | 'expired' | 'none';
 
+// Parse a date-only string (e.g. "2026-01-20") as local time instead of UTC.
+// new Date("2026-01-20") treats it as midnight UTC, which rolls back a day in US timezones.
+function parseLocalDate(dateStr: string): Date {
+  return new Date(dateStr.replace(/-/g, '/'));
+}
+
 function getWarrantyStatus(equipment: Equipment): WarrantyStatus {
   if (!equipment.has_warranty) return 'none';
   if (!equipment.purchase_date || !equipment.warranty_duration_months) return 'none';
-  
-  const purchaseDate = new Date(equipment.purchase_date);
+
+  const purchaseDate = parseLocalDate(equipment.purchase_date);
   const expirationDate = new Date(purchaseDate);
   expirationDate.setMonth(expirationDate.getMonth() + equipment.warranty_duration_months);
-  
+
   const now = new Date();
   return now <= expirationDate ? 'covered' : 'expired';
 }
 
 function getWarrantyExpirationDate(equipment: Equipment): Date | null {
   if (!equipment.has_warranty || !equipment.purchase_date || !equipment.warranty_duration_months) return null;
-  
-  const purchaseDate = new Date(equipment.purchase_date);
+
+  const purchaseDate = parseLocalDate(equipment.purchase_date);
   const expirationDate = new Date(purchaseDate);
   expirationDate.setMonth(expirationDate.getMonth() + equipment.warranty_duration_months);
   return expirationDate;
@@ -417,7 +423,7 @@ async function exportEquipmentRecords(
 
           ${equipment.in_service_date && !equipment.has_warranty ? `
           <span class="info-label">In Service:</span>
-          <span class="info-value">${new Date(equipment.in_service_date).toLocaleDateString()}</span>
+          <span class="info-value">${parseLocalDate(equipment.in_service_date).toLocaleDateString()}</span>
           ` : ''}
         </div>
 
@@ -432,10 +438,10 @@ async function exportEquipmentRecords(
           </span>
 
           <span class="info-label">Purchase Date:</span>
-          <span class="info-value">${equipment.purchase_date ? new Date(equipment.purchase_date).toLocaleDateString() : 'N/A'}</span>
+          <span class="info-value">${equipment.purchase_date ? parseLocalDate(equipment.purchase_date).toLocaleDateString() : 'N/A'}</span>
 
           <span class="info-label">In Service:</span>
-          <span class="info-value">${new Date(equipment.in_service_date || equipment.purchase_date || '').toLocaleDateString()}</span>
+          <span class="info-value">${parseLocalDate(equipment.in_service_date || equipment.purchase_date || '').toLocaleDateString()}</span>
 
           <span class="info-label">Duration:</span>
           <span class="info-value">${equipment.warranty_duration_months} months</span>
@@ -2060,8 +2066,8 @@ export default function EquipmentMaintenance() {
                             )}
                             {item.has_warranty && item.purchase_date && (
                               <div className="mt-2 text-xs space-y-1" style={{ color: colors.brownLight }}>
-                                <p>Purchased: {new Date(item.purchase_date).toLocaleDateString()}</p>
-                                <p>In Service: {new Date(item.in_service_date || item.purchase_date).toLocaleDateString()}</p>
+                                <p>Purchased: {parseLocalDate(item.purchase_date).toLocaleDateString()}</p>
+                                <p>In Service: {parseLocalDate(item.in_service_date || item.purchase_date).toLocaleDateString()}</p>
                                 {item.warranty_duration_months && (
                                   <p>{formatWarrantyInfo(item)}</p>
                                 )}
@@ -2072,7 +2078,7 @@ export default function EquipmentMaintenance() {
                             )}
                             {!(item.has_warranty && item.purchase_date) && (
                               <p className="text-xs mt-2" style={{ color: colors.brownLight }}>
-                                In Service: {item.in_service_date ? new Date(item.in_service_date).toLocaleDateString() : 'Not set'}
+                                In Service: {item.in_service_date ? parseLocalDate(item.in_service_date).toLocaleDateString() : 'Not set'}
                               </p>
                             )}
                             <EquipmentAttachments

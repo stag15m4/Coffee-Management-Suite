@@ -1734,20 +1734,32 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
   
   // Filter out bulk sizes and separate drink sizes from food sizes
   // Exclude bulk from both drink and food sizes
-  const drinkTypeSizes = drinkSizes.filter(s => 
-    !s.name.toLowerCase().includes('bulk') && 
+  const allDrinkTypeSizes = drinkSizes.filter(s =>
+    !s.name.toLowerCase().includes('bulk') &&
     (!s.drink_type || s.drink_type.toLowerCase() !== 'food')
   );
-  const foodSizes = drinkSizes.filter(s => 
+  const allFoodSizes = drinkSizes.filter(s =>
     !s.name.toLowerCase().includes('bulk') &&
     s.drink_type && s.drink_type.toLowerCase() === 'food'
   );
-  
-  // For backward compatibility
-  const standardDrinkSizes = drinkTypeSizes;
-  
+
   // Filter out bulk recipes (they are manufacturing recipes, not for sale directly)
   const nonBulkRecipes = recipes.filter(r => !r.is_bulk_recipe);
+
+  // Only show sizes that have at least one recipe ingredient or pricing entry
+  const sizeHasData = (sizeId: string): boolean => {
+    const hasIngredients = nonBulkRecipes.some(r =>
+      r.recipe_ingredients?.some(ri => ri.size_id === sizeId)
+    );
+    if (hasIngredients) return true;
+    const hasPricing = pricingData.some(p => p.size_id === sizeId && p.sale_price > 0);
+    return hasPricing;
+  };
+  const drinkTypeSizes = allDrinkTypeSizes.filter(s => sizeHasData(s.id));
+  const foodSizes = allFoodSizes.filter(s => sizeHasData(s.id));
+
+  // For backward compatibility
+  const standardDrinkSizes = drinkTypeSizes;
   
   // Get all food size IDs for classification
   const foodSizeIds = foodSizes.map(s => s.id);
