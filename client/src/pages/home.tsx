@@ -956,12 +956,12 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
   const getBulkRecipeCostPerOz = (bulkRecipeId: string): number => {
     const bulkRecipe = recipes.find(r => r.id === bulkRecipeId);
     if (!bulkRecipe || !bulkRecipe.is_bulk_recipe) return 0;
-    
+
     // Find the bulk size for this recipe
     const bulkSizes = drinkSizes.filter(s => s.name.toLowerCase().includes('bulk'));
     let totalCost = 0;
     let batchSizeOz = 0;
-    
+
     for (const size of bulkSizes) {
       const sizeIngredients = bulkRecipe.recipe_ingredients?.filter((ri: RecipeIngredient) => ri.size_id === size.id) || [];
       if (sizeIngredients.length > 0) {
@@ -975,7 +975,12 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
         break; // Use first bulk size found with ingredients
       }
     }
-    
+
+    // Add overhead time cost for making the batch
+    if (overhead && bulkRecipe.minutes_per_drink != null) {
+      totalCost += (overhead.cost_per_minute || 0) * bulkRecipe.minutes_per_drink;
+    }
+
     if (batchSizeOz > 0) {
       return totalCost / batchSizeOz;
     }
@@ -1015,13 +1020,16 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
             totalCost += bi.quantity * getIngredientCostPerUnit(ing);
           }
         }
-        // Add overhead cost to base (only for drink bases, not bulk recipes)
+        // Add overhead cost to base
         if (overhead && baseTemplate) {
           const recipeMinutes = recipe.minutes_per_drink ?? overhead.minutes_per_drink ?? 1;
           const overheadCost = (overhead.cost_per_minute || 0) * recipeMinutes;
           totalCost += overheadCost;
         }
       }
+    } else if (overhead && recipe.minutes_per_drink != null) {
+      // Bulk recipes: add overhead time cost for making the batch
+      totalCost += (overhead.cost_per_minute || 0) * recipe.minutes_per_drink;
     }
 
     return totalCost;
@@ -1407,9 +1415,15 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                     </div>
                   )}
                   <div className="grid gap-3">
-                    {(recipe.is_bulk_recipe 
+                    {(recipe.is_bulk_recipe
                       ? drinkSizes.filter(s => s.name.toLowerCase().includes('bulk'))
-                      : drinkSizes.filter(s => !s.name.toLowerCase().includes('bulk'))
+                      : (() => {
+                          const foodSizes = drinkSizes.filter(s => !s.name.toLowerCase().includes('bulk') && s.drink_type?.toLowerCase() === 'food');
+                          const drinkTypeSizes = drinkSizes.filter(s => !s.name.toLowerCase().includes('bulk') && s.drink_type?.toLowerCase() !== 'food');
+                          const foodSizeIds = foodSizes.map(s => s.id);
+                          const hasFoodIngredients = recipe.recipe_ingredients?.some(ri => foodSizeIds.includes(ri.size_id)) || false;
+                          return hasFoodIngredients ? foodSizes : drinkTypeSizes;
+                        })()
                     ).map(size => {
                       const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === size.id) || [];
                       const isBulkRecipe = recipe.is_bulk_recipe === true;
@@ -1433,11 +1447,11 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
                               {isBulkRecipe && (
                                 <button
                                   onClick={() => onDeleteBulkSize(size.id)}
-                                  className="text-xs px-2 py-0.5 rounded font-medium"
-                                  style={{ color: colors.red, border: `1px solid ${colors.red}` }}
+                                  className="p-1 rounded"
+                                  style={{ color: colors.brownLight }}
                                   data-testid={`button-delete-bulk-size-${size.id}`}
                                 >
-                                  Delete
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               )}
                             </div>
@@ -1817,12 +1831,12 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
   const getBulkRecipeCostPerOz = (bulkRecipeId: string): number => {
     const bulkRecipe = recipes.find(r => r.id === bulkRecipeId);
     if (!bulkRecipe || !bulkRecipe.is_bulk_recipe) return 0;
-    
+
     // Find the bulk size for this recipe
     const bulkSizes = drinkSizes.filter(s => s.name.toLowerCase().includes('bulk'));
     let totalCost = 0;
     let batchSizeOz = 0;
-    
+
     for (const size of bulkSizes) {
       const sizeIngredients = bulkRecipe.recipe_ingredients?.filter((ri: RecipeIngredient) => ri.size_id === size.id) || [];
       if (sizeIngredients.length > 0) {
@@ -1836,7 +1850,12 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
         break; // Use first bulk size found with ingredients
       }
     }
-    
+
+    // Add overhead time cost for making the batch
+    if (overhead && bulkRecipe.minutes_per_drink != null) {
+      totalCost += (overhead.cost_per_minute || 0) * bulkRecipe.minutes_per_drink;
+    }
+
     if (batchSizeOz > 0) {
       return totalCost / batchSizeOz;
     }
