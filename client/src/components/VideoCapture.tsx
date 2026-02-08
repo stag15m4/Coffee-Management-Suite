@@ -119,9 +119,12 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
       const ext = mimeType.includes('webm') ? 'webm' : 'mp4';
       const type = mimeType.includes('webm') ? 'video/webm' : 'video/mp4';
       const blob = new Blob(chunksRef.current, { type });
-      const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const now = new Date();
+      const month = now.toLocaleDateString('en-US', { month: 'short' });
+      const day = String(now.getDate()).padStart(2, '0');
+      const year = now.getFullYear();
       const namepart = recorderName ? recorderName.split(' ')[0] : 'Tutorial';
-      const file = new File([blob], `${namepart} ${date}.${ext}`, { type });
+      const file = new File([blob], `${namepart}-Tutorial-${month}-${day}-${year}.${ext}`, { type });
 
       if (file.size > 100 * 1024 * 1024) {
         toast({ title: 'Video too large', description: 'Maximum video size is 100MB', variant: 'destructive' });
