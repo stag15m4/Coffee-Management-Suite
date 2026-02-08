@@ -28,11 +28,12 @@ export function registerObjectStorageRoutes(app: Express): void {
     }
   });
 
-  // Serve uploaded objects.
+  // Serve uploaded objects via signed URL redirect.
+  // Redirecting to Supabase storage supports Range requests (needed for video playback).
   app.get("/objects/:objectPath(*)", async (req, res) => {
     try {
       const storagePath = objectStorageService.resolveStoragePath(req.path);
-      await objectStorageService.downloadObject(storagePath, res);
+      await objectStorageService.serveObject(storagePath, res);
     } catch (error) {
       console.error("Error serving object:", error);
       if (error instanceof ObjectNotFoundError) {

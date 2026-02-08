@@ -33,28 +33,20 @@ export class ObjectStorageService {
     };
   }
 
-  // Downloads an object and streams it to the response.
-  async downloadObject(storagePath: string, res: Response) {
+  // Creates a signed URL and redirects the browser to Supabase storage.
+  // This supports HTTP Range requests (needed for video playback/seeking).
+  async serveObject(storagePath: string, res: Response) {
     const supabase = getSupabaseAdmin();
 
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .download(storagePath);
+      .createSignedUrl(storagePath, 3600); // 1 hour expiry
 
-    if (error || !data) {
+    if (error || !data?.signedUrl) {
       throw new ObjectNotFoundError();
     }
 
-    const arrayBuffer = await data.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    res.set({
-      "Content-Type": data.type || "application/octet-stream",
-      "Content-Length": buffer.length.toString(),
-      "Cache-Control": "private, max-age=3600",
-    });
-
-    res.send(buffer);
+    res.redirect(data.signedUrl);
   }
 
   // Resolves an object path (e.g. "/objects/uploads/uuid") to the Supabase storage path.
