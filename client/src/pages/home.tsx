@@ -4162,7 +4162,7 @@ export default function Home() {
         .eq('id', id);
 
       if (error) throw error;
-      queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
     } catch (error: any) {
       alert('Error updating recipe: ' + error.message);
     }
