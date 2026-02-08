@@ -1,0 +1,10 @@
+{
+  "forwardPorts": [5001],
+  "portsAttributes": {
+    "5001": {
+      "label": "Coffee Management Suite",
+      "visibility": "public",
+      "onAutoForward": "notify"
+    }
+  }
+}
