@@ -25,9 +25,10 @@ const colors = {
 interface TaskAttachmentsProps {
   taskId: string;
   tenantId: string;
+  userName?: string;
 }
 
-export function TaskAttachments({ taskId, tenantId }: TaskAttachmentsProps) {
+export function TaskAttachments({ taskId, tenantId, userName }: TaskAttachmentsProps) {
   const { toast } = useToast();
   const { data: attachments = [], isLoading } = useTaskAttachments(taskId);
   const addAttachment = useAddTaskAttachment();
@@ -231,6 +232,7 @@ export function TaskAttachments({ taskId, tenantId }: TaskAttachmentsProps) {
         <VideoCapture
           onVideoRecorded={handleVideoRecorded}
           isUploading={isUploadingVideo}
+          recorderName={userName}
         />
         <input
           ref={fileInputRef}

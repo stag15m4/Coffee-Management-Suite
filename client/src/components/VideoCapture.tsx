@@ -21,9 +21,10 @@ const MAX_DURATION = 120; // 2 minutes max
 interface VideoCaptureProps {
   onVideoRecorded: (file: File) => Promise<void>;
   isUploading: boolean;
+  recorderName?: string;
 }
 
-export function VideoCapture({ onVideoRecorded, isUploading }: VideoCaptureProps) {
+export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: VideoCaptureProps) {
   const { toast } = useToast();
   const [showCamera, setShowCamera] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -118,7 +119,9 @@ export function VideoCapture({ onVideoRecorded, isUploading }: VideoCaptureProps
       const ext = mimeType.includes('webm') ? 'webm' : 'mp4';
       const type = mimeType.includes('webm') ? 'video/webm' : 'video/mp4';
       const blob = new Blob(chunksRef.current, { type });
-      const file = new File([blob], `tutorial-${Date.now()}.${ext}`, { type });
+      const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const namepart = recorderName ? recorderName.split(' ')[0] : 'Tutorial';
+      const file = new File([blob], `${namepart} ${date}.${ext}`, { type });
 
       if (file.size > 100 * 1024 * 1024) {
         toast({ title: 'Video too large', description: 'Maximum video size is 100MB', variant: 'destructive' });

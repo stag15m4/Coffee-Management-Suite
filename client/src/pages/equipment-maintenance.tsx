@@ -1406,7 +1406,7 @@ export default function EquipmentMaintenance() {
                                     </button>
                                   </div>
                                   {/* Task attachments & video tutorials */}
-                                  <TaskAttachments taskId={task.id} tenantId={task.tenant_id} />
+                                  <TaskAttachments taskId={task.id} tenantId={task.tenant_id} userName={profile?.full_name || undefined} />
 
                                   <div className="flex gap-2 pt-1">
                                     <Button
