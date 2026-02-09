@@ -84,6 +84,7 @@ export function EmployeeHoursEntry({
                 <TableCell className="text-right p-1">
                   <div className="flex justify-end gap-1">
                     <button
+                      tabIndex={-1}
                       onClick={() => onEditEmployee(name, hours)}
                       className="p-1 rounded hover:bg-black/5"
                       aria-label={`Edit hours for ${name}`}
@@ -91,6 +92,7 @@ export function EmployeeHoursEntry({
                       <Pencil className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />
                     </button>
                     <button
+                      tabIndex={-1}
                       onClick={() => onDeleteEmployee(name)}
                       className="p-1 rounded hover:bg-red-50"
                       aria-label={`Delete hours for ${name}`}
@@ -138,6 +140,7 @@ export function EmployeeHoursEntry({
                   inputMode="numeric"
                   value={hoursInput}
                   onChange={(e) => onHoursInputChange(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddHours(); } }}
                   className="w-16"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   aria-label="Hours"
@@ -152,6 +155,7 @@ export function EmployeeHoursEntry({
                   inputMode="numeric"
                   value={minutesInput}
                   onChange={(e) => onMinutesInputChange(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddHours(); } }}
                   className="w-16"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   aria-label="Minutes (0-59)"

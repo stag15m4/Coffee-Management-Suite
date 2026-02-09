@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Banknote, CreditCard, DollarSign } from 'lucide-react';
@@ -35,6 +36,40 @@ export function DailyTipsEntry({
   onSaveTips,
   savingTips,
 }: DailyTipsEntryProps) {
+  // Tab order: Mon Cash → Mon CC → Tue Cash → Tue CC → ... → Sun CC
+  const handleTipTabNav = useCallback((e: React.KeyboardEvent<HTMLInputElement>, row: 'cash' | 'cc', dayIndex: number) => {
+    if (e.key !== 'Tab') return;
+    const forward = !e.shiftKey;
+    let nextRow: 'cash' | 'cc';
+    let nextDay: number;
+
+    if (forward) {
+      if (row === 'cash') {
+        nextRow = 'cc';
+        nextDay = dayIndex;
+      } else {
+        nextRow = 'cash';
+        nextDay = dayIndex + 1;
+      }
+      if (nextDay > 6) return; // let default tab move to Save button
+    } else {
+      if (row === 'cc') {
+        nextRow = 'cash';
+        nextDay = dayIndex;
+      } else {
+        nextRow = 'cc';
+        nextDay = dayIndex - 1;
+      }
+      if (nextDay < 0) return; // let default tab move to date picker
+    }
+
+    e.preventDefault();
+    const selector = `[data-testid="input-${nextRow}-${DAYS[nextDay].toLowerCase()}"]`;
+    const nextInput = document.querySelector<HTMLInputElement>(selector);
+    nextInput?.focus();
+    nextInput?.select();
+  }, []);
+
   return (
     <section>
       <div className="flex items-center gap-2 mb-1" style={{ color: colors.brown }}>
@@ -84,6 +119,7 @@ export function DailyTipsEntry({
                   inputMode="decimal"
                   value={cashEntries[i] || ''}
                   onChange={(e) => onCashEntryChange(i, parseFloat(e.target.value) || 0)}
+                  onKeyDown={(e) => handleTipTabNav(e, 'cash', i)}
                   className="text-center text-sm p-1"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   aria-label={`Cash tips for ${day}`}
@@ -109,6 +145,7 @@ export function DailyTipsEntry({
                   inputMode="decimal"
                   value={ccEntries[i] || ''}
                   onChange={(e) => onCcEntryChange(i, parseFloat(e.target.value) || 0)}
+                  onKeyDown={(e) => handleTipTabNav(e, 'cc', i)}
                   className="text-center text-sm p-1"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   aria-label={`Credit card tips for ${day}`}

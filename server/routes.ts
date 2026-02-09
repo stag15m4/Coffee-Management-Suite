@@ -825,6 +825,80 @@ export async function registerRoutes(
     }
   });
 
+  // =====================================================
+  // USER INVITE ROUTE
+  // =====================================================
+
+  app.post('/api/users/invite', async (req, res) => {
+    try {
+      const { email, fullName, role, tenantId, requestingUserId } = req.body;
+
+      if (!email || !tenantId || !requestingUserId) {
+        return res.status(400).json({ error: 'Email, tenantId, and requestingUserId are required' });
+      }
+
+      // Verify the requesting user is an owner or manager of this tenant
+      const requesterResult = await db.execute(sql`
+        SELECT role FROM user_profiles
+        WHERE id = ${requestingUserId}::uuid AND tenant_id = ${tenantId}::uuid AND is_active = true
+        LIMIT 1
+      `);
+      if (!requesterResult.rows.length || !['owner', 'manager'].includes((requesterResult.rows[0] as any).role)) {
+        return res.status(403).json({ error: 'Only owners and managers can invite users' });
+      }
+
+      const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
+      let userId: string;
+      let isNewUser = false;
+
+      // Try to invite the user (creates auth user + sends Supabase invite email)
+      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+        data: { full_name: fullName || email.split('@')[0] },
+      });
+
+      if (inviteData?.user) {
+        userId = inviteData.user.id;
+        isNewUser = true;
+      } else {
+        // User already exists in auth — look them up
+        const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        if (listError) throw listError;
+        const existing = listData.users.find((u: any) => u.email === email);
+        if (!existing) {
+          throw new Error(inviteError?.message || 'Could not find or create user with this email');
+        }
+        userId = existing.id;
+
+        // Send password recovery email so the user can set their own password
+        const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+        if (supabaseUrl && supabaseKey) {
+          const { createClient } = await import('@supabase/supabase-js');
+          const anonClient = createClient(supabaseUrl, supabaseKey);
+          const { error: resetError } = await anonClient.auth.resetPasswordForEmail(email);
+          if (resetError) {
+            console.warn('Password reset email failed:', resetError.message);
+          }
+        }
+      }
+
+      // Upsert user profile
+      await db.execute(sql`
+        INSERT INTO user_profiles (id, tenant_id, email, full_name, role, is_active)
+        VALUES (${userId}::uuid, ${tenantId}::uuid, ${email}, ${fullName || email.split('@')[0]}, ${role || 'employee'}, true)
+        ON CONFLICT (id) DO UPDATE SET
+          tenant_id = ${tenantId}::uuid,
+          role = ${role || 'employee'},
+          full_name = ${fullName || email.split('@')[0]},
+          is_active = true
+      `);
+
+      res.status(201).json({ userId, email, isNewUser });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }
 

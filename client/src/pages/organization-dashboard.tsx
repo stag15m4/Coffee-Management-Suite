@@ -89,13 +89,20 @@ export default function OrganizationDashboard() {
       for (const loc of allLocations) {
         const locMetrics: LocationMetrics = { tenant_id: loc.id };
 
-        // Get active employee count
-        const { count: empCount } = await supabase
+        // Get active employee count (from profiles + location assignments)
+        const { count: profileCount } = await supabase
           .from('user_profiles')
           .select('*', { count: 'exact', head: true })
           .eq('tenant_id', loc.id)
           .eq('is_active', true);
-        locMetrics.active_employees = empCount || 0;
+
+        const { count: assignmentCount } = await supabase
+          .from('user_tenant_assignments')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', loc.id)
+          .eq('is_active', true);
+
+        locMetrics.active_employees = Math.max(profileCount || 0, assignmentCount || 0) || (profileCount || 0);
 
         // Get pending admin tasks
         const { count: taskCount } = await supabase

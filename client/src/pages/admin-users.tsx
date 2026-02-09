@@ -19,18 +19,6 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Footer } from '@/components/Footer';
 
-function generateSecurePassword(): string {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  const symbols = '!@#$%&*';
-  let password = '';
-  for (let i = 0; i < 10; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  password += symbols.charAt(Math.floor(Math.random() * symbols.length));
-  password += Math.floor(Math.random() * 100);
-  return password;
-}
-
 const colors = {
   gold: '#C9A227',
   brown: '#4A3728',
@@ -63,7 +51,7 @@ interface UserLocationAssignment {
 }
 
 export default function AdminUsers() {
-  const { profile, tenant, accessibleLocations, branding, primaryTenant } = useAuth();
+  const { user, profile, tenant, accessibleLocations, branding, primaryTenant } = useAuth();
   const { toast } = useToast();
   
   // Location-aware branding
@@ -99,16 +87,26 @@ export default function AdminUsers() {
   // Load child locations for owners
   const loadLocations = useCallback(async () => {
     if (!profile?.tenant_id || profile.role !== 'owner') return;
-    
+
     try {
-      const { data, error } = await supabase
+      // Load child locations
+      const { data: children, error } = await supabase
         .from('tenants')
         .select('id, name, is_active')
         .eq('parent_tenant_id', profile.tenant_id)
         .order('name');
-      
+
       if (error) throw error;
-      setLocations(data || []);
+
+      // Include parent tenant so users can be assigned to it too
+      const { data: parent } = await supabase
+        .from('tenants')
+        .select('id, name, is_active')
+        .eq('id', profile.tenant_id)
+        .single();
+
+      const allLocations = parent ? [parent, ...(children || [])] : (children || []);
+      setLocations(allLocations);
     } catch (error: any) {
       console.error('Error loading locations:', error.message);
     }
@@ -205,116 +203,33 @@ export default function AdminUsers() {
   };
 
   const handleCreateUser = async () => {
-    if (!newEmail || !profile?.tenant_id) {
+    if (!newEmail || !profile?.tenant_id || !user?.id) {
       toast({ title: 'Email is required', variant: 'destructive' });
       return;
     }
 
     setCreating(true);
     try {
-      const TIMEOUT_MS = 10000;
-
-      // Save current session tokens before creating new user
-      const sessionPromise = supabase.auth.getSession();
-      const { data: sessionData } = await Promise.race([
-        sessionPromise,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Session retrieval timeout')), TIMEOUT_MS)
-        )
-      ]);
-      const currentSession = sessionData?.session;
-
-      // Generate a temporary random password (user will set their own via password reset)
-      const tempPassword = generateSecurePassword() + generateSecurePassword();
-
-      // Create auth user with timeout
-      const signUpPromise = supabase.auth.signUp({
-        email: newEmail,
-        password: tempPassword,
-        options: {
-          data: {
-            full_name: newName || newEmail.split('@')[0],
-          }
-        }
+      const response = await fetch('/api/users/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newEmail,
+          fullName: newName || newEmail.split('@')[0],
+          role: newRole,
+          tenantId: profile.tenant_id,
+          requestingUserId: user.id,
+        }),
       });
 
-      const { data: authData, error: authError } = await Promise.race([
-        signUpPromise,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Sign up timeout - please try again')), 15000)
-        )
-      ]);
-
-      if (authError) throw authError;
-
-      if (authData.user) {
-        // Create user profile in database with timeout
-        const profilePromise = supabase
-          .from('user_profiles')
-          .insert({
-            id: authData.user.id,
-            tenant_id: profile.tenant_id,
-            email: newEmail,
-            full_name: newName || newEmail.split('@')[0],
-            role: newRole,
-            is_active: true,
-          });
-
-        const { error: profileError } = await Promise.race([
-          profilePromise,
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Profile creation timeout')), TIMEOUT_MS)
-          )
-        ]);
-
-        if (profileError) throw profileError;
-
-        // Send password reset email so user can set their own password (with timeout)
-        try {
-          const resetPromise = supabase.auth.resetPasswordForEmail(newEmail, {
-            redirectTo: `${window.location.origin}/login`
-          });
-
-          const { error: resetError } = await Promise.race([
-            resetPromise,
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Email timeout')), TIMEOUT_MS)
-            )
-          ]);
-
-          if (resetError) {
-            console.warn('Password reset email failed:', resetError.message);
-            // Don't throw - user is created, they can request reset manually
-          }
-        } catch (emailErr) {
-          console.warn('Password reset email timeout:', emailErr);
-          // Continue - user is created, they can request reset manually
-        }
-      }
-
-      // IMPORTANT: Restore the original session if it was switched
-      if (currentSession) {
-        const setSessionPromise = supabase.auth.setSession({
-          access_token: currentSession.access_token,
-          refresh_token: currentSession.refresh_token,
-        });
-
-        await Promise.race([
-          setSessionPromise,
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Session restore timeout')), 5000)
-          )
-        ]);
-
-        // Small delay to ensure session is fully restored before reloading
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to invite user');
 
       // Show success dialog
       setCreatedUserEmail(newEmail);
       setShowAddDialog(false);
       setShowSuccessDialog(true);
-      
+
       // Reset form
       setNewEmail('');
       setNewName('');
@@ -480,6 +395,7 @@ export default function AdminUsers() {
                     <Label style={{ color: colors.brown }}>Role</Label>
                     <Select value={newRole} onValueChange={(v: any) => setNewRole(v)}>
                       <SelectTrigger
+                        tabIndex={0}
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                         data-testid="select-new-user-role"
                       >
