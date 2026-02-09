@@ -77,6 +77,11 @@ const colors = {
   red: '#ef4444',
 };
 
+function isVehicle(category: string | null | undefined): boolean {
+  const c = (category || '').toLowerCase().trim();
+  return c === 'vehicle' || c === 'vehicles' || c.includes('vehicle');
+}
+
 type TaskStatus = 'overdue' | 'due-soon' | 'good';
 
 function getTaskStatus(task: MaintenanceTask): TaskStatus {
@@ -418,12 +423,12 @@ async function exportEquipmentRecords(
           <span class="info-value">${equipment.notes}</span>
           ` : ''}
 
-          ${(equipment.category || '').toLowerCase() === 'vehicle' && equipment.license_plate ? `
+          ${isVehicle(equipment.category) && equipment.license_plate ? `
           <span class="info-label">License Plate:</span>
           <span class="info-value">${equipment.license_state ? equipment.license_state + ' ' : ''}${equipment.license_plate}</span>
           ` : ''}
 
-          ${(equipment.category || '').toLowerCase() === 'vehicle' && equipment.vin ? `
+          ${isVehicle(equipment.category) && equipment.vin ? `
           <span class="info-label">VIN:</span>
           <span class="info-value">${equipment.vin}</span>
           ` : ''}
@@ -796,9 +801,9 @@ export default function EquipmentMaintenance() {
         warranty_notes: newEquipmentHasWarranty && newEquipmentWarrantyNotes.trim() ? newEquipmentWarrantyNotes.trim() : undefined,
         photo_url: newEquipmentPhotoUrl || undefined,
         in_service_date: newEquipmentInServiceDate || undefined,
-        license_state: newEquipmentCategory.toLowerCase() === 'vehicle' && newEquipmentLicenseState ? newEquipmentLicenseState : undefined,
-        license_plate: newEquipmentCategory.toLowerCase() === 'vehicle' && newEquipmentLicensePlate ? newEquipmentLicensePlate : undefined,
-        vin: newEquipmentCategory.toLowerCase() === 'vehicle' && newEquipmentVin ? newEquipmentVin : undefined,
+        license_state: isVehicle(newEquipmentCategory) && newEquipmentLicenseState ? newEquipmentLicenseState : undefined,
+        license_plate: isVehicle(newEquipmentCategory) && newEquipmentLicensePlate ? newEquipmentLicensePlate : undefined,
+        vin: isVehicle(newEquipmentCategory) && newEquipmentVin ? newEquipmentVin : undefined,
       }));
 
       setNewEquipmentName('');
@@ -852,9 +857,9 @@ export default function EquipmentMaintenance() {
           warranty_notes: editingEquipment.has_warranty ? editingEquipment.warranty_notes : null,
           photo_url: editingEquipment.photo_url,
           in_service_date: editingEquipment.in_service_date,
-          license_state: (editingEquipment.category || '').toLowerCase() === 'vehicle' ? editingEquipment.license_state : null,
-          license_plate: (editingEquipment.category || '').toLowerCase() === 'vehicle' ? editingEquipment.license_plate : null,
-          vin: (editingEquipment.category || '').toLowerCase() === 'vehicle' ? editingEquipment.vin : null,
+          license_state: isVehicle(editingEquipment.category) ? editingEquipment.license_state : null,
+          license_plate: isVehicle(editingEquipment.category) ? editingEquipment.license_plate : null,
+          vin: isVehicle(editingEquipment.category) ? editingEquipment.vin : null,
         }
       }));
 
@@ -1788,7 +1793,7 @@ export default function EquipmentMaintenance() {
                     />
                   </div>
 
-                  {newEquipmentCategory.toLowerCase() === 'vehicle' && (
+                  {isVehicle(newEquipmentCategory) && (
                     <div className="space-y-3 pl-2 border-l-2" style={{ borderColor: colors.gold }}>
                       <p className="text-xs font-medium" style={{ color: colors.brown }}>Vehicle Info</p>
                       <div className="grid grid-cols-2 gap-3">
@@ -2009,7 +2014,7 @@ export default function EquipmentMaintenance() {
                             />
                           </div>
 
-                          {(editingEquipment.category || '').toLowerCase() === 'vehicle' && (
+                          {isVehicle(editingEquipment.category) && (
                             <div className="space-y-3 pl-2 border-l-2" style={{ borderColor: colors.gold }}>
                               <p className="text-xs font-medium" style={{ color: colors.brown }}>Vehicle Info</p>
                               <div className="grid grid-cols-2 gap-3">
@@ -2169,7 +2174,7 @@ export default function EquipmentMaintenance() {
                             {item.notes && (
                               <p className="text-sm mt-2" style={{ color: colors.brownLight }}>{item.notes}</p>
                             )}
-                            {(item.category || '').toLowerCase() === 'vehicle' && (item.license_plate || item.vin) && (
+                            {isVehicle(item.category) && (item.license_plate || item.vin) && (
                               <div className="mt-2 text-xs space-y-1" style={{ color: colors.brownLight }}>
                                 {item.license_plate && (
                                   <p>Plate: {item.license_state ? `${item.license_state} ` : ''}{item.license_plate}</p>

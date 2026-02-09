@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download, History } from 'lucide-react';
 import { TipEmployee, Colors, isEmployeeActive } from './types';
@@ -38,19 +37,17 @@ export function HistoricalExport({
   exportingHistory,
 }: HistoricalExportProps) {
   return (
-    <Card style={{ backgroundColor: colors.white, borderColor: colors.gold }}>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center justify-center gap-2" style={{ color: colors.brown }}>
-          <History className="w-5 h-5" />
-          Historical Export
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-center" style={{ color: colors.brownLight }}>
-          Export tip payout history for payroll or audit purposes
-        </p>
+    <section>
+      <div className="flex items-center gap-2 mb-3" style={{ color: colors.brown }}>
+        <History className="w-5 h-5" />
+        <h3 className="font-semibold text-lg">Historical Export</h3>
+      </div>
+      <p className="text-sm mb-3" style={{ color: colors.brownLight }}>
+        Export tip payout history for payroll or audit purposes
+      </p>
 
-        <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
           <div>
             <Label htmlFor="history-start-date" className="text-sm" style={{ color: colors.brownLight }}>Start Date</Label>
             <Input
@@ -137,7 +134,7 @@ export function HistoricalExport({
             {exportingHistory ? 'Exporting...' : 'Export Historical Data'}
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

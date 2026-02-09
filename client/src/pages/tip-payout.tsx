@@ -577,24 +577,24 @@ export default function TipPayout() {
               onVerify={verifyTeamHours}
               hoursVerifyResult={hoursVerifyResult}
             />
+
+            <HistoricalExport
+              colors={colors}
+              allEmployees={allEmployees}
+              employees={employees}
+              historyStartDate={historyStartDate}
+              historyEndDate={historyEndDate}
+              historyExportType={historyExportType}
+              historySelectedEmployee={historySelectedEmployee}
+              onStartDateChange={setHistoryStartDate}
+              onEndDateChange={setHistoryEndDate}
+              onExportTypeChange={setHistoryExportType}
+              onSelectedEmployeeChange={setHistorySelectedEmployee}
+              onExportHistorical={exportHistorical}
+              exportingHistory={exportingHistory}
+            />
           </CardContent>
         </Card>
-
-        <HistoricalExport
-          colors={colors}
-          allEmployees={allEmployees}
-          employees={employees}
-          historyStartDate={historyStartDate}
-          historyEndDate={historyEndDate}
-          historyExportType={historyExportType}
-          historySelectedEmployee={historySelectedEmployee}
-          onStartDateChange={setHistoryStartDate}
-          onEndDateChange={setHistoryEndDate}
-          onExportTypeChange={setHistoryExportType}
-          onSelectedEmployeeChange={setHistorySelectedEmployee}
-          onExportHistorical={exportHistorical}
-          exportingHistory={exportingHistory}
-        />
       </main>
       <Footer />
     </div>
