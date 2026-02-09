@@ -497,6 +497,26 @@ export default function AdminTasks() {
     return date.toISOString().split('T')[0];
   };
   
+  const handleCompletionDateChange = async (task: AdminTask, dateStr: string) => {
+    if (!dateStr) return;
+    try {
+      const completedAt = new Date(dateStr + 'T12:00:00').toISOString();
+      const { error } = await supabase.from('admin_tasks')
+        .update({ completed_at: completedAt, updated_at: new Date().toISOString() })
+        .eq('id', task.id);
+      if (error) throw error;
+
+      await logTaskHistory(task.id, 'updated', 'completion date changed', dateStr);
+      toast({ title: 'Completion date updated' });
+      loadData();
+      if (selectedTask?.id === task.id) {
+        setSelectedTask({ ...task, completed_at: completedAt });
+      }
+    } catch (error: any) {
+      toast({ title: 'Error updating completion date', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const handleDeleteTask = async (taskId: string) => {
     try {
       const { error } = await supabase.from('admin_tasks').delete().eq('id', taskId);
@@ -1272,6 +1292,22 @@ export default function AdminTasks() {
                 </div>
               )}
               
+              {selectedTask.status === 'completed' && selectedTask.completed_at && (
+                <div>
+                  <Label className="flex items-center gap-1" style={{ color: colors.brown }}>
+                    <CheckCircle className="w-4 h-4" style={{ color: colors.green }} />
+                    Date of Completion
+                  </Label>
+                  <Input
+                    type="date"
+                    value={selectedTask.completed_at.split('T')[0]}
+                    onChange={(e) => handleCompletionDateChange(selectedTask, e.target.value)}
+                    className="w-48 mt-1"
+                    style={{ backgroundColor: colors.inputBg }}
+                  />
+                </div>
+              )}
+
               {selectedTask.document_url && (
                 <div>
                   <Label style={{ color: colors.brown }}>Attachment</Label>

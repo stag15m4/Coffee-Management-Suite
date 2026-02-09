@@ -417,7 +417,17 @@ async function exportEquipmentRecords(
           <span class="info-label">Notes:</span>
           <span class="info-value">${equipment.notes}</span>
           ` : ''}
-          
+
+          ${(equipment.category || '').toLowerCase() === 'vehicle' && equipment.license_plate ? `
+          <span class="info-label">License Plate:</span>
+          <span class="info-value">${equipment.license_state ? equipment.license_state + ' ' : ''}${equipment.license_plate}</span>
+          ` : ''}
+
+          ${(equipment.category || '').toLowerCase() === 'vehicle' && equipment.vin ? `
+          <span class="info-label">VIN:</span>
+          <span class="info-value">${equipment.vin}</span>
+          ` : ''}
+
           <span class="info-label">Added:</span>
           <span class="info-value">${new Date(equipment.created_at).toLocaleDateString()}</span>
 
@@ -684,6 +694,9 @@ export default function EquipmentMaintenance() {
   const [newEquipmentWarrantyNotes, setNewEquipmentWarrantyNotes] = useState('');
   const [newEquipmentInServiceDate, setNewEquipmentInServiceDate] = useState('');
   const [newEquipmentPhotoUrl, setNewEquipmentPhotoUrl] = useState('');
+  const [newEquipmentLicenseState, setNewEquipmentLicenseState] = useState('');
+  const [newEquipmentLicensePlate, setNewEquipmentLicensePlate] = useState('');
+  const [newEquipmentVin, setNewEquipmentVin] = useState('');
   const [isUploadingNewPhoto, setIsUploadingNewPhoto] = useState(false);
   const [isUploadingEditPhoto, setIsUploadingEditPhoto] = useState(false);
 
@@ -783,6 +796,9 @@ export default function EquipmentMaintenance() {
         warranty_notes: newEquipmentHasWarranty && newEquipmentWarrantyNotes.trim() ? newEquipmentWarrantyNotes.trim() : undefined,
         photo_url: newEquipmentPhotoUrl || undefined,
         in_service_date: newEquipmentInServiceDate || undefined,
+        license_state: newEquipmentCategory.toLowerCase() === 'vehicle' && newEquipmentLicenseState ? newEquipmentLicenseState : undefined,
+        license_plate: newEquipmentCategory.toLowerCase() === 'vehicle' && newEquipmentLicensePlate ? newEquipmentLicensePlate : undefined,
+        vin: newEquipmentCategory.toLowerCase() === 'vehicle' && newEquipmentVin ? newEquipmentVin : undefined,
       }));
 
       setNewEquipmentName('');
@@ -794,6 +810,9 @@ export default function EquipmentMaintenance() {
       setNewEquipmentWarrantyNotes('');
       setNewEquipmentInServiceDate('');
       setNewEquipmentPhotoUrl('');
+      setNewEquipmentLicenseState('');
+      setNewEquipmentLicensePlate('');
+      setNewEquipmentVin('');
       setShowAddEquipment(false);
       toast({ title: 'Equipment added successfully' });
     } catch (error: any) {
@@ -833,6 +852,9 @@ export default function EquipmentMaintenance() {
           warranty_notes: editingEquipment.has_warranty ? editingEquipment.warranty_notes : null,
           photo_url: editingEquipment.photo_url,
           in_service_date: editingEquipment.in_service_date,
+          license_state: (editingEquipment.category || '').toLowerCase() === 'vehicle' ? editingEquipment.license_state : null,
+          license_plate: (editingEquipment.category || '').toLowerCase() === 'vehicle' ? editingEquipment.license_plate : null,
+          vin: (editingEquipment.category || '').toLowerCase() === 'vehicle' ? editingEquipment.vin : null,
         }
       }));
 
@@ -1766,6 +1788,46 @@ export default function EquipmentMaintenance() {
                     />
                   </div>
 
+                  {newEquipmentCategory.toLowerCase() === 'vehicle' && (
+                    <div className="space-y-3 pl-2 border-l-2" style={{ borderColor: colors.gold }}>
+                      <p className="text-xs font-medium" style={{ color: colors.brown }}>Vehicle Info</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label style={{ color: colors.brown }}>License State</Label>
+                          <Input
+                            value={newEquipmentLicenseState}
+                            onChange={e => setNewEquipmentLicenseState(e.target.value.toUpperCase().slice(0, 2))}
+                            placeholder="e.g., NC"
+                            maxLength={2}
+                            style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                            data-testid="input-equipment-license-state"
+                          />
+                        </div>
+                        <div>
+                          <Label style={{ color: colors.brown }}>License Plate</Label>
+                          <Input
+                            value={newEquipmentLicensePlate}
+                            onChange={e => setNewEquipmentLicensePlate(e.target.value.toUpperCase())}
+                            placeholder="e.g., ABC-1234"
+                            style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                            data-testid="input-equipment-license-plate"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label style={{ color: colors.brown }}>VIN</Label>
+                        <Input
+                          value={newEquipmentVin}
+                          onChange={e => setNewEquipmentVin(e.target.value.toUpperCase())}
+                          placeholder="17-character VIN"
+                          maxLength={17}
+                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                          data-testid="input-equipment-vin"
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="pt-2 border-t" style={{ borderColor: colors.creamDark }}>
                     <div className="flex items-center justify-between">
                       <Label style={{ color: colors.brown }}>Has Warranty?</Label>
@@ -1841,6 +1903,9 @@ export default function EquipmentMaintenance() {
                         setNewEquipmentWarrantyNotes('');
                         setNewEquipmentInServiceDate('');
                         setNewEquipmentPhotoUrl('');
+                        setNewEquipmentLicenseState('');
+                        setNewEquipmentLicensePlate('');
+                        setNewEquipmentVin('');
                       }}
                       style={{ borderColor: colors.creamDark, color: colors.brown }}
                       data-testid="button-cancel-equipment"
@@ -1943,6 +2008,46 @@ export default function EquipmentMaintenance() {
                               data-testid="input-edit-equipment-in-service-date"
                             />
                           </div>
+
+                          {(editingEquipment.category || '').toLowerCase() === 'vehicle' && (
+                            <div className="space-y-3 pl-2 border-l-2" style={{ borderColor: colors.gold }}>
+                              <p className="text-xs font-medium" style={{ color: colors.brown }}>Vehicle Info</p>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label style={{ color: colors.brown }}>License State</Label>
+                                  <Input
+                                    value={editingEquipment.license_state || ''}
+                                    onChange={e => setEditingEquipment({ ...editingEquipment, license_state: e.target.value.toUpperCase().slice(0, 2) || null })}
+                                    placeholder="e.g., NC"
+                                    maxLength={2}
+                                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                                    data-testid="input-edit-equipment-license-state"
+                                  />
+                                </div>
+                                <div>
+                                  <Label style={{ color: colors.brown }}>License Plate</Label>
+                                  <Input
+                                    value={editingEquipment.license_plate || ''}
+                                    onChange={e => setEditingEquipment({ ...editingEquipment, license_plate: e.target.value.toUpperCase() || null })}
+                                    placeholder="e.g., ABC-1234"
+                                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                                    data-testid="input-edit-equipment-license-plate"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <Label style={{ color: colors.brown }}>VIN</Label>
+                                <Input
+                                  value={editingEquipment.vin || ''}
+                                  onChange={e => setEditingEquipment({ ...editingEquipment, vin: e.target.value.toUpperCase() || null })}
+                                  placeholder="17-character VIN"
+                                  maxLength={17}
+                                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                                  data-testid="input-edit-equipment-vin"
+                                />
+                              </div>
+                            </div>
+                          )}
 
                           <div className="pt-2 border-t" style={{ borderColor: colors.creamDark }}>
                             <div className="flex items-center justify-between">
@@ -2063,6 +2168,14 @@ export default function EquipmentMaintenance() {
                             </div>
                             {item.notes && (
                               <p className="text-sm mt-2" style={{ color: colors.brownLight }}>{item.notes}</p>
+                            )}
+                            {(item.category || '').toLowerCase() === 'vehicle' && (item.license_plate || item.vin) && (
+                              <div className="mt-2 text-xs space-y-1" style={{ color: colors.brownLight }}>
+                                {item.license_plate && (
+                                  <p>Plate: {item.license_state ? `${item.license_state} ` : ''}{item.license_plate}</p>
+                                )}
+                                {item.vin && <p>VIN: {item.vin}</p>}
+                              </div>
                             )}
                             {item.has_warranty && item.purchase_date && (
                               <div className="mt-2 text-xs space-y-1" style={{ color: colors.brownLight }}>
