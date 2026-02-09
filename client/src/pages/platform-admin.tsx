@@ -22,6 +22,7 @@ import {
   Package,
   Key,
   ShieldCheck,
+  Pencil,
   Trash2,
   UserPlus,
   ExternalLink,
@@ -125,6 +126,12 @@ export default function PlatformAdmin() {
   const [newAdminName, setNewAdminName] = useState('');
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [removingAdminId, setRemovingAdminId] = useState<string | null>(null);
+
+  // Rename tenant state
+  const [showRenameTenantDialog, setShowRenameTenantDialog] = useState(false);
+  const [renameTenantId, setRenameTenantId] = useState('');
+  const [renameTenantName, setRenameTenantName] = useState('');
+  const [renaming, setRenaming] = useState(false);
 
   // Tenant IDs where this admin has a user profile
   const [myTenantIds, setMyTenantIds] = useState<Set<string>>(new Set());
@@ -432,6 +439,47 @@ export default function PlatformAdmin() {
     }
   };
 
+  const openRenameDialog = (tenant: TenantWithStats) => {
+    setRenameTenantId(tenant.id);
+    setRenameTenantName(tenant.name);
+    setShowRenameTenantDialog(true);
+  };
+
+  const handleRenameTenant = async () => {
+    if (!renameTenantName.trim()) {
+      toast({ title: 'Business name is required', variant: 'destructive' });
+      return;
+    }
+
+    setRenaming(true);
+    try {
+      const newName = renameTenantName.trim();
+
+      // Update both tenants.name and tenant_branding.company_name
+      // so the new name shows everywhere across the platform
+      const [tenantResult, brandingResult] = await Promise.all([
+        supabase
+          .from('tenants')
+          .update({ name: newName })
+          .eq('id', renameTenantId),
+        supabase
+          .from('tenant_branding')
+          .update({ company_name: newName })
+          .eq('tenant_id', renameTenantId),
+      ]);
+
+      if (tenantResult.error) throw tenantResult.error;
+      if (brandingResult.error) throw brandingResult.error;
+      toast({ title: 'Business renamed successfully!' });
+      setShowRenameTenantDialog(false);
+      loadTenants();
+    } catch (error: any) {
+      toast({ title: 'Error renaming business', description: error.message, variant: 'destructive' });
+    } finally {
+      setRenaming(false);
+    }
+  };
+
   const handleLogout = async () => {
     await signOut();
     setLocation('/login');
@@ -661,6 +709,15 @@ export default function PlatformAdmin() {
                         <ExternalLink className="w-4 h-4 mr-1" /> Go to page
                       </Button>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openRenameDialog(tenant)}
+                      style={{ borderColor: colors.gold, color: colors.gold }}
+                      data-testid={`button-rename-tenant-${tenant.id}`}
+                    >
+                      <Pencil className="w-4 h-4 mr-1" /> Rename
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -986,6 +1043,41 @@ export default function PlatformAdmin() {
               >
                 {savingSubscription ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Save Changes
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Rename Tenant Dialog */}
+        <Dialog open={showRenameTenantDialog} onOpenChange={setShowRenameTenantDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Rename Business</DialogTitle>
+              <DialogDescription style={{ color: colors.brownLight }}>
+                Update the business name. All data and history will be preserved.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div>
+                <Label style={{ color: colors.brown }} htmlFor="rename-tenant-name">Business Name</Label>
+                <Input
+                  id="rename-tenant-name"
+                  value={renameTenantName}
+                  onChange={(e) => setRenameTenantName(e.target.value)}
+                  placeholder="New business name"
+                  style={{ backgroundColor: colors.inputBg }}
+                  data-testid="input-rename-tenant-name"
+                />
+              </div>
+              <Button
+                onClick={handleRenameTenant}
+                disabled={renaming}
+                className="w-full"
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                data-testid="button-confirm-rename-tenant"
+              >
+                {renaming ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Save Name
               </Button>
             </div>
           </DialogContent>
