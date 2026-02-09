@@ -6,7 +6,7 @@ function getResendClient() {
   if (!apiKey) {
     throw new Error('RESEND_API_KEY environment variable is not set');
   }
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@erwinmills.com';
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'orders@coffeemanagementsuite.com';
   return { client: new Resend(apiKey), fromEmail };
 }
 
@@ -180,7 +180,7 @@ export async function sendFeedbackEmail(data: FeedbackEmailData): Promise<{ succ
 
     const result = await client.emails.send({
       from: fromEmail,
-      to: 'CMS@erwinmills.com',
+      to: 'CMS@coffeemanagementsuite.com',
       subject: `[CMS ${typeLabels[data.feedbackType]}] ${data.subject}`,
       html,
       replyTo: data.userEmail || undefined
