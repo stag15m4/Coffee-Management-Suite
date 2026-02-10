@@ -664,36 +664,31 @@ export default function Billing() {
                       >
                         See it in action
                       </button>
-                      {/* Price display: always show price for each module */}
+                      {/* Price display */}
                       {isPremium && isActive ? (
                         <span className="text-xs mt-1 block" style={{ color: colors.gold }}>
                           Included in {planLabel}
                         </span>
+                      ) : !isActive && isOwner && alacarteProducts.length > 0 ? (
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs px-3 mt-2"
+                          onClick={() => {
+                            const product = alacarteProducts.find(p =>
+                              p.name.toLowerCase().includes(mod.name.toLowerCase()) ||
+                              p.metadata?.module_id === mod.id
+                            );
+                            if (product?.prices[0]) handleCheckout(product.prices[0].id);
+                          }}
+                          disabled={checkoutLoading !== null}
+                          style={{ backgroundColor: colors.gold, color: colors.brown }}
+                        >
+                          Add Module — ${price.toFixed(2)}/mo
+                        </Button>
                       ) : (
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs font-medium" style={{ color: colors.brownLight }}>
-                            ${price.toFixed(2)}/mo
-                            {isTrial && isActive && (
-                              <span className="ml-1" style={{ color: colors.brownLight }}>(after trial)</span>
-                            )}
-                          </span>
-                          {!isActive && isOwner && alacarteProducts.length > 0 && (
-                            <Button
-                              size="sm"
-                              className="h-6 text-xs px-2"
-                              onClick={() => {
-                                const product = alacarteProducts.find(p =>
-                                  p.name.toLowerCase().includes(mod.name.toLowerCase()) ||
-                                  p.metadata?.module_id === mod.id
-                                );
-                                if (product?.prices[0]) handleCheckout(product.prices[0].id);
-                              }}
-                              style={{ backgroundColor: colors.gold, color: colors.brown }}
-                            >
-                              Add Module
-                            </Button>
-                          )}
-                        </div>
+                        <span className="text-xs font-medium mt-1 block" style={{ color: colors.brownLight }}>
+                          ${price.toFixed(2)}/mo{isTrial && isActive ? ' after trial' : ''}
+                        </span>
                       )}
                     </div>
                   </div>
