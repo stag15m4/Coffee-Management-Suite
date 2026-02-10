@@ -42,6 +42,7 @@ export interface Tenant {
   subscription_plan?: string;
   is_active?: boolean;
   parent_tenant_id?: string | null;
+  trial_ends_at?: string | null;
 }
 
 export type ModuleId = 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering' | 'equipment-maintenance' | 'admin-tasks';
