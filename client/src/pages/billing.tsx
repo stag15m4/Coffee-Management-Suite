@@ -28,8 +28,10 @@ import {
   ExternalLink,
   type LucideIcon,
 } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Footer } from '@/components/Footer';
+import { ModulePreviewContent } from '@/components/billing/ModulePreview';
 
 const colors = {
   gold: '#C9A227',
@@ -161,6 +163,7 @@ export default function Billing() {
   const [referralRedeemCode, setReferralRedeemCode] = useState('');
   const [referralRedeemLoading, setReferralRedeemLoading] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
+  const [previewModule, setPreviewModule] = useState<{ id: string; name: string } | null>(null);
 
   const isOwner = hasRole('owner');
 
@@ -645,6 +648,13 @@ export default function Billing() {
                       <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
                         {mod.description}
                       </p>
+                      <button
+                        onClick={() => setPreviewModule({ id: mod.id, name: mod.name })}
+                        className="text-xs underline mt-1 inline-block"
+                        style={{ color: colors.gold }}
+                      >
+                        See it in action
+                      </button>
                       {!isActive && !isPremium && isOwner && (
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-xs font-medium" style={{ color: colors.brownLight }}>
@@ -1011,6 +1021,15 @@ export default function Billing() {
           </div>
         )}
       </main>
+
+      {/* Module Preview Dialog */}
+      <Dialog open={!!previewModule} onOpenChange={(open) => !open && setPreviewModule(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" style={{ backgroundColor: colors.white }}>
+          {previewModule && (
+            <ModulePreviewContent moduleId={previewModule.id} moduleName={previewModule.name} />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </div>
