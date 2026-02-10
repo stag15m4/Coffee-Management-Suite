@@ -21,6 +21,7 @@ import {
   Shield,
   MapPin,
   Check,
+  Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -109,6 +110,11 @@ export function Sidebar() {
 
   const disabledModules = ALL_MODULE_IDS.filter((m) => !enabledModules.includes(m));
 
+  // Trial countdown
+  const isTrial = tenant?.subscription_plan === 'free' || !tenant?.subscription_plan;
+  const trialEndsAt = tenant?.trial_ends_at ? new Date(tenant.trial_ends_at) : null;
+  const trialDaysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
+
   return (
     <aside
       className="w-56 flex-shrink-0 flex flex-col h-screen sticky top-0 border-r overflow-y-auto"
@@ -150,6 +156,23 @@ export function Sidebar() {
             </span>
           </button>
         </Link>
+        {/* Trial countdown badge */}
+        {isTrial && trialDaysLeft !== null && (
+          <Link href="/billing">
+            <button
+              className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors hover:opacity-90"
+              style={{
+                backgroundColor: trialDaysLeft <= 3 ? '#fef2f2' : '#eff6ff',
+                color: trialDaysLeft <= 3 ? '#dc2626' : '#2563eb',
+              }}
+            >
+              <Sparkles className="w-3 h-3" />
+              {trialDaysLeft > 0
+                ? `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`
+                : 'Trial expired'}
+            </button>
+          </Link>
+        )}
       </div>
 
       {/* Main navigation */}
