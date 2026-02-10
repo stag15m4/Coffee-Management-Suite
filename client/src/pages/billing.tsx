@@ -162,7 +162,11 @@ export default function Billing() {
   const [licenseLoading, setLicenseLoading] = useState(false);
   const [referralRedeemCode, setReferralRedeemCode] = useState('');
   const [referralRedeemLoading, setReferralRedeemLoading] = useState(false);
-  const [showPlans, setShowPlans] = useState(false);
+  const [showPlans, setShowPlans] = useState(() => {
+    // Auto-expand plans for trial/no plan users so pricing is visible
+    const currentPlan = tenant?.subscription_plan;
+    return !currentPlan || currentPlan === 'free';
+  });
   const [previewModule, setPreviewModule] = useState<{ id: string; name: string } | null>(null);
 
   const isOwner = hasRole('owner');
@@ -519,13 +523,18 @@ export default function Billing() {
 
             {/* Upgrade prompt for trial/no plan */}
             {(isTrial || !billingDetails?.subscription) && isOwner && (
-              <Button
-                onClick={() => setShowPlans(true)}
-                className="w-full"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
-              >
-                {isTrial ? 'Upgrade Now' : 'Choose a Plan'}
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  onClick={() => setShowPlans(true)}
+                  className="w-full"
+                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                >
+                  {isTrial ? 'Upgrade Now' : 'Choose a Plan'}
+                </Button>
+                <p className="text-xs text-center" style={{ color: colors.brownLight }}>
+                  Starting at $19.99/mo per module or $99.99/mo for all 6 modules
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -655,12 +664,20 @@ export default function Billing() {
                       >
                         See it in action
                       </button>
-                      {!isActive && !isPremium && isOwner && (
+                      {/* Price display: always show price for each module */}
+                      {isPremium && isActive ? (
+                        <span className="text-xs mt-1 block" style={{ color: colors.gold }}>
+                          Included in {planLabel}
+                        </span>
+                      ) : (
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-xs font-medium" style={{ color: colors.brownLight }}>
                             ${price.toFixed(2)}/mo
+                            {isTrial && isActive && (
+                              <span className="ml-1" style={{ color: colors.brownLight }}>(after trial)</span>
+                            )}
                           </span>
-                          {alacarteProducts.length > 0 && (
+                          {!isActive && isOwner && alacarteProducts.length > 0 && (
                             <Button
                               size="sm"
                               className="h-6 text-xs px-2"
@@ -677,11 +694,6 @@ export default function Billing() {
                             </Button>
                           )}
                         </div>
-                      )}
-                      {isActive && isPremium && (
-                        <span className="text-xs" style={{ color: colors.gold }}>
-                          Included in {planLabel}
-                        </span>
                       )}
                     </div>
                   </div>
