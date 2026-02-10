@@ -100,6 +100,86 @@ export class StripeService {
       return null;
     }
   }
+
+  async getSubscriptionDetails(subscriptionId: string) {
+    const stripe = await getUncachableStripeClient();
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+        expand: ['default_payment_method', 'latest_invoice', 'items.data.price.product'],
+      });
+
+      const pm = subscription.default_payment_method;
+      const paymentMethod = pm && typeof pm === 'object' && 'card' in pm ? {
+        brand: pm.card?.brand || null,
+        last4: pm.card?.last4 || null,
+        exp_month: pm.card?.exp_month || null,
+        exp_year: pm.card?.exp_year || null,
+      } : null;
+
+      const items = subscription.items?.data?.map((item) => ({
+        product_name: typeof item.price?.product === 'object' && item.price.product && 'name' in item.price.product ? (item.price.product as any).name : null,
+        price_amount: item.price?.unit_amount || 0,
+        currency: item.price?.currency || 'usd',
+        interval: item.price?.recurring?.interval || null,
+      })) || [];
+
+      // In Stripe v20+, current_period is on the latest invoice, not the subscription
+      const latestInvoice = subscription.latest_invoice;
+      const invoiceObj = latestInvoice && typeof latestInvoice === 'object' ? latestInvoice : null;
+
+      return {
+        id: subscription.id,
+        status: subscription.status,
+        billing_cycle_anchor: subscription.billing_cycle_anchor,
+        current_period_end: invoiceObj?.period_end || null,
+        current_period_start: invoiceObj?.period_start || null,
+        cancel_at_period_end: subscription.cancel_at_period_end,
+        cancel_at: subscription.cancel_at,
+        canceled_at: subscription.canceled_at,
+        payment_method: paymentMethod,
+        items,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async getUpcomingInvoice(customerId: string) {
+    const stripe = await getUncachableStripeClient();
+    try {
+      const invoice = await stripe.invoices.createPreview({ customer: customerId });
+      return {
+        amount_due: invoice.amount_due,
+        currency: invoice.currency,
+        next_payment_attempt: invoice.next_payment_attempt,
+        period_start: invoice.period_start,
+        period_end: invoice.period_end,
+        lines: invoice.lines?.data?.map((line) => ({
+          description: line.description,
+          amount: line.amount,
+        })) || [],
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async createCoupon(percentOff: number, duration: 'once' | 'repeating' | 'forever', metadata?: Record<string, string>) {
+    const stripe = await getUncachableStripeClient();
+    return await stripe.coupons.create({
+      percent_off: percentOff,
+      duration,
+      duration_in_months: duration === 'repeating' ? 1 : undefined,
+      metadata,
+    });
+  }
+
+  async applySubscriptionDiscount(subscriptionId: string, couponId: string) {
+    const stripe = await getUncachableStripeClient();
+    return await stripe.subscriptions.update(subscriptionId, {
+      discounts: [{ coupon: couponId }],
+    });
+  }
 }
 
 export const stripeService = new StripeService();

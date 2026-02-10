@@ -409,6 +409,238 @@ export async function registerRoutes(
   });
 
   // =====================================================
+  // BILLING DETAILS
+  // =====================================================
+
+  app.get('/api/stripe/billing-details/:tenantId', async (req, res) => {
+    try {
+      const userId = req.headers['x-user-id'] as string;
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const tenantId = req.params.tenantId;
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ error: 'Tenant not found' });
+      }
+
+      // Get tenant plan info from DB
+      const tenantInfo = await db.execute(sql`
+        SELECT subscription_plan, subscription_status, trial_ends_at,
+               stripe_customer_id, stripe_subscription_id, stripe_subscription_status,
+               license_code_id
+        FROM tenants WHERE id = ${tenantId}
+      `);
+      const tenantData = tenantInfo.rows[0] as any;
+
+      const result: any = {
+        subscription_plan: tenantData?.subscription_plan || 'free',
+        subscription_status: tenantData?.subscription_status || 'trial',
+        trial_ends_at: tenantData?.trial_ends_at || null,
+        stripe_subscription_status: tenantData?.stripe_subscription_status || null,
+        license_code_id: tenantData?.license_code_id || null,
+        subscription: null,
+        upcoming_invoice: null,
+      };
+
+      // If has Stripe subscription, fetch details
+      if (tenantData?.stripe_subscription_id) {
+        result.subscription = await stripeService.getSubscriptionDetails(tenantData.stripe_subscription_id);
+      }
+
+      // If has Stripe customer, fetch upcoming invoice
+      if (tenantData?.stripe_customer_id) {
+        result.upcoming_invoice = await stripeService.getUpcomingInvoice(tenantData.stripe_customer_id);
+      }
+
+      // If redeemed via license code, fetch license info
+      if (tenantData?.license_code_id) {
+        const licenseResult = await db.execute(sql`
+          SELECT code, subscription_plan, redeemed_at, expires_at
+          FROM license_codes WHERE id = ${tenantData.license_code_id}
+        `);
+        result.license_code = licenseResult.rows[0] || null;
+      }
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =====================================================
+  // BILLING MODULES
+  // =====================================================
+
+  app.get('/api/billing/modules', async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT id, name, description, monthly_price, is_premium_only, display_order
+        FROM modules
+        ORDER BY display_order, name
+      `);
+      res.json(result.rows);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =====================================================
+  // REFERRAL CODES
+  // =====================================================
+
+  // Generate a referral code for the tenant
+  app.post('/api/referral-codes/generate', async (req, res) => {
+    try {
+      const userId = req.headers['x-user-id'] as string;
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const { tenantId } = req.body;
+      if (!tenantId) {
+        return res.status(400).json({ error: 'tenantId is required' });
+      }
+
+      // Verify owner
+      const userProfileResult = await db.execute(
+        sql`SELECT tenant_id, role FROM user_profiles WHERE id = ${userId}`
+      );
+      const userProfile = userProfileResult.rows[0] as any;
+      if (!userProfile || userProfile.role !== 'owner') {
+        return res.status(403).json({ error: 'Only owners can generate referral codes' });
+      }
+
+      // Check if tenant already has a code
+      const existing = await db.execute(sql`
+        SELECT id, code FROM referral_codes WHERE tenant_id = ${tenantId}
+      `);
+      if (existing.rows.length > 0) {
+        return res.json(existing.rows[0]);
+      }
+
+      // Generate unique code: XXXX-XXXX format
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 8; i++) {
+        if (i === 4) code += '-';
+        code += chars[Math.floor(Math.random() * chars.length)];
+      }
+
+      const result = await db.execute(sql`
+        INSERT INTO referral_codes (tenant_id, code)
+        VALUES (${tenantId}, ${code})
+        RETURNING id, code, tenant_id, is_active, created_at
+      `);
+
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get the tenant's referral code + stats
+  app.get('/api/referral-codes/mine/:tenantId', async (req, res) => {
+    try {
+      const userId = req.headers['x-user-id'] as string;
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const tenantId = req.params.tenantId;
+
+      const codeResult = await db.execute(sql`
+        SELECT id, code, is_active, created_at FROM referral_codes
+        WHERE tenant_id = ${tenantId}
+      `);
+
+      if (codeResult.rows.length === 0) {
+        return res.json({ referral_code: null, stats: { total_referrals: 0, rewards_applied: 0 } });
+      }
+
+      const referralCode = codeResult.rows[0] as any;
+
+      // Get redemption stats
+      const statsResult = await db.execute(sql`
+        SELECT
+          COUNT(*) as total_referrals,
+          COUNT(*) FILTER (WHERE referrer_reward_applied = true) as rewards_applied
+        FROM referral_redemptions
+        WHERE referral_code_id = ${referralCode.id}
+      `);
+      const stats = statsResult.rows[0] as any;
+
+      res.json({
+        referral_code: referralCode,
+        stats: {
+          total_referrals: parseInt(stats.total_referrals) || 0,
+          rewards_applied: parseInt(stats.rewards_applied) || 0,
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Redeem a referral code
+  app.post('/api/referral-codes/redeem', async (req, res) => {
+    try {
+      const userId = req.headers['x-user-id'] as string;
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const { code, tenantId } = req.body;
+      if (!code || !tenantId) {
+        return res.status(400).json({ error: 'code and tenantId are required' });
+      }
+
+      // Look up the referral code
+      const codeResult = await db.execute(sql`
+        SELECT id, tenant_id FROM referral_codes
+        WHERE code = ${code} AND is_active = true
+      `);
+
+      if (codeResult.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid or inactive referral code' });
+      }
+
+      const referralCode = codeResult.rows[0] as any;
+
+      // Can't refer yourself
+      if (referralCode.tenant_id === tenantId) {
+        return res.status(400).json({ error: 'Cannot use your own referral code' });
+      }
+
+      // Check if tenant already redeemed a referral
+      const alreadyRedeemed = await db.execute(sql`
+        SELECT id FROM referral_redemptions WHERE referred_tenant_id = ${tenantId}
+      `);
+      if (alreadyRedeemed.rows.length > 0) {
+        return res.status(400).json({ error: 'A referral code has already been redeemed for this account' });
+      }
+
+      // Create the redemption record
+      await db.execute(sql`
+        INSERT INTO referral_redemptions (referral_code_id, referrer_tenant_id, referred_tenant_id)
+        VALUES (${referralCode.id}, ${referralCode.tenant_id}, ${tenantId})
+      `);
+
+      // Extend referee's trial by 30 days
+      await db.execute(sql`
+        UPDATE tenants
+        SET trial_ends_at = GREATEST(trial_ends_at, NOW()) + INTERVAL '30 days'
+        WHERE id = ${tenantId}
+      `);
+
+      res.json({ success: true, message: 'Referral code redeemed! Your trial has been extended by 30 days.' });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =====================================================
   // RESELLER & LICENSE CODE ROUTES (Platform Admin Only)
   // =====================================================
   
