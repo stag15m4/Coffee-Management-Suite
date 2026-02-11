@@ -5,7 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 export interface Shift {
   id: string;
   tenant_id: string;
-  employee_id: string;
+  employee_id: string | null;
+  tip_employee_id: string | null;
+  employee_name: string | null;
   date: string;
   start_time: string;
   end_time: string;
@@ -15,7 +17,6 @@ export interface Shift {
   created_by: string | null;
   created_at: string;
   updated_at: string;
-  employee_name?: string;
   employee_avatar?: string | null;
 }
 
@@ -28,14 +29,17 @@ export interface ShiftTemplate {
   end_time: string;
   position: string | null;
   employee_id: string | null;
+  tip_employee_id: string | null;
+  employee_name: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
-  employee_name?: string;
 }
 
 export type InsertShift = {
-  employee_id: string;
+  employee_id?: string | null;
+  tip_employee_id?: string | null;
+  employee_name: string;
   date: string;
   start_time: string;
   end_time: string;
@@ -44,13 +48,18 @@ export type InsertShift = {
   status?: 'draft' | 'published' | 'cancelled';
 };
 
-function mapShiftWithEmployee(s: any): Shift {
+// The employee_name column on the row is the source of truth for display.
+// The left-joined profile provides avatar only.
+function mapShift(s: any): Shift {
   return {
     ...s,
-    employee_name: s.employee?.full_name ?? null,
+    employee_name: s.employee_name ?? s.employee?.full_name ?? null,
     employee_avatar: s.employee?.avatar_url ?? null,
   };
 }
+
+// Use a left join (employee_id is nullable). PostgREST syntax: !left on the FK.
+const SHIFT_SELECT = '*, employee:user_profiles!employee_id(full_name, avatar_url)';
 
 export function useShifts(startDate: string, endDate: string) {
   const { tenant } = useAuth();
@@ -60,7 +69,7 @@ export function useShifts(startDate: string, endDate: string) {
       if (!tenant?.id) return [];
       const { data, error } = await supabase
         .from('shifts')
-        .select('*, employee:user_profiles!employee_id(full_name, avatar_url)')
+        .select(SHIFT_SELECT)
         .eq('tenant_id', tenant.id)
         .gte('date', startDate)
         .lte('date', endDate)
@@ -68,7 +77,7 @@ export function useShifts(startDate: string, endDate: string) {
         .order('date')
         .order('start_time');
       if (error) throw error;
-      return (data || []).map(mapShiftWithEmployee);
+      return (data || []).map(mapShift);
     },
     enabled: !!tenant?.id && !!startDate && !!endDate,
     staleTime: 30_000,
@@ -83,13 +92,13 @@ export function useTodayShifts(tenantId?: string) {
       if (!tenantId) return [];
       const { data, error } = await supabase
         .from('shifts')
-        .select('*, employee:user_profiles!employee_id(full_name, avatar_url)')
+        .select(SHIFT_SELECT)
         .eq('tenant_id', tenantId)
         .eq('date', today)
         .in('status', ['draft', 'published'])
         .order('start_time');
       if (error) throw error;
-      return (data || []).map(mapShiftWithEmployee);
+      return (data || []).map(mapShift);
     },
     enabled: !!tenantId,
     staleTime: 2 * 60_000,
@@ -109,10 +118,10 @@ export function useCreateShift() {
           tenant_id: tenant.id,
           created_by: user?.id ?? null,
         })
-        .select('*, employee:user_profiles!employee_id(full_name, avatar_url)')
+        .select(SHIFT_SELECT)
         .single();
       if (error) throw error;
-      return mapShiftWithEmployee(data);
+      return mapShift(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
@@ -129,10 +138,10 @@ export function useUpdateShift() {
         .from('shifts')
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
-        .select('*, employee:user_profiles!employee_id(full_name, avatar_url)')
+        .select(SHIFT_SELECT)
         .single();
       if (error) throw error;
-      return mapShiftWithEmployee(data);
+      return mapShift(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
@@ -193,7 +202,7 @@ export function useShiftTemplates() {
       if (error) throw error;
       return (data || []).map((t: any) => ({
         ...t,
-        employee_name: t.employee?.full_name ?? null,
+        employee_name: t.employee_name ?? t.employee?.full_name ?? null,
       })) as ShiftTemplate[];
     },
     enabled: !!tenant?.id,
@@ -201,11 +210,22 @@ export function useShiftTemplates() {
   });
 }
 
+export type InsertShiftTemplate = {
+  name: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  employee_id?: string | null;
+  tip_employee_id?: string | null;
+  employee_name?: string | null;
+  position?: string | null;
+};
+
 export function useCreateShiftTemplate() {
   const { tenant } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (template: Omit<ShiftTemplate, 'id' | 'tenant_id' | 'created_at' | 'updated_at' | 'employee_name' | 'is_active'>) => {
+    mutationFn: async (template: InsertShiftTemplate) => {
       if (!tenant?.id) throw new Error('No tenant');
       const { data, error } = await supabase
         .from('shift_templates')

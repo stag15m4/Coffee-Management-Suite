@@ -1,0 +1,132 @@
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase-queries';
+import { useAuth } from '@/contexts/AuthContext';
+
+/**
+ * A unified employee record that can come from either user_profiles (logged-in
+ * users) or tip_employees (tip-roster-only workers without accounts).
+ */
+export interface UnifiedEmployee {
+  /** Display in dropdowns / calendar events */
+  name: string;
+  /** Set when the employee has a user_profiles login */
+  user_profile_id: string | null;
+  /** Set when the employee exists in the tip_employees roster */
+  tip_employee_id: string | null;
+  avatar_url: string | null;
+  role: string | null;
+  /** 'profile' | 'tip' | 'both' */
+  source: 'profile' | 'tip' | 'both';
+}
+
+/**
+ * Fetches team members from user_profiles AND tip_employees for a given
+ * tenant, deduplicates by name, and returns a unified list sorted by name.
+ */
+export function useAllEmployees(tenantId?: string) {
+  return useQuery({
+    queryKey: ['all-employees', tenantId],
+    queryFn: async (): Promise<UnifiedEmployee[]> => {
+      if (!tenantId) return [];
+
+      // Fetch both sources in parallel
+      const [profilesResult, tipResult] = await Promise.all([
+        supabase
+          .from('user_profiles')
+          .select('id, full_name, avatar_url, role, email')
+          .eq('tenant_id', tenantId)
+          .eq('is_active', true),
+        supabase
+          .from('tip_employees')
+          .select('id, name, is_active')
+          .eq('tenant_id', tenantId)
+          .or('is_active.eq.true,is_active.is.null')
+          .order('name'),
+      ]);
+
+      if (profilesResult.error) throw profilesResult.error;
+      if (tipResult.error) throw tipResult.error;
+
+      const profiles = profilesResult.data || [];
+      const tipEmployees = tipResult.data || [];
+
+      // Also check user_tenant_assignments for cross-location users
+      let assignmentProfiles: typeof profiles = [];
+      try {
+        const { data: assignments } = await supabase
+          .from('user_tenant_assignments')
+          .select('user_id, role')
+          .eq('tenant_id', tenantId)
+          .eq('is_active', true);
+
+        if (assignments && assignments.length > 0) {
+          const knownIds = new Set(profiles.map((p) => p.id));
+          const extraIds = assignments
+            .map((a) => a.user_id)
+            .filter((uid) => !knownIds.has(uid));
+
+          if (extraIds.length > 0) {
+            const { data: extra } = await supabase
+              .from('user_profiles')
+              .select('id, full_name, avatar_url, role, email')
+              .in('id', extraIds)
+              .eq('is_active', true);
+            if (extra) assignmentProfiles = extra;
+          }
+        }
+      } catch {
+        // Non-critical — continue without assignment data
+      }
+
+      const allProfiles = [...profiles, ...assignmentProfiles];
+
+      // Build a map keyed by normalised name
+      const byName = new Map<string, UnifiedEmployee>();
+
+      for (const p of allProfiles) {
+        const name = (p.full_name || p.email || p.id).trim();
+        const key = name.toLowerCase();
+        const existing = byName.get(key);
+        if (existing) {
+          // Merge: prefer profile data, keep tip_employee_id if already set
+          existing.user_profile_id = existing.user_profile_id ?? p.id;
+          existing.avatar_url = existing.avatar_url ?? p.avatar_url;
+          existing.role = existing.role ?? p.role;
+          existing.source = existing.source === 'tip' ? 'both' : existing.source;
+        } else {
+          byName.set(key, {
+            name,
+            user_profile_id: p.id,
+            tip_employee_id: null,
+            avatar_url: p.avatar_url,
+            role: p.role,
+            source: 'profile',
+          });
+        }
+      }
+
+      for (const t of tipEmployees) {
+        const name = t.name.trim();
+        const key = name.toLowerCase();
+        const existing = byName.get(key);
+        if (existing) {
+          existing.tip_employee_id = existing.tip_employee_id ?? t.id;
+          existing.source = existing.source === 'profile' ? 'both' : existing.source;
+        } else {
+          byName.set(key, {
+            name,
+            user_profile_id: null,
+            tip_employee_id: t.id,
+            avatar_url: null,
+            role: null,
+            source: 'tip',
+          });
+        }
+      }
+
+      return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
+    },
+    enabled: !!tenantId,
+    staleTime: 5 * 60_000,
+  });
+}

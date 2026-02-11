@@ -32,7 +32,7 @@ import {
   Users,
   Filter,
 } from 'lucide-react';
-import { useStoreTeamMembers } from '@/hooks/use-store-profile';
+import { useAllEmployees, type UnifiedEmployee } from '@/hooks/use-all-employees';
 import {
   useShifts,
   useCreateShift,
@@ -138,11 +138,11 @@ function calcBreakHours(breaks: { break_start: string; break_end: string | null 
 
 // ─── SCHEDULE TAB ────────────────────────────────────────
 
-function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
+function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   tenantId: string;
   canEdit: boolean;
   canDelete: boolean;
-  teamMembers: { id: string; full_name: string | null; avatar_url: string | null; role: string }[];
+  employees: UnifiedEmployee[];
 }) {
   const [currentWeek, setCurrentWeek] = useState(() => getMonday(new Date()));
   const startDate = formatDate(currentWeek);
@@ -163,13 +163,13 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showTemplatePanel, setShowTemplatePanel] = useState(false);
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
-  const [newShift, setNewShift] = useState<InsertShift>({
-    employee_id: '',
-    date: formatDate(new Date()),
-    start_time: '08:00',
-    end_time: '16:00',
-    position: '',
-  });
+  // selectedEmployeeKey stores the name from the unified list (used as Select value)
+  const [selectedEmployeeKey, setSelectedEmployeeKey] = useState('');
+  const [newShiftDate, setNewShiftDate] = useState(formatDate(new Date()));
+  const [newShiftStart, setNewShiftStart] = useState('08:00');
+  const [newShiftEnd, setNewShiftEnd] = useState('16:00');
+  const [newShiftPosition, setNewShiftPosition] = useState('');
+  const [newShiftNotes, setNewShiftNotes] = useState('');
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
 
   // New template form
@@ -180,14 +180,14 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
   const [newTemplateEmployee, setNewTemplateEmployee] = useState('');
   const [newTemplatePosition, setNewTemplatePosition] = useState('');
 
-  // Conflict detection
-  const checkConflicts = useCallback((employeeId: string, date: string, startTime: string, endTime: string, excludeShiftId?: string) => {
-    if (!shifts || !employeeId) { setConflictWarning(null); return; }
+  // Conflict detection — match by employee_name (the common field across both sources)
+  const checkConflicts = useCallback((employeeName: string, date: string, startTime: string, endTime: string, excludeShiftId?: string) => {
+    if (!shifts || !employeeName) { setConflictWarning(null); return; }
 
     // Check overlapping shifts
     const overlapping = shifts.find((s) => {
       if (s.id === excludeShiftId) return false;
-      if (s.employee_id !== employeeId || s.date !== date) return false;
+      if (s.employee_name !== employeeName || s.date !== date) return false;
       return s.start_time < endTime && s.end_time > startTime;
     });
     if (overlapping) {
@@ -195,17 +195,20 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
       return;
     }
 
-    // Check approved time-off
+    // Check approved time-off (only for profile employees)
     if (timeOffRequests) {
-      const hasTimeOff = timeOffRequests.find((r) => r.employee_id === employeeId && r.start_date <= date && r.end_date >= date);
-      if (hasTimeOff) {
-        setConflictWarning(`${hasTimeOff.employee_name} has approved ${hasTimeOff.category} time off on this date`);
-        return;
+      const emp = employees.find((e) => e.name === employeeName);
+      if (emp?.user_profile_id) {
+        const hasTimeOff = timeOffRequests.find((r) => r.employee_id === emp.user_profile_id && r.start_date <= date && r.end_date >= date);
+        if (hasTimeOff) {
+          setConflictWarning(`${employeeName} has approved ${hasTimeOff.category} time off on this date`);
+          return;
+        }
       }
     }
 
     setConflictWarning(null);
-  }, [shifts, timeOffRequests]);
+  }, [shifts, timeOffRequests, employees]);
 
   // Apply template to current week
   const handleApplyTemplate = useCallback(async () => {
@@ -214,12 +217,14 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
       return;
     }
     const newShifts: InsertShift[] = templates
-      .filter((t) => t.employee_id)
+      .filter((t) => t.employee_name || t.employee_id || t.tip_employee_id)
       .map((t) => {
         const dayOffset = t.day_of_week === 0 ? 6 : t.day_of_week - 1;
         const shiftDate = new Date(currentWeek.getTime() + dayOffset * 86_400_000);
         return {
-          employee_id: t.employee_id!,
+          employee_id: t.employee_id ?? null,
+          tip_employee_id: t.tip_employee_id ?? null,
+          employee_name: t.employee_name || 'Unknown',
           date: formatDate(shiftDate),
           start_time: t.start_time.slice(0, 5),
           end_time: t.end_time.slice(0, 5),
@@ -243,13 +248,16 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
       toast({ title: 'Enter a template name', variant: 'destructive' });
       return;
     }
+    const emp = employees.find((e) => e.name === newTemplateEmployee);
     try {
       await createTemplate.mutateAsync({
         name: newTemplateName,
         day_of_week: newTemplateDay,
         start_time: newTemplateStart,
         end_time: newTemplateEnd,
-        employee_id: newTemplateEmployee || null,
+        employee_id: emp?.user_profile_id ?? null,
+        tip_employee_id: emp?.tip_employee_id ?? null,
+        employee_name: emp?.name ?? null,
         position: newTemplatePosition || null,
       });
       toast({ title: 'Template saved' });
@@ -257,44 +265,49 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
     } catch {
       toast({ title: 'Error', description: 'Failed to save template.', variant: 'destructive' });
     }
-  }, [newTemplateName, newTemplateDay, newTemplateStart, newTemplateEnd, newTemplateEmployee, newTemplatePosition, createTemplate, toast]);
+  }, [newTemplateName, newTemplateDay, newTemplateStart, newTemplateEnd, newTemplateEmployee, newTemplatePosition, employees, createTemplate, toast]);
 
-  // Employee color mapping
+  // Employee color mapping — key is a composite key used for calendar events
   const employeeColorMap = useMemo(() => {
     const map = new Map<string, string>();
-    teamMembers.forEach((m, i) => {
-      map.set(m.id, EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length]);
+    employees.forEach((m, i) => {
+      // Key by whichever ID is available
+      const key = m.user_profile_id ?? m.tip_employee_id ?? m.name;
+      map.set(key, EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length]);
     });
     return map;
-  }, [teamMembers]);
+  }, [employees]);
 
   // Convert shifts to FullCalendar events
   const events: EventInput[] = useMemo(() => {
     if (!shifts) return [];
-    return shifts.map((s) => ({
-      id: s.id,
-      title: s.employee_name || 'Unassigned',
-      start: `${s.date}T${s.start_time}`,
-      end: `${s.date}T${s.end_time}`,
-      backgroundColor: employeeColorMap.get(s.employee_id) ?? colors.gold,
-      borderColor: employeeColorMap.get(s.employee_id) ?? colors.gold,
-      textColor: '#fff',
-      extendedProps: { shift: s },
-    }));
+    return shifts.map((s) => {
+      const colorKey = s.employee_id ?? s.tip_employee_id ?? s.employee_name ?? '';
+      return {
+        id: s.id,
+        title: s.employee_name || 'Unassigned',
+        start: `${s.date}T${s.start_time}`,
+        end: `${s.date}T${s.end_time}`,
+        backgroundColor: employeeColorMap.get(colorKey) ?? colors.gold,
+        borderColor: employeeColorMap.get(colorKey) ?? colors.gold,
+        textColor: '#fff',
+        extendedProps: { shift: s },
+      };
+    });
   }, [shifts, employeeColorMap]);
 
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
     if (!canEdit) return;
     const startLocal = selectInfo.start;
     const endLocal = selectInfo.end;
-    setNewShift({
-      employee_id: '',
-      date: formatDate(startLocal),
-      start_time: startLocal.toTimeString().slice(0, 5),
-      end_time: endLocal.toTimeString().slice(0, 5),
-      position: '',
-    });
+    setSelectedEmployeeKey('');
+    setNewShiftDate(formatDate(startLocal));
+    setNewShiftStart(startLocal.toTimeString().slice(0, 5));
+    setNewShiftEnd(endLocal.toTimeString().slice(0, 5));
+    setNewShiftPosition('');
+    setNewShiftNotes('');
     setEditingShift(null);
+    setConflictWarning(null);
     setShowCreateDialog(true);
   }, [canEdit]);
 
@@ -302,14 +315,13 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
     const shift = clickInfo.event.extendedProps.shift as Shift;
     if (canEdit) {
       setEditingShift(shift);
-      setNewShift({
-        employee_id: shift.employee_id,
-        date: shift.date,
-        start_time: shift.start_time.slice(0, 5),
-        end_time: shift.end_time.slice(0, 5),
-        position: shift.position ?? '',
-        notes: shift.notes ?? '',
-      });
+      setSelectedEmployeeKey(shift.employee_name ?? '');
+      setNewShiftDate(shift.date);
+      setNewShiftStart(shift.start_time.slice(0, 5));
+      setNewShiftEnd(shift.end_time.slice(0, 5));
+      setNewShiftPosition(shift.position ?? '');
+      setNewShiftNotes(shift.notes ?? '');
+      setConflictWarning(null);
       setShowCreateDialog(true);
     }
   }, [canEdit]);
@@ -354,24 +366,40 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
   }, [canEdit, updateShift, toast]);
 
   const handleSaveShift = useCallback(async () => {
-    if (!newShift.employee_id) {
+    if (!selectedEmployeeKey) {
       toast({ title: 'Select an employee', variant: 'destructive' });
+      return;
+    }
+    const emp = employees.find((e) => e.name === selectedEmployeeKey);
+    if (!emp) {
+      toast({ title: 'Invalid employee', variant: 'destructive' });
       return;
     }
     try {
       if (editingShift) {
         await updateShift.mutateAsync({
           id: editingShift.id,
-          employee_id: newShift.employee_id,
-          date: newShift.date,
-          start_time: newShift.start_time,
-          end_time: newShift.end_time,
-          position: newShift.position || null,
-          notes: newShift.notes || null,
+          employee_id: emp.user_profile_id ?? null,
+          tip_employee_id: emp.tip_employee_id ?? null,
+          employee_name: emp.name,
+          date: newShiftDate,
+          start_time: newShiftStart,
+          end_time: newShiftEnd,
+          position: newShiftPosition || null,
+          notes: newShiftNotes || null,
         });
         toast({ title: 'Shift updated' });
       } else {
-        await createShift.mutateAsync(newShift);
+        await createShift.mutateAsync({
+          employee_id: emp.user_profile_id ?? null,
+          tip_employee_id: emp.tip_employee_id ?? null,
+          employee_name: emp.name,
+          date: newShiftDate,
+          start_time: newShiftStart,
+          end_time: newShiftEnd,
+          position: newShiftPosition || null,
+          notes: newShiftNotes || null,
+        });
         toast({ title: 'Shift created' });
       }
       setShowCreateDialog(false);
@@ -379,7 +407,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
     } catch {
       toast({ title: 'Error', description: 'Failed to save shift.', variant: 'destructive' });
     }
-  }, [newShift, editingShift, createShift, updateShift, toast]);
+  }, [selectedEmployeeKey, employees, newShiftDate, newShiftStart, newShiftEnd, newShiftPosition, newShiftNotes, editingShift, createShift, updateShift, toast]);
 
   const handleDeleteShift = useCallback(async () => {
     if (!editingShift) return;
@@ -425,7 +453,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
         {canEdit && (
           <div className="flex gap-2">
             <Button
-              onClick={() => { setEditingShift(null); setConflictWarning(null); setNewShift({ employee_id: '', date: formatDate(new Date()), start_time: '08:00', end_time: '16:00', position: '' }); setShowCreateDialog(true); }}
+              onClick={() => { setEditingShift(null); setConflictWarning(null); setSelectedEmployeeKey(''); setNewShiftDate(formatDate(new Date())); setNewShiftStart('08:00'); setNewShiftEnd('16:00'); setNewShiftPosition(''); setNewShiftNotes(''); setShowCreateDialog(true); }}
               style={{ backgroundColor: colors.gold, color: colors.brown }}
             >
               <Plus className="w-4 h-4 mr-1" /> Add Shift
@@ -474,12 +502,12 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
       </Card>
 
       {/* Employee legend */}
-      {teamMembers.length > 0 && (
+      {employees.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {teamMembers.map((m, i) => (
-            <div key={m.id} className="flex items-center gap-1.5 text-xs" style={{ color: colors.brown }}>
+          {employees.map((e, i) => (
+            <div key={e.name} className="flex items-center gap-1.5 text-xs" style={{ color: colors.brown }}>
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length] }} />
-              {m.full_name || m.id.slice(0, 8)}
+              {e.name}
             </div>
           ))}
         </div>
@@ -497,47 +525,47 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Employee</Label>
-                <Select value={newShift.employee_id} onValueChange={(v) => { setNewShift((s) => ({ ...s, employee_id: v })); checkConflicts(v, newShift.date, newShift.start_time, newShift.end_time, editingShift?.id); }}>
+                <Select value={selectedEmployeeKey} onValueChange={(v) => { setSelectedEmployeeKey(v); checkConflicts(v, newShiftDate, newShiftStart, newShiftEnd, editingShift?.id); }}>
                   <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
-                    {teamMembers.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>{m.full_name || m.id}</SelectItem>
+                    {employees.map((e) => (
+                      <SelectItem key={e.name} value={e.name}>{e.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Date</Label>
-                <Input type="date" value={newShift.date}
-                  onChange={(e) => { const d = e.target.value; setNewShift((s) => ({ ...s, date: d })); checkConflicts(newShift.employee_id, d, newShift.start_time, newShift.end_time, editingShift?.id); }}
+                <Input type="date" value={newShiftDate}
+                  onChange={(e) => { const d = e.target.value; setNewShiftDate(d); checkConflicts(selectedEmployeeKey, d, newShiftStart, newShiftEnd, editingShift?.id); }}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label style={{ color: colors.brown }}>Start</Label>
-                  <Input type="time" value={newShift.start_time}
-                    onChange={(e) => { const t = e.target.value; setNewShift((s) => ({ ...s, start_time: t })); checkConflicts(newShift.employee_id, newShift.date, t, newShift.end_time, editingShift?.id); }}
+                  <Input type="time" value={newShiftStart}
+                    onChange={(e) => { const t = e.target.value; setNewShiftStart(t); checkConflicts(selectedEmployeeKey, newShiftDate, t, newShiftEnd, editingShift?.id); }}
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
                 </div>
                 <div className="space-y-1.5">
                   <Label style={{ color: colors.brown }}>End</Label>
-                  <Input type="time" value={newShift.end_time}
-                    onChange={(e) => { const t = e.target.value; setNewShift((s) => ({ ...s, end_time: t })); checkConflicts(newShift.employee_id, newShift.date, newShift.start_time, t, editingShift?.id); }}
+                  <Input type="time" value={newShiftEnd}
+                    onChange={(e) => { const t = e.target.value; setNewShiftEnd(t); checkConflicts(selectedEmployeeKey, newShiftDate, newShiftStart, t, editingShift?.id); }}
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Position (optional)</Label>
-                <Input value={newShift.position ?? ''} placeholder="e.g. Barista, Closer"
-                  onChange={(e) => setNewShift((s) => ({ ...s, position: e.target.value }))}
+                <Input value={newShiftPosition} placeholder="e.g. Barista, Closer"
+                  onChange={(e) => setNewShiftPosition(e.target.value)}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
               </div>
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Notes (optional)</Label>
-                <Textarea value={newShift.notes ?? ''} placeholder="Any notes..."
-                  onChange={(e) => setNewShift((s) => ({ ...s, notes: e.target.value }))}
+                <Textarea value={newShiftNotes} placeholder="Any notes..."
+                  onChange={(e) => setNewShiftNotes(e.target.value)}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} rows={2} />
               </div>
               {conflictWarning && (
@@ -633,8 +661,8 @@ function ScheduleTab({ tenantId, canEdit, canDelete, teamMembers }: {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">Unassigned</SelectItem>
-                    {teamMembers.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>{m.full_name || m.id}</SelectItem>
+                    {employees.map((e) => (
+                      <SelectItem key={e.name} value={e.name}>{e.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -904,10 +932,10 @@ function TimeOffTab({ tenantId, isLead, isManager }: {
 
 // ─── TIME CLOCK TAB ──────────────────────────────────────
 
-function TimeClockTab({ tenantId, isManager, teamMembers }: {
+function TimeClockTab({ tenantId, isManager, employees }: {
   tenantId: string;
   isManager: boolean;
-  teamMembers: { id: string; full_name: string | null }[];
+  employees: UnifiedEmployee[];
 }) {
   const { user } = useAuth();
   const { data: activeEntry, isLoading: loadingActive } = useActiveClockEntry();
@@ -1046,8 +1074,8 @@ function TimeClockTab({ tenantId, isManager, teamMembers }: {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Employees</SelectItem>
-                  {teamMembers.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.full_name || m.id}</SelectItem>
+                  {employees.filter((e) => e.user_profile_id).map((e) => (
+                    <SelectItem key={e.user_profile_id!} value={e.user_profile_id!}>{e.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1117,9 +1145,9 @@ function TimeClockTab({ tenantId, isManager, teamMembers }: {
 
 // ─── EXPORT TAB ──────────────────────────────────────────
 
-function ExportTab({ tenantId, teamMembers }: {
+function ExportTab({ tenantId, employees }: {
   tenantId: string;
-  teamMembers: { id: string; full_name: string | null }[];
+  employees: UnifiedEmployee[];
 }) {
   const [startDate, setStartDate] = useState(() => {
     const d = getMonday(new Date());
@@ -1189,8 +1217,8 @@ function ExportTab({ tenantId, teamMembers }: {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Employees</SelectItem>
-                {teamMembers.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.full_name || m.id}</SelectItem>
+                {employees.filter((e) => e.user_profile_id).map((e) => (
+                  <SelectItem key={e.user_profile_id!} value={e.user_profile_id!}>{e.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -1260,7 +1288,7 @@ export default function CalendarWorkforce() {
   const isManager = hasRole('manager');
 
   const tenantId = tenant?.id ?? '';
-  const { data: teamMembers = [] } = useStoreTeamMembers(tenantId || undefined);
+  const { data: employees = [] } = useAllEmployees(tenantId || undefined);
 
   // Refresh on app resume and location change
   useAppResume(() => {
@@ -1270,6 +1298,7 @@ export default function CalendarWorkforce() {
     queryClient.invalidateQueries({ queryKey: ['time-off-mine'] });
     queryClient.invalidateQueries({ queryKey: ['time-clock'] });
     queryClient.invalidateQueries({ queryKey: ['time-clock-active'] });
+    queryClient.invalidateQueries({ queryKey: ['all-employees'] });
   }, []);
 
   useLocationChange(() => {
@@ -1279,6 +1308,7 @@ export default function CalendarWorkforce() {
     queryClient.invalidateQueries({ queryKey: ['time-off-mine'] });
     queryClient.invalidateQueries({ queryKey: ['time-clock'] });
     queryClient.invalidateQueries({ queryKey: ['time-clock-active'] });
+    queryClient.invalidateQueries({ queryKey: ['all-employees'] });
   }, []);
 
   if (!tenant) {
@@ -1331,17 +1361,17 @@ export default function CalendarWorkforce() {
             tenantId={tenantId}
             canEdit={isLead}
             canDelete={isManager}
-            teamMembers={teamMembers}
+            employees={employees}
           />
         )}
         {activeTab === 'time-off' && (
           <TimeOffTab tenantId={tenantId} isLead={isLead} isManager={isManager} />
         )}
         {activeTab === 'time-clock' && (
-          <TimeClockTab tenantId={tenantId} isManager={isManager} teamMembers={teamMembers} />
+          <TimeClockTab tenantId={tenantId} isManager={isManager} employees={employees} />
         )}
         {activeTab === 'export' && isManager && (
-          <ExportTab tenantId={tenantId} teamMembers={teamMembers} />
+          <ExportTab tenantId={tenantId} employees={employees} />
         )}
       </main>
       <Footer />
