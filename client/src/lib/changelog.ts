@@ -21,9 +21,20 @@ export interface ChangelogEntry {
 }
 
 /** Bump this when adding entries so the badge appears for users */
-export const CHANGELOG_VERSION = '2025-02-11';
+export const CHANGELOG_VERSION = '2025-02-11b';
 
 export const changelog: ChangelogEntry[] = [
+  {
+    id: 'vendor-save-fix',
+    date: '2025-02-11',
+    title: 'Vendor Save Fix',
+    description: 'Fixed an issue where saving a new vendor profile would silently fail. Vendors now save correctly with success/error feedback.',
+    category: 'fix',
+    tryIt: {
+      href: '/recipe-costing?tab=vendors',
+      hint: 'Try adding a new vendor',
+    },
+  },
   {
     id: 'reporting-module',
     date: '2025-02-11',
