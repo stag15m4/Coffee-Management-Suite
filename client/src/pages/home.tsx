@@ -40,6 +40,7 @@ import {
   useDeleteRecipeVendor,
   type RecipeVendor,
 } from '@/lib/supabase-queries';
+import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';
 import { formatCurrency, formatPercent, calculateCostPerUsageUnit } from './recipe-costing/utils';
 import type {
@@ -1568,6 +1569,7 @@ interface VendorsTabProps {
 }
 
 const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngredientCost, onAddVendor, onUpdateVendor, onDeleteVendor }: VendorsTabProps) => {
+  const { toast } = useToast();
   const [selectedVendor, setSelectedVendor] = useState<string>('all');
   const [editingCost, setEditingCost] = useState<string | null>(null);
   const [editCostValue, setEditCostValue] = useState<string>('');
@@ -1584,23 +1586,29 @@ const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngredientCo
 
   const handleSaveVendor = async () => {
     if (!vendorForm.name.trim()) return;
-    if (editingVendor) {
-      await onUpdateVendor(editingVendor.id, {
-        name: vendorForm.name.trim(),
-        phone: vendorForm.phone.trim() || null,
-        email: vendorForm.email.trim() || null,
-        notes: vendorForm.notes.trim() || null,
-      });
-    } else {
-      await onAddVendor({
-        tenant_id: tenantId,
-        name: vendorForm.name.trim(),
-        phone: vendorForm.phone.trim() || undefined,
-        email: vendorForm.email.trim() || undefined,
-        notes: vendorForm.notes.trim() || undefined,
-      });
+    try {
+      if (editingVendor) {
+        await onUpdateVendor(editingVendor.id, {
+          name: vendorForm.name.trim(),
+          phone: vendorForm.phone.trim() || null,
+          email: vendorForm.email.trim() || null,
+          notes: vendorForm.notes.trim() || null,
+        });
+        toast({ title: 'Vendor updated' });
+      } else {
+        await onAddVendor({
+          tenant_id: tenantId,
+          name: vendorForm.name.trim(),
+          phone: vendorForm.phone.trim() || undefined,
+          email: vendorForm.email.trim() || undefined,
+          notes: vendorForm.notes.trim() || undefined,
+        });
+        toast({ title: 'Vendor added' });
+      }
+      resetVendorForm();
+    } catch (error: any) {
+      toast({ title: 'Error saving vendor', description: error?.message || 'Please try again', variant: 'destructive' });
     }
-    resetVendorForm();
   };
 
   const openEditVendor = (vendor: RecipeVendor) => {
