@@ -169,18 +169,34 @@ Some pages use inline editing in tables (Recipe Costing), some use modals (Admin
 
 ## Summary: Priority Ranking
 
-| Priority | Change | Effort | Impact |
-|----------|--------|--------|--------|
-| 1 | Mobile responsive layout | Medium | Very High |
-| 2 | Consolidate navigation (group + reduce items) | Low | High |
-| 3 | Split Recipe Costing into sub-components | Medium | High |
-| 4 | Extract shared color tokens | Low | Medium |
-| 5 | Add command palette (`Cmd+K`) | Low | Medium |
-| 6 | Progressive disclosure on complex forms | Medium | High |
-| 7 | Role-based dashboard customization | Medium | High |
-| 8 | Empty states / onboarding checklist | Low | Medium |
-| 9 | Standardize edit pattern (drawers vs modals) | High | Medium |
-| 10 | Quick wins (location switcher, merge My Team, etc.) | Low | Low-Med |
+| # | Change | Effort | Impact | Status |
+|---|--------|--------|--------|--------|
+| 1 | Mobile responsive layout | Medium | Very High | DONE |
+| 2 | Consolidate navigation (group + reduce items) | Low | High | DONE |
+| 3 | Split Recipe Costing into sub-components | Medium | High | PARTIAL (overhead tab split) |
+| 4 | Extract shared color tokens | Low | Medium | DONE |
+| 5 | Add command palette (`Cmd+K`) | Low | Medium | |
+| 6 | Progressive disclosure on complex forms | Medium | High | |
+| 7 | Role-based dashboard customization | Medium | High | |
+| 8 | Empty states / onboarding checklist | Low | Medium | |
+| 9 | Standardize edit pattern (drawers vs modals) | High | Medium | |
+| 10 | Quick wins (location switcher, merge My Team, etc.) | Low | Low-Med | PARTIAL (location switcher, trial banner) |
+
+---
+
+## Feature Requests
+
+Items from the product board — not UX overhaul, but tracked here so nothing is lost.
+
+| # | Feature | Module | Effort | Status |
+|---|---------|--------|--------|--------|
+| F1 | Add vendor contact fields (name, phone, email) to vendor modal header | Recipe Costing (Vendors) | Low | |
+| F2 | Add "Food Items" to Overall Shop Averages modal | Recipe Costing (Pricing) | Low | |
+| F3 | Add Average Gross Daily Revenue calculation (compare to Daily Overhead Cost) | Recipe Costing (Overhead/Settings) | Medium | |
+| F4 | Add average daily revenue with outlier exclusion (checkbox to withhold festival/event days) | Cash Deposit / Reporting | Medium | |
+| F5 | Fix maintenance tasks to allow different images for the task vs the equipment (e.g. burr vs grinder) | Equipment Maintenance | Low | |
+| F6 | Add a reporting section for various statistics | New module | High | |
+| F7 | Move overhead calculator onto its own tab | Recipe Costing | Low | DONE |
 
 ---
 
