@@ -110,25 +110,6 @@ export default function StoreProfile() {
           </div>
         </div>
 
-        {/* Operating Hours */}
-        <OperatingHoursCard
-          storeId={storeId}
-          hours={operatingHours}
-          isLoading={loadingHours}
-          canEdit={canEdit}
-          editing={editingHours}
-          onEditToggle={() => setEditingHours(!editingHours)}
-        />
-
-        {/* Starting Drawer */}
-        <DrawerDefaultCard
-          storeId={storeId}
-          currentAmount={storeTenant.starting_drawer_default}
-          canEdit={canEdit}
-          editing={editingDrawer}
-          onEditToggle={() => setEditingDrawer(!editingDrawer)}
-        />
-
         {/* Team Members */}
         <Card style={{ backgroundColor: colors.white }}>
           <CardHeader>
@@ -190,6 +171,25 @@ export default function StoreProfile() {
             )}
           </CardContent>
         </Card>
+
+        {/* Operating Hours */}
+        <OperatingHoursCard
+          storeId={storeId}
+          hours={operatingHours}
+          isLoading={loadingHours}
+          canEdit={canEdit}
+          editing={editingHours}
+          onEditToggle={() => setEditingHours(!editingHours)}
+        />
+
+        {/* Starting Drawer */}
+        <DrawerDefaultCard
+          storeId={storeId}
+          currentAmount={storeTenant.starting_drawer_default}
+          canEdit={canEdit}
+          editing={editingDrawer}
+          onEditToggle={() => setEditingDrawer(!editingDrawer)}
+        />
       </div>
 
       {/* Team Member Profile Overlay */}
