@@ -335,8 +335,9 @@ export function WhatsNew() {
               return (
                 <div
                   key={entry.id}
-                  className="rounded-lg border p-4"
+                  className={`rounded-lg border p-4 ${entry.tryIt ? 'cursor-pointer active:scale-[0.98] transition-transform' : ''}`}
                   style={{ borderColor: colors.creamDark, backgroundColor: colors.cream + '40' }}
+                  onClick={entry.tryIt ? () => handleTryIt(entry) : undefined}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -352,26 +353,22 @@ export function WhatsNew() {
                           {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                       </div>
-                      <h4 className="text-sm font-semibold" style={{ color: colors.brown }}>
-                        {entry.title}
-                      </h4>
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="text-sm font-semibold" style={{ color: colors.brown }}>
+                          {entry.title}
+                        </h4>
+                        {entry.tryIt && (
+                          <ArrowRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.gold }} />
+                        )}
+                      </div>
                       <p className="text-xs mt-1 leading-relaxed" style={{ color: colors.brownLight }}>
                         {entry.description}
                       </p>
-                      {entry.tryIt && (
-                        <button
-                          className="mt-2 inline-flex items-center gap-1 text-xs font-medium transition-colors hover:underline"
-                          style={{ color: colors.gold }}
-                          onClick={() => handleTryIt(entry)}
-                        >
-                          Try it <ArrowRight className="w-3 h-3" />
-                        </button>
-                      )}
                     </div>
                   </div>
 
                   {/* Voting buttons */}
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: colors.creamDark }}>
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: colors.creamDark }} onClick={(e) => e.stopPropagation()}>
                     <button
                       className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                         myReview?.rating === 'up' ? '' : 'hover:bg-gray-100'
@@ -412,7 +409,7 @@ export function WhatsNew() {
 
                   {/* Comment input for thumbs-down */}
                   {isCommenting && (
-                    <div className="mt-3 space-y-2">
+                    <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
                       <Textarea
                         value={commentText}
                         onChange={(e) => setCommentText(e.target.value)}
