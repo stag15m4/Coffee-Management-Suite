@@ -1331,7 +1331,7 @@ export default function CalendarWorkforce() {
           <div>
             <h1 className="text-xl font-bold" style={{ color: colors.brown }}>Calendar & Workforce</h1>
             <p className="text-sm" style={{ color: colors.brownLight }}>
-              {branding?.company_name || tenant.name}
+              {tenant.parent_tenant_id ? tenant.name : (branding?.company_name || tenant.name)}
             </p>
           </div>
         </div>
