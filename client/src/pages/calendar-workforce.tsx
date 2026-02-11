@@ -499,10 +499,13 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
             eventTimeFormat={{ hour: 'numeric', minute: '2-digit', hour12: true }}
             eventContent={(arg) => {
               const shift = arg.event.extendedProps.shift as Shift;
+              const avatarUrl = shift.employee_avatar
+                || employees.find((e) => e.name === shift.employee_name)?.avatar_url
+                || null;
               return (
                 <div className="flex items-center gap-1 overflow-hidden w-full px-0.5 py-0.5">
-                  {shift.employee_avatar ? (
-                    <img src={shift.employee_avatar} alt="" className="w-5 h-5 rounded-full flex-shrink-0 object-cover" style={{ border: '1px solid rgba(255,255,255,0.5)' }} />
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="" className="w-5 h-5 rounded-full flex-shrink-0 object-cover" style={{ border: '1px solid rgba(255,255,255,0.5)' }} />
                   ) : (
                     <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold" style={{ backgroundColor: 'rgba(255,255,255,0.3)' }}>
                       {(shift.employee_name || '?').charAt(0).toUpperCase()}
