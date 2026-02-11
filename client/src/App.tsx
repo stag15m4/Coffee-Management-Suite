@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import { FeedbackButton } from "@/components/FeedbackButton";
+import { CommandPalette } from "@/components/CommandPalette";
 import { AppResumeIndicator } from "@/components/AppResumeIndicator";
 import { CoffeeLoader } from "@/components/CoffeeLoader";
 import Landing from "@/pages/landing";
@@ -155,6 +156,7 @@ function App() {
           <AppResumeIndicator />
           <Toaster />
           <Router />
+          <CommandPalette />
           <AuthenticatedFeedbackButton />
         </AuthProvider>
       </TooltipProvider>

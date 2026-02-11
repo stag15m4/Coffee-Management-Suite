@@ -175,7 +175,7 @@ Some pages use inline editing in tables (Recipe Costing), some use modals (Admin
 | 2 | Consolidate navigation (group + reduce items) | Low | High | DONE |
 | 3 | Split Recipe Costing into sub-components | Medium | High | PARTIAL (overhead tab split) |
 | 4 | Extract shared color tokens | Low | Medium | DONE |
-| 5 | Add command palette (`Cmd+K`) | Low | Medium | |
+| 5 | Add command palette (`Cmd+K`) | Low | Medium | DONE |
 | 6 | Progressive disclosure on complex forms | Medium | High | |
 | 7 | Role-based dashboard customization | Medium | High | |
 | 8 | Empty states / onboarding checklist | Low | Medium | |
@@ -190,7 +190,7 @@ Items from the product board — not UX overhaul, but tracked here so nothing is
 
 | # | Feature | Module | Effort | Status |
 |---|---------|--------|--------|--------|
-| F1 | Add vendor contact fields (name, phone, email) to vendor modal header | Recipe Costing (Vendors) | Low | |
+| F1 | Add vendor contact fields (name, phone, email) — requires new `recipe_vendors` table + modal (vendors are currently just text on ingredients) | Recipe Costing (Vendors) | Medium | |
 | F2 | Add "Food Items" to Overall Shop Averages modal | Recipe Costing (Pricing) | Low | |
 | F3 | Add Average Gross Daily Revenue calculation (compare to Daily Overhead Cost) | Recipe Costing (Overhead/Settings) | Medium | |
 | F4 | Add average daily revenue with outlier exclusion (checkbox to withhold festival/event days) | Cash Deposit / Reporting | Medium | |
