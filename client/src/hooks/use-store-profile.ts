@@ -8,6 +8,7 @@ export interface StoreTeamMember {
   role: string;
   email: string;
   start_date: string | null;
+  last_login_at: string | null;
 }
 
 export interface OperatingHoursEntry {
@@ -61,6 +62,30 @@ export function calculateTenure(startDate: string | null): string {
   return `${displayYears} year${displayYears !== 1 ? 's' : ''}, ${displayMonths} month${displayMonths !== 1 ? 's' : ''}`;
 }
 
+export function formatRelativeTime(dateStr: string | null): string {
+  if (!dateStr) return 'Never';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) return `${diffDays}d ago`;
+  const diffMonths = Math.floor(diffDays / 30);
+  return `${diffMonths}mo ago`;
+}
+
+export function getActivityColor(dateStr: string | null): string {
+  if (!dateStr) return '#ef4444'; // red — never logged in
+  const diffDays = (Date.now() - new Date(dateStr).getTime()) / 86400000;
+  if (diffDays < 3) return '#22c55e';   // green
+  if (diffDays < 14) return '#f59e0b';  // yellow/amber
+  return '#ef4444';                      // red
+}
+
 export function getRoleBadgeColor(role: string): string {
   switch (role) {
     case 'owner': return '#C9A227';
@@ -82,7 +107,7 @@ export function useStoreTeamMembers(tenantId?: string) {
       // 1. Users whose primary tenant is this location
       const { data: primaryMembers, error: primaryError } = await supabase
         .from('user_profiles')
-        .select('id, full_name, avatar_url, role, email, start_date')
+        .select('id, full_name, avatar_url, role, email, start_date, last_login_at')
         .eq('tenant_id', tenantId)
         .eq('is_active', true);
       if (primaryError) throw primaryError;
@@ -114,7 +139,7 @@ export function useStoreTeamMembers(tenantId?: string) {
           if (extraIds.length > 0) {
             const { data: extraProfiles } = await supabase
               .from('user_profiles')
-              .select('id, full_name, avatar_url, role, email, start_date')
+              .select('id, full_name, avatar_url, role, email, start_date, last_login_at')
               .in('id', extraIds)
               .eq('is_active', true);
 

@@ -439,6 +439,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // On TOKEN_REFRESHED, force re-fetch profile data with fresh token
           const force = event === 'TOKEN_REFRESHED';
           await fetchUserData(session.user.id, 0, force);
+
+          // Record last login timestamp for engagement tracking
+          if (event === 'SIGNED_IN') {
+            supabase
+              .from('user_profiles')
+              .update({ last_login_at: new Date().toISOString() })
+              .eq('id', session.user.id)
+              .then(() => {});
+          }
         } else {
           setProfile(null);
           setPlatformAdmin(null);

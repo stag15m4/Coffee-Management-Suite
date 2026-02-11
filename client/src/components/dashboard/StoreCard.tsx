@@ -19,6 +19,8 @@ import {
   useStoreTeamMembers,
   useStoreOperatingHours,
   getTodayHours,
+  formatRelativeTime,
+  getActivityColor,
 } from '@/hooks/use-store-profile';
 
 const colors = {
@@ -90,6 +92,12 @@ export function StoreCard({
 
   const visibleMembers = teamMembers?.slice(0, MAX_FACES) || [];
   const overflowCount = (teamMembers?.length || 0) - MAX_FACES;
+
+  const lastTeamLogin = teamMembers?.reduce<string | null>((latest, m) => {
+    if (!m.last_login_at) return latest;
+    if (!latest) return m.last_login_at;
+    return m.last_login_at > latest ? m.last_login_at : latest;
+  }, null) ?? null;
 
   return (
     <Card
@@ -246,12 +254,20 @@ export function StoreCard({
                 </div>
               )}
             </div>
-            <span
-              className="text-sm"
-              style={{ color: colors.brownLight }}
-            >
-              {teamMembers?.length} team member{teamMembers?.length !== 1 ? 's' : ''}
-            </span>
+            <div className="flex flex-col">
+              <span
+                className="text-sm"
+                style={{ color: colors.brownLight }}
+              >
+                {teamMembers?.length} team member{teamMembers?.length !== 1 ? 's' : ''}
+              </span>
+              <span
+                className="text-xs"
+                style={{ color: getActivityColor(lastTeamLogin) }}
+              >
+                Last active: {formatRelativeTime(lastTeamLogin)}
+              </span>
+            </div>
           </div>
         )}
 

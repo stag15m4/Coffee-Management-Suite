@@ -27,6 +27,8 @@ import {
   getDayName,
   formatTime,
   calculateTenure,
+  formatRelativeTime,
+  getActivityColor,
   getRoleBadgeColor,
   type StoreTeamMember,
   type OperatingHoursEntry,
@@ -175,6 +177,9 @@ export default function StoreProfile() {
                     >
                       {member.role}
                     </Badge>
+                    <p className="text-xs mt-1" style={{ color: getActivityColor(member.last_login_at) }}>
+                      {formatRelativeTime(member.last_login_at)}
+                    </p>
                   </button>
                 ))}
               </div>
@@ -220,6 +225,12 @@ export default function StoreProfile() {
                     <Calendar className="w-4 h-4" style={{ color: colors.brownLight }} />
                     <span className="text-sm" style={{ color: colors.brownLight }}>
                       {calculateTenure(selectedMember.start_date)} with the team
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Clock className="w-4 h-4" style={{ color: getActivityColor(selectedMember.last_login_at) }} />
+                    <span className="text-sm" style={{ color: getActivityColor(selectedMember.last_login_at) }}>
+                      Last active: {formatRelativeTime(selectedMember.last_login_at)}
                     </span>
                   </div>
                   <Badge

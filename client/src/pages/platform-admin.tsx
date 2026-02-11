@@ -37,6 +37,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Footer } from '@/components/Footer';
+import { formatRelativeTime, getActivityColor } from '@/hooks/use-store-profile';
 
 interface TenantWithStats {
   id: string;
@@ -47,6 +48,7 @@ interface TenantWithStats {
   is_active: boolean;
   created_at: string;
   user_count?: number;
+  last_login_at?: string | null;
 }
 
 interface SubscriptionPlan {
@@ -355,14 +357,24 @@ export default function PlatformAdmin() {
 
       const tenantsWithStats = await Promise.all(
         (tenantsData || []).map(async (tenant) => {
-          const { count } = await supabase
-            .from('user_profiles')
-            .select('*', { count: 'exact', head: true })
-            .eq('tenant_id', tenant.id);
+          const [{ count }, { data: loginData }] = await Promise.all([
+            supabase
+              .from('user_profiles')
+              .select('*', { count: 'exact', head: true })
+              .eq('tenant_id', tenant.id),
+            supabase
+              .from('user_profiles')
+              .select('last_login_at')
+              .eq('tenant_id', tenant.id)
+              .not('last_login_at', 'is', null)
+              .order('last_login_at', { ascending: false })
+              .limit(1),
+          ]);
 
           return {
             ...tenant,
             user_count: count || 0,
+            last_login_at: loginData?.[0]?.last_login_at || null,
           };
         })
       );
@@ -681,6 +693,9 @@ export default function PlatformAdmin() {
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="text-sm" style={{ color: colors.brownLight }}>{tenant.user_count} users</p>
+                      <p className="text-xs mt-0.5" style={{ color: getActivityColor(tenant.last_login_at ?? null) }}>
+                        Last active: {formatRelativeTime(tenant.last_login_at ?? null)}
+                      </p>
                       <div className="flex gap-2 mt-1">
                         <Badge
                           style={tenant.is_active
