@@ -178,9 +178,9 @@ Some pages use inline editing in tables (Recipe Costing), some use modals (Admin
 | 5 | Add command palette (`Cmd+K`) | Low | Medium | DONE |
 | 6 | Progressive disclosure on complex forms | Medium | High | |
 | 7 | Role-based dashboard customization | Medium | High | |
-| 8 | Empty states / onboarding checklist | Low | Medium | |
+| 8 | Empty states / onboarding checklist | Low | Medium | PARTIAL (tip-payout) |
 | 9 | Standardize edit pattern (drawers vs modals) | High | Medium | |
-| 10 | Quick wins (location switcher, merge My Team, etc.) | Low | Low-Med | PARTIAL (location switcher, trial banner) |
+| 10 | Quick wins (location switcher, merge My Team, etc.) | Low | Low-Med | PARTIAL (location switcher, trial banner, footer removal, search hint) |
 
 ---
 
