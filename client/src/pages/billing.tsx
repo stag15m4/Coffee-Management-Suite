@@ -31,7 +31,6 @@ import {
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
-import { Footer } from '@/components/Footer';
 import { ModulePreviewContent } from '@/components/billing/ModulePreview';
 import { colors } from '@/lib/colors';
 
@@ -408,7 +407,6 @@ export default function Billing() {
         <div className="flex-1 flex items-center justify-center py-12">
           <CoffeeLoader text="Loading billing..." />
         </div>
-        <Footer />
       </div>
     );
   }
@@ -1068,7 +1066,6 @@ export default function Billing() {
         </DialogContent>
       </Dialog>
 
-      <Footer />
     </div>
   );
 }

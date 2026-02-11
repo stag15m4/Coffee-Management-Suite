@@ -5,8 +5,9 @@ import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
 import { useToast } from '@/hooks/use-toast';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
-import { Footer } from '@/components/Footer';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Users } from 'lucide-react';
 
 import { CC_FEE_RATE, TipEmployee } from '@/components/tip-payout/types';
 import { formatHoursMinutes, getMonday, getWeekRange } from '@/components/tip-payout/utils';
@@ -530,61 +531,81 @@ export default function TipPayout() {
               savingTips={savingTips}
             />
 
-            <EmployeeHoursEntry
-              colors={colors}
-              employees={employees}
-              employeeHours={employeeHours}
-              hourlyRate={hourlyRate}
-              selectedEmployee={selectedEmployee}
-              onSelectedEmployeeChange={setSelectedEmployee}
-              hoursInput={hoursInput}
-              minutesInput={minutesInput}
-              onHoursInputChange={setHoursInput}
-              onMinutesInputChange={setMinutesInput}
-              onAddHours={addHours}
-              savingHours={savingHours}
-              onEditEmployee={editEmployee}
-              onDeleteEmployee={deleteHours}
-              onAddNewEmployee={() => setManageDialogOpen(true)}
-            />
+            {employees.length === 0 ? (
+              <div className="text-center py-10 space-y-3">
+                <Users className="w-10 h-10 mx-auto" style={{ color: colors.brownLight }} />
+                <h3 className="text-lg font-semibold" style={{ color: colors.brown }}>
+                  No team members yet
+                </h3>
+                <p className="text-sm max-w-sm mx-auto" style={{ color: colors.brownLight }}>
+                  Add your tip-eligible employees to start tracking hours and calculating payouts.
+                </p>
+                <Button
+                  onClick={() => setManageDialogOpen(true)}
+                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Add Employees
+                </Button>
+              </div>
+            ) : (
+              <>
+                <EmployeeHoursEntry
+                  colors={colors}
+                  employees={employees}
+                  employeeHours={employeeHours}
+                  hourlyRate={hourlyRate}
+                  selectedEmployee={selectedEmployee}
+                  onSelectedEmployeeChange={setSelectedEmployee}
+                  hoursInput={hoursInput}
+                  minutesInput={minutesInput}
+                  onHoursInputChange={setHoursInput}
+                  onMinutesInputChange={setMinutesInput}
+                  onAddHours={addHours}
+                  savingHours={savingHours}
+                  onEditEmployee={editEmployee}
+                  onDeleteEmployee={deleteHours}
+                  onAddNewEmployee={() => setManageDialogOpen(true)}
+                />
 
-            <PayoutSummary
-              colors={colors}
-              calculation={{ cashTotal, ccTotal, ccAfterFee, totalPool, totalTeamHours, hourlyRate, weekRange }}
-              hasData={Object.keys(employeeHours).length > 0}
-              onExportCSV={exportCSV}
-              onExportPDF={exportPDF}
-            />
+                <PayoutSummary
+                  colors={colors}
+                  calculation={{ cashTotal, ccTotal, ccAfterFee, totalPool, totalTeamHours, hourlyRate, weekRange }}
+                  hasData={Object.keys(employeeHours).length > 0}
+                  onExportCSV={exportCSV}
+                  onExportPDF={exportPDF}
+                />
 
-            <TeamHoursVerify
-              colors={colors}
-              teamHoursCheck={teamHoursCheck}
-              teamMinutesCheck={teamMinutesCheck}
-              onTeamHoursChange={setTeamHoursCheck}
-              onTeamMinutesChange={setTeamMinutesCheck}
-              onVerify={verifyTeamHours}
-              hoursVerifyResult={hoursVerifyResult}
-            />
+                <TeamHoursVerify
+                  colors={colors}
+                  teamHoursCheck={teamHoursCheck}
+                  teamMinutesCheck={teamMinutesCheck}
+                  onTeamHoursChange={setTeamHoursCheck}
+                  onTeamMinutesChange={setTeamMinutesCheck}
+                  onVerify={verifyTeamHours}
+                  hoursVerifyResult={hoursVerifyResult}
+                />
 
-            <HistoricalExport
-              colors={colors}
-              allEmployees={allEmployees}
-              employees={employees}
-              historyStartDate={historyStartDate}
-              historyEndDate={historyEndDate}
-              historyExportType={historyExportType}
-              historySelectedEmployee={historySelectedEmployee}
-              onStartDateChange={setHistoryStartDate}
-              onEndDateChange={setHistoryEndDate}
-              onExportTypeChange={setHistoryExportType}
-              onSelectedEmployeeChange={setHistorySelectedEmployee}
-              onExportHistorical={exportHistorical}
-              exportingHistory={exportingHistory}
-            />
+                <HistoricalExport
+                  colors={colors}
+                  allEmployees={allEmployees}
+                  employees={employees}
+                  historyStartDate={historyStartDate}
+                  historyEndDate={historyEndDate}
+                  historyExportType={historyExportType}
+                  historySelectedEmployee={historySelectedEmployee}
+                  onStartDateChange={setHistoryStartDate}
+                  onEndDateChange={setHistoryEndDate}
+                  onExportTypeChange={setHistoryExportType}
+                  onSelectedEmployeeChange={setHistorySelectedEmployee}
+                  onExportHistorical={exportHistorical}
+                  exportingHistory={exportingHistory}
+                />
+              </>
+            )}
           </CardContent>
         </Card>
       </main>
-      <Footer />
     </div>
   );
 }

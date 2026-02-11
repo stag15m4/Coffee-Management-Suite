@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Download, FileText, Plus, Trash2, Edit2, Save, X } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
-import { Footer } from '@/components/Footer';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 import { colors } from '@/lib/colors';
@@ -1258,7 +1257,6 @@ export default function CoffeeOrder() {
           )}
         </div>
       </main>
-      <Footer />
       {ConfirmDialog}
     </div>
   );

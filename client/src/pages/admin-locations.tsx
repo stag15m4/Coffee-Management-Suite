@@ -37,7 +37,6 @@ import {
   Users,
   MapPin
 } from 'lucide-react';
-import { Footer } from '@/components/Footer';
 import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';
 
@@ -462,7 +461,6 @@ export default function AdminLocations() {
         </Card>
       </main>
 
-      <Footer />
 
       {/* Add/Edit Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>

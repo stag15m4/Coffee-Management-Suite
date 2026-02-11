@@ -87,6 +87,13 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Allow opening from sidebar search button via custom event
+  useEffect(() => {
+    const handleOpen = () => setOpen(true);
+    window.addEventListener('open-command-palette', handleOpen);
+    return () => window.removeEventListener('open-command-palette', handleOpen);
+  }, []);
+
   // Don't render for unauthenticated users
   if (!user) return null;
 

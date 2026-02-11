@@ -59,7 +59,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SiGooglecalendar } from 'react-icons/si';
-import { Footer } from '@/components/Footer';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 import { colors } from '@/lib/colors';
@@ -2565,7 +2564,6 @@ export default function EquipmentMaintenance() {
           </div>
         )}
       </main>
-      <Footer />
       {ConfirmDialog}
     </div>
   );

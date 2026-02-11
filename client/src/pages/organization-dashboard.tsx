@@ -17,7 +17,6 @@ import {
   Settings,
   ArrowLeft
 } from 'lucide-react';
-import { Footer } from '@/components/Footer';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';
@@ -401,7 +400,6 @@ export default function OrganizationDashboard() {
           </Card>
         )}
       </main>
-      <Footer />
     </div>
   );
 }

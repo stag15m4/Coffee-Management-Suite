@@ -7,7 +7,6 @@ import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Footer } from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import {
@@ -4588,7 +4587,6 @@ export default function Home() {
           />
         )}
       </main>
-      <Footer />
       {ConfirmDialog}
     </div>
   );

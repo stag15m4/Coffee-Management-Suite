@@ -37,7 +37,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Footer } from '@/components/Footer';
 import { formatRelativeTime, getActivityColor } from '@/hooks/use-store-profile';
 import { colors } from '@/lib/colors';
 
@@ -1095,7 +1094,6 @@ export default function PlatformAdmin() {
           </DialogContent>
         </Dialog>
       </main>
-      <Footer />
     </div>
   );
 }

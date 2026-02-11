@@ -24,6 +24,7 @@ import {
   Check,
   Sparkles,
   Settings,
+  Search,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -262,6 +263,22 @@ export function Sidebar() {
           icon={LayoutDashboard}
           isActive={location === '/' || location === '/dashboard'}
         />
+
+        {/* Search trigger for command palette */}
+        <button
+          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-sm transition-colors hover:bg-gray-50"
+          style={{ color: colors.brownLight }}
+          onClick={() => window.dispatchEvent(new Event('open-command-palette'))}
+        >
+          <Search className="w-4 h-4 flex-shrink-0" />
+          <span className="text-xs">Search...</span>
+          <kbd
+            className="ml-auto text-[10px] px-1.5 py-0.5 rounded border font-mono"
+            style={{ borderColor: colors.creamDark, color: colors.brownLight, backgroundColor: colors.cream }}
+          >
+            {/Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl+'}K
+          </kbd>
+        </button>
 
         {/* My Team — free, not module-gated */}
         <SidebarLink

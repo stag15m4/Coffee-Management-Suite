@@ -39,7 +39,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Footer } from '@/components/Footer';
 import { colors } from '@/lib/colors';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
@@ -630,8 +629,6 @@ export default function ResellerManagement() {
           </>
         )}
       </main>
-
-      <Footer />
 
       <Dialog open={showNewResellerDialog} onOpenChange={setShowNewResellerDialog}>
         <DialogContent className="sm:max-w-md">

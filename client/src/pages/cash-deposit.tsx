@@ -12,7 +12,6 @@ import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText } from 'lucide-react';
 import ExcelJS from 'exceljs';
-import { Footer } from '@/components/Footer';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 import { colors } from '@/lib/colors';
@@ -1154,7 +1153,6 @@ export default function CashDeposit() {
         )}
       </div>
       </div>
-      <Footer />
       {ConfirmDialog}
     </div>
   );

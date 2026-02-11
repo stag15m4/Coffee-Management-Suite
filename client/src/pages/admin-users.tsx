@@ -17,7 +17,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Footer } from '@/components/Footer';
 import { colors } from '@/lib/colors';
 
 interface UserProfile {
@@ -659,7 +658,6 @@ export default function AdminUsers() {
           </CardContent>
         </Card>
       </main>
-      <Footer />
     </div>
   );
 }

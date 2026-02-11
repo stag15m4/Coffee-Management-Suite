@@ -47,7 +47,6 @@ import {
   ChevronUp,
   RefreshCw
 } from 'lucide-react';
-import { Footer } from '@/components/Footer';
 import { colors } from '@/lib/colors';
 
 interface TaskCategory {
@@ -1410,8 +1409,6 @@ export default function AdminTasks() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
-      <Footer />
     </div>
   );
 }

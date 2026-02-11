@@ -5,7 +5,6 @@ import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
 import { queryClient } from '@/lib/queryClient';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
-import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1382,7 +1381,6 @@ export default function CalendarWorkforce() {
           <ExportTab tenantId={tenantId} employees={employees} />
         )}
       </main>
-      <Footer />
     </div>
   );
 }

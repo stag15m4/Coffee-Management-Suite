@@ -19,7 +19,6 @@ import {
   Check,
   X,
 } from 'lucide-react';
-import { Footer } from '@/components/Footer';
 import {
   useStoreTeamMembers,
   useStoreOperatingHours,
@@ -290,7 +289,6 @@ export default function StoreProfile() {
         </DialogContent>
       </Dialog>
 
-      <Footer />
     </div>
   );
 }

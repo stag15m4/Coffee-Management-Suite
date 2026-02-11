@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, RotateCcw } from 'lucide-react';
-import { Footer } from '@/components/Footer';
 import { colors } from '@/lib/colors';
 
 const defaultBranding = {
@@ -336,7 +335,6 @@ export default function AdminBranding() {
           </CardContent>
         </Card>
       </main>
-      <Footer />
     </div>
   );
 }

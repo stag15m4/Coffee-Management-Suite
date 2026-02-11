@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { User, Calendar, Mail, Lock, TrendingUp } from 'lucide-react';
 import { useLocation } from 'wouter';
-import { Footer } from '@/components/Footer';
 import { colors } from '@/lib/colors';
 
 interface TeamMember {
@@ -512,7 +511,6 @@ export default function MyTeam() {
         </DialogContent>
       </Dialog>
 
-      <Footer />
     </div>
   );
 }

@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, User, Mail, Lock, Loader2, Camera, Upload, SwitchCamera, RotateCcw } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
-import { Footer } from '@/components/Footer';
 import { colors } from '@/lib/colors';
 
 export default function UserProfile() {
@@ -768,7 +767,6 @@ export default function UserProfile() {
         </DialogContent>
       </Dialog>
 
-      <Footer />
     </div>
   );
 }
