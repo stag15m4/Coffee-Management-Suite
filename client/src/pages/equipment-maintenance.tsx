@@ -675,7 +675,9 @@ export default function EquipmentMaintenance() {
   const [editTaskIntervalUnits, setEditTaskIntervalUnits] = useState('');
   const [editTaskUsageLabel, setEditTaskUsageLabel] = useState('');
   const [editTaskEstimatedCost, setEditTaskEstimatedCost] = useState('');
-  
+  const [editTaskImageUrl, setEditTaskImageUrl] = useState<string | null>(null);
+  const [isUploadingEditTaskPhoto, setIsUploadingEditTaskPhoto] = useState(false);
+
   const [newEquipmentName, setNewEquipmentName] = useState('');
   const [newEquipmentCategory, setNewEquipmentCategory] = useState('');
   const [newEquipmentNotes, setNewEquipmentNotes] = useState('');
@@ -717,6 +719,32 @@ export default function EquipmentMaintenance() {
     }
   };
 
+  const handleTaskPhotoUpload = async (file: File, mode: 'new' | 'edit') => {
+    const setUploading = mode === 'new' ? setIsUploadingNewTaskPhoto : setIsUploadingEditTaskPhoto;
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `${profile?.tenant_id}/tasks/${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('equipment-photos')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from('equipment-photos')
+        .getPublicUrl(fileName);
+      if (mode === 'new') {
+        setNewTaskImageUrl(publicUrl);
+      } else {
+        setEditTaskImageUrl(publicUrl);
+      }
+      toast({ title: 'Task photo uploaded' });
+    } catch (error: any) {
+      toast({ title: 'Photo upload failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const [newTaskEquipmentId, setNewTaskEquipmentId] = useState('');
   const [newTaskName, setNewTaskName] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
@@ -726,6 +754,8 @@ export default function EquipmentMaintenance() {
   const [newTaskUsageLabel, setNewTaskUsageLabel] = useState('');
   const [newTaskLastServiced, setNewTaskLastServiced] = useState('');
   const [newTaskEstimatedCost, setNewTaskEstimatedCost] = useState('');
+  const [newTaskImageUrl, setNewTaskImageUrl] = useState('');
+  const [isUploadingNewTaskPhoto, setIsUploadingNewTaskPhoto] = useState(false);
   
   const [completionNotes, setCompletionNotes] = useState('');
   const [completionUsage, setCompletionUsage] = useState('');
@@ -960,6 +990,7 @@ export default function EquipmentMaintenance() {
         equipment_id: newTaskEquipmentId,
         name: newTaskName.trim(),
         description: newTaskDescription.trim() || undefined,
+        image_url: newTaskImageUrl || undefined,
         interval_type: newTaskIntervalType,
         interval_days: newTaskIntervalType === 'time' ? parseInt(newTaskIntervalDays) : undefined,
         interval_units: newTaskIntervalType === 'usage' ? parseInt(newTaskIntervalUnits) : undefined,
@@ -979,6 +1010,7 @@ export default function EquipmentMaintenance() {
       setNewTaskUsageLabel('');
       setNewTaskLastServiced('');
       setNewTaskEstimatedCost('');
+      setNewTaskImageUrl('');
       setShowAddTask(false);
       toast({ title: 'Maintenance task added successfully' });
     } catch (error: any) {
@@ -1086,6 +1118,7 @@ export default function EquipmentMaintenance() {
     setEditingTask(task);
     setEditTaskName(task.name);
     setEditTaskDescription(task.description || '');
+    setEditTaskImageUrl(task.image_url || null);
     setEditTaskIntervalType(task.interval_type as 'time' | 'usage');
     setEditTaskIntervalDays(task.interval_days?.toString() || '');
     setEditTaskIntervalUnits(task.interval_units?.toString() || '');
@@ -1154,6 +1187,7 @@ export default function EquipmentMaintenance() {
         updates: {
           name: editTaskName.trim(),
           description: editTaskDescription.trim() || null,
+          image_url: editTaskImageUrl || null,
           interval_type: editTaskIntervalType,
           interval_days: editTaskIntervalType === 'time' ? parseInt(editTaskIntervalDays) : null,
           interval_units: editTaskIntervalType === 'usage' ? parseInt(editTaskIntervalUnits) : null,
@@ -1326,12 +1360,12 @@ export default function EquipmentMaintenance() {
                                   className="w-3 h-3 rounded-full flex-shrink-0"
                                   style={{ backgroundColor: statusColor }}
                                 />
-                                {task.equipment?.photo_url && (
+                                {(task.image_url || task.equipment?.photo_url) && (
                                   <div
                                     className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0"
                                     style={{ border: `2px solid ${colors.creamDark}` }}
                                   >
-                                    <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
+                                    <img src={(task.image_url || task.equipment?.photo_url)!} alt={task.name} className="w-full h-full object-cover" />
                                   </div>
                                 )}
                                 <div className="min-w-0">
@@ -1369,13 +1403,13 @@ export default function EquipmentMaintenance() {
                             {isExpanded && (
                               <div className="px-4 pb-4 pt-0 border-t" style={{ borderColor: colors.creamDark, backgroundColor: colors.cream }}>
                                 <div className="pt-3 space-y-3">
-                                  {task.equipment?.photo_url && (
+                                  {(task.image_url || task.equipment?.photo_url) && (
                                     <div
                                       className="w-64 h-64 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
                                       style={{ border: `2px solid ${colors.creamDark}` }}
-                                      onClick={(e) => { e.stopPropagation(); setLightboxUrl(task.equipment!.photo_url!); }}
+                                      onClick={(e) => { e.stopPropagation(); setLightboxUrl((task.image_url || task.equipment?.photo_url)!); }}
                                     >
-                                      <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
+                                      <img src={(task.image_url || task.equipment?.photo_url)!} alt={task.name} className="w-full h-full object-cover" />
                                     </div>
                                   )}
                                   {task.description && (
@@ -1557,6 +1591,18 @@ export default function EquipmentMaintenance() {
                     />
                   </div>
                   <div>
+                    <Label style={{ color: colors.brown }}>Task Photo</Label>
+                    <p className="text-xs mb-1" style={{ color: colors.brownLight }}>Optional — use a specific photo for this task (e.g. burr assembly) instead of the equipment photo</p>
+                    <PhotoCapture
+                      currentPhotoUrl={newTaskImageUrl || null}
+                      onPhotoSelected={async (file) => handleTaskPhotoUpload(file, 'new')}
+                      onPhotoRemoved={() => setNewTaskImageUrl('')}
+                      isUploading={isUploadingNewTaskPhoto}
+                      shape="square"
+                      size={80}
+                    />
+                  </div>
+                  <div>
                     <Label style={{ color: colors.brown }}>Interval Type *</Label>
                     <Select value={newTaskIntervalType} onValueChange={(v: 'time' | 'usage') => setNewTaskIntervalType(v)}>
                       <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} data-testid="select-interval-type">
@@ -1665,6 +1711,7 @@ export default function EquipmentMaintenance() {
                         setNewTaskEquipmentId('');
                         setNewTaskName('');
                         setNewTaskDescription('');
+                        setNewTaskImageUrl('');
                         setNewTaskIntervalType('time');
                         setNewTaskIntervalDays('');
                         setNewTaskIntervalUnits('');
@@ -2473,7 +2520,20 @@ export default function EquipmentMaintenance() {
                     data-testid="input-edit-task-description"
                   />
                 </div>
-                
+
+                <div>
+                  <Label style={{ color: colors.brown }}>Task Photo</Label>
+                  <p className="text-xs mb-1" style={{ color: colors.brownLight }}>Optional — use a specific photo for this task instead of the equipment photo</p>
+                  <PhotoCapture
+                    currentPhotoUrl={editTaskImageUrl}
+                    onPhotoSelected={async (file) => handleTaskPhotoUpload(file, 'edit')}
+                    onPhotoRemoved={() => setEditTaskImageUrl(null)}
+                    isUploading={isUploadingEditTaskPhoto}
+                    shape="square"
+                    size={80}
+                  />
+                </div>
+
                 <div>
                   <Label style={{ color: colors.brown }}>Interval Type</Label>
                   <Select value={editTaskIntervalType} onValueChange={(v: 'time' | 'usage') => setEditTaskIntervalType(v)}>

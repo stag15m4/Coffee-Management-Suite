@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText } from 'lucide-react';
+import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText, ChevronDown } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
@@ -78,6 +78,7 @@ export default function CashDeposit() {
   const [saving, setSaving] = useState(false);
   const [editingEntry, setEditingEntry] = useState<CashEntry | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [showAdjustments, setShowAdjustments] = useState(false);
   const [dateRange, setDateRange] = useState({ start: yearStart, end: today });
   
   const [formData, setFormData] = useState({
@@ -244,6 +245,13 @@ export default function CashDeposit() {
         notes: editingEntry.notes || '',
         flagged: editingEntry.flagged || false
       });
+      // Auto-expand adjustments if any adjustment field has a non-zero value
+      const hasAdjustments = (editingEntry.tip_pool || 0) !== 0 ||
+        (editingEntry.cash_refund || 0) !== 0 ||
+        (editingEntry.pay_in || 0) !== 0 ||
+        (editingEntry.pay_out || 0) !== 0 ||
+        (editingEntry.owner_tips || 0) !== 0;
+      if (hasAdjustments) setShowAdjustments(true);
     }
   }, [editingEntry]);
 
@@ -817,113 +825,127 @@ export default function CashDeposit() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label style={{ color: colors.brown }}>Tip Pool</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={formData.tip_pool}
-
-                    onChange={(e) => updateField('tip_pool', e.target.value)}
-                    className="pl-7"
-                    style={{ backgroundColor: colors.inputBg }}
-                    placeholder="0.00"
-                    data-testid="input-tip-pool"
-                  />
+            {/* Adjustments — collapsible for progressive disclosure */}
+            <div>
+              <button
+                type="button"
+                className="flex items-center gap-2 text-sm font-medium py-1 transition-colors hover:opacity-80"
+                style={{ color: colors.brownLight }}
+                onClick={() => setShowAdjustments(!showAdjustments)}
+              >
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${showAdjustments ? 'rotate-0' : '-rotate-90'}`}
+                />
+                Adjustments
+                {!showAdjustments && (parseFloat(String(formData.tip_pool)) || parseFloat(String(formData.cash_refund)) || parseFloat(String(formData.pay_in)) || parseFloat(String(formData.pay_out)) || parseFloat(String(formData.owner_tips))) ? (
+                  <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: colors.cream, color: colors.brown }}>has values</span>
+                ) : null}
+              </button>
+              {showAdjustments && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                  <div className="space-y-2">
+                    <Label style={{ color: colors.brown }}>Tip Pool</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={formData.tip_pool}
+                        onChange={(e) => updateField('tip_pool', e.target.value)}
+                        className="pl-7"
+                        style={{ backgroundColor: colors.inputBg }}
+                        placeholder="0.00"
+                        data-testid="input-tip-pool"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label style={{ color: colors.brown }}>Cash Refund</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={formData.cash_refund}
+                        onChange={(e) => updateField('cash_refund', e.target.value)}
+                        className="pl-7"
+                        style={{ backgroundColor: colors.inputBg }}
+                        placeholder="0.00"
+                        data-testid="input-cash-refund"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label style={{ color: colors.brown }}>Pay In</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={formData.pay_in}
+                        onChange={(e) => updateField('pay_in', e.target.value)}
+                        className="pl-7"
+                        style={{ backgroundColor: colors.inputBg }}
+                        placeholder="0.00"
+                        data-testid="input-pay-in"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label style={{ color: colors.brown }}>Pay Out</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={formData.pay_out}
+                        onChange={(e) => updateField('pay_out', e.target.value)}
+                        className="pl-7"
+                        style={{ backgroundColor: colors.inputBg }}
+                        placeholder="0.00"
+                        data-testid="input-pay-out"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label style={{ color: ownerTipsEnabled ? colors.brown : colors.brownLight }}>Owner Tips</Label>
+                      <button
+                        type="button"
+                        onClick={toggleOwnerTips}
+                        disabled={!ownerTipsLoaded}
+                        className="text-xs px-2 py-1 rounded disabled:opacity-50"
+                        style={{
+                          backgroundColor: ownerTipsEnabled ? colors.gold : colors.creamDark,
+                          color: ownerTipsEnabled ? colors.white : colors.brownLight
+                        }}
+                        data-testid="button-toggle-owner-tips"
+                      >
+                        {ownerTipsEnabled ? 'On' : 'Off'}
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={formData.owner_tips}
+                        onChange={(e) => updateField('owner_tips', e.target.value)}
+                        className="pl-7"
+                        style={{ backgroundColor: ownerTipsEnabled && ownerTipsLoaded ? colors.inputBg : colors.creamDark }}
+                        placeholder="0.00"
+                        disabled={!ownerTipsEnabled || !ownerTipsLoaded}
+                        data-testid="input-owner-tips"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label style={{ color: colors.brown }}>Cash Refund</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={formData.cash_refund}
-
-                    onChange={(e) => updateField('cash_refund', e.target.value)}
-                    className="pl-7"
-                    style={{ backgroundColor: colors.inputBg }}
-                    placeholder="0.00"
-                    data-testid="input-cash-refund"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label style={{ color: colors.brown }}>Pay In</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={formData.pay_in}
-
-                    onChange={(e) => updateField('pay_in', e.target.value)}
-                    className="pl-7"
-                    style={{ backgroundColor: colors.inputBg }}
-                    placeholder="0.00"
-                    data-testid="input-pay-in"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label style={{ color: colors.brown }}>Pay Out</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={formData.pay_out}
-
-                    onChange={(e) => updateField('pay_out', e.target.value)}
-                    className="pl-7"
-                    style={{ backgroundColor: colors.inputBg }}
-                    placeholder="0.00"
-                    data-testid="input-pay-out"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label style={{ color: ownerTipsEnabled ? colors.brown : colors.brownLight }}>Owner Tips</Label>
-                  <button
-                    type="button"
-                    onClick={toggleOwnerTips}
-                    disabled={!ownerTipsLoaded}
-                    className="text-xs px-2 py-1 rounded disabled:opacity-50"
-                    style={{
-                      backgroundColor: ownerTipsEnabled ? colors.gold : colors.creamDark,
-                      color: ownerTipsEnabled ? colors.white : colors.brownLight
-                    }}
-                    data-testid="button-toggle-owner-tips"
-                  >
-                    {ownerTipsEnabled ? 'On' : 'Off'}
-                  </button>
-                </div>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={formData.owner_tips}
-
-                    onChange={(e) => updateField('owner_tips', e.target.value)}
-                    className="pl-7"
-                    style={{ backgroundColor: ownerTipsEnabled && ownerTipsLoaded ? colors.inputBg : colors.creamDark }}
-                    placeholder="0.00"
-                    disabled={!ownerTipsEnabled || !ownerTipsLoaded}
-                    data-testid="input-owner-tips"
-                  />
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

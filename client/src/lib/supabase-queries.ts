@@ -415,6 +415,7 @@ export interface MaintenanceTask {
   equipment_id: string;
   name: string;
   description: string | null;
+  image_url: string | null;
   interval_type: 'time' | 'usage';
   interval_days: number | null;
   interval_units: number | null;
@@ -738,6 +739,7 @@ export function useAddMaintenanceTask() {
       equipment_id: string;
       name: string;
       description?: string;
+      image_url?: string;
       interval_type: 'time' | 'usage';
       interval_days?: number;
       interval_units?: number;
@@ -761,6 +763,7 @@ export function useAddMaintenanceTask() {
           equipment_id: task.equipment_id,
           name: task.name,
           description: task.description,
+          image_url: task.image_url,
           interval_type: task.interval_type,
           interval_days: task.interval_days,
           interval_units: task.interval_units,
