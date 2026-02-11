@@ -177,7 +177,7 @@ Some pages use inline editing in tables (Recipe Costing), some use modals (Admin
 | 4 | Extract shared color tokens | Low | Medium | DONE |
 | 5 | Add command palette (`Cmd+K`) | Low | Medium | DONE |
 | 6 | Progressive disclosure on complex forms | Medium | High | PARTIAL (cash deposit, admin tasks) |
-| 7 | Role-based dashboard customization | Medium | High | |
+| 7 | Role-based dashboard customization | Medium | High | DONE |
 | 8 | Empty states / onboarding checklist | Low | Medium | DONE (tip-payout, cash deposit, coffee orders, recipe costing tabs) |
 | 9 | Standardize edit pattern (drawers vs modals) | High | Medium | |
 | 10 | Quick wins (location switcher, merge My Team, etc.) | Low | Low-Med | PARTIAL (location switcher, trial banner, footer removal, search hint) |
@@ -193,7 +193,7 @@ Items from the product board — not UX overhaul, but tracked here so nothing is
 | F1 | Add vendor contact fields (name, phone, email) — requires new `recipe_vendors` table + modal (vendors are currently just text on ingredients) | Recipe Costing (Vendors) | Medium | DONE |
 | F2 | Add "Food Items" to Overall Shop Averages modal | Recipe Costing (Pricing) | Low | DONE |
 | F3 | Add Average Gross Daily Revenue calculation (compare to Daily Overhead Cost) | Recipe Costing (Overhead/Settings) | Medium | DONE |
-| F4 | Add average daily revenue with outlier exclusion (checkbox to withhold festival/event days) | Cash Deposit / Reporting | Medium | |
+| F4 | Add average daily revenue with outlier exclusion (checkbox to withhold festival/event days) | Cash Deposit / Reporting | Medium | DONE |
 | F5 | Fix maintenance tasks to allow different images for the task vs the equipment (e.g. burr vs grinder) | Equipment Maintenance | Low | DONE |
 | F6 | Add a reporting section for various statistics | New module | High | |
 | F7 | Move overhead calculator onto its own tab | Recipe Costing | Low | DONE |
