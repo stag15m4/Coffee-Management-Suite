@@ -176,9 +176,9 @@ Some pages use inline editing in tables (Recipe Costing), some use modals (Admin
 | 3 | Split Recipe Costing into sub-components | Medium | High | PARTIAL (overhead tab split) |
 | 4 | Extract shared color tokens | Low | Medium | DONE |
 | 5 | Add command palette (`Cmd+K`) | Low | Medium | DONE |
-| 6 | Progressive disclosure on complex forms | Medium | High | PARTIAL (cash deposit) |
+| 6 | Progressive disclosure on complex forms | Medium | High | PARTIAL (cash deposit, admin tasks) |
 | 7 | Role-based dashboard customization | Medium | High | |
-| 8 | Empty states / onboarding checklist | Low | Medium | PARTIAL (tip-payout) |
+| 8 | Empty states / onboarding checklist | Low | Medium | DONE (tip-payout, cash deposit, coffee orders, recipe costing tabs) |
 | 9 | Standardize edit pattern (drawers vs modals) | High | Medium | |
 | 10 | Quick wins (location switcher, merge My Team, etc.) | Low | Low-Med | PARTIAL (location switcher, trial banner, footer removal, search hint) |
 
