@@ -4418,12 +4418,13 @@ export default function Home() {
     };
   }, [overhead, calculatedCostPerMinute]);
 
-  // Calculate average gross daily revenue from cash deposits
+  // Calculate average gross daily revenue from cash deposits (excluding outliers)
+  const includedCashDays = useMemo(() => cashActivity.filter((e: any) => !e.excluded_from_average), [cashActivity]);
   const avgDailyRevenue = useMemo(() => {
-    if (cashActivity.length === 0) return 0;
-    const total = cashActivity.reduce((sum: number, entry: any) => sum + (Number(entry.gross_revenue) || 0), 0);
-    return total / cashActivity.length;
-  }, [cashActivity]);
+    if (includedCashDays.length === 0) return 0;
+    const total = includedCashDays.reduce((sum: number, entry: any) => sum + (Number(entry.gross_revenue) || 0), 0);
+    return total / includedCashDays.length;
+  }, [includedCashDays]);
 
   const updateIngredientMutation = useUpdateIngredient();
   const addIngredientMutation = useAddIngredient();
@@ -5047,7 +5048,7 @@ export default function Home() {
             overhead={enhancedOverhead}
             overheadItems={overheadItems as OverheadItem[]}
             avgDailyRevenue={avgDailyRevenue}
-            cashDayCount={cashActivity.length}
+            cashDayCount={includedCashDays.length}
             onAddOverheadItem={handleAddOverheadItem}
             onUpdateOverheadItem={handleUpdateOverheadItem}
             onDeleteOverheadItem={handleDeleteOverheadItem}

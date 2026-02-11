@@ -281,7 +281,7 @@ export function useCashActivityRevenue() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cash_activity')
-        .select('drawer_date, gross_revenue')
+        .select('drawer_date, gross_revenue, excluded_from_average')
         .or('archived.is.null,archived.eq.false')
         .order('drawer_date', { ascending: false });
       if (error) throw error;

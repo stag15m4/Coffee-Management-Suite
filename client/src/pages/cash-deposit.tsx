@@ -33,6 +33,7 @@ interface CashEntry {
   notes: string;
   flagged: boolean;
   archived: boolean;
+  excluded_from_average: boolean;
 }
 
 const formatCurrency = (value: number) => {
@@ -393,6 +394,24 @@ export default function CashDeposit() {
     }
   };
 
+  const handleToggleExcluded = async (entry: CashEntry) => {
+    try {
+      const { error } = await supabase
+        .from('cash_activity')
+        .update({ excluded_from_average: !entry.excluded_from_average })
+        .eq('id', entry.id);
+
+      if (error) throw error;
+      loadEntries();
+    } catch (error: any) {
+      toast({
+        title: 'Error updating exclusion',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
   const exportToCSV = () => {
     const headers = [
       'Date', 'Gross Revenue', 'Starting Drawer', 'Cash Sales', 'Tip Pool',
@@ -570,6 +589,12 @@ export default function CashDeposit() {
   const totalGross = entries.reduce((sum, e) => sum + (e.gross_revenue || 0), 0);
   const totalDeposits = entries.reduce((sum, e) => sum + (e.actual_deposit || 0), 0);
   const totalVariance = entries.reduce((sum, e) => sum + ((e.actual_deposit || 0) - (e.calculated_deposit || 0)), 0);
+
+  const includedEntries = entries.filter(e => !e.excluded_from_average);
+  const excludedCount = entries.length - includedEntries.length;
+  const avgDailyRevenue = includedEntries.length > 0
+    ? includedEntries.reduce((sum, e) => sum + (e.gross_revenue || 0), 0) / includedEntries.length
+    : 0;
 
   const diff = difference();
   
@@ -1041,7 +1066,7 @@ export default function CashDeposit() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-sm text-muted-foreground">Days Recorded</div>
@@ -1052,6 +1077,19 @@ export default function CashDeposit() {
           <CardContent className="pt-6">
             <div className="text-sm text-muted-foreground">Total Gross Revenue</div>
             <div className="text-2xl font-bold text-primary" data-testid="text-total-gross">{formatCurrency(totalGross)}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Avg Daily Revenue</div>
+            <div className="text-2xl font-bold" style={{ color: colors.gold }} data-testid="text-avg-daily">
+              {formatCurrency(avgDailyRevenue)}
+            </div>
+            {excludedCount > 0 && (
+              <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                {excludedCount} outlier{excludedCount > 1 ? 's' : ''} excluded
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -1125,14 +1163,30 @@ export default function CashDeposit() {
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => handleToggleFlag(entry)}
-                                    className="w-3 h-3 rounded-full"
+                                    className="w-3 h-3 rounded-full flex-shrink-0"
                                     style={{ backgroundColor: entry.flagged ? '#ef4444' : colors.creamDark }}
+                                    title={entry.flagged ? 'Flagged for follow-up' : 'Flag for follow-up'}
                                     data-testid={`button-flag-${entry.id}`}
                                   />
-                                  {formatDate(entry.drawer_date)}
+                                  <span style={{ opacity: entry.excluded_from_average ? 0.5 : 1 }}>
+                                    {formatDate(entry.drawer_date)}
+                                  </span>
+                                  <button
+                                    onClick={() => handleToggleExcluded(entry)}
+                                    className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
+                                    style={{
+                                      backgroundColor: entry.excluded_from_average ? '#fef3c7' : 'transparent',
+                                      color: entry.excluded_from_average ? '#92400e' : colors.brownLight,
+                                      border: entry.excluded_from_average ? '1px solid #fcd34d' : `1px solid transparent`,
+                                    }}
+                                    title={entry.excluded_from_average ? 'Included in averages (click to exclude)' : 'Exclude from averages (festival/event day)'}
+                                    data-testid={`button-exclude-${entry.id}`}
+                                  >
+                                    {entry.excluded_from_average ? 'outlier' : ''}
+                                  </button>
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-right" style={{ color: colors.brown }}>{formatCurrency(entry.gross_revenue)}</td>
+                              <td className="px-4 py-3 text-right" style={{ color: colors.brown, opacity: entry.excluded_from_average ? 0.5 : 1 }}>{formatCurrency(entry.gross_revenue)}</td>
                               <td className="px-4 py-3 text-right" style={{ color: colors.brown }}>{formatCurrency(entry.cash_sales)}</td>
                               <td className="px-4 py-3 text-right" style={{ color: colors.brown }}>{formatCurrency(entry.tip_pool)}</td>
                               <td className="px-4 py-3 text-right" style={{ color: colors.brown }}>{formatCurrency(entry.actual_deposit)}</td>
@@ -1155,6 +1209,15 @@ export default function CashDeposit() {
                                     data-testid={`button-edit-${entry.id}`}
                                   >
                                     <Pencil className="h-4 w-4" style={{ color: colors.brownLight }} />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleToggleExcluded(entry)}
+                                    title={entry.excluded_from_average ? 'Include in averages' : 'Exclude from averages (outlier day)'}
+                                    data-testid={`button-exclude-action-${entry.id}`}
+                                  >
+                                    <Flag className="h-4 w-4" style={{ color: entry.excluded_from_average ? '#f59e0b' : colors.creamDark }} />
                                   </Button>
                                   <Button
                                     size="icon"
