@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { StoreCard } from '@/components/dashboard/StoreCard';
+import { MyDashboardCard } from '@/components/dashboard/MyDashboardCard';
 import { useAllStoreMetrics } from '@/hooks/use-store-metrics';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -17,7 +18,7 @@ const colors = {
 };
 
 export default function Dashboard() {
-  const { profile, primaryTenant } = useAuth();
+  const { profile, primaryTenant, canAccessModule } = useAuth();
   const { locations, queries } = useAllStoreMetrics();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -32,6 +33,10 @@ export default function Dashboard() {
         queryClient.invalidateQueries({ queryKey: ['store-metrics'] }),
         queryClient.invalidateQueries({ queryKey: ['store-team'] }),
         queryClient.invalidateQueries({ queryKey: ['store-hours'] }),
+        queryClient.invalidateQueries({ queryKey: ['shifts'] }),
+        queryClient.invalidateQueries({ queryKey: ['time-off-mine'] }),
+        queryClient.invalidateQueries({ queryKey: ['time-clock'] }),
+        queryClient.invalidateQueries({ queryKey: ['time-clock-active'] }),
       ]);
       toast({ title: 'Dashboard refreshed' });
     } catch {
@@ -73,6 +78,9 @@ export default function Dashboard() {
             Refresh
           </Button>
         </div>
+
+        {/* Personal Dashboard */}
+        {canAccessModule('calendar-workforce') && <MyDashboardCard />}
 
         {/* Store Cards */}
         <div className="space-y-6">
