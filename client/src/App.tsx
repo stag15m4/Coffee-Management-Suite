@@ -29,6 +29,7 @@ import OrganizationDashboard from "@/pages/organization-dashboard";
 import PlatformAdmin from "@/pages/platform-admin";
 import ResellerManagement from "@/pages/reseller-management";
 import Billing from "@/pages/billing";
+import Reporting from "@/pages/reporting";
 import StoreProfile from "@/pages/store-profile";
 
 function HomePage() {
@@ -115,6 +116,11 @@ function Router() {
       <Route path="/calendar-workforce">
         <ProtectedRoute module="calendar-workforce">
           <AppLayout><CalendarWorkforce /></AppLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/reporting">
+        <ProtectedRoute module="reporting">
+          <AppLayout><Reporting /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/billing">

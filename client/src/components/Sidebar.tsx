@@ -25,6 +25,7 @@ import {
   Sparkles,
   Settings,
   Search,
+  BarChart3,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -79,6 +80,7 @@ const MODULE_NAV: Record<ModuleId, NavItem> = {
       { key: 'export', label: 'Export' },
     ],
   },
+  'reporting': { href: '/reporting', label: 'Reporting', icon: BarChart3 },
 };
 
 interface NavCategory {
@@ -91,6 +93,7 @@ const NAV_CATEGORIES: NavCategory[] = [
   { label: 'Kitchen', modules: ['recipe-costing'] },
   { label: 'Scheduling', modules: ['calendar-workforce', 'admin-tasks'] },
   { label: 'Maintenance', modules: ['equipment-maintenance'] },
+  { label: 'Analytics', modules: ['reporting'] },
 ];
 
 const ALL_MODULE_IDS: ModuleId[] = [
@@ -101,6 +104,7 @@ const ALL_MODULE_IDS: ModuleId[] = [
   'equipment-maintenance',
   'admin-tasks',
   'calendar-workforce',
+  'reporting',
 ];
 
 export function Sidebar() {

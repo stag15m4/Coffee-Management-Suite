@@ -195,7 +195,7 @@ Items from the product board — not UX overhaul, but tracked here so nothing is
 | F3 | Add Average Gross Daily Revenue calculation (compare to Daily Overhead Cost) | Recipe Costing (Overhead/Settings) | Medium | DONE |
 | F4 | Add average daily revenue with outlier exclusion (checkbox to withhold festival/event days) | Cash Deposit / Reporting | Medium | DONE |
 | F5 | Fix maintenance tasks to allow different images for the task vs the equipment (e.g. burr vs grinder) | Equipment Maintenance | Low | DONE |
-| F6 | Add a reporting section for various statistics | New module | High | |
+| F6 | Add a reporting section for various statistics | New module | High | DONE (revenue trends, cash accuracy, tip distribution, task overview, KPI cards with period comparison) |
 | F7 | Move overhead calculator onto its own tab | Recipe Costing | Low | DONE |
 
 ---

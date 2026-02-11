@@ -25,6 +25,7 @@ import {
   Palette,
   MapPin,
   User,
+  BarChart3,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -51,6 +52,7 @@ const MODULES: CommandRoute[] = [
   { label: 'Equipment', href: '/equipment-maintenance', icon: Wrench, module: 'equipment-maintenance', keywords: ['maintenance', 'repair', 'machine'] },
   { label: 'Tasks', href: '/admin-tasks', icon: CheckSquare, module: 'admin-tasks', keywords: ['todo', 'checklist', 'assign'] },
   { label: 'Calendar', href: '/calendar-workforce', icon: CalendarDays, module: 'calendar-workforce', keywords: ['schedule', 'shifts', 'time off', 'clock'] },
+  { label: 'Reporting', href: '/reporting', icon: BarChart3, module: 'reporting', keywords: ['reports', 'analytics', 'statistics', 'revenue', 'charts'] },
 ];
 
 const SETTINGS: CommandRoute[] = [
