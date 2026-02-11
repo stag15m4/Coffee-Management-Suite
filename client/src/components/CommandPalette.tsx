@@ -87,6 +87,38 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // G-chord shortcuts: G then D = Dashboard, G then T = Tasks, G then C = Calendar
+  useEffect(() => {
+    let gPressed = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore when typing in inputs
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement).isContentEditable) return;
+
+      if (e.key === 'g' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (!gPressed) {
+          gPressed = true;
+          timer = setTimeout(() => { gPressed = false; }, 500);
+        }
+        return;
+      }
+
+      if (gPressed) {
+        gPressed = false;
+        clearTimeout(timer);
+        if (e.key === 'd') { e.preventDefault(); setLocation('/'); }
+        else if (e.key === 't' && canAccessModule?.('admin-tasks')) { e.preventDefault(); setLocation('/admin-tasks'); }
+        else if (e.key === 'c' && canAccessModule?.('calendar-workforce')) { e.preventDefault(); setLocation('/calendar-workforce'); }
+        else if (e.key === 'r' && canAccessModule?.('recipe-costing')) { e.preventDefault(); setLocation('/recipe-costing'); }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => { window.removeEventListener('keydown', handleKeyDown); clearTimeout(timer); };
+  }, [setLocation, canAccessModule]);
+
   // Allow opening from sidebar search button via custom event
   useEffect(() => {
     const handleOpen = () => setOpen(true);
