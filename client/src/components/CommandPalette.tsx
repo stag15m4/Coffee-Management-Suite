@@ -26,6 +26,7 @@ import {
   MapPin,
   User,
   BarChart3,
+  Gift,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -163,6 +164,16 @@ export function CommandPalette() {
               {route.label}
             </CommandItem>
           ))}
+          <CommandItem
+            value="What's New changelog updates features"
+            onSelect={() => {
+              setOpen(false);
+              window.dispatchEvent(new Event('open-whats-new'));
+            }}
+          >
+            <Gift className="mr-2 h-4 w-4" />
+            What's New
+          </CommandItem>
         </CommandGroup>
 
         {accessibleModules.length > 0 && (

@@ -26,6 +26,7 @@ import {
   Settings,
   Search,
   BarChart3,
+  Gift,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -133,6 +134,18 @@ export function Sidebar() {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [locationDropdownOpen, userMenuOpen]);
+
+  const [whatsNewBadge, setWhatsNewBadge] = useState(false);
+
+  // Listen for badge status from WhatsNew component
+  useEffect(() => {
+    const handleStatus = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) setWhatsNewBadge(detail.hasNew);
+    };
+    window.addEventListener('whats-new-status', handleStatus);
+    return () => window.removeEventListener('whats-new-status', handleStatus);
+  }, []);
 
   const displayName = branding?.company_name || tenant?.name || 'Coffee Suite';
   const isManager = hasRole('manager');
@@ -411,8 +424,24 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* User section — compact with dropdown */}
+      {/* What's New + User section */}
       <div className="p-3 border-t" style={{ borderColor: colors.creamDark }}>
+        <button
+          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-sm transition-colors hover:bg-gray-50"
+          style={{ color: colors.brown }}
+          onClick={() => window.dispatchEvent(new Event('open-whats-new'))}
+        >
+          <Gift className="w-4 h-4 flex-shrink-0" style={{ color: colors.gold }} />
+          <span className="truncate text-sm">What's New</span>
+          {whatsNewBadge && (
+            <span
+              className="ml-auto w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: colors.gold }}
+            />
+          )}
+        </button>
+      </div>
+      <div className="px-3 pb-3" style={{ borderColor: colors.creamDark }}>
         {isPlatformAdmin && !adminViewingTenant && (
           <SidebarLink
             href="/platform-admin"

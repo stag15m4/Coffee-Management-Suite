@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { CommandPalette } from "@/components/CommandPalette";
+import { WhatsNew } from "@/components/WhatsNew";
 import { AppResumeIndicator } from "@/components/AppResumeIndicator";
 import { CoffeeLoader } from "@/components/CoffeeLoader";
 import Landing from "@/pages/landing";
@@ -163,6 +164,7 @@ function App() {
           <Toaster />
           <Router />
           <CommandPalette />
+          <WhatsNew />
           <AuthenticatedFeedbackButton />
         </AuthProvider>
       </TooltipProvider>
