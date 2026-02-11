@@ -94,15 +94,15 @@ export default function CashDeposit() {
   
   const [formData, setFormData] = useState({
     drawer_date: today,
-    gross_revenue: '',
+    gross_revenue: '0.00',
     starting_drawer: '200.00',
-    actual_deposit: '',
-    cash_sales: '',
-    tip_pool: '',
-    owner_tips: '',
-    pay_in: '',
-    pay_out: '',
-    cash_refund: '',
+    actual_deposit: '0.00',
+    cash_sales: '0.00',
+    tip_pool: '0.00',
+    owner_tips: '0.00',
+    pay_in: '0.00',
+    pay_out: '0.00',
+    cash_refund: '0.00',
     notes: '',
     flagged: false
   });
@@ -244,15 +244,15 @@ export default function CashDeposit() {
     if (editingEntry) {
       setFormData({
         drawer_date: editingEntry.drawer_date,
-        gross_revenue: editingEntry.gross_revenue?.toString() || '',
+        gross_revenue: editingEntry.gross_revenue?.toString() || '0.00',
         starting_drawer: editingEntry.starting_drawer?.toString() || drawerDefault.toFixed(2),
-        actual_deposit: editingEntry.actual_deposit?.toString() || '',
-        cash_sales: editingEntry.cash_sales?.toString() || '',
-        tip_pool: editingEntry.tip_pool?.toString() || '',
-        owner_tips: editingEntry.owner_tips?.toString() || '',
-        pay_in: editingEntry.pay_in?.toString() || '',
-        pay_out: editingEntry.pay_out?.toString() || '',
-        cash_refund: editingEntry.cash_refund?.toString() || '',
+        actual_deposit: editingEntry.actual_deposit?.toString() || '0.00',
+        cash_sales: editingEntry.cash_sales?.toString() || '0.00',
+        tip_pool: editingEntry.tip_pool?.toString() || '0.00',
+        owner_tips: editingEntry.owner_tips?.toString() || '0.00',
+        pay_in: editingEntry.pay_in?.toString() || '0.00',
+        pay_out: editingEntry.pay_out?.toString() || '0.00',
+        cash_refund: editingEntry.cash_refund?.toString() || '0.00',
         notes: editingEntry.notes || '',
         flagged: editingEntry.flagged || false
       });
@@ -339,15 +339,15 @@ export default function CashDeposit() {
   const resetForm = () => {
     setFormData({
       drawer_date: today,
-      gross_revenue: '',
+      gross_revenue: '0.00',
       starting_drawer: drawerDefault.toFixed(2),
-      actual_deposit: '',
-      cash_sales: '',
-      tip_pool: '',
-      owner_tips: '',
-      pay_in: '',
-      pay_out: '',
-      cash_refund: '',
+      actual_deposit: '0.00',
+      cash_sales: '0.00',
+      tip_pool: '0.00',
+      owner_tips: '0.00',
+      pay_in: '0.00',
+      pay_out: '0.00',
+      cash_refund: '0.00',
       notes: '',
       flagged: false
     });

@@ -559,8 +559,8 @@ export default function EquipmentMaintenance() {
   const { toast } = useToast();
   const { confirm, ConfirmDialog } = useConfirmDialog();
 
-  const { data: equipment = [], isLoading: loadingEquipment, error: equipmentError, isError: equipmentHasError } = useEquipment();
-  const { data: tasks = [], isLoading: loadingTasks, error: tasksError, isError: tasksHasError } = useMaintenanceTasks();
+  const { data: equipment = [], isLoading: loadingEquipment, error: equipmentError, isError: equipmentHasError } = useEquipment(tenant?.id);
+  const { data: tasks = [], isLoading: loadingTasks, error: tasksError, isError: tasksHasError } = useMaintenanceTasks(tenant?.id);
   
   // Log any query errors for debugging
   if (equipmentError) console.error('Equipment query error:', equipmentError);

@@ -11,10 +11,15 @@ import {
   Wrench,
   Circle,
   Clock,
-  Users,
+  User,
 } from 'lucide-react';
 import type { StoreMetrics, ActionItem } from '@/hooks/use-store-metrics';
 import { canViewSection } from '@/hooks/use-store-metrics';
+import {
+  useStoreTeamMembers,
+  useStoreOperatingHours,
+  getTodayHours,
+} from '@/hooks/use-store-profile';
 
 const colors = {
   gold: '#C9A227',
@@ -33,12 +38,15 @@ interface StoreCardProps {
     id: string;
     name: string;
     parent_tenant_id?: string | null;
+    starting_drawer_default?: number | null;
   };
   metrics: StoreMetrics | undefined;
   isLoading: boolean;
   isError: boolean;
   isParent: boolean;
 }
+
+const MAX_FACES = 6;
 
 export function StoreCard({
   location,
@@ -52,7 +60,20 @@ export function StoreCard({
 
   const showHealth = canViewSection('health', profile?.role);
 
-  const handleItemClick = async (moduleHref: string) => {
+  const { data: teamMembers } = useStoreTeamMembers(location.id);
+  const { data: operatingHours } = useStoreOperatingHours(location.id);
+
+  const todayHoursStr = getTodayHours(operatingHours);
+
+  const handleCardClick = async () => {
+    if (tenant?.id !== location.id) {
+      await switchLocation(location.id);
+    }
+    setLocation(`/store/${location.id}`);
+  };
+
+  const handleItemClick = async (e: React.MouseEvent, moduleHref: string) => {
+    e.stopPropagation();
     if (tenant?.id !== location.id) {
       await switchLocation(location.id);
     }
@@ -67,12 +88,19 @@ export function StoreCard({
   const weekItems =
     metrics?.actionItems.filter((i) => i.urgency === 'this-week') || [];
 
+  const visibleMembers = teamMembers?.slice(0, MAX_FACES) || [];
+  const overflowCount = (teamMembers?.length || 0) - MAX_FACES;
+
   return (
-    <Card style={{ backgroundColor: colors.white }}>
+    <Card
+      className="cursor-pointer hover:shadow-lg transition-shadow"
+      style={{ backgroundColor: colors.white }}
+      onClick={handleCardClick}
+    >
       {/* Header — store name + compact health info */}
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          {/* Left: store name + team count */}
+          {/* Left: store name + today's hours */}
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-lg flex items-center justify-center"
@@ -94,16 +122,13 @@ export function StoreCard({
                   </Badge>
                 )}
               </div>
-              {!isLoading && metrics && (
+              {todayHoursStr && (
                 <div
                   className="flex items-center gap-1 text-sm"
                   style={{ color: colors.brownLight }}
                 >
-                  <Users className="w-3.5 h-3.5" />
-                  <span>
-                    {metrics.employeeCount} team member
-                    {metrics.employeeCount !== 1 ? 's' : ''}
-                  </span>
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>{todayHoursStr}</span>
                 </div>
               )}
             </div>
@@ -115,7 +140,7 @@ export function StoreCard({
               {metrics.revenue && (
                 <button
                   className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-                  onClick={() => handleItemClick('/cash-deposit')}
+                  onClick={(e) => handleItemClick(e, '/cash-deposit')}
                 >
                   <span
                     className="text-lg font-bold"
@@ -177,6 +202,59 @@ export function StoreCard({
       </CardHeader>
 
       <CardContent className="pt-0">
+        {/* Team faces row */}
+        {visibleMembers.length > 0 && (
+          <div className="flex items-center gap-2 py-2">
+            <div className="flex items-center">
+              {visibleMembers.map((member, i) => (
+                <div
+                  key={member.id}
+                  className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 ${i > 0 ? '-ml-1' : ''}`}
+                  style={{
+                    backgroundColor: colors.cream,
+                    border: `1.5px solid ${colors.gold}`,
+                    zIndex: MAX_FACES - i,
+                    position: 'relative',
+                  }}
+                  title={member.full_name || member.email}
+                >
+                  {member.avatar_url ? (
+                    <img
+                      src={member.avatar_url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User
+                      className="w-4 h-4"
+                      style={{ color: colors.brownLight }}
+                    />
+                  )}
+                </div>
+              ))}
+              {overflowCount > 0 && (
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium -ml-1 flex-shrink-0"
+                  style={{
+                    backgroundColor: colors.cream,
+                    color: colors.brown,
+                    border: `1.5px solid ${colors.creamDark}`,
+                    position: 'relative',
+                  }}
+                >
+                  +{overflowCount}
+                </div>
+              )}
+            </div>
+            <span
+              className="text-sm"
+              style={{ color: colors.brownLight }}
+            >
+              {teamMembers?.length} team member{teamMembers?.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+
         {/* Loading state */}
         {isLoading && (
           <div className="space-y-3 py-2">
@@ -251,7 +329,7 @@ function UrgencyGroup({
   label: string;
   items: ActionItem[];
   labelColor: string;
-  onItemClick: (href: string) => void;
+  onItemClick: (e: React.MouseEvent, href: string) => void;
 }) {
   const shown = items.slice(0, MAX_ITEMS_PER_GROUP);
   const remaining = items.length - MAX_ITEMS_PER_GROUP;
@@ -269,14 +347,14 @@ function UrgencyGroup({
           <ActionItemRow
             key={item.id}
             item={item}
-            onClick={() => onItemClick(item.moduleHref)}
+            onClick={(e) => onItemClick(e, item.moduleHref)}
           />
         ))}
         {remaining > 0 && (
           <button
             className="text-xs font-medium hover:opacity-80 transition-opacity pl-6"
             style={{ color: colors.gold }}
-            onClick={() => onItemClick(shown[0].moduleHref)}
+            onClick={(e) => onItemClick(e, shown[0].moduleHref)}
           >
             +{remaining} more →
           </button>
@@ -291,7 +369,7 @@ function ActionItemRow({
   onClick,
 }: {
   item: ActionItem;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
 }) {
   const icon =
     item.type === 'maintenance' ? (

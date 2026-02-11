@@ -43,6 +43,7 @@ export interface Tenant {
   is_active?: boolean;
   parent_tenant_id?: string | null;
   trial_ends_at?: string | null;
+  starting_drawer_default?: number | null;
 }
 
 export type ModuleId = 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering' | 'equipment-maintenance' | 'admin-tasks';

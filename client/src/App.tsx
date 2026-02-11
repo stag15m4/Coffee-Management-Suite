@@ -27,6 +27,7 @@ import OrganizationDashboard from "@/pages/organization-dashboard";
 import PlatformAdmin from "@/pages/platform-admin";
 import ResellerManagement from "@/pages/reseller-management";
 import Billing from "@/pages/billing";
+import StoreProfile from "@/pages/store-profile";
 
 function HomePage() {
   const { user, loading } = useAuth();
@@ -122,6 +123,11 @@ function Router() {
       <Route path="/my-team">
         <ProtectedRoute>
           <AppLayout><MyTeam /></AppLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/store/:id">
+        <ProtectedRoute>
+          <AppLayout><StoreProfile /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/" component={HomePage} />

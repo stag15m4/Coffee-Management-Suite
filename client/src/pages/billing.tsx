@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -168,6 +168,7 @@ export default function Billing() {
     return !currentPlan || currentPlan === 'free';
   });
   const [previewModule, setPreviewModule] = useState<{ id: string; name: string } | null>(null);
+  const modulesRef = useRef<HTMLDivElement>(null);
 
   const isOwner = hasRole('owner');
 
@@ -386,6 +387,12 @@ export default function Billing() {
   const premiumProducts = products.filter(p => p.metadata?.plan_id === 'premium');
   const alacarteProducts = products.filter(p => p.metadata?.plan_id === 'alacarte');
 
+  // Pricing protection: count individually paid modules
+  // Trial users have 0 paid modules; premium users won't see buttons
+  const paidModuleCount = isTrial ? 0 : enabledModules.length;
+  const premiumPriceId = premiumProducts[0]?.prices[0]?.id;
+  const PREMIUM_THRESHOLD = 5; // At 5× $19.99 = $99.95, premium ($99.99) is better value
+
   const getStatusBadge = () => {
     if (billingDetails?.subscription?.cancel_at_period_end) {
       return <Badge style={{ backgroundColor: '#fbbf24', color: colors.brown }}>Canceling</Badge>;
@@ -525,17 +532,142 @@ export default function Billing() {
             {(isTrial || !billingDetails?.subscription) && isOwner && (
               <div className="space-y-2">
                 <Button
-                  onClick={() => setShowPlans(true)}
+                  onClick={() => {
+                    const premiumPrice = premiumProducts[0]?.prices[0];
+                    if (premiumPrice) {
+                      handleCheckout(premiumPrice.id);
+                    } else {
+                      toast({ title: 'Payment not available', description: 'Stripe is not configured yet. Contact support to subscribe.', variant: 'destructive' });
+                    }
+                  }}
+                  disabled={checkoutLoading !== null}
                   className="w-full"
                   style={{ backgroundColor: colors.gold, color: colors.brown }}
                 >
-                  {isTrial ? 'Upgrade Now' : 'Choose a Plan'}
+                  Get All 6 Modules — $99.99/mo
                 </Button>
                 <p className="text-xs text-center" style={{ color: colors.brownLight }}>
-                  Starting at $19.99/mo per module or $99.99/mo for all 6 modules
+                  or pick individual modules below — $19.99/mo each
                 </p>
               </div>
             )}
+            {/* Module Dashboard */}
+            <div ref={modulesRef}>
+              <Separator className="my-4" />
+              <div className="flex items-center gap-2 mb-1">
+                <Package className="h-4 w-4" style={{ color: colors.gold }} />
+                <p className="text-sm font-semibold" style={{ color: colors.brown }}>
+                  {isPremium ? 'All modules included in your plan' : 'Modules'}
+                </p>
+              </div>
+              {!isPremium && (
+                <p className="text-xs mb-3" style={{ color: colors.brownLight }}>
+                  Your subscribed modules and available add-ons
+                </p>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {modules.map(mod => {
+                  const isActive = enabledModules.includes(mod.id as ModuleId);
+                  const Icon = MODULE_ICONS[mod.id] || Package;
+                  const price = parseFloat(mod.monthly_price);
+                  const wouldExceedPremium = paidModuleCount + 1 >= PREMIUM_THRESHOLD;
+
+                  return (
+                    <div
+                      key={mod.id}
+                      className="flex flex-col justify-between p-3 rounded-lg"
+                      style={{
+                        backgroundColor: isActive ? colors.cream : 'transparent',
+                        border: `1px solid ${isActive ? colors.goldLight : colors.creamDark}`,
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                          style={{
+                            backgroundColor: isActive ? colors.gold : colors.creamDark,
+                          }}
+                        >
+                          <Icon className="w-4.5 h-4.5" style={{ color: isActive ? 'white' : colors.brownLight }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium" style={{ color: colors.brown }}>
+                              {mod.name}
+                            </p>
+                            {isActive ? (
+                              <Badge className="text-[10px] px-1.5 py-0" style={{ backgroundColor: colors.green, color: 'white' }}>
+                                Active
+                              </Badge>
+                            ) : (
+                              <Lock className="w-3 h-3" style={{ color: colors.brownLight }} />
+                            )}
+                          </div>
+                          <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+                            {mod.description}
+                          </p>
+                          <button
+                            onClick={() => setPreviewModule({ id: mod.id, name: mod.name })}
+                            className="text-xs underline mt-1 block"
+                            style={{ color: colors.gold }}
+                          >
+                            See it in action
+                          </button>
+                        </div>
+                      </div>
+                      {/* Price display */}
+                      <div className="flex justify-end mt-2">
+                        {isPremium && isActive ? (
+                          <span className="text-xs" style={{ color: colors.gold }}>
+                            Included in {planLabel}
+                          </span>
+                        ) : isOwner && wouldExceedPremium ? (
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs px-3"
+                            onClick={() => {
+                              if (premiumPriceId) {
+                                handleCheckout(premiumPriceId);
+                              } else {
+                                toast({ title: 'Payment not available', description: 'Stripe is not configured yet. Contact support to subscribe.', variant: 'destructive' });
+                              }
+                            }}
+                            disabled={checkoutLoading !== null}
+                            style={{ backgroundColor: colors.gold, color: colors.brown }}
+                          >
+                            Get All Modules — $99.99/mo
+                          </Button>
+                        ) : isOwner ? (
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs px-3"
+                            onClick={() => {
+                              const product = alacarteProducts.find(p =>
+                                p.name.toLowerCase().includes(mod.name.toLowerCase()) ||
+                                p.metadata?.module_id === mod.id
+                              );
+                              if (product?.prices[0]) {
+                                handleCheckout(product.prices[0].id);
+                              } else {
+                                toast({ title: 'Payment not available', description: 'Stripe is not configured yet. Contact support to subscribe.', variant: 'destructive' });
+                              }
+                            }}
+                            disabled={checkoutLoading !== null}
+                            style={{ backgroundColor: colors.gold, color: colors.brown }}
+                          >
+                            Add Module — ${price.toFixed(2)}/mo
+                          </Button>
+                        ) : (
+                          <span className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                            ${price.toFixed(2)}/mo{isTrial && isActive ? ' after trial' : ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -604,99 +736,7 @@ export default function Billing() {
           </Card>
         )}
 
-        {/* ============================================= */}
-        {/* SECTION 3: Module Dashboard */}
-        {/* ============================================= */}
-        <Card style={{ backgroundColor: colors.white }}>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base" style={{ color: colors.brown }}>
-              <Package className="h-5 w-5" style={{ color: colors.gold }} />
-              Modules
-            </CardTitle>
-            <p className="text-sm" style={{ color: colors.brownLight }}>
-              {isPremium ? 'All modules included in your plan' : 'Your subscribed modules and available add-ons'}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {modules.map(mod => {
-                const isActive = enabledModules.includes(mod.id as ModuleId);
-                const Icon = MODULE_ICONS[mod.id] || Package;
-                const price = parseFloat(mod.monthly_price);
-
-                return (
-                  <div
-                    key={mod.id}
-                    className="flex items-start gap-3 p-3 rounded-lg"
-                    style={{
-                      backgroundColor: isActive ? colors.cream : 'transparent',
-                      border: `1px solid ${isActive ? colors.goldLight : colors.creamDark}`,
-                    }}
-                  >
-                    <div
-                      className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                      style={{
-                        backgroundColor: isActive ? colors.gold : colors.creamDark,
-                      }}
-                    >
-                      <Icon className="w-4.5 h-4.5" style={{ color: isActive ? 'white' : colors.brownLight }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium" style={{ color: colors.brown }}>
-                          {mod.name}
-                        </p>
-                        {isActive ? (
-                          <Badge className="text-[10px] px-1.5 py-0" style={{ backgroundColor: colors.green, color: 'white' }}>
-                            Active
-                          </Badge>
-                        ) : (
-                          <Lock className="w-3 h-3" style={{ color: colors.brownLight }} />
-                        )}
-                      </div>
-                      <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
-                        {mod.description}
-                      </p>
-                      <button
-                        onClick={() => setPreviewModule({ id: mod.id, name: mod.name })}
-                        className="text-xs underline mt-1 inline-block"
-                        style={{ color: colors.gold }}
-                      >
-                        See it in action
-                      </button>
-                      {/* Price display */}
-                      {isPremium && isActive ? (
-                        <span className="text-xs mt-1 block" style={{ color: colors.gold }}>
-                          Included in {planLabel}
-                        </span>
-                      ) : !isActive && isOwner && alacarteProducts.length > 0 ? (
-                        <Button
-                          size="sm"
-                          className="h-7 text-xs px-3 mt-2"
-                          onClick={() => {
-                            const product = alacarteProducts.find(p =>
-                              p.name.toLowerCase().includes(mod.name.toLowerCase()) ||
-                              p.metadata?.module_id === mod.id
-                            );
-                            if (product?.prices[0]) handleCheckout(product.prices[0].id);
-                          }}
-                          disabled={checkoutLoading !== null}
-                          style={{ backgroundColor: colors.gold, color: colors.brown }}
-                        >
-                          Add Module — ${price.toFixed(2)}/mo
-                        </Button>
-                      ) : (
-                        <span className="text-xs font-medium mt-1 block" style={{ color: colors.brownLight }}>
-                          ${price.toFixed(2)}/mo{isTrial && isActive ? ' after trial' : ''}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Old Module Dashboard removed — now merged into Subscription card above */}
 
         {/* ============================================= */}
         {/* SECTION 4: Referral Program */}

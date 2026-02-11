@@ -7,6 +7,8 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
       // Select all text on focus — tab selects all; click naturally overrides with cursor placement
       e.target.select();
+      // Some browsers clear the selection on number inputs; re-select after a tick
+      requestAnimationFrame(() => e.target.select());
 
       // iOS scroll jump prevention: save scroll position and restore it
       // after the virtual keyboard animation shifts the viewport

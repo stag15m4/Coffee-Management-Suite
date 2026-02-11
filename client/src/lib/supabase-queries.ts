@@ -441,65 +441,70 @@ export interface MaintenanceLog {
   created_at: string;
 }
 
-export function useEquipment() {
+export function useEquipment(tenantId?: string) {
   return useQuery({
-    queryKey: queryKeys.equipment,
+    queryKey: [...queryKeys.equipment, tenantId],
     queryFn: async () => {
-      console.log('DEBUG: useEquipment queryFn starting...');
+      if (!tenantId) return [];
       const { data, error } = await supabase
         .from('equipment')
         .select('*')
+        .eq('tenant_id', tenantId)
         .eq('is_active', true)
         .order('name');
-      console.log('DEBUG: useEquipment result:', { data: data?.length, error: error?.message });
       if (error) throw error;
       return (data || []) as Equipment[];
     },
+    enabled: !!tenantId,
     staleTime: 30 * 1000,
     retry: 2,
   });
 }
 
-export function useMaintenanceTasks() {
+export function useMaintenanceTasks(tenantId?: string) {
   return useQuery({
-    queryKey: queryKeys.maintenanceTasks,
+    queryKey: [...queryKeys.maintenanceTasks, tenantId],
     queryFn: async () => {
-      console.log('DEBUG: useMaintenanceTasks queryFn starting...');
+      if (!tenantId) return [];
       const { data, error } = await supabase
         .from('maintenance_tasks')
         .select(`
           *,
           equipment(*)
         `)
+        .eq('tenant_id', tenantId)
         .eq('is_active', true)
         .order('next_due_at', { ascending: true, nullsFirst: false });
-      console.log('DEBUG: useMaintenanceTasks result:', { data: data?.length, error: error?.message });
       if (error) throw error;
       return (data || []) as MaintenanceTask[];
     },
+    enabled: !!tenantId,
     staleTime: 30 * 1000,
     retry: 2,
   });
 }
 
-export function useMaintenanceLogs(taskId?: string) {
+export function useMaintenanceLogs(tenantId?: string, taskId?: string) {
   return useQuery({
-    queryKey: [...queryKeys.maintenanceLogs, taskId],
+    queryKey: [...queryKeys.maintenanceLogs, tenantId, taskId],
     queryFn: async () => {
+      if (!tenantId) return [];
       let query = supabase
         .from('maintenance_logs')
         .select('*')
+        .eq('tenant_id', tenantId)
         .order('completed_at', { ascending: false })
         .limit(50);
-      
+
       if (taskId) {
         query = query.eq('task_id', taskId);
       }
-      
+
       const { data, error } = await query;
       if (error) throw error;
       return (data || []) as MaintenanceLog[];
     },
+    enabled: !!tenantId,
     staleTime: 30 * 1000,
   });
 }

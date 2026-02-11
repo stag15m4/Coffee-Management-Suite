@@ -28,7 +28,11 @@ export default function Dashboard() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await queryClient.invalidateQueries({ queryKey: ['store-metrics'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['store-metrics'] }),
+        queryClient.invalidateQueries({ queryKey: ['store-team'] }),
+        queryClient.invalidateQueries({ queryKey: ['store-hours'] }),
+      ]);
       toast({ title: 'Dashboard refreshed' });
     } catch {
       toast({ title: 'Failed to refresh', variant: 'destructive' });
