@@ -14,8 +14,14 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { colors } from '@/lib/colors';
 
@@ -344,83 +350,14 @@ export default function AdminUsers() {
         <Card style={{ backgroundColor: colors.white }} className="mb-6">
           <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
             <CardTitle style={{ color: colors.brown }}>Team Members</CardTitle>
-            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-              <DialogTrigger asChild>
-                <Button style={{ backgroundColor: colors.gold, color: colors.brown }} data-testid="button-add-user">
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Add New User
-                </Button>
-              </DialogTrigger>
-              <DialogContent style={{ backgroundColor: colors.white }}>
-                <DialogHeader>
-                  <DialogTitle style={{ color: colors.brown }}>Add New Team Member</DialogTitle>
-                  <DialogDescription style={{ color: colors.brownLight }}>
-                    Create a new user account for your team
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 mt-4">
-                  <div>
-                    <Label style={{ color: colors.brown }}>Email *</Label>
-                    <Input
-                      type="email"
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      placeholder="team@example.com"
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                      data-testid="input-new-user-email"
-                    />
-                  </div>
-                  <div>
-                    <Label style={{ color: colors.brown }}>Full Name</Label>
-                    <Input
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      placeholder="John Doe"
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                      data-testid="input-new-user-name"
-                    />
-                  </div>
-                  <div>
-                    <Label style={{ color: colors.brown }}>Role</Label>
-                    <Select value={newRole} onValueChange={(v: any) => setNewRole(v)}>
-                      <SelectTrigger
-                        tabIndex={0}
-                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                        data-testid="select-new-user-role"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="lead">Lead</SelectItem>
-                        <SelectItem value="employee">Employee</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
-                    <p className="text-sm" style={{ color: colors.brownLight }}>
-                      An email will be sent to this address. The user will click a link to confirm their email and set their own password.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleCreateUser}
-                    disabled={creating || !newEmail}
-                    className="w-full"
-                    style={{ backgroundColor: colors.gold, color: colors.brown }}
-                    data-testid="button-create-user"
-                  >
-                    {creating ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Sending Invite...
-                      </>
-                    ) : (
-                      'Send Invite'
-                    )}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button
+              onClick={() => setShowAddDialog(true)}
+              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              data-testid="button-add-user"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Add New User
+            </Button>
             
             {/* Success Dialog */}
             <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
@@ -557,73 +494,6 @@ export default function AdminUsers() {
           </CardContent>
         </Card>
 
-        {/* Location Assignment Dialog */}
-        <Dialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
-          <DialogContent style={{ backgroundColor: colors.white }}>
-            <DialogHeader>
-              <DialogTitle style={{ color: colors.brown }}>
-                Assign Locations
-              </DialogTitle>
-              <DialogDescription style={{ color: colors.brownLight }}>
-                Select which locations {selectedUser?.full_name || selectedUser?.email} can access
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {locations.filter(l => l.is_active).map(location => (
-                  <div
-                    key={location.id}
-                    className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover-elevate"
-                    style={{ backgroundColor: colors.cream }}
-                    onClick={() => toggleLocationAssignment(location.id)}
-                    data-testid={`location-option-${location.id}`}
-                  >
-                    <Checkbox
-                      checked={pendingAssignments.includes(location.id)}
-                      onCheckedChange={() => toggleLocationAssignment(location.id)}
-                      data-testid={`checkbox-location-${location.id}`}
-                    />
-                    <Building2 className="w-4 h-4" style={{ color: colors.gold }} />
-                    <span style={{ color: colors.brown }}>{location.name}</span>
-                  </div>
-                ))}
-                {locations.filter(l => l.is_active).length === 0 && (
-                  <p className="text-sm text-center py-4" style={{ color: colors.brownLight }}>
-                    No active locations available
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowLocationDialog(false)}
-                  className="flex-1"
-                  style={{ borderColor: colors.creamDark, color: colors.brown }}
-                  data-testid="button-cancel-locations"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={saveLocationAssignments}
-                  disabled={savingLocations}
-                  className="flex-1"
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
-                  data-testid="button-save-locations"
-                >
-                  {savingLocations ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Assignments'
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
         <Card style={{ backgroundColor: colors.white }}>
           <CardHeader>
             <CardTitle style={{ color: colors.brown }}>Role Permissions</CardTitle>
@@ -657,6 +527,146 @@ export default function AdminUsers() {
             </div>
           </CardContent>
         </Card>
+        {/* Add User Sheet */}
+        <Sheet open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <SheetContent className="sm:max-w-md overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle style={{ color: colors.brown }}>Add New Team Member</SheetTitle>
+              <SheetDescription style={{ color: colors.brownLight }}>
+                Create a new user account for your team
+              </SheetDescription>
+            </SheetHeader>
+            <div className="space-y-4 mt-6">
+              <div>
+                <Label style={{ color: colors.brown }}>Email *</Label>
+                <Input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="team@example.com"
+                  className="mt-1"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                  data-testid="input-new-user-email"
+                />
+              </div>
+              <div>
+                <Label style={{ color: colors.brown }}>Full Name</Label>
+                <Input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="John Doe"
+                  className="mt-1"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                  data-testid="input-new-user-name"
+                />
+              </div>
+              <div>
+                <Label style={{ color: colors.brown }}>Role</Label>
+                <Select value={newRole} onValueChange={(v: any) => setNewRole(v)}>
+                  <SelectTrigger
+                    tabIndex={0}
+                    className="mt-1"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                    data-testid="select-new-user-role"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="lead">Lead</SelectItem>
+                    <SelectItem value="employee">Employee</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
+                <p className="text-sm" style={{ color: colors.brownLight }}>
+                  An email will be sent to this address. The user will click a link to confirm their email and set their own password.
+                </p>
+              </div>
+              <Button
+                onClick={handleCreateUser}
+                disabled={creating || !newEmail}
+                className="w-full"
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                data-testid="button-create-user"
+              >
+                {creating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending Invite...
+                  </>
+                ) : (
+                  'Send Invite'
+                )}
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* Assign Locations Sheet */}
+        <Sheet open={showLocationDialog} onOpenChange={setShowLocationDialog}>
+          <SheetContent className="sm:max-w-md overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle style={{ color: colors.brown }}>Assign Locations</SheetTitle>
+              <SheetDescription style={{ color: colors.brownLight }}>
+                Select which locations {selectedUser?.full_name || selectedUser?.email} can access
+              </SheetDescription>
+            </SheetHeader>
+            <div className="space-y-4 mt-6">
+              <div className="space-y-2">
+                {locations.filter(l => l.is_active).map(location => (
+                  <div
+                    key={location.id}
+                    className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all hover:brightness-95"
+                    style={{ backgroundColor: colors.cream }}
+                    onClick={() => toggleLocationAssignment(location.id)}
+                    data-testid={`location-option-${location.id}`}
+                  >
+                    <Checkbox
+                      checked={pendingAssignments.includes(location.id)}
+                      onCheckedChange={() => toggleLocationAssignment(location.id)}
+                      data-testid={`checkbox-location-${location.id}`}
+                    />
+                    <Building2 className="w-4 h-4" style={{ color: colors.gold }} />
+                    <span style={{ color: colors.brown }}>{location.name}</span>
+                  </div>
+                ))}
+                {locations.filter(l => l.is_active).length === 0 && (
+                  <p className="text-sm text-center py-4" style={{ color: colors.brownLight }}>
+                    No active locations available
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowLocationDialog(false)}
+                  className="flex-1"
+                  style={{ borderColor: colors.creamDark, color: colors.brown }}
+                  data-testid="button-cancel-locations"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={saveLocationAssignments}
+                  disabled={savingLocations}
+                  className="flex-1"
+                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  data-testid="button-save-locations"
+                >
+                  {savingLocations ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Assignments'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </main>
     </div>
   );

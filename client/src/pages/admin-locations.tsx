@@ -11,13 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -462,22 +461,22 @@ export default function AdminLocations() {
       </main>
 
 
-      {/* Add/Edit Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto" style={{ backgroundColor: colors.white }}>
-          <DialogHeader>
-            <DialogTitle style={{ color: colors.brown }}>
+      {/* Add/Edit Sheet */}
+      <Sheet open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle style={{ color: colors.brown }}>
               {editingLocation ? 'Edit Location' : 'Add New Location'}
-            </DialogTitle>
-            <DialogDescription style={{ color: colors.brownLight }}>
-              {editingLocation 
+            </SheetTitle>
+            <SheetDescription style={{ color: colors.brownLight }}>
+              {editingLocation
                 ? 'Update the location details below.'
                 : 'Enter the details for your new location.'
               }
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 mt-6">
             <div className="space-y-2">
               <Label htmlFor="name" style={{ color: colors.brown }}>Location Name</Label>
               <Input
@@ -527,32 +526,33 @@ export default function AdminLocations() {
                 Default starting drawer amount for Cash Deposit entries.
               </p>
             </div>
-          </div>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowAddDialog(false);
-                setEditingLocation(null);
-                setFormData({ name: '', slug: '', starting_drawer_default: '200.00' });
-              }}
-              style={{ borderColor: colors.creamDark, color: colors.brown }}
-              data-testid="button-cancel"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving || !formData.name.trim() || !formData.slug.trim()}
-              style={{ backgroundColor: colors.gold, color: colors.brown }}
-              data-testid="button-save-location"
-            >
-              {saving ? 'Saving...' : editingLocation ? 'Update' : 'Create Location'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <div className="flex gap-3 pt-4">
+              <Button
+                onClick={handleSave}
+                disabled={saving || !formData.name.trim() || !formData.slug.trim()}
+                className="flex-1"
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                data-testid="button-save-location"
+              >
+                {saving ? 'Saving...' : editingLocation ? 'Update' : 'Create Location'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddDialog(false);
+                  setEditingLocation(null);
+                  setFormData({ name: '', slug: '', starting_drawer_default: '200.00' });
+                }}
+                style={{ borderColor: colors.creamDark, color: colors.brown }}
+                data-testid="button-cancel"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!locationToDelete} onOpenChange={() => setLocationToDelete(null)}>

@@ -179,7 +179,7 @@ Some pages use inline editing in tables (Recipe Costing), some use modals (Admin
 | 6 | Progressive disclosure on complex forms | Medium | High | DONE (cash deposit, admin tasks, ingredients column toggle) |
 | 7 | Role-based dashboard customization | Medium | High | DONE |
 | 8 | Empty states / onboarding checklist | Low | Medium | DONE (tip-payout, cash deposit, coffee orders, recipe costing tabs) |
-| 9 | Standardize edit pattern (drawers vs modals) | High | Medium | PARTIAL (ingredients sheet drawer) |
+| 9 | Standardize edit pattern (drawers vs modals) | High | Medium | DONE (ingredients, admin users, admin locations → sheet drawers; confirmations stay as modals) |
 | 10 | Quick wins (location switcher, merge My Team, etc.) | Low | Low-Med | DONE (location switcher, trial banner, footer removal, search hint, keyboard shortcuts) |
 
 ---
