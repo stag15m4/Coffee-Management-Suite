@@ -1,6 +1,6 @@
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
-import { Lock, Calculator, DollarSign, Receipt, Coffee, Wrench, ListTodo, type LucideIcon } from 'lucide-react';
+import { Lock, Calculator, DollarSign, Receipt, Coffee, Wrench, ListTodo, CalendarDays, type LucideIcon } from 'lucide-react';
 import { ALL_MODULES } from '@/hooks/use-store-metrics';
 
 const colors = {
@@ -19,6 +19,7 @@ const MODULE_INFO: Record<ModuleId, { name: string; shortName: string; icon: Luc
   'bulk-ordering': { name: 'Coffee Orders', shortName: 'Orders', icon: Coffee, href: '/coffee-order' },
   'equipment-maintenance': { name: 'Equipment Maintenance', shortName: 'Equipment', icon: Wrench, href: '/equipment-maintenance' },
   'admin-tasks': { name: 'Admin Tasks', shortName: 'Tasks', icon: ListTodo, href: '/admin-tasks' },
+  'calendar-workforce': { name: 'Calendar & Workforce', shortName: 'Calendar', icon: CalendarDays, href: '/calendar-workforce' },
 };
 
 interface ModuleBarProps {

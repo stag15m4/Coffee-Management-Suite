@@ -13,6 +13,7 @@ import {
   DollarSign,
   User,
   Calendar,
+  CalendarDays,
   Mail,
   Pencil,
   Check,
@@ -33,6 +34,7 @@ import {
   type StoreTeamMember,
   type OperatingHoursEntry,
 } from '@/hooks/use-store-profile';
+import { useTodayShifts, type Shift } from '@/hooks/use-shifts';
 
 const colors = {
   gold: '#C9A227',
@@ -69,6 +71,7 @@ export default function StoreProfile() {
 
   const { data: teamMembers, isLoading: loadingTeam } = useStoreTeamMembers(storeId);
   const { data: operatingHours, isLoading: loadingHours } = useStoreOperatingHours(storeId);
+  const { data: todayShifts } = useTodayShifts(storeId);
 
   const [selectedMember, setSelectedMember] = useState<StoreTeamMember | null>(null);
   const [editingHours, setEditingHours] = useState(false);
@@ -171,6 +174,55 @@ export default function StoreProfile() {
             )}
           </CardContent>
         </Card>
+
+        {/* Working Today */}
+        {todayShifts && todayShifts.length > 0 && (
+          <Card style={{ backgroundColor: colors.white }}>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base" style={{ color: colors.brown }}>
+                <CalendarDays className="w-5 h-5" style={{ color: colors.gold }} />
+                Working Today
+                <span className="text-sm font-normal" style={{ color: colors.brownLight }}>
+                  ({todayShifts.length})
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {todayShifts.map((shift) => (
+                  <div
+                    key={shift.id}
+                    className="flex items-center gap-3 p-2 rounded-lg"
+                    style={{ backgroundColor: colors.cream }}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium"
+                      style={{
+                        backgroundColor: colors.gold,
+                        color: colors.white,
+                      }}
+                    >
+                      {shift.employee_avatar ? (
+                        <img src={shift.employee_avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                      ) : (
+                        (shift.employee_name || '?').charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: colors.brown }}>
+                        {shift.employee_name || 'Unassigned'}
+                      </p>
+                      <p className="text-xs" style={{ color: colors.brownLight }}>
+                        {formatTime(shift.start_time)} – {formatTime(shift.end_time)}
+                        {shift.position && ` · ${shift.position}`}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Operating Hours */}
         <OperatingHoursCard

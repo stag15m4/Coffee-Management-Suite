@@ -18,6 +18,7 @@ import TipPayout from "@/pages/tip-payout";
 import CoffeeOrder from "@/pages/coffee-order";
 import EquipmentMaintenance from "@/pages/equipment-maintenance";
 import AdminTasks from "@/pages/admin-tasks";
+import CalendarWorkforce from "@/pages/calendar-workforce";
 import AdminUsers from "@/pages/admin-users";
 import AdminBranding from "@/pages/admin-branding";
 import AdminLocations from "@/pages/admin-locations";
@@ -108,6 +109,11 @@ function Router() {
       <Route path="/admin-tasks">
         <ProtectedRoute module="admin-tasks">
           <AppLayout><AdminTasks /></AppLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/calendar-workforce">
+        <ProtectedRoute module="calendar-workforce">
+          <AppLayout><CalendarWorkforce /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/billing">

@@ -12,6 +12,7 @@ import {
   Circle,
   Clock,
   User,
+  CalendarDays,
 } from 'lucide-react';
 import type { StoreMetrics, ActionItem } from '@/hooks/use-store-metrics';
 import { canViewSection } from '@/hooks/use-store-metrics';
@@ -22,6 +23,8 @@ import {
   formatRelativeTime,
   getActivityColor,
 } from '@/hooks/use-store-profile';
+import { useTodayShifts } from '@/hooks/use-shifts';
+import { formatTime } from '@/hooks/use-store-profile';
 
 const colors = {
   gold: '#C9A227',
@@ -64,6 +67,7 @@ export function StoreCard({
 
   const { data: teamMembers } = useStoreTeamMembers(location.id);
   const { data: operatingHours } = useStoreOperatingHours(location.id);
+  const { data: todayShifts } = useTodayShifts(location.id);
 
   const todayHoursStr = getTodayHours(operatingHours);
 
@@ -266,6 +270,27 @@ export function StoreCard({
                 style={{ color: getActivityColor(lastTeamLogin) }}
               >
                 Last active: {formatRelativeTime(lastTeamLogin)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Working Today */}
+        {todayShifts && todayShifts.length > 0 && (
+          <div
+            className="flex items-center gap-2 py-2 mt-1"
+            style={{ borderTop: `1px solid ${colors.cream}` }}
+          >
+            <CalendarDays className="w-4 h-4 flex-shrink-0" style={{ color: colors.gold }} />
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-medium" style={{ color: colors.brown }}>
+                {todayShifts.length} scheduled today
+              </span>
+              <span className="text-xs truncate" style={{ color: colors.brownLight }}>
+                {todayShifts
+                  .map((s) => s.employee_name?.split(' ')[0])
+                  .filter(Boolean)
+                  .join(', ')}
               </span>
             </div>
           </div>

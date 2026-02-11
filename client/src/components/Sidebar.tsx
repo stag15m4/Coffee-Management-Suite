@@ -9,6 +9,7 @@ import {
   Coffee,
   Wrench,
   ListTodo,
+  CalendarDays,
   Building2,
   Users,
   Palette,
@@ -73,6 +74,17 @@ const MODULE_NAV: Record<ModuleId, NavItem> = {
     ],
   },
   'admin-tasks': { href: '/admin-tasks', label: 'Tasks', icon: ListTodo },
+  'calendar-workforce': {
+    href: '/calendar-workforce',
+    label: 'Calendar',
+    icon: CalendarDays,
+    tabs: [
+      { key: 'schedule', label: 'Schedule' },
+      { key: 'time-off', label: 'Time Off' },
+      { key: 'time-clock', label: 'Time Clock' },
+      { key: 'export', label: 'Export' },
+    ],
+  },
 };
 
 const ALL_MODULE_IDS: ModuleId[] = [
@@ -82,6 +94,7 @@ const ALL_MODULE_IDS: ModuleId[] = [
   'bulk-ordering',
   'equipment-maintenance',
   'admin-tasks',
+  'calendar-workforce',
 ];
 
 export function Sidebar() {

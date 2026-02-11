@@ -21,6 +21,7 @@ import {
   Coffee,
   Wrench,
   ListTodo,
+  CalendarDays,
   Lock,
   Clock,
   ChevronDown,
@@ -53,6 +54,7 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
   'bulk-ordering': Coffee,
   'equipment-maintenance': Wrench,
   'admin-tasks': ListTodo,
+  'calendar-workforce': CalendarDays,
 };
 
 const PLAN_LABELS: Record<string, string> = {
