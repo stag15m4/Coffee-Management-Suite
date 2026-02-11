@@ -6,7 +6,7 @@ import { useLocationChange } from '@/hooks/use-location-change';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Download, FileText, Plus, Trash2, Edit2, Save, X } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Plus, Trash2, Edit2, Save, X, Coffee, ShoppingCart } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
@@ -1094,7 +1094,10 @@ export default function CoffeeOrder() {
             </div>
 
             {orderHistory.length === 0 ? (
-              <p className="text-center py-5" style={{ color: colors.brownLight }}>No previous orders yet</p>
+              <div className="text-center py-8 space-y-2">
+                <ShoppingCart className="w-8 h-8 mx-auto" style={{ color: colors.brownLight }} />
+                <p className="text-sm" style={{ color: colors.brownLight }}>No previous orders yet. Place your first order below!</p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {orderHistory.slice(0, 10).map(order => (
@@ -1132,9 +1135,10 @@ export default function CoffeeOrder() {
           </h2>
 
           {!hasProducts ? (
-            <div className="text-center py-10">
-              <p className="text-lg mb-4" style={{ color: colors.brown }}>No products configured yet</p>
-              <p className="text-sm mb-6" style={{ color: colors.brownLight }}>
+            <div className="text-center py-10 space-y-3">
+              <Coffee className="w-10 h-10 mx-auto" style={{ color: colors.brownLight }} />
+              <h3 className="text-lg font-semibold" style={{ color: colors.brown }}>No products configured yet</h3>
+              <p className="text-sm max-w-sm mx-auto" style={{ color: colors.brownLight }}>
                 Add your coffee products in Settings to start placing orders.
               </p>
               <button

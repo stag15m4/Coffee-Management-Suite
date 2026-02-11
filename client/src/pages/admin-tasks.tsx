@@ -176,6 +176,7 @@ export default function AdminTasks() {
   
   const [showSettings, setShowSettings] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
+  const [showAdvancedFields, setShowAdvancedFields] = useState(false);
   const [editingTask, setEditingTask] = useState<AdminTask | null>(null);
   const [selectedTask, setSelectedTask] = useState<AdminTask | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<AdminTask | null>(null);
@@ -578,6 +579,7 @@ export default function AdminTasks() {
     });
     setEditingTask(null);
     setShowTaskForm(false);
+    setShowAdvancedFields(false);
   };
   
   const openEditTask = (task: AdminTask) => {
@@ -595,8 +597,10 @@ export default function AdminTasks() {
       estimated_cost: task.estimated_cost?.toString() || ''
     });
     setShowTaskForm(true);
+    // Auto-expand advanced fields if any have values
+    setShowAdvancedFields(!!(task.description || task.category_id || task.priority !== 'medium' || task.recurrence !== 'none' || task.estimated_cost || task.document_url));
   };
-  
+
   const openTaskDetails = (task: AdminTask) => {
     setSelectedTask(task);
     loadTaskDetails(task.id);
@@ -865,14 +869,59 @@ export default function AdminTasks() {
                     <Input
                       value={taskForm.title}
                       onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))}
-  
+
                       placeholder="Task title"
                       required
                       style={{ backgroundColor: colors.inputBg }}
                       data-testid="input-task-title"
                     />
                   </div>
-                  
+
+                  <div>
+                    <Label style={{ color: colors.brown }}>Assign To</Label>
+                    <Select value={taskForm.assigned_to} onValueChange={(v) => setTaskForm(prev => ({ ...prev, assigned_to: v }))}>
+                      <SelectTrigger style={{ backgroundColor: colors.inputBg }} data-testid="select-assignee">
+                        <SelectValue placeholder="Select assignee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map(user => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.full_name || user.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label style={{ color: colors.brown }}>Due Date</Label>
+                    <Input
+                      type="date"
+                      value={taskForm.due_date}
+                      onChange={(e) => setTaskForm(prev => ({ ...prev, due_date: e.target.value }))}
+
+                      style={{ backgroundColor: colors.inputBg }}
+                      data-testid="input-due-date"
+                    />
+                  </div>
+                </div>
+
+                {/* Advanced fields toggle */}
+                <button
+                  type="button"
+                  className="flex items-center gap-2 text-sm font-medium py-1 transition-colors hover:opacity-80"
+                  style={{ color: colors.brownLight }}
+                  onClick={() => setShowAdvancedFields(!showAdvancedFields)}
+                >
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showAdvancedFields ? 'rotate-0' : '-rotate-90'}`} />
+                  More options
+                  {!showAdvancedFields && (taskForm.description || taskForm.category_id || taskForm.priority !== 'medium' || taskForm.recurrence !== 'none' || taskForm.estimated_cost || taskForm.document_url) ? (
+                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: colors.cream, color: colors.brown }}>has values</span>
+                  ) : null}
+                </button>
+
+                {showAdvancedFields && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <Label style={{ color: colors.brown }}>Description</Label>
                     <Textarea
@@ -884,7 +933,7 @@ export default function AdminTasks() {
                       data-testid="input-task-description"
                     />
                   </div>
-                  
+
                   <div>
                     <Label style={{ color: colors.brown }}>Category</Label>
                     <Select value={taskForm.category_id} onValueChange={(v) => setTaskForm(prev => ({ ...prev, category_id: v }))}>
@@ -903,23 +952,7 @@ export default function AdminTasks() {
                       </SelectContent>
                     </Select>
                   </div>
-                  
-                  <div>
-                    <Label style={{ color: colors.brown }}>Assign To</Label>
-                    <Select value={taskForm.assigned_to} onValueChange={(v) => setTaskForm(prev => ({ ...prev, assigned_to: v }))}>
-                      <SelectTrigger style={{ backgroundColor: colors.inputBg }} data-testid="select-assignee">
-                        <SelectValue placeholder="Select assignee" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {users.map(user => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.full_name || user.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
+
                   <div>
                     <Label style={{ color: colors.brown }}>Priority</Label>
                     <Select value={taskForm.priority} onValueChange={(v: any) => setTaskForm(prev => ({ ...prev, priority: v }))}>
@@ -933,19 +966,7 @@ export default function AdminTasks() {
                       </SelectContent>
                     </Select>
                   </div>
-                  
-                  <div>
-                    <Label style={{ color: colors.brown }}>Due Date</Label>
-                    <Input
-                      type="date"
-                      value={taskForm.due_date}
-                      onChange={(e) => setTaskForm(prev => ({ ...prev, due_date: e.target.value }))}
-  
-                      style={{ backgroundColor: colors.inputBg }}
-                      data-testid="input-due-date"
-                    />
-                  </div>
-                  
+
                   <div>
                     <Label style={{ color: colors.brown }}>Recurrence</Label>
                     <Select value={taskForm.recurrence} onValueChange={(v: any) => setTaskForm(prev => ({ ...prev, recurrence: v }))}>
@@ -962,7 +983,7 @@ export default function AdminTasks() {
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div>
                     <Label style={{ color: colors.brown }}>Estimated Cost</Label>
                     <div className="relative">
@@ -973,7 +994,7 @@ export default function AdminTasks() {
                         min="0"
                         value={taskForm.estimated_cost}
                         onChange={(e) => setTaskForm(prev => ({ ...prev, estimated_cost: e.target.value }))}
-    
+
                         inputMode="numeric"
                         placeholder="0.00"
                         className="pl-7"
@@ -985,14 +1006,14 @@ export default function AdminTasks() {
                       Approximate cost for expense forecasting
                     </p>
                   </div>
-                  
+
                   <div>
                     <Label style={{ color: colors.brown }}>Attachment</Label>
                     <div className="flex gap-2">
                       <Input
                         type="file"
                         onChange={handleFileUpload}
-    
+
                         disabled={isUploading}
                         accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                         className="flex-1"
@@ -1008,6 +1029,7 @@ export default function AdminTasks() {
                     )}
                   </div>
                 </div>
+                )}
                 
                 <div className="flex gap-2">
                   <Button

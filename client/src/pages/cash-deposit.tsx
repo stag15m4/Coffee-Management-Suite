@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Download, Upload, Flag, Pencil, Trash2, FileText, ChevronDown, Receipt } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
@@ -1073,8 +1073,12 @@ export default function CashDeposit() {
       <div>
         <h2 className="text-xl font-bold mb-4" style={{ color: colors.brown }}>Transaction History</h2>
         {entries.length === 0 ? (
-          <div className="text-center py-8" style={{ color: colors.brownLight }}>
-            No entries for this date range. Add your first entry above!
+          <div className="text-center py-10 space-y-3">
+            <Receipt className="w-10 h-10 mx-auto" style={{ color: colors.brownLight }} />
+            <h3 className="text-lg font-semibold" style={{ color: colors.brown }}>No deposits yet</h3>
+            <p className="text-sm max-w-sm mx-auto" style={{ color: colors.brownLight }}>
+              Use the form above to log your first cash deposit and start tracking daily revenue.
+            </p>
           </div>
         ) : (
           <div className="space-y-6">

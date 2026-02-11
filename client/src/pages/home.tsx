@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearch, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { Trash2, Check, X, Pencil, Copy, Plus } from 'lucide-react';
+import { Trash2, Check, X, Pencil, Copy, Plus, Package, BookOpen, Layers, Truck } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
@@ -877,6 +877,17 @@ const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd, onDelete }: 
                   </tr>
                 )
               ))}
+              {filteredIngredients.length === 0 && (
+                <tr>
+                  <td colSpan={11} className="text-center py-10">
+                    <Package className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
+                    <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>No ingredients yet</h3>
+                    <p className="text-sm" style={{ color: colors.brownLight }}>
+                      Add your first ingredient to start building recipes and tracking costs.
+                    </p>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -1704,6 +1715,15 @@ const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseT
             )}
           </div>
         ))}
+        {filteredRecipes.length === 0 && (
+          <div className="text-center py-10">
+            <BookOpen className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
+            <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>No recipes yet</h3>
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              Add ingredients first, then create recipes to calculate your drink costs and margins.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3851,6 +3871,15 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
             </div>
           );
         })}
+        {baseTemplates.length === 0 && (
+          <div className="text-center py-10">
+            <Layers className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
+            <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>No base templates yet</h3>
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              Create base templates to define shared ingredient foundations across your recipes.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -4013,8 +4042,12 @@ const VendorsTab = ({ ingredients, onUpdateIngredientCost }: VendorsTabProps) =>
         ))}
 
         {displayedVendors.length === 0 && (
-          <div className="text-center py-8" style={{ color: colors.brownLight }}>
-            No vendors found. Add vendor information to your ingredients to see them here.
+          <div className="text-center py-10">
+            <Truck className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
+            <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>No vendors found</h3>
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              Add vendor information to your ingredients to see them grouped here.
+            </p>
           </div>
         )}
       </div>
