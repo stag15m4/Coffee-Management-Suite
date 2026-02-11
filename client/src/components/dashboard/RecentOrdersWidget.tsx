@@ -5,13 +5,7 @@ import { supabase } from '@/lib/supabase-queries';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
 import { MOCK_RECENT_ORDERS, useMockData } from './MockDataProvider';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  white: '#FFFDF7',
-};
+import { colors } from '@/lib/colors';
 
 interface Order {
   id: string;

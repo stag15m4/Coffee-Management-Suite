@@ -32,21 +32,7 @@ import {
   useUpdateRecipePricing,
   useUpdateRecipeSizeBase,
 } from '@/lib/supabase-queries';
-
-const colors = {
-  gold: '#C9A227',
-  goldLight: '#D4B84A',
-  goldDark: '#B8941F',
-  cream: '#F5F0E6',
-  creamDark: '#EDE5D5',
-  brown: '#5D4E37',
-  brownLight: '#8B7355',
-  white: '#FFFFFF',
-  red: '#C94A4A',
-  green: '#4A9C6D',
-  inputBg: '#E8DFC9',
-  buttonGold: '#C9A227',
-};
+import { colors } from '@/lib/colors';
 
 const formatCurrency = (value: number | string) => {
   const num = parseFloat(String(value)) || 0;

@@ -3,18 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { colors } from '@/lib/colors';
 import { Video, Square, SwitchCamera, RotateCcw, Loader2, Play } from 'lucide-react';
 
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  inputBg: '#FDF8E8',
-  red: '#DC2626',
-};
+// Local override — recording button uses a darker red than the shared palette
+const recordRed = '#DC2626';
 
 const MAX_DURATION = 120; // 2 minutes max
 
@@ -268,12 +261,12 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
                 </Button>
               )}
               {!isRecording ? (
-                <Button onClick={startRecording} style={{ backgroundColor: colors.red, color: 'white' }}>
+                <Button onClick={startRecording} style={{ backgroundColor: recordRed, color: 'white' }}>
                   <div className="w-4 h-4 rounded-full bg-white mr-2" />
                   Start Recording
                 </Button>
               ) : (
-                <Button onClick={stopRecording} style={{ backgroundColor: colors.red, color: 'white' }}>
+                <Button onClick={stopRecording} style={{ backgroundColor: recordRed, color: 'white' }}>
                   <Square className="w-4 h-4 mr-2 fill-current" />
                   Stop Recording
                 </Button>

@@ -2,15 +2,7 @@ import { useAuth, type ModuleId } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
 import { Lock, Calculator, DollarSign, Receipt, Coffee, Wrench, ListTodo, CalendarDays, type LucideIcon } from 'lucide-react';
 import { ALL_MODULES } from '@/hooks/use-store-metrics';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-};
+import { colors } from '@/lib/colors';
 
 const MODULE_INFO: Record<ModuleId, { name: string; shortName: string; icon: LucideIcon; href: string }> = {
   'recipe-costing': { name: 'Recipe Costing', shortName: 'Recipes', icon: Calculator, href: '/recipe-costing' },

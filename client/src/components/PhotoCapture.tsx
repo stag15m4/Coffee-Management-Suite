@@ -3,17 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { colors } from '@/lib/colors';
 import { Camera, Upload, SwitchCamera, RotateCcw, Loader2, X } from 'lucide-react';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  inputBg: '#FDF8E8',
-};
 
 interface PhotoCaptureProps {
   currentPhotoUrl: string | null;

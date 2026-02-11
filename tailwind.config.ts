@@ -81,6 +81,17 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+        coffee: {
+          gold: '#C9A227',
+          'gold-light': '#D4B23A',
+          'gold-dark': '#B8941F',
+          brown: '#4A3728',
+          'brown-light': '#6B5344',
+          cream: '#F5F0E1',
+          'cream-dark': '#E8E0CC',
+          white: '#FFFDF7',
+          'input-bg': '#FDF8E8',
+        },
       },
       fontFamily: {
         sans: ["var(--font-sans)"],

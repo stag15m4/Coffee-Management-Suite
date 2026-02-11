@@ -17,19 +17,7 @@ import { EmployeeHoursEntry } from '@/components/tip-payout/EmployeeHoursEntry';
 import { TeamHoursVerify } from '@/components/tip-payout/TeamHoursVerify';
 import { PayoutSummary } from '@/components/tip-payout/PayoutSummary';
 import { HistoricalExport } from '@/components/tip-payout/HistoricalExport';
-
-const colors = {
-  gold: '#C9A227',
-  goldLight: '#D4B23A',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  inputBg: '#FDF8E8',
-  green: '#22c55e',
-  red: '#ef4444',
-};
+import { colors } from '@/lib/colors';
 
 export default function TipPayout() {
   const { tenant, branding, primaryTenant } = useAuth();

@@ -8,19 +8,12 @@ import {
   useAddTaskAttachment,
   useDeleteTaskAttachment,
 } from '@/lib/supabase-queries';
+import { colors } from '@/lib/colors';
 import { VideoCapture } from './VideoCapture';
 import { FileText, Globe, Video, Trash2, Plus, Link, Loader2, Paperclip, ExternalLink, Play, X, Eye } from 'lucide-react';
 
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  inputBg: '#FDF8E8',
-  red: '#DC2626',
-};
+// Local override — delete icons use a darker red than the shared palette
+const deleteRed = '#DC2626';
 
 interface TaskAttachmentsProps {
   taskId: string;
@@ -176,7 +169,7 @@ export function TaskAttachments({ taskId, tenantId, userName }: TaskAttachmentsP
                       className="p-1 rounded hover:bg-red-50 flex-shrink-0"
                       aria-label={`Remove ${att.name}`}
                     >
-                      <Trash2 className="w-3.5 h-3.5" style={{ color: colors.red }} />
+                      <Trash2 className="w-3.5 h-3.5" style={{ color: deleteRed }} />
                     </button>
                   </div>
                 </div>
@@ -218,7 +211,7 @@ export function TaskAttachments({ taskId, tenantId, userName }: TaskAttachmentsP
                     className="p-1 rounded hover:bg-red-50 flex-shrink-0"
                     aria-label={`Remove ${att.name}`}
                   >
-                    <Trash2 className="w-3.5 h-3.5" style={{ color: colors.red }} />
+                    <Trash2 className="w-3.5 h-3.5" style={{ color: deleteRed }} />
                   </button>
                 </div>
               )}

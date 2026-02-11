@@ -8,18 +8,11 @@ import {
   useAddEquipmentAttachment,
   useDeleteEquipmentAttachment,
 } from '@/lib/supabase-queries';
+import { colors } from '@/lib/colors';
 import { FileText, Globe, Trash2, Plus, Link, Loader2, Paperclip, ExternalLink, X, Eye } from 'lucide-react';
 
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  inputBg: '#FDF8E8',
-  red: '#DC2626',
-};
+// Local override — delete icon uses a darker red than the shared palette
+const deleteRed = '#DC2626';
 
 interface EquipmentAttachmentsProps {
   equipmentId: string;
@@ -250,7 +243,7 @@ export function EquipmentAttachments({ equipmentId, tenantId, readOnly, onAttach
                 className="p-1 rounded hover:bg-red-50 flex-shrink-0"
                 aria-label={`Remove ${att.name}`}
               >
-                <Trash2 className="w-3.5 h-3.5" style={{ color: colors.red }} />
+                <Trash2 className="w-3.5 h-3.5" style={{ color: deleteRed }} />
               </button>
             </div>
           ))}

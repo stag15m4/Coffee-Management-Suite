@@ -25,18 +25,7 @@ import {
 } from '@/hooks/use-store-profile';
 import { useTodayShifts } from '@/hooks/use-shifts';
 import { formatTime } from '@/hooks/use-store-profile';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  red: '#ef4444',
-  orange: '#f97316',
-  green: '#22c55e',
-};
+import { colors } from '@/lib/colors';
 
 interface StoreCardProps {
   location: {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
+import { colors } from '@/lib/colors';
 import {
   LayoutDashboard,
   Calculator,
@@ -16,24 +17,15 @@ import {
   CreditCard,
   User,
   LogOut,
-  Lock,
   ChevronDown,
   ArrowLeft,
   Shield,
   MapPin,
   Check,
   Sparkles,
+  Settings,
   type LucideIcon,
 } from 'lucide-react';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-};
 
 interface SubTab {
   key: string;
@@ -87,6 +79,18 @@ const MODULE_NAV: Record<ModuleId, NavItem> = {
   },
 };
 
+interface NavCategory {
+  label: string;
+  modules: ModuleId[];
+}
+
+const NAV_CATEGORIES: NavCategory[] = [
+  { label: 'Operations', modules: ['tip-payout', 'cash-deposit', 'bulk-ordering'] },
+  { label: 'Kitchen', modules: ['recipe-costing'] },
+  { label: 'Scheduling', modules: ['calendar-workforce', 'admin-tasks'] },
+  { label: 'Maintenance', modules: ['equipment-maintenance'] },
+];
+
 const ALL_MODULE_IDS: ModuleId[] = [
   'recipe-costing',
   'tip-payout',
@@ -102,19 +106,27 @@ export function Sidebar() {
   const { profile, branding, tenant, accessibleLocations, switchLocation, enabledModules, canAccessModule, signOut, hasRole, isPlatformAdmin, adminViewingTenant, exitTenantView } = useAuth();
   const [, setLocation] = useLocation();
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
+  const [settingsExpanded, setSettingsExpanded] = useState(() => {
+    return location.startsWith('/admin') || location === '/billing' || location === '/organization';
+  });
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const locationDropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close location dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
-    if (!locationDropdownOpen) return;
+    if (!locationDropdownOpen && !userMenuOpen) return;
     const handleClick = (e: MouseEvent) => {
-      if (locationDropdownRef.current && !locationDropdownRef.current.contains(e.target as Node)) {
+      if (locationDropdownOpen && locationDropdownRef.current && !locationDropdownRef.current.contains(e.target as Node)) {
         setLocationDropdownOpen(false);
+      }
+      if (userMenuOpen && userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [locationDropdownOpen]);
+  }, [locationDropdownOpen, userMenuOpen]);
 
   const displayName = branding?.company_name || tenant?.name || 'Coffee Suite';
   const isManager = hasRole('manager');
@@ -122,15 +134,19 @@ export function Sidebar() {
   const hasMultipleLocations = accessibleLocations.length > 1;
 
   const disabledModules = ALL_MODULE_IDS.filter((m) => !enabledModules.includes(m));
+  const hasDisabledModules = disabledModules.length > 0;
 
   // Trial countdown
   const isTrial = tenant?.subscription_plan === 'free' || !tenant?.subscription_plan;
   const trialEndsAt = tenant?.trial_ends_at ? new Date(tenant.trial_ends_at) : null;
   const trialDaysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
 
+  // Check if settings section has an active page
+  const isSettingsActive = location.startsWith('/admin') || location === '/billing' || location === '/organization';
+
   return (
     <aside
-      className="w-56 flex-shrink-0 flex flex-col h-screen sticky top-0 border-r overflow-y-auto"
+      className="w-56 flex-shrink-0 flex flex-col h-full overflow-y-auto border-r"
       style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
     >
       {/* Back to Admin banner */}
@@ -148,7 +164,7 @@ export function Sidebar() {
         </button>
       )}
 
-      {/* Branding */}
+      {/* Branding + Location switcher */}
       <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: colors.creamDark }}>
         <Link href="/">
           <button className="flex flex-col items-center gap-1.5 w-full">
@@ -169,51 +185,13 @@ export function Sidebar() {
             </span>
           </button>
         </Link>
-        {/* Trial countdown badge */}
-        {isTrial && trialDaysLeft !== null && (
-          <Link href="/billing">
-            <button
-              className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors hover:opacity-90"
-              style={{
-                backgroundColor: trialDaysLeft <= 3 ? '#fef2f2' : '#eff6ff',
-                color: trialDaysLeft <= 3 ? '#dc2626' : '#2563eb',
-              }}
-            >
-              <Sparkles className="w-3 h-3" />
-              {trialDaysLeft > 0
-                ? `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`
-                : 'Trial expired'}
-            </button>
-          </Link>
-        )}
-      </div>
 
-      {/* Main navigation */}
-      <nav className="flex-1 p-3 space-y-1">
-        {/* Dashboard */}
-        <SidebarLink
-          href="/"
-          label="Dashboard"
-          icon={LayoutDashboard}
-          isActive={location === '/' || location === '/dashboard'}
-        />
-
-        {/* Module divider */}
-        <div className="pt-3 pb-1">
-          <p
-            className="text-[10px] font-semibold uppercase tracking-wider px-2"
-            style={{ color: colors.brownLight }}
-          >
-            Modules
-          </p>
-        </div>
-
-        {/* Location switcher */}
+        {/* Location switcher — in header area for prominence */}
         {hasMultipleLocations && (
-          <div ref={locationDropdownRef} className="relative px-2 pb-1">
+          <div ref={locationDropdownRef} className="relative mt-2">
             <button
               className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors hover:bg-gray-50"
-              style={{ color: colors.brown }}
+              style={{ color: colors.brown, backgroundColor: colors.cream }}
               onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}
             >
               <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.gold }} />
@@ -225,7 +203,7 @@ export function Sidebar() {
             </button>
             {locationDropdownOpen && (
               <div
-                className="absolute left-2 right-2 mt-1 rounded-md shadow-lg border z-50 py-1"
+                className="absolute left-0 right-0 mt-1 rounded-md shadow-lg border z-50 py-1"
                 style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
               >
                 {accessibleLocations.map((loc) => {
@@ -255,105 +233,164 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Enabled modules */}
-        {enabledModules.map((moduleId) => {
-          const nav = MODULE_NAV[moduleId];
-          if (!nav) return null;
-          const accessible = canAccessModule(moduleId);
-          const isOnModule = location === nav.href;
+        {/* Trial countdown badge */}
+        {isTrial && trialDaysLeft !== null && (
+          <Link href="/billing">
+            <button
+              className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors hover:opacity-90"
+              style={{
+                backgroundColor: trialDaysLeft <= 3 ? '#fef2f2' : '#eff6ff',
+                color: trialDaysLeft <= 3 ? '#dc2626' : '#2563eb',
+              }}
+            >
+              <Sparkles className="w-3 h-3" />
+              {trialDaysLeft > 0
+                ? `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`
+                : 'Trial expired'}
+            </button>
+          </Link>
+        )}
+      </div>
 
-          if (nav.tabs && accessible) {
-            return (
-              <ExpandableModule
-                key={moduleId}
-                nav={nav}
-                isOnModule={isOnModule}
-                currentLocation={location}
-              />
-            );
-          }
+      {/* Main navigation */}
+      <nav className="flex-1 p-3 space-y-1">
+        {/* Dashboard */}
+        <SidebarLink
+          href="/"
+          label="Dashboard"
+          icon={LayoutDashboard}
+          isActive={location === '/' || location === '/dashboard'}
+        />
+
+        {/* My Team — free, not module-gated */}
+        <SidebarLink
+          href="/my-team"
+          label="My Team"
+          icon={Users}
+          isActive={location === '/my-team'}
+        />
+
+        {/* Module categories */}
+        {NAV_CATEGORIES.map((category) => {
+          const enabledInCategory = category.modules.filter((m) => enabledModules.includes(m));
+          if (enabledInCategory.length === 0) return null;
 
           return (
-            <SidebarLink
-              key={moduleId}
-              href={nav.href}
-              label={nav.label}
-              icon={nav.icon}
-              isActive={isOnModule}
-              disabled={!accessible}
-            />
+            <div key={category.label}>
+              <div className="pt-3 pb-1">
+                <p
+                  className="text-[10px] font-semibold uppercase tracking-wider px-2"
+                  style={{ color: colors.brownLight }}
+                >
+                  {category.label}
+                </p>
+              </div>
+              {enabledInCategory.map((moduleId) => {
+                const nav = MODULE_NAV[moduleId];
+                if (!nav) return null;
+                const accessible = canAccessModule(moduleId);
+                const isOnModule = location === nav.href;
+
+                if (nav.tabs && accessible) {
+                  return (
+                    <ExpandableModule
+                      key={moduleId}
+                      nav={nav}
+                      isOnModule={isOnModule}
+                    />
+                  );
+                }
+
+                return (
+                  <SidebarLink
+                    key={moduleId}
+                    href={nav.href}
+                    label={nav.label}
+                    icon={nav.icon}
+                    isActive={isOnModule}
+                    disabled={!accessible}
+                  />
+                );
+              })}
+            </div>
           );
         })}
 
-        {/* Disabled module teasers */}
-        {disabledModules.map((moduleId) => {
-          const nav = MODULE_NAV[moduleId];
-          if (!nav) return null;
-          return (
-            <SidebarLink
-              key={moduleId}
-              href="/billing"
-              label={nav.label}
-              icon={Lock}
-              isActive={false}
-              muted
-            />
-          );
-        })}
+        {/* Explore modules link — only if there are disabled modules */}
+        {hasDisabledModules && (
+          <div className="pt-2">
+            <Link href="/billing">
+              <button
+                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-xs transition-colors hover:bg-gray-50"
+                style={{ color: colors.brownLight }}
+              >
+                <Sparkles className="w-4 h-4 flex-shrink-0" style={{ color: colors.gold }} />
+                <span>Explore modules</span>
+              </button>
+            </Link>
+          </div>
+        )}
 
-        {/* Admin section */}
+        {/* Settings section — manager+ only */}
         {isManager && (
           <>
             <div className="pt-3 pb-1">
-              <p
-                className="text-[10px] font-semibold uppercase tracking-wider px-2"
-                style={{ color: colors.brownLight }}
+              <button
+                className="w-full flex items-center justify-between px-2"
+                onClick={() => setSettingsExpanded(!settingsExpanded)}
               >
-                Admin
-              </p>
+                <p
+                  className="text-[10px] font-semibold uppercase tracking-wider"
+                  style={{ color: isSettingsActive ? colors.gold : colors.brownLight }}
+                >
+                  Settings
+                </p>
+                <ChevronDown
+                  className={`w-3 h-3 transition-transform ${settingsExpanded ? '' : '-rotate-90'}`}
+                  style={{ color: colors.brownLight }}
+                />
+              </button>
             </div>
-            {isOwner && (
-              <SidebarLink
-                href="/organization"
-                label="Locations"
-                icon={Building2}
-                isActive={location === '/organization' || location === '/admin/locations'}
-              />
-            )}
-            <SidebarLink
-              href="/admin/users"
-              label="Users"
-              icon={Users}
-              isActive={location === '/admin/users'}
-            />
-            {isOwner && (
-              <SidebarLink
-                href="/admin/branding"
-                label="Branding"
-                icon={Palette}
-                isActive={location === '/admin/branding'}
-              />
-            )}
-            {isOwner && (
-              <SidebarLink
-                href="/billing"
-                label="Billing"
-                icon={CreditCard}
-                isActive={location === '/billing'}
-              />
+            {settingsExpanded && (
+              <>
+                {isOwner && (
+                  <SidebarLink
+                    href="/organization"
+                    label="Locations"
+                    icon={Building2}
+                    isActive={location === '/organization' || location === '/admin/locations'}
+                  />
+                )}
+                <SidebarLink
+                  href="/admin/users"
+                  label="Users"
+                  icon={Users}
+                  isActive={location === '/admin/users'}
+                />
+                {isOwner && (
+                  <SidebarLink
+                    href="/admin/branding"
+                    label="Branding"
+                    icon={Palette}
+                    isActive={location === '/admin/branding'}
+                  />
+                )}
+                {isOwner && (
+                  <SidebarLink
+                    href="/billing"
+                    label="Billing"
+                    icon={CreditCard}
+                    isActive={location === '/billing'}
+                  />
+                )}
+              </>
             )}
           </>
         )}
       </nav>
 
-      {/* User section */}
-      <div className="p-3 border-t space-y-1" style={{ borderColor: colors.creamDark }}>
-        <SidebarLink
-          href="/user-profile"
-          label={profile?.full_name?.split(' ')[0] || 'Profile'}
-          icon={User}
-          isActive={location === '/user-profile'}
-        />
+      {/* User section — compact with dropdown */}
+      <div className="p-3 border-t" style={{ borderColor: colors.creamDark }}>
         {isPlatformAdmin && !adminViewingTenant && (
           <SidebarLink
             href="/platform-admin"
@@ -362,14 +399,55 @@ export function Sidebar() {
             isActive={location === '/platform-admin'}
           />
         )}
-        <button
-          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-sm hover:bg-gray-50 transition-colors"
-          style={{ color: colors.brownLight }}
-          onClick={signOut}
-        >
-          <LogOut className="w-4 h-4 flex-shrink-0" />
-          <span>Sign Out</span>
-        </button>
+        <div ref={userMenuRef} className="relative">
+          <button
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-sm transition-colors hover:bg-gray-50"
+            style={{ color: colors.brown }}
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+          >
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: colors.cream }}
+            >
+              <User className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />
+            </div>
+            <span className="truncate text-sm font-medium">
+              {profile?.full_name?.split(' ')[0] || 'Profile'}
+            </span>
+            <ChevronDown
+              className={`w-3 h-3 ml-auto flex-shrink-0 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
+              style={{ color: colors.brownLight }}
+            />
+          </button>
+          {userMenuOpen && (
+            <div
+              className="absolute left-0 right-0 bottom-full mb-1 rounded-md shadow-lg border z-50 py-1"
+              style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+            >
+              <Link href="/user-profile">
+                <button
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-gray-50"
+                  style={{ color: colors.brown }}
+                  onClick={() => setUserMenuOpen(false)}
+                >
+                  <Settings className="w-4 h-4" />
+                  Profile
+                </button>
+              </Link>
+              <button
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-gray-50"
+                style={{ color: colors.brownLight }}
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  signOut();
+                }}
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );
@@ -378,11 +456,9 @@ export function Sidebar() {
 function ExpandableModule({
   nav,
   isOnModule,
-  currentLocation,
 }: {
   nav: NavItem;
   isOnModule: boolean;
-  currentLocation: string;
 }) {
   const [expanded, setExpanded] = useState(isOnModule);
   const Icon = nav.icon;
@@ -458,14 +534,12 @@ function SidebarLink({
   icon: Icon,
   isActive,
   disabled,
-  muted,
 }: {
   href: string;
   label: string;
   icon: LucideIcon;
   isActive: boolean;
   disabled?: boolean;
-  muted?: boolean;
 }) {
   if (disabled) {
     return (
@@ -484,7 +558,7 @@ function SidebarLink({
       <button
         className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-sm transition-colors ${
           isActive ? 'font-medium' : 'hover:bg-gray-50'
-        } ${muted ? 'opacity-50' : ''}`}
+        }`}
         style={{
           color: isActive ? colors.gold : colors.brown,
           backgroundColor: isActive ? colors.cream : undefined,

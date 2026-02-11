@@ -26,6 +26,7 @@ import {
   Trash2,
   UserPlus,
   ExternalLink,
+  LayoutDashboard,
 } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import {
@@ -38,6 +39,7 @@ import {
 } from '@/components/ui/dialog';
 import { Footer } from '@/components/Footer';
 import { formatRelativeTime, getActivityColor } from '@/hooks/use-store-profile';
+import { colors } from '@/lib/colors';
 
 interface TenantWithStats {
   id: string;
@@ -77,19 +79,6 @@ interface PlatformAdminRecord {
   is_active: boolean;
   created_at: string;
 }
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  inputBg: '#FDF8E8',
-  green: '#22c55e',
-  yellow: '#eab308',
-  red: '#ef4444',
-};
 
 export default function PlatformAdmin() {
   const { user, platformAdmin, isPlatformAdmin, loading: authLoading, signOut, enterTenantView } = useAuth();
@@ -517,6 +506,14 @@ export default function PlatformAdmin() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setLocation('/')}
+              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              data-testid="button-my-dashboard"
+            >
+              <LayoutDashboard className="w-4 h-4 mr-2" />
+              My Dashboard
+            </Button>
             <Button
               variant="outline"
               onClick={() => setLocation('/reseller-management')}

@@ -1,13 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { colors } from '@/lib/colors';
 import { LucideIcon } from 'lucide-react';
 import { ReactNode } from 'react';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  white: '#FFFDF7',
-};
 
 interface DashboardWidgetProps {
   title: string;

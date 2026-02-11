@@ -62,20 +62,7 @@ import { SiGooglecalendar } from 'react-icons/si';
 import { Footer } from '@/components/Footer';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
-
-const colors = {
-  gold: '#C9A227',
-  goldLight: '#D4B23A',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  inputBg: '#FDF8E8',
-  green: '#22c55e',
-  yellow: '#eab308',
-  red: '#ef4444',
-};
+import { colors } from '@/lib/colors';
 
 function isVehicle(category: string | null | undefined): boolean {
   const c = (category || '').toLowerCase().trim();

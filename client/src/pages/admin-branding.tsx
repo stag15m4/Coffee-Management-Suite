@@ -7,15 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, RotateCcw } from 'lucide-react';
 import { Footer } from '@/components/Footer';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-};
+import { colors } from '@/lib/colors';
 
 const defaultBranding = {
   primary_color: '#C9A227',

@@ -1,10 +1,4 @@
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-};
+import { colors } from '@/lib/colors';
 
 export function Footer() {
   return (

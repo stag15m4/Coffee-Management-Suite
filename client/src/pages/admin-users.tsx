@@ -18,17 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Footer } from '@/components/Footer';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  red: '#C74B4B',
-  inputBg: '#FDF8E8',
-};
+import { colors } from '@/lib/colors';
 
 interface UserProfile {
   id: string;

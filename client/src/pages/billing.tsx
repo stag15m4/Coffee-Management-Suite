@@ -33,19 +33,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Footer } from '@/components/Footer';
 import { ModulePreviewContent } from '@/components/billing/ModulePreview';
-
-const colors = {
-  gold: '#C9A227',
-  goldLight: '#D4B23A',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  green: '#22c55e',
-  red: '#ef4444',
-  inputBg: '#FDF8E8',
-};
+import { colors } from '@/lib/colors';
 
 const MODULE_ICONS: Record<string, LucideIcon> = {
   'recipe-costing': Calculator,

@@ -11,18 +11,9 @@ import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Footer } from '@/components/Footer';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
+import { colors } from '@/lib/colors';
 
-const colors = {
-  gold: '#C9A227',
-  goldLight: '#D4B23A',
-  goldDark: '#b8911f',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  inputBg: '#FDF8E8',
-  red: '#ef4444',
+const localColors = {
   teal: '#4A7C8C',
 };
 
@@ -1046,7 +1037,7 @@ export default function CoffeeOrder() {
                           />
                         </div>
                         <div className="flex gap-2">
-                          <button onClick={() => updateProduct(product.id)} style={{ color: colors.teal }}>
+                          <button onClick={() => updateProduct(product.id)} style={{ color: localColors.teal }}>
                             <Save className="w-4 h-4" />
                           </button>
                           <button onClick={() => setEditingProductId(null)} style={{ color: colors.brownLight }}>
@@ -1061,7 +1052,7 @@ export default function CoffeeOrder() {
                           <span className="ml-2 text-sm" style={{ color: colors.gold }}>{formatCurrency(product.default_price)}</span>
                         </span>
                         <div className="flex gap-2">
-                          <button onClick={() => startEditProduct(product)} style={{ color: colors.teal }}>
+                          <button onClick={() => startEditProduct(product)} style={{ color: localColors.teal }}>
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button onClick={() => deleteProduct(product.id)} style={{ color: colors.red }}>

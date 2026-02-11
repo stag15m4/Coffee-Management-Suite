@@ -20,15 +20,7 @@ import {
 import { Footer } from '@/components/Footer';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-};
+import { colors } from '@/lib/colors';
 
 interface Location {
   id: string;

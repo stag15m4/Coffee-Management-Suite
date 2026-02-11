@@ -9,15 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { User, Calendar, Mail, Lock, TrendingUp } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { Footer } from '@/components/Footer';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-};
+import { colors } from '@/lib/colors';
 
 interface TeamMember {
   id: string;

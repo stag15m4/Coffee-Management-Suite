@@ -20,7 +20,8 @@ import {
   ChevronLeft,
   Users,
   Package,
-  RefreshCw
+  RefreshCw,
+  LayoutDashboard
 } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import {
@@ -39,6 +40,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Footer } from '@/components/Footer';
+import { colors } from '@/lib/colors';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 
@@ -380,6 +382,14 @@ export default function ResellerManagement() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setLocation('/')}
+            style={{ backgroundColor: colors.gold, color: colors.brown }}
+            data-testid="button-my-dashboard"
+          >
+            <LayoutDashboard className="w-4 h-4 mr-2" />
+            My Dashboard
+          </Button>
           <Button
             variant="outline"
             onClick={() => setLocation('/platform-admin')}

@@ -35,15 +35,7 @@ import {
   type OperatingHoursEntry,
 } from '@/hooks/use-store-profile';
 import { useTodayShifts, type Shift } from '@/hooks/use-shifts';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-};
+import { colors } from '@/lib/colors';
 
 export default function StoreProfile() {
   const [, params] = useRoute('/store/:id');

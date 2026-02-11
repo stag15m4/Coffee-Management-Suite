@@ -4,14 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-queries';
 import { useAuth } from '@/contexts/AuthContext';
 import { MOCK_REVENUE_DATA, useMockData } from './MockDataProvider';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  green: '#22c55e',
-  red: '#ef4444',
-};
+import { colors } from '@/lib/colors';
 
 export function RevenueWidget() {
   const { tenant } = useAuth();

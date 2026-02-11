@@ -11,16 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, User, Mail, Lock, Loader2, Camera, Upload, SwitchCamera, RotateCcw } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Footer } from '@/components/Footer';
-
-const colors = {
-  gold: '#C9A227',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  inputBg: '#FDF8E8',
-};
+import { colors } from '@/lib/colors';
 
 export default function UserProfile() {
   const { profile, user, tenant, branding, primaryTenant } = useAuth();

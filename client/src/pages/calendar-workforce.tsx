@@ -71,20 +71,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { EventInput, EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
 
-const colors = {
-  gold: '#C9A227',
-  goldLight: '#D4B23A',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
-  white: '#FFFDF7',
-  inputBg: '#FDF8E8',
-  green: '#22c55e',
-  yellow: '#eab308',
-  red: '#ef4444',
-  blue: '#3b82f6',
-};
+import { colors } from '@/lib/colors';
 
 const EMPLOYEE_COLORS = [
   '#C9A227', '#8B4513', '#CD853F', '#6B5344', '#4A3728',
