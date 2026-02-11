@@ -545,7 +545,7 @@ const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayCount, o
 
       {/* Revenue vs Overhead Comparison */}
       {overheadItems.length > 0 && (
-        <div className="rounded-xl shadow-md overflow-hidden" style={{ backgroundColor: colors.white }}>
+        <div className="rounded-xl shadow-md overflow-hidden" style={{ backgroundColor: colors.white }} data-spotlight="revenue-chart">
           <div className="px-4 py-3" style={{ backgroundColor: colors.brown }}>
             <h3 className="font-bold text-white">Daily Revenue vs Overhead</h3>
           </div>
@@ -2588,9 +2588,11 @@ export default function Home() {
             <TabButton active={activeTab === 'bases'} onClick={() => setActiveTab('bases')}>
               Bases
             </TabButton>
-            <TabButton active={activeTab === 'overhead'} onClick={() => setActiveTab('overhead')}>
-              Overhead
-            </TabButton>
+            <span data-spotlight="overhead-tab">
+              <TabButton active={activeTab === 'overhead'} onClick={() => setActiveTab('overhead')}>
+                Overhead
+              </TabButton>
+            </span>
             <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')}>
               Settings
             </TabButton>

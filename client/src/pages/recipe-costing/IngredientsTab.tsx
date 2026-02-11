@@ -235,6 +235,7 @@ export const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd, onDel
                     color: colors.brown,
                   }}
                   data-testid="button-toggle-columns"
+                  data-spotlight="column-toggle"
                 >
                   <Columns3 className="w-4 h-4" />
                 </button>
@@ -298,6 +299,7 @@ export const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd, onDel
                     borderBottom: `1px solid ${colors.creamDark}`,
                   }}
                   data-testid={`row-ingredient-${ingredient.id}`}
+                  {...(idx === 0 ? { 'data-spotlight': 'ingredient-row' } : {})}
                 >
                   <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                     <input

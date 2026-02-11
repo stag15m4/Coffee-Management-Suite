@@ -187,6 +187,7 @@ export function MyDashboardCard() {
     <div
       className="rounded-xl border shadow-sm overflow-hidden mb-6"
       style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+      data-spotlight="my-dashboard-card"
     >
       {/* Header */}
       <div

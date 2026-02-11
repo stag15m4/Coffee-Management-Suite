@@ -2,6 +2,9 @@
  * Changelog entries for the "What's New" feature review system.
  * Add new entries at the top — newest first.
  * Each entry has a unique `id` used for voting/feedback tracking.
+ *
+ * `tryIt` makes the entry clickable: navigates to the page and
+ * optionally spotlights a specific element via data-spotlight attribute.
  */
 
 export interface ChangelogEntry {
@@ -10,6 +13,11 @@ export interface ChangelogEntry {
   title: string;
   description: string;
   category: 'feature' | 'improvement' | 'fix';
+  tryIt?: {
+    href: string; // route to navigate to
+    spotlight?: string; // data-spotlight attribute value to highlight
+    hint?: string; // tooltip text shown on the spotlight
+  };
 }
 
 /** Bump this when adding entries so the badge appears for users */
@@ -22,6 +30,7 @@ export const changelog: ChangelogEntry[] = [
     title: 'Reporting & Analytics Module',
     description: 'New reporting dashboard with revenue trends, cash accuracy, tip distribution, and task overview charts.',
     category: 'feature',
+    tryIt: { href: '/reporting', hint: 'Explore the new analytics dashboard' },
   },
   {
     id: 'sheet-edit-pattern',
@@ -29,6 +38,11 @@ export const changelog: ChangelogEntry[] = [
     title: 'Improved Edit Drawers',
     description: 'Edit forms for Ingredients, Users, and Locations now slide in from the side instead of blocking modals.',
     category: 'improvement',
+    tryIt: {
+      href: '/recipe-costing?tab=ingredients',
+      spotlight: 'ingredient-row',
+      hint: 'Click any ingredient row to open the new side drawer',
+    },
   },
   {
     id: 'ingredients-column-toggle',
@@ -36,6 +50,11 @@ export const changelog: ChangelogEntry[] = [
     title: 'Ingredients Column Toggle',
     description: 'Hide or show extra columns (Cost/Unit, Usage Unit, Vendor) in the Ingredients table to reduce clutter.',
     category: 'improvement',
+    tryIt: {
+      href: '/recipe-costing?tab=ingredients',
+      spotlight: 'column-toggle',
+      hint: 'Click to show or hide extra columns',
+    },
   },
   {
     id: 'command-palette',
@@ -43,6 +62,11 @@ export const changelog: ChangelogEntry[] = [
     title: 'Command Palette (Cmd+K)',
     description: 'Quick search and navigation. Press Cmd+K (or Ctrl+K) to jump to any page or module instantly.',
     category: 'feature',
+    tryIt: {
+      href: '/',
+      spotlight: 'search-trigger',
+      hint: 'Click here or press Cmd+K to open the command palette',
+    },
   },
   {
     id: 'keyboard-shortcuts',
@@ -57,13 +81,23 @@ export const changelog: ChangelogEntry[] = [
     title: 'Recipe Costing Tab Reorganization',
     description: 'Overhead calculator now has its own dedicated tab. Each tab loads independently for faster navigation.',
     category: 'improvement',
+    tryIt: {
+      href: '/recipe-costing?tab=overhead',
+      spotlight: 'overhead-tab',
+      hint: 'Overhead now has its own dedicated tab',
+    },
   },
   {
     id: 'revenue-overhead-comparison',
     date: '2025-02-10',
     title: 'Revenue vs Overhead Chart',
-    description: 'Dashboard now shows daily revenue compared to overhead costs, helping you spot profitability at a glance.',
+    description: 'Recipe Costing overhead tab now shows daily revenue compared to overhead costs, helping you spot profitability at a glance.',
     category: 'feature',
+    tryIt: {
+      href: '/recipe-costing?tab=overhead',
+      spotlight: 'revenue-chart',
+      hint: 'Daily revenue vs overhead comparison',
+    },
   },
   {
     id: 'vendor-profiles',
@@ -71,6 +105,10 @@ export const changelog: ChangelogEntry[] = [
     title: 'Vendor Profiles',
     description: 'Ingredients can be linked to vendors with contact info, rep names, and notes.',
     category: 'feature',
+    tryIt: {
+      href: '/recipe-costing?tab=vendors',
+      hint: 'Manage vendor profiles and link them to ingredients',
+    },
   },
   {
     id: 'empty-states',
@@ -85,6 +123,11 @@ export const changelog: ChangelogEntry[] = [
     title: 'Task Images',
     description: 'Attach photos to tasks for visual context — useful for maintenance issues and documentation.',
     category: 'feature',
+    tryIt: {
+      href: '/admin-tasks',
+      spotlight: 'task-attachment',
+      hint: 'Attach images when creating or editing a task',
+    },
   },
   {
     id: 'cash-outlier-exclusion',
@@ -92,6 +135,11 @@ export const changelog: ChangelogEntry[] = [
     title: 'Cash Deposit Outlier Exclusion',
     description: 'Exclude unusual deposits from variance calculations to get a more accurate picture of cash accuracy.',
     category: 'feature',
+    tryIt: {
+      href: '/cash-deposit',
+      spotlight: 'outlier-toggle',
+      hint: 'Click any deposit row to mark it as an outlier',
+    },
   },
   {
     id: 'sidebar-redesign',
@@ -106,6 +154,11 @@ export const changelog: ChangelogEntry[] = [
     title: 'Personal Dashboard Card',
     description: 'Clock in/out widget and your weekly schedule right on the dashboard.',
     category: 'feature',
+    tryIt: {
+      href: '/',
+      spotlight: 'my-dashboard-card',
+      hint: 'Your personal clock in/out and weekly schedule',
+    },
   },
   {
     id: 'calendar-workforce',
@@ -113,5 +166,9 @@ export const changelog: ChangelogEntry[] = [
     title: 'Calendar & Workforce Module',
     description: 'Full scheduling, time-off requests, and time clock tracking with employee avatars on shifts.',
     category: 'feature',
+    tryIt: {
+      href: '/calendar-workforce',
+      hint: 'Manage schedules, time-off, and time clock',
+    },
   },
 ];

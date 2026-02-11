@@ -1007,7 +1007,7 @@ export default function AdminTasks() {
                     </p>
                   </div>
 
-                  <div>
+                  <div data-spotlight="task-attachment">
                     <Label style={{ color: colors.brown }}>Attachment</Label>
                     <div className="flex gap-2">
                       <Input

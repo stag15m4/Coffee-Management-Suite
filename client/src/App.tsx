@@ -9,6 +9,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { CommandPalette } from "@/components/CommandPalette";
 import { WhatsNew } from "@/components/WhatsNew";
+import { Spotlight } from "@/components/Spotlight";
 import { AppResumeIndicator } from "@/components/AppResumeIndicator";
 import { CoffeeLoader } from "@/components/CoffeeLoader";
 import Landing from "@/pages/landing";
@@ -165,6 +166,7 @@ function App() {
           <Router />
           <CommandPalette />
           <WhatsNew />
+          <Spotlight />
           <AuthenticatedFeedbackButton />
         </AuthProvider>
       </TooltipProvider>

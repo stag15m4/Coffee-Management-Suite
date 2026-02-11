@@ -286,6 +286,7 @@ export function Sidebar() {
           className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-sm transition-colors hover:bg-gray-50"
           style={{ color: colors.brownLight }}
           onClick={() => window.dispatchEvent(new Event('open-command-palette'))}
+          data-spotlight="search-trigger"
         >
           <Search className="w-4 h-4 flex-shrink-0" />
           <span className="text-xs">Search...</span>
@@ -435,9 +436,11 @@ export function Sidebar() {
           <span className="truncate text-sm">What's New</span>
           {whatsNewBadge && (
             <span
-              className="ml-auto w-2 h-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: colors.gold }}
-            />
+              className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: colors.gold, color: colors.white }}
+            >
+              New
+            </span>
           )}
         </button>
       </div>

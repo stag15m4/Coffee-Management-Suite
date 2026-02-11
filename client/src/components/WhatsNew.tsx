@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { changelog, CHANGELOG_VERSION, type ChangelogEntry } from '@/lib/changelog';
 import { colors } from '@/lib/colors';
 import { useToast } from '@/hooks/use-toast';
+import { triggerSpotlight } from '@/components/Spotlight';
 import {
   Sheet,
   SheetContent,
@@ -24,6 +26,7 @@ import {
   Loader2,
   MessageSquare,
   X,
+  ArrowRight,
 } from 'lucide-react';
 
 interface FeatureReview {
@@ -43,6 +46,7 @@ const categoryConfig: Record<ChangelogEntry['category'], { icon: typeof Sparkles
 export function WhatsNew() {
   const { user, tenant, profile, hasRole } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [open, setOpen] = useState(false);
   const [showFeedbackView, setShowFeedbackView] = useState(false);
   const [myReviews, setMyReviews] = useState<Record<string, FeatureReview>>({});
@@ -54,7 +58,7 @@ export function WhatsNew() {
 
   const isManager = hasRole?.('manager') || hasRole?.('owner');
 
-  // Check for new updates on mount — per-user via DB
+  // Check for new updates on mount — per-user via DB, auto-open if unseen
   useEffect(() => {
     if (!user) return;
 
@@ -67,6 +71,8 @@ export function WhatsNew() {
 
       if (data?.changelog_last_seen !== CHANGELOG_VERSION) {
         setHasNewUpdates(true);
+        // Auto-open the sheet after a brief delay so the page loads first
+        setTimeout(() => setOpen(true), 1500);
       }
     };
 
@@ -219,6 +225,21 @@ export function WhatsNew() {
     submitReview(featureId, 'down', commentText.trim() || undefined);
   };
 
+  const handleTryIt = (entry: ChangelogEntry) => {
+    if (!entry.tryIt) return;
+    const { href, spotlight, hint } = entry.tryIt;
+    // Close the sheet first
+    handleOpen(false);
+    // Navigate after sheet animation completes
+    setTimeout(() => {
+      setLocation(href);
+      // Trigger spotlight after page renders
+      if (spotlight && hint) {
+        setTimeout(() => triggerSpotlight(spotlight, hint), 600);
+      }
+    }, 350);
+  };
+
   // Aggregate feedback stats for manager view
   const feedbackStats = useMemo(() => {
     const stats: Record<string, { up: number; down: number; comments: { user: string; text: string }[] }> = {};
@@ -337,6 +358,15 @@ export function WhatsNew() {
                       <p className="text-xs mt-1 leading-relaxed" style={{ color: colors.brownLight }}>
                         {entry.description}
                       </p>
+                      {entry.tryIt && (
+                        <button
+                          className="mt-2 inline-flex items-center gap-1 text-xs font-medium transition-colors hover:underline"
+                          style={{ color: colors.gold }}
+                          onClick={() => handleTryIt(entry)}
+                        >
+                          Try it <ArrowRight className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
 

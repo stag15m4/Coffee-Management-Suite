@@ -1158,6 +1158,7 @@ export default function CashDeposit() {
                                 borderBottom: `1px solid ${colors.creamDark}`,
                               }}
                               data-testid={`row-entry-${entry.id}`}
+                              {...(idx === 0 ? { 'data-spotlight': 'outlier-toggle' } : {})}
                             >
                               <td className="px-4 py-3 font-medium" style={{ color: colors.brown }}>
                                 <div className="flex items-center gap-2">
