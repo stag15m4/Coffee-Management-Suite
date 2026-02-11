@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearch, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { Trash2, Check, X, Pencil, Copy, Plus, Package, BookOpen, Layers, Truck } from 'lucide-react';
+import { Trash2, Check, X, Pencil, Copy, Plus, Package, BookOpen, Layers, Truck, Phone, Mail, FileText } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
@@ -30,6 +30,12 @@ import {
   useUpdateOverhead,
   useUpdateRecipePricing,
   useUpdateRecipeSizeBase,
+  useCashActivityRevenue,
+  useRecipeVendors,
+  useAddRecipeVendor,
+  useUpdateRecipeVendor,
+  useDeleteRecipeVendor,
+  type RecipeVendor,
 } from '@/lib/supabase-queries';
 import { colors } from '@/lib/colors';
 
@@ -2445,6 +2451,8 @@ const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead,
 interface OverheadTabProps {
   overhead: OverheadSettings | null;
   overheadItems: OverheadItem[];
+  avgDailyRevenue: number;
+  cashDayCount: number;
   onAddOverheadItem: (item: { name: string; amount: number; frequency: string }) => Promise<void>;
   onUpdateOverheadItem: (id: string, updates: { name?: string; amount?: number; frequency?: string }) => Promise<void>;
   onDeleteOverheadItem: (id: string) => Promise<void>;
@@ -2461,7 +2469,7 @@ interface SettingsTabProps {
   recipePricing: RecipeSizePricing[];
 }
 
-const OverheadTab = ({ overhead, overheadItems, onAddOverheadItem, onUpdateOverheadItem, onDeleteOverheadItem }: OverheadTabProps) => {
+const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayCount, onAddOverheadItem, onUpdateOverheadItem, onDeleteOverheadItem }: OverheadTabProps) => {
   const [newItem, setNewItem] = useState({ name: '', amount: '', frequency: 'monthly' });
   const [addingItem, setAddingItem] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -2911,6 +2919,47 @@ const OverheadTab = ({ overhead, overheadItems, onAddOverheadItem, onUpdateOverh
           </table>
         </div>
       </div>
+
+      {/* Revenue vs Overhead Comparison */}
+      {overheadItems.length > 0 && (
+        <div className="rounded-xl shadow-md overflow-hidden" style={{ backgroundColor: colors.white }}>
+          <div className="px-4 py-3" style={{ backgroundColor: colors.brown }}>
+            <h3 className="font-bold text-white">Daily Revenue vs Overhead</h3>
+          </div>
+          <div className="p-4">
+            {cashDayCount === 0 ? (
+              <p className="text-sm text-center py-2" style={{ color: colors.brownLight }}>
+                Log cash deposits to see how your daily revenue compares to overhead costs.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Avg Daily Revenue</div>
+                  <div className="text-xl font-bold" style={{ color: colors.brown }}>{formatCurrency(avgDailyRevenue)}</div>
+                  <div className="text-xs" style={{ color: colors.brownLight }}>from {cashDayCount} days</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Daily Overhead</div>
+                  <div className="text-xl font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.daily)}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Daily Margin</div>
+                  <div className="text-xl font-bold" style={{ color: avgDailyRevenue - totals.daily >= 0 ? '#22c55e' : '#ef4444' }}>
+                    {formatCurrency(avgDailyRevenue - totals.daily)}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Overhead %</div>
+                  <div className="text-xl font-bold" style={{ color: avgDailyRevenue > 0 && (totals.daily / avgDailyRevenue) <= 0.5 ? '#22c55e' : colors.gold }}>
+                    {avgDailyRevenue > 0 ? `${((totals.daily / avgDailyRevenue) * 100).toFixed(1)}%` : '—'}
+                  </div>
+                  <div className="text-xs" style={{ color: colors.brownLight }}>of revenue</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Payroll Modal */}
       {showPayrollModal && (
@@ -3887,13 +3936,60 @@ const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplat
 
 interface VendorsTabProps {
   ingredients: Ingredient[];
+  recipeVendors: RecipeVendor[];
+  tenantId: string;
   onUpdateIngredientCost: (id: string, cost: number) => Promise<void>;
+  onAddVendor: (vendor: { tenant_id: string; name: string; phone?: string; email?: string; notes?: string }) => Promise<RecipeVendor>;
+  onUpdateVendor: (id: string, updates: Partial<RecipeVendor>) => Promise<RecipeVendor>;
+  onDeleteVendor: (id: string) => Promise<void>;
 }
 
-const VendorsTab = ({ ingredients, onUpdateIngredientCost }: VendorsTabProps) => {
+const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngredientCost, onAddVendor, onUpdateVendor, onDeleteVendor }: VendorsTabProps) => {
   const [selectedVendor, setSelectedVendor] = useState<string>('all');
   const [editingCost, setEditingCost] = useState<string | null>(null);
   const [editCostValue, setEditCostValue] = useState<string>('');
+  const [showVendorForm, setShowVendorForm] = useState(false);
+  const [editingVendor, setEditingVendor] = useState<RecipeVendor | null>(null);
+  const [vendorForm, setVendorForm] = useState({ name: '', phone: '', email: '', notes: '' });
+  const [expandedProfile, setExpandedProfile] = useState<string | null>(null);
+
+  const resetVendorForm = () => {
+    setVendorForm({ name: '', phone: '', email: '', notes: '' });
+    setEditingVendor(null);
+    setShowVendorForm(false);
+  };
+
+  const handleSaveVendor = async () => {
+    if (!vendorForm.name.trim()) return;
+    if (editingVendor) {
+      await onUpdateVendor(editingVendor.id, {
+        name: vendorForm.name.trim(),
+        phone: vendorForm.phone.trim() || null,
+        email: vendorForm.email.trim() || null,
+        notes: vendorForm.notes.trim() || null,
+      });
+    } else {
+      await onAddVendor({
+        tenant_id: tenantId,
+        name: vendorForm.name.trim(),
+        phone: vendorForm.phone.trim() || undefined,
+        email: vendorForm.email.trim() || undefined,
+        notes: vendorForm.notes.trim() || undefined,
+      });
+    }
+    resetVendorForm();
+  };
+
+  const openEditVendor = (vendor: RecipeVendor) => {
+    setEditingVendor(vendor);
+    setVendorForm({
+      name: vendor.name,
+      phone: vendor.phone || '',
+      email: vendor.email || '',
+      notes: vendor.notes || '',
+    });
+    setShowVendorForm(true);
+  };
 
   const vendors = Array.from(new Set(ingredients.map(i => i.vendor).filter(Boolean))) as string[];
   
@@ -3937,6 +4033,186 @@ const VendorsTab = ({ ingredients, onUpdateIngredientCost }: VendorsTabProps) =>
         </div>
       </div>
 
+      {/* Vendor Profiles Section */}
+      <div className="rounded-xl shadow-md overflow-hidden" style={{ backgroundColor: colors.white }}>
+        <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: colors.brown }}>
+          <h3 className="font-bold text-white">Vendor Profiles</h3>
+          <button
+            onClick={() => { resetVendorForm(); setShowVendorForm(true); }}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium"
+            style={{ backgroundColor: colors.gold, color: colors.brown }}
+            data-testid="button-add-vendor"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Vendor
+          </button>
+        </div>
+        <div className="p-4">
+          {showVendorForm && (
+            <div className="mb-4 p-4 rounded-lg" style={{ backgroundColor: colors.cream }}>
+              <h4 className="font-semibold mb-3" style={{ color: colors.brown }}>
+                {editingVendor ? 'Edit Vendor' : 'New Vendor'}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: colors.brownLight }}>Name *</label>
+                  <input
+                    value={vendorForm.name}
+                    onChange={(e) => setVendorForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Vendor name"
+                    className="w-full px-3 py-2 rounded-lg border-0 outline-none text-sm"
+                    style={{ backgroundColor: colors.inputBg, color: colors.brown }}
+                    data-testid="input-vendor-name"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: colors.brownLight }}>Phone</label>
+                  <input
+                    value={vendorForm.phone}
+                    onChange={(e) => setVendorForm(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="(555) 123-4567"
+                    className="w-full px-3 py-2 rounded-lg border-0 outline-none text-sm"
+                    style={{ backgroundColor: colors.inputBg, color: colors.brown }}
+                    data-testid="input-vendor-phone"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: colors.brownLight }}>Email</label>
+                  <input
+                    type="email"
+                    value={vendorForm.email}
+                    onChange={(e) => setVendorForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="sales@vendor.com"
+                    className="w-full px-3 py-2 rounded-lg border-0 outline-none text-sm"
+                    style={{ backgroundColor: colors.inputBg, color: colors.brown }}
+                    data-testid="input-vendor-email"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: colors.brownLight }}>Notes</label>
+                  <input
+                    value={vendorForm.notes}
+                    onChange={(e) => setVendorForm(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Account #, rep name, delivery schedule..."
+                    className="w-full px-3 py-2 rounded-lg border-0 outline-none text-sm"
+                    style={{ backgroundColor: colors.inputBg, color: colors.brown }}
+                    data-testid="input-vendor-notes"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={handleSaveVendor}
+                  disabled={!vendorForm.name.trim()}
+                  className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  data-testid="button-save-vendor"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  {editingVendor ? 'Update' : 'Save'}
+                </button>
+                <button
+                  onClick={resetVendorForm}
+                  className="px-4 py-2 rounded-lg text-sm font-medium"
+                  style={{ color: colors.brownLight }}
+                  data-testid="button-cancel-vendor"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {recipeVendors.length === 0 && !showVendorForm ? (
+            <div className="text-center py-6">
+              <Truck className="w-8 h-8 mx-auto mb-2" style={{ color: colors.brownLight }} />
+              <p className="text-sm" style={{ color: colors.brownLight }}>
+                Add vendor profiles to store contact info, account numbers, and notes.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recipeVendors.map(vendor => {
+                const vendorIngredientCount = ingredients.filter(i => i.vendor === vendor.name).length;
+                return (
+                  <div
+                    key={vendor.id}
+                    className="rounded-lg border overflow-hidden"
+                    style={{ borderColor: colors.creamDark }}
+                    data-testid={`vendor-profile-${vendor.id}`}
+                  >
+                    <button
+                      className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                      onClick={() => setExpandedProfile(expandedProfile === vendor.id ? null : vendor.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ backgroundColor: colors.cream, color: colors.brown }}>
+                          {vendor.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-medium text-sm" style={{ color: colors.brown }}>{vendor.name}</div>
+                          {vendorIngredientCount > 0 && (
+                            <div className="text-xs" style={{ color: colors.brownLight }}>{vendorIngredientCount} ingredients</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {vendor.phone && <Phone className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />}
+                        {vendor.email && <Mail className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />}
+                        {vendor.notes && <FileText className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />}
+                      </div>
+                    </button>
+
+                    {expandedProfile === vendor.id && (
+                      <div className="px-4 pb-3 pt-1 space-y-2" style={{ borderTop: `1px solid ${colors.cream}` }}>
+                        {vendor.phone && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Phone className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />
+                            <a href={`tel:${vendor.phone}`} className="hover:underline" style={{ color: colors.brown }}>{vendor.phone}</a>
+                          </div>
+                        )}
+                        {vendor.email && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Mail className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />
+                            <a href={`mailto:${vendor.email}`} className="hover:underline" style={{ color: colors.brown }}>{vendor.email}</a>
+                          </div>
+                        )}
+                        {vendor.notes && (
+                          <div className="flex items-start gap-2 text-sm">
+                            <FileText className="w-3.5 h-3.5 mt-0.5" style={{ color: colors.brownLight }} />
+                            <span style={{ color: colors.brownLight }}>{vendor.notes}</span>
+                          </div>
+                        )}
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => openEditVendor(vendor)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium"
+                            style={{ backgroundColor: colors.cream, color: colors.brown }}
+                            data-testid={`button-edit-vendor-${vendor.id}`}
+                          >
+                            <Pencil className="w-3 h-3" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => onDeleteVendor(vendor.id)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium hover:bg-red-50"
+                            style={{ color: '#ef4444' }}
+                            data-testid={`button-delete-vendor-${vendor.id}`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="grid gap-4">
         {displayedVendors.map(vendor => (
           <div
@@ -3951,9 +4227,27 @@ const VendorsTab = ({ ingredients, onUpdateIngredientCost }: VendorsTabProps) =>
             >
               <div>
                 <h3 className="font-bold text-white">{vendor.name}</h3>
-                <span className="text-sm text-white/60">
-                  {vendor.itemCount} items
-                </span>
+                <div className="flex items-center gap-3 text-sm text-white/60">
+                  <span>{vendor.itemCount} items</span>
+                  {(() => {
+                    const profile = recipeVendors.find(v => v.name === vendor.name);
+                    if (!profile) return null;
+                    return (
+                      <>
+                        {profile.phone && (
+                          <a href={`tel:${profile.phone}`} className="flex items-center gap-1 hover:text-white/90">
+                            <Phone className="w-3 h-3" /> {profile.phone}
+                          </a>
+                        )}
+                        {profile.email && (
+                          <a href={`mailto:${profile.email}`} className="flex items-center gap-1 hover:text-white/90">
+                            <Mail className="w-3 h-3" /> {profile.email}
+                          </a>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
               <div className="text-right">
                 <div className="text-sm text-white/60">Total Spend</div>
@@ -4082,6 +4376,11 @@ export default function Home() {
   const { data: overheadItems = [], isLoading: loadingOverheadItems, isError: errorOverheadItems } = useOverheadItems();
   const { data: pricingData = [], isLoading: loadingPricing, isError: errorPricing } = useRecipePricing();
   const { data: recipeSizeBases = [], isLoading: loadingRecipeSizeBases, isError: errorRecipeSizeBases } = useRecipeSizeBases();
+  const { data: cashActivity = [] } = useCashActivityRevenue();
+  const { data: recipeVendors = [] } = useRecipeVendors();
+  const addVendorMutation = useAddRecipeVendor();
+  const updateVendorMutation = useUpdateRecipeVendor();
+  const deleteVendorMutation = useDeleteRecipeVendor();
 
   // Calculate cost per minute from overhead items
   const calculatedCostPerMinute = useMemo(() => {
@@ -4118,6 +4417,13 @@ export default function Home() {
       cost_per_minute: calculatedCostPerMinute,
     };
   }, [overhead, calculatedCostPerMinute]);
+
+  // Calculate average gross daily revenue from cash deposits
+  const avgDailyRevenue = useMemo(() => {
+    if (cashActivity.length === 0) return 0;
+    const total = cashActivity.reduce((sum: number, entry: any) => sum + (Number(entry.gross_revenue) || 0), 0);
+    return total / cashActivity.length;
+  }, [cashActivity]);
 
   const updateIngredientMutation = useUpdateIngredient();
   const addIngredientMutation = useAddIngredient();
@@ -4681,7 +4987,15 @@ export default function Home() {
           />
         )}
         {activeTab === 'vendors' && (
-          <VendorsTab ingredients={ingredients} onUpdateIngredientCost={handleUpdateIngredientCost} />
+          <VendorsTab
+            ingredients={ingredients}
+            recipeVendors={recipeVendors}
+            tenantId={tenant?.id || ''}
+            onUpdateIngredientCost={handleUpdateIngredientCost}
+            onAddVendor={async (v) => { const result = await addVendorMutation.mutateAsync(v); return result; }}
+            onUpdateVendor={async (id, updates) => { const result = await updateVendorMutation.mutateAsync({ id, updates }); return result; }}
+            onDeleteVendor={async (id) => { await deleteVendorMutation.mutateAsync(id); }}
+          />
         )}
         {activeTab === 'bases' && (
           <BaseTemplatesTab
@@ -4732,6 +5046,8 @@ export default function Home() {
           <OverheadTab
             overhead={enhancedOverhead}
             overheadItems={overheadItems as OverheadItem[]}
+            avgDailyRevenue={avgDailyRevenue}
+            cashDayCount={cashActivity.length}
             onAddOverheadItem={handleAddOverheadItem}
             onUpdateOverheadItem={handleUpdateOverheadItem}
             onDeleteOverheadItem={handleDeleteOverheadItem}

@@ -22,6 +22,8 @@ export const queryKeys = {
   maintenanceLogs: ['maintenance-logs'] as const,
   equipmentAttachments: ['equipment-attachments'] as const,
   taskAttachments: ['task-attachments'] as const,
+  cashActivity: ['cash-activity'] as const,
+  recipeVendors: ['recipe-vendors'] as const,
 };
 
 export function useIngredientCategories() {
@@ -270,6 +272,102 @@ export function useOverheadItems() {
       return data || [];
     },
     staleTime: 30 * 1000,
+  });
+}
+
+export function useCashActivityRevenue() {
+  return useQuery({
+    queryKey: queryKeys.cashActivity,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cash_activity')
+        .select('drawer_date, gross_revenue')
+        .or('archived.is.null,archived.eq.false')
+        .order('drawer_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export interface RecipeVendor {
+  id: string;
+  tenant_id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useRecipeVendors() {
+  return useQuery({
+    queryKey: queryKeys.recipeVendors,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('recipe_vendors')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return (data || []) as RecipeVendor[];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useAddRecipeVendor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vendor: { tenant_id: string; name: string; phone?: string; email?: string; notes?: string }) => {
+      const { data, error } = await supabase
+        .from('recipe_vendors')
+        .insert(vendor)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as RecipeVendor;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.recipeVendors });
+    },
+  });
+}
+
+export function useUpdateRecipeVendor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<RecipeVendor> }) => {
+      const { data, error } = await supabase
+        .from('recipe_vendors')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as RecipeVendor;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.recipeVendors });
+    },
+  });
+}
+
+export function useDeleteRecipeVendor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('recipe_vendors')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.recipeVendors });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ingredients });
+    },
   });
 }
 
