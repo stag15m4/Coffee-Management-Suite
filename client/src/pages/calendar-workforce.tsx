@@ -63,6 +63,14 @@ import {
   useEditTimeClockEntry,
   type TimeClockEntry,
 } from '@/hooks/use-time-clock';
+import {
+  useMyTimeClockEdits,
+  useTimeClockEdits,
+  useCreateTimeClockEdit,
+  useReviewTimeClockEdit,
+  useCancelTimeClockEdit,
+  type TimeClockEditRequest,
+} from '@/hooks/use-time-clock-edits';
 
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -691,10 +699,10 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
 // ─── TIME OFF TAB ────────────────────────────────────────
 
-function TimeOffTab({ tenantId, isLead, isManager }: {
+function TimeOffTab({ tenantId, canApprove, currentUserId }: {
   tenantId: string;
-  isLead: boolean;
-  isManager: boolean;
+  canApprove: boolean;
+  currentUserId: string;
 }) {
   const { data: myRequests, isLoading: loadingMine } = useMyTimeOffRequests();
   const { data: allRequests, isLoading: loadingAll } = useTimeOffRequests();
@@ -713,9 +721,15 @@ function TimeOffTab({ tenantId, isLead, isManager }: {
   const [reviewNotes, setReviewNotes] = useState('');
 
   const pendingTeamRequests = useMemo(() => {
-    if (!allRequests || !isLead) return [];
-    return allRequests.filter((r) => r.status === 'pending');
-  }, [allRequests, isLead]);
+    if (!allRequests || !canApprove) return [];
+    return allRequests.filter((r) => {
+      if (r.status !== 'pending') return false;
+      // Manager routing: show direct reports + unassigned employees
+      if (r.employee_manager_id === currentUserId) return true;
+      if (!r.employee_manager_id) return true;
+      return false;
+    });
+  }, [allRequests, canApprove, currentUserId]);
 
   const handleSubmitRequest = useCallback(async () => {
     if (!formData.start_date || !formData.end_date) {
@@ -875,8 +889,8 @@ function TimeOffTab({ tenantId, isLead, isManager }: {
         </CardContent>
       </Card>
 
-      {/* Team Requests (leads+) */}
-      {isLead && (
+      {/* Team Requests (approvers) */}
+      {canApprove && (
         <Card style={{ backgroundColor: colors.white }}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
@@ -939,9 +953,11 @@ function TimeOffTab({ tenantId, isLead, isManager }: {
 
 // ─── TIME CLOCK TAB ──────────────────────────────────────
 
-function TimeClockTab({ tenantId, isManager, employees }: {
+function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employees }: {
   tenantId: string;
-  isManager: boolean;
+  canApprove: boolean;
+  canViewAll: boolean;
+  currentUserId: string;
   employees: UnifiedEmployee[];
 }) {
   const { user } = useAuth();
@@ -951,6 +967,31 @@ function TimeClockTab({ tenantId, isManager, employees }: {
   const startBreak = useStartBreak();
   const endBreak = useEndBreak();
   const { toast } = useToast();
+
+  // Edit request state
+  const [editRequestEntry, setEditRequestEntry] = useState<TimeClockEntry | null>(null);
+  const [editReqClockIn, setEditReqClockIn] = useState('');
+  const [editReqClockOut, setEditReqClockOut] = useState('');
+  const [editReqReason, setEditReqReason] = useState('');
+  const [reviewNotes, setReviewNotes] = useState('');
+
+  // Edit request hooks
+  const { data: myEdits } = useMyTimeClockEdits();
+  const { data: allEdits } = useTimeClockEdits();
+  const createEdit = useCreateTimeClockEdit();
+  const reviewEdit = useReviewTimeClockEdit();
+  const cancelEdit = useCancelTimeClockEdit();
+
+  const pendingTeamEdits = useMemo(() => {
+    if (!allEdits || !canApprove) return [];
+    return allEdits.filter((r) => {
+      if (r.status !== 'pending') return false;
+      // Manager routing: show direct reports + unassigned employees
+      if (r.employee_manager_id === currentUserId) return true;
+      if (!r.employee_manager_id) return true;
+      return false;
+    });
+  }, [allEdits, canApprove, currentUserId]);
 
   // Timesheet date range
   const [timesheetStart, setTimesheetStart] = useState(() => {
@@ -1007,6 +1048,77 @@ function TimeClockTab({ tenantId, isManager, employees }: {
       toast({ title: 'Error', description: 'Failed to toggle break.', variant: 'destructive' });
     }
   }, [activeEntry, activeBreak, startBreak, endBreak, toast]);
+
+  const openEditRequest = useCallback((entry: TimeClockEntry) => {
+    // Pre-fill with the entry's current times in datetime-local format
+    const toLocal = (ts: string) => {
+      const d = new Date(ts);
+      const offset = d.getTimezoneOffset();
+      const local = new Date(d.getTime() - offset * 60_000);
+      return local.toISOString().slice(0, 16);
+    };
+    setEditRequestEntry(entry);
+    setEditReqClockIn(toLocal(entry.clock_in));
+    setEditReqClockOut(entry.clock_out ? toLocal(entry.clock_out) : '');
+    setEditReqReason('');
+  }, []);
+
+  const handleSubmitEditRequest = useCallback(async () => {
+    if (!editRequestEntry) return;
+    if (!editReqReason.trim()) {
+      toast({ title: 'Please provide a reason', variant: 'destructive' });
+      return;
+    }
+    // At least one field must be different from original
+    const toISO = (localStr: string) => localStr ? new Date(localStr).toISOString() : null;
+    const newClockIn = toISO(editReqClockIn);
+    const newClockOut = toISO(editReqClockOut);
+    const origIn = editRequestEntry.clock_in;
+    const origOut = editRequestEntry.clock_out;
+
+    const clockInChanged = newClockIn && newClockIn !== origIn;
+    const clockOutChanged = newClockOut !== origOut;
+
+    if (!clockInChanged && !clockOutChanged) {
+      toast({ title: 'No changes detected', description: 'Adjust the clock-in or clock-out time.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      await createEdit.mutateAsync({
+        time_clock_entry_id: editRequestEntry.id,
+        original_clock_in: editRequestEntry.clock_in,
+        original_clock_out: editRequestEntry.clock_out,
+        requested_clock_in: clockInChanged ? newClockIn : null,
+        requested_clock_out: clockOutChanged ? newClockOut : null,
+        reason: editReqReason.trim(),
+      });
+      toast({ title: 'Edit request submitted', description: 'Your manager will review it.' });
+      setEditRequestEntry(null);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to submit edit request.', variant: 'destructive' });
+    }
+  }, [editRequestEntry, editReqClockIn, editReqClockOut, editReqReason, createEdit, toast]);
+
+  const handleReviewEdit = useCallback(async (id: string, status: 'approved' | 'denied') => {
+    try {
+      await reviewEdit.mutateAsync({ id, status, review_notes: reviewNotes || undefined });
+      toast({ title: `Edit request ${status}` });
+      setReviewNotes('');
+    } catch {
+      toast({ title: 'Error', description: 'Failed to review edit request.', variant: 'destructive' });
+    }
+  }, [reviewEdit, reviewNotes, toast]);
+
+  const statusColor = (s: string) => {
+    switch (s) {
+      case 'approved': return colors.green;
+      case 'denied': return colors.red;
+      case 'pending': return colors.yellow;
+      case 'cancelled': return colors.brownLight;
+      default: return colors.brown;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -1074,7 +1186,7 @@ function TimeClockTab({ tenantId, isManager, employees }: {
             <Input type="date" value={timesheetEnd}
               onChange={(e) => setTimesheetEnd(e.target.value)}
               className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
-            {isManager && (
+            {canViewAll && (
               <Select value={filterEmployee} onValueChange={setFilterEmployee}>
                 <SelectTrigger className="w-[180px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
                   <SelectValue placeholder="All employees" />
@@ -1100,21 +1212,23 @@ function TimeClockTab({ tenantId, isManager, employees }: {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${colors.creamDark}` }}>
-                    {isManager && <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Employee</th>}
+                    {canViewAll && <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Employee</th>}
                     <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Date</th>
                     <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>In</th>
                     <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Out</th>
                     <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>Hours</th>
                     <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>Breaks</th>
+                    <th className="py-2 px-2" />
                   </tr>
                 </thead>
                 <tbody>
                   {entries.map((e) => {
                     const totalHrs = calcHours(e.clock_in, e.clock_out);
                     const breakHrs = calcBreakHours(e.breaks ?? []);
+                    const isOwnEntry = e.employee_id === user?.id;
                     return (
                       <tr key={e.id} style={{ borderBottom: `1px solid ${colors.cream}` }}>
-                        {isManager && (
+                        {canViewAll && (
                           <td className="py-2 px-2" style={{ color: colors.brown }}>
                             {e.employee_name || '—'}
                             {e.is_edited && (
@@ -1126,6 +1240,11 @@ function TimeClockTab({ tenantId, isManager, employees }: {
                         )}
                         <td className="py-2 px-2" style={{ color: colors.brown }}>
                           {new Date(e.clock_in).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                          {!canViewAll && e.is_edited && (
+                            <Badge variant="outline" className="ml-1 text-[10px]" style={{ borderColor: colors.yellow, color: colors.yellow }}>
+                              edited
+                            </Badge>
+                          )}
                         </td>
                         <td className="py-2 px-2" style={{ color: colors.brown }}>{formatTimestamp(e.clock_in)}</td>
                         <td className="py-2 px-2" style={{ color: colors.brown }}>
@@ -1137,6 +1256,15 @@ function TimeClockTab({ tenantId, isManager, employees }: {
                         <td className="text-right py-2 px-2" style={{ color: colors.brownLight }}>
                           {breakHrs > 0 ? breakHrs.toFixed(1) : '—'}
                         </td>
+                        <td className="py-2 px-2 text-right">
+                          {isOwnEntry && (
+                            <Button variant="ghost" size="sm" onClick={() => openEditRequest(e)}
+                              className="h-7 w-7 p-0" title="Request edit"
+                              style={{ color: colors.brownLight }}>
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -1146,6 +1274,169 @@ function TimeClockTab({ tenantId, isManager, employees }: {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Request Dialog */}
+      {editRequestEntry && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setEditRequestEntry(null)}>
+          <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }} onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+                <Edit2 className="w-5 h-5" style={{ color: colors.gold }} />
+                Request Time Edit
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-2 rounded-lg text-sm" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
+                <p className="font-medium" style={{ color: colors.brown }}>Current entry:</p>
+                <p>In: {formatTimestamp(editRequestEntry.clock_in)} &middot; {new Date(editRequestEntry.clock_in).toLocaleDateString([], { month: 'short', day: 'numeric' })}</p>
+                <p>Out: {editRequestEntry.clock_out ? `${formatTimestamp(editRequestEntry.clock_out)} · ${new Date(editRequestEntry.clock_out).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : 'Not clocked out'}</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label style={{ color: colors.brown }}>Corrected Clock In</Label>
+                <Input type="datetime-local" value={editReqClockIn}
+                  onChange={(e) => setEditReqClockIn(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+              </div>
+              <div className="space-y-1.5">
+                <Label style={{ color: colors.brown }}>Corrected Clock Out</Label>
+                <Input type="datetime-local" value={editReqClockOut}
+                  onChange={(e) => setEditReqClockOut(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+              </div>
+              <div className="space-y-1.5">
+                <Label style={{ color: colors.brown }}>Reason <span style={{ color: colors.red }}>*</span></Label>
+                <Textarea value={editReqReason} placeholder="e.g. Forgot to clock out, clocked in late..."
+                  onChange={(e) => setEditReqReason(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} rows={2} />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button onClick={handleSubmitEditRequest} disabled={createEdit.isPending}
+                  style={{ backgroundColor: colors.gold, color: colors.brown }} className="flex-1">
+                  <Check className="w-4 h-4 mr-1" /> Submit Request
+                </Button>
+                <Button variant="outline" onClick={() => setEditRequestEntry(null)}
+                  style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* My Edit Requests */}
+      {myEdits && myEdits.length > 0 && (
+        <Card style={{ backgroundColor: colors.white }}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base" style={{ color: colors.brown }}>
+              <Edit2 className="w-5 h-5" style={{ color: colors.gold }} />
+              My Edit Requests
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {myEdits.map((r) => (
+              <div key={r.id} className="flex items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: colors.cream }}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" style={{ borderColor: statusColor(r.status), color: statusColor(r.status) }}>
+                      {r.status}
+                    </Badge>
+                    <span className="text-xs" style={{ color: colors.brownLight }}>
+                      {new Date(r.original_clock_in).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                  <div className="text-xs mt-1 space-y-0.5" style={{ color: colors.brown }}>
+                    {r.requested_clock_in && (
+                      <p>Clock in: {formatTimestamp(r.original_clock_in)} → <span className="font-medium">{formatTimestamp(r.requested_clock_in)}</span></p>
+                    )}
+                    {r.requested_clock_out && (
+                      <p>Clock out: {r.original_clock_out ? formatTimestamp(r.original_clock_out) : 'Missing'} → <span className="font-medium">{formatTimestamp(r.requested_clock_out)}</span></p>
+                    )}
+                  </div>
+                  <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>{r.reason}</p>
+                  {r.review_notes && (
+                    <p className="text-xs mt-0.5 italic" style={{ color: colors.brownLight }}>
+                      Note: {r.review_notes}
+                    </p>
+                  )}
+                </div>
+                {r.status === 'pending' && (
+                  <Button variant="ghost" size="sm" onClick={() => cancelEdit.mutate(r.id)}
+                    style={{ color: colors.red }}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pending Edit Requests (approvers) */}
+      {canApprove && (
+        <Card style={{ backgroundColor: colors.white }}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+              <Users className="w-5 h-5" style={{ color: colors.gold }} />
+              Pending Edit Requests
+              {pendingTeamEdits.length > 0 && (
+                <Badge style={{ backgroundColor: colors.yellow, color: colors.brown }}>
+                  {pendingTeamEdits.length}
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pendingTeamEdits.length === 0 ? (
+              <p className="text-sm py-4 text-center" style={{ color: colors.brownLight }}>
+                No pending edit requests.
+              </p>
+            ) : (
+              pendingTeamEdits.map((r) => (
+                <div key={r.id} className="p-3 rounded-lg space-y-2" style={{ backgroundColor: colors.cream }}>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: colors.brown }}>
+                      {r.employee_name || 'Unknown'}
+                    </p>
+                    <p className="text-xs" style={{ color: colors.brownLight }}>
+                      {new Date(r.original_clock_in).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+                    </p>
+                    <div className="text-xs mt-1 space-y-0.5" style={{ color: colors.brown }}>
+                      {r.requested_clock_in && (
+                        <p>Clock in: {formatTimestamp(r.original_clock_in)} → <span className="font-medium">{formatTimestamp(r.requested_clock_in)}</span></p>
+                      )}
+                      {r.requested_clock_out && (
+                        <p>Clock out: {r.original_clock_out ? formatTimestamp(r.original_clock_out) : 'Missing'} → <span className="font-medium">{formatTimestamp(r.requested_clock_out)}</span></p>
+                      )}
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: colors.brownLight }}>Reason: {r.reason}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Review notes (optional)"
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                      className="text-xs h-8 flex-1"
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                    />
+                    <Button size="sm" onClick={() => handleReviewEdit(r.id, 'approved')}
+                      disabled={reviewEdit.isPending}
+                      style={{ backgroundColor: colors.green, color: '#fff' }}>
+                      <Check className="w-3 h-3 mr-1" /> Approve
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleReviewEdit(r.id, 'denied')}
+                      disabled={reviewEdit.isPending}
+                      style={{ borderColor: colors.red, color: colors.red }}>
+                      <X className="w-3 h-3 mr-1" /> Deny
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -1281,7 +1572,7 @@ function ExportTab({ tenantId, employees }: {
 // ─── MAIN PAGE ───────────────────────────────────────────
 
 export default function CalendarWorkforce() {
-  const { profile, tenant, branding, hasRole } = useAuth();
+  const { user, profile, tenant, branding, hasRole, hasPermission } = useAuth();
   const searchString = useSearch();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -1294,6 +1585,14 @@ export default function CalendarWorkforce() {
   const isLead = hasRole('lead');
   const isManager = hasRole('manager');
 
+  // Permission-based access
+  const canManageShifts = hasPermission('manage_shifts');
+  const canDeleteShifts = hasPermission('delete_shifts');
+  const canApproveTimeOff = hasPermission('approve_time_off');
+  const canApproveTimeEdits = hasPermission('approve_time_edits');
+  const canExportPayroll = hasPermission('export_payroll');
+  const isExempt = profile?.is_exempt ?? false;
+
   const tenantId = tenant?.id ?? '';
   const { data: employees = [] } = useAllEmployees(tenantId || undefined);
 
@@ -1305,6 +1604,8 @@ export default function CalendarWorkforce() {
     queryClient.invalidateQueries({ queryKey: ['time-off-mine'] });
     queryClient.invalidateQueries({ queryKey: ['time-clock'] });
     queryClient.invalidateQueries({ queryKey: ['time-clock-active'] });
+    queryClient.invalidateQueries({ queryKey: ['time-clock-edits'] });
+    queryClient.invalidateQueries({ queryKey: ['time-clock-edits-mine'] });
     queryClient.invalidateQueries({ queryKey: ['all-employees'] });
   }, []);
 
@@ -1315,6 +1616,8 @@ export default function CalendarWorkforce() {
     queryClient.invalidateQueries({ queryKey: ['time-off-mine'] });
     queryClient.invalidateQueries({ queryKey: ['time-clock'] });
     queryClient.invalidateQueries({ queryKey: ['time-clock-active'] });
+    queryClient.invalidateQueries({ queryKey: ['time-clock-edits'] });
+    queryClient.invalidateQueries({ queryKey: ['time-clock-edits-mine'] });
     queryClient.invalidateQueries({ queryKey: ['all-employees'] });
   }, []);
 
@@ -1325,8 +1628,8 @@ export default function CalendarWorkforce() {
   const tabs: { key: TabType; label: string; icon: typeof CalendarDays; show: boolean }[] = [
     { key: 'schedule', label: 'Schedule', icon: CalendarDays, show: true },
     { key: 'time-off', label: 'Time Off', icon: Plane, show: true },
-    { key: 'time-clock', label: 'Time Clock', icon: Clock, show: true },
-    { key: 'export', label: 'Export', icon: Download, show: isManager },
+    { key: 'time-clock', label: 'Time Clock', icon: Clock, show: !isExempt },
+    { key: 'export', label: 'Export', icon: Download, show: canExportPayroll },
   ];
 
   return (
@@ -1366,18 +1669,28 @@ export default function CalendarWorkforce() {
         {activeTab === 'schedule' && (
           <ScheduleTab
             tenantId={tenantId}
-            canEdit={isLead}
-            canDelete={isManager}
+            canEdit={canManageShifts}
+            canDelete={canDeleteShifts}
             employees={employees}
           />
         )}
         {activeTab === 'time-off' && (
-          <TimeOffTab tenantId={tenantId} isLead={isLead} isManager={isManager} />
+          <TimeOffTab
+            tenantId={tenantId}
+            canApprove={canApproveTimeOff}
+            currentUserId={user?.id ?? ''}
+          />
         )}
-        {activeTab === 'time-clock' && (
-          <TimeClockTab tenantId={tenantId} isManager={isManager} employees={employees} />
+        {activeTab === 'time-clock' && !isExempt && (
+          <TimeClockTab
+            tenantId={tenantId}
+            canApprove={canApproveTimeEdits}
+            canViewAll={canExportPayroll || isManager}
+            currentUserId={user?.id ?? ''}
+            employees={employees}
+          />
         )}
-        {activeTab === 'export' && isManager && (
+        {activeTab === 'export' && canExportPayroll && (
           <ExportTab tenantId={tenantId} employees={employees} />
         )}
       </main>

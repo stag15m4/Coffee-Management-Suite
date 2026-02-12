@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase-queries';
 import type { User, Session } from '@supabase/supabase-js';
+import type { PermissionKey, TenantRoleSetting } from '@/hooks/use-role-settings';
 
 export type UserRole = 'owner' | 'manager' | 'lead' | 'employee';
 
@@ -13,6 +14,7 @@ export interface UserProfile {
   is_active: boolean;
   avatar_url: string | null;
   start_date: string | null;
+  is_exempt: boolean;
 }
 
 export interface PlatformAdmin {
@@ -60,11 +62,14 @@ interface AuthContextType {
   activeLocationId: string | null;
   branding: TenantBranding | null;
   enabledModules: ModuleId[];
+  roleSettings: TenantRoleSetting[] | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string, tenantId: string, role?: UserRole) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   hasRole: (requiredRole: UserRole) => boolean;
+  hasPermission: (permission: PermissionKey) => boolean;
+  getRoleDisplayName: (role: UserRole) => string;
   canAccessModule: (module: ModuleId) => boolean;
   refreshEnabledModules: () => Promise<void>;
   switchLocation: (locationId: string) => Promise<void>;
@@ -93,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [branding, setBranding] = useState<TenantBranding | null>(null);
   const [enabledModules, setEnabledModules] = useState<ModuleId[]>([]);
+  const [roleSettings, setRoleSettings] = useState<TenantRoleSetting[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [isParentTenant, setIsParentTenant] = useState(false);
   const [adminViewingTenant, setAdminViewingTenant] = useState(false);
@@ -295,6 +301,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setEnabledModules(((modulesResult as any).data || []) as ModuleId[]);
       }
 
+      // Load role settings for this tenant
+      const effectiveTenantId = (tenant as any)?.id || profileData.tenant_id;
+      try {
+        const roleSettingsResult = await withTimeout(
+          supabase.from('tenant_role_settings').select('*').eq('tenant_id', effectiveTenantId).order('role'),
+          'Role settings query'
+        );
+        let settings = roleSettingsResult && !(roleSettingsResult as any).error
+          ? (roleSettingsResult as any).data
+          : null;
+        if (!settings || settings.length === 0) {
+          // Auto-seed defaults
+          await supabase.rpc('seed_tenant_role_settings', { p_tenant_id: effectiveTenantId });
+          const { data: seeded } = await supabase
+            .from('tenant_role_settings').select('*').eq('tenant_id', effectiveTenantId).order('role');
+          settings = seeded;
+        }
+        setRoleSettings(settings || null);
+      } catch {
+        console.warn('[AuthContext] Failed to load role settings');
+        setRoleSettings(null);
+      }
+
       lastFetchedUserIdRef.current = userId;
       fetchInProgressRef.current = null;
       return true;
@@ -334,6 +363,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         is_active: true,
         avatar_url: null,
         start_date: null,
+        is_exempt: false,
       };
 
       // Create mock tenant
@@ -612,6 +642,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTenant(null);
     setBranding(null);
     setEnabledModules([]);
+    setRoleSettings(null);
     // Navigate to login page
     window.location.href = '/login';
   };
@@ -674,6 +705,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return hasRole(moduleAccess[module]);
   };
 
+  const hasPermission = useCallback((permission: PermissionKey): boolean => {
+    if (!profile) return false;
+    // Owner always has everything
+    if (profile.role === 'owner') return true;
+
+    if (roleSettings) {
+      const mySetting = roleSettings.find(s => s.role === profile.role);
+      if (mySetting) return mySetting[permission] === true;
+    }
+
+    // Fallback to hardcoded defaults if role settings aren't loaded
+    const defaults: Record<UserRole, Set<PermissionKey>> = {
+      owner: new Set<PermissionKey>([
+        'approve_time_off', 'approve_time_edits', 'manage_shifts', 'delete_shifts',
+        'manage_recipes', 'manage_users', 'view_reports', 'export_payroll',
+        'manage_equipment', 'manage_tasks', 'manage_orders', 'manage_branding',
+        'manage_locations', 'manage_cash_deposits',
+      ]),
+      manager: new Set<PermissionKey>([
+        'approve_time_off', 'approve_time_edits', 'manage_shifts', 'delete_shifts',
+        'manage_recipes', 'manage_users', 'view_reports', 'export_payroll',
+        'manage_equipment', 'manage_tasks', 'manage_orders', 'manage_cash_deposits',
+      ]),
+      lead: new Set<PermissionKey>([
+        'approve_time_off', 'approve_time_edits', 'manage_shifts', 'view_reports',
+      ]),
+      employee: new Set<PermissionKey>([]),
+    };
+    return defaults[profile.role]?.has(permission) ?? false;
+  }, [profile, roleSettings]);
+
+  const getRoleDisplayName = useCallback((role: UserRole): string => {
+    if (roleSettings) {
+      const setting = roleSettings.find(s => s.role === role);
+      if (setting?.display_name) return setting.display_name;
+    }
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  }, [roleSettings]);
+
   const retryProfileFetch = useCallback(async (): Promise<boolean> => {
     if (!user) return false;
     lastFetchedUserIdRef.current = null; // Clear cache so fetch actually runs
@@ -721,6 +791,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (modules) {
       setEnabledModules(modules as ModuleId[]);
+    }
+
+    // Refresh role settings for the new location
+    const { data: newRoleSettings } = await supabase
+      .from('tenant_role_settings')
+      .select('*')
+      .eq('tenant_id', locationId)
+      .order('role');
+    if (newRoleSettings && newRoleSettings.length > 0) {
+      setRoleSettings(newRoleSettings as TenantRoleSetting[]);
+    } else {
+      // Auto-seed for new location
+      await supabase.rpc('seed_tenant_role_settings', { p_tenant_id: locationId });
+      const { data: seeded } = await supabase
+        .from('tenant_role_settings').select('*').eq('tenant_id', locationId).order('role');
+      setRoleSettings((seeded as TenantRoleSetting[]) || null);
     }
 
     // Dispatch location-changed event so pages can refresh their data
@@ -806,11 +892,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         activeLocationId,
         branding,
         enabledModules,
+        roleSettings,
         loading,
         signIn,
         signUp,
         signOut,
         hasRole,
+        hasPermission,
+        getRoleDisplayName,
         canAccessModule,
         refreshEnabledModules,
         switchLocation,

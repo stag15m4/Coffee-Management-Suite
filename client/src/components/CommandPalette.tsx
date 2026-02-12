@@ -27,6 +27,7 @@ import {
   User,
   BarChart3,
   Gift,
+  Shield,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -61,6 +62,7 @@ const SETTINGS: CommandRoute[] = [
   { label: 'Users', href: '/admin/users', icon: Users, adminOnly: true, keywords: ['employees', 'roles', 'invite'] },
   { label: 'Branding', href: '/admin/branding', icon: Palette, adminOnly: true, keywords: ['logo', 'colors', 'theme'] },
   { label: 'Billing', href: '/billing', icon: CreditCard, adminOnly: true, keywords: ['subscription', 'plan', 'payment'] },
+  { label: 'Role Settings', href: '/admin/role-settings', icon: Shield, adminOnly: true, keywords: ['permissions', 'roles', 'customize'] },
 ];
 
 const RECIPE_TABS: { label: string; tab: string; keywords?: string[] }[] = [

@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Mail, MapPin, Building2, Check, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Mail, MapPin, Building2, Check, X, Shield, DollarSign } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,8 @@ import {
 } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { colors } from '@/lib/colors';
+import { useManagerAssignments, useSetManager, useUpdateCompensation } from '@/hooks/use-manager-assignment';
+import { useLocation } from 'wouter';
 
 interface UserProfile {
   id: string;
@@ -46,12 +49,16 @@ interface UserLocationAssignment {
 }
 
 export default function AdminUsers() {
-  const { user, profile, tenant, accessibleLocations, branding, primaryTenant } = useAuth();
+  const { user, profile, tenant, accessibleLocations, branding, primaryTenant, getRoleDisplayName } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const { data: managerData } = useManagerAssignments();
+  const setManagerMut = useSetManager();
+  const updateCompMut = useUpdateCompensation();
   
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
-  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'My Coffee Shop');
   const orgName = primaryTenant?.name || branding?.company_name || '';
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +81,16 @@ export default function AdminUsers() {
   // Success dialog
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [createdUserEmail, setCreatedUserEmail] = useState('');
+
+  // Detail sheet (manager assignment + compensation)
+  const [showDetailSheet, setShowDetailSheet] = useState(false);
+  const [detailUser, setDetailUser] = useState<UserProfile | null>(null);
+  const [detailManager, setDetailManager] = useState('none');
+  const [detailExempt, setDetailExempt] = useState(false);
+  const [detailHourlyRate, setDetailHourlyRate] = useState('');
+  const [detailAnnualSalary, setDetailAnnualSalary] = useState('');
+  const [detailPayFrequency, setDetailPayFrequency] = useState('biweekly');
+  const [savingDetail, setSavingDetail] = useState(false);
 
   // Check if current tenant has child locations (multi-location enabled)
   const hasMultipleLocations = locations.length > 0;
@@ -147,6 +164,18 @@ export default function AdminUsers() {
       loadUserAssignments();
     }
   }, [locations, loadUserAssignments]);
+
+  // Populate detail sheet form when user is selected
+  useEffect(() => {
+    if (detailUser && managerData) {
+      const match = managerData.find(u => u.id === detailUser.id);
+      setDetailManager(match?.manager_id || 'none');
+      setDetailExempt(match?.is_exempt ?? false);
+      setDetailHourlyRate(match?.hourly_rate != null ? String(match.hourly_rate) : '');
+      setDetailAnnualSalary(match?.annual_salary != null ? String(match.annual_salary) : '');
+      setDetailPayFrequency(match?.pay_frequency || 'biweekly');
+    }
+  }, [detailUser, managerData]);
 
   const loadUsers = async () => {
     if (!profile?.tenant_id) return;
@@ -298,6 +327,37 @@ export default function AdminUsers() {
     }
   };
 
+  // Save detail sheet (manager + compensation)
+  const handleSaveDetail = async () => {
+    if (!detailUser) return;
+    setSavingDetail(true);
+    try {
+      await setManagerMut.mutateAsync({
+        userId: detailUser.id,
+        managerId: detailManager === 'none' ? null : detailManager,
+      });
+      await updateCompMut.mutateAsync({
+        userId: detailUser.id,
+        updates: {
+          is_exempt: detailExempt,
+          hourly_rate: detailExempt ? null : (detailHourlyRate ? parseFloat(detailHourlyRate) : null),
+          annual_salary: detailExempt ? (detailAnnualSalary ? parseFloat(detailAnnualSalary) : null) : null,
+          pay_frequency: detailPayFrequency || 'biweekly',
+        },
+      });
+      toast({ title: 'Employee details saved' });
+      setShowDetailSheet(false);
+    } catch (error: any) {
+      toast({ title: 'Error saving details', description: error.message, variant: 'destructive' });
+    } finally {
+      setSavingDetail(false);
+    }
+  };
+
+  const managerCandidates = (managerData || []).filter(u =>
+    (u.role === 'owner' || u.role === 'manager') && u.id !== detailUser?.id
+  );
+
   const getRoleOrder = (role: string) => {
     switch (role) {
       case 'owner': return 1;
@@ -432,11 +492,11 @@ export default function AdminUsers() {
                     
                     <div className="flex items-center gap-3">
                       {user.id === profile?.id || (user.role === 'owner' && !canEditOwners) ? (
-                        <span 
-                          className="px-3 py-1 rounded text-sm font-medium capitalize"
+                        <span
+                          className="px-3 py-1 rounded text-sm font-medium"
                           style={{ backgroundColor: colors.gold, color: colors.brown }}
                         >
-                          {user.role}
+                          {getRoleDisplayName(user.role)}
                         </span>
                       ) : (
                         <>
@@ -444,7 +504,7 @@ export default function AdminUsers() {
                             value={user.role}
                             onValueChange={(value) => updateRole(user.id, value)}
                           >
-                            <SelectTrigger 
+                            <SelectTrigger
                               className="w-32"
                               style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                               data-testid={`select-role-${user.id}`}
@@ -452,13 +512,25 @@ export default function AdminUsers() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {canEditOwners && <SelectItem value="owner">Owner</SelectItem>}
-                              <SelectItem value="manager">Manager</SelectItem>
-                              <SelectItem value="lead">Lead</SelectItem>
-                              <SelectItem value="employee">Employee</SelectItem>
+                              {canEditOwners && <SelectItem value="owner">{getRoleDisplayName('owner')}</SelectItem>}
+                              <SelectItem value="manager">{getRoleDisplayName('manager')}</SelectItem>
+                              <SelectItem value="lead">{getRoleDisplayName('lead')}</SelectItem>
+                              <SelectItem value="employee">{getRoleDisplayName('employee')}</SelectItem>
                             </SelectContent>
                           </Select>
-                          
+
+                          {user.role !== 'owner' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => { setDetailUser(user); setShowDetailSheet(true); }}
+                              style={{ borderColor: colors.gold, color: colors.gold }}
+                            >
+                              <DollarSign className="w-4 h-4 mr-1" />
+                              Details
+                            </Button>
+                          )}
+
                           {hasMultipleLocations && isOwner && user.role !== 'owner' && (
                             <Button
                               variant="outline"
@@ -471,12 +543,12 @@ export default function AdminUsers() {
                               Locations
                             </Button>
                           )}
-                          
+
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => toggleActive(user.id, user.is_active)}
-                            style={{ 
+                            style={{
                               borderColor: user.is_active ? colors.red : colors.gold,
                               color: user.is_active ? colors.red : colors.gold
                             }}
@@ -494,39 +566,27 @@ export default function AdminUsers() {
           </CardContent>
         </Card>
 
-        <Card style={{ backgroundColor: colors.white }}>
-          <CardHeader>
-            <CardTitle style={{ color: colors.brown }}>Role Permissions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
-                <p className="font-medium" style={{ color: colors.brown }}>Owner</p>
-                <p className="text-sm" style={{ color: colors.brownLight }}>
-                  Full access to all modules, user management, and branding settings
-                </p>
+        {isOwner && (
+          <Card style={{ backgroundColor: colors.white }}>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold" style={{ color: colors.brown }}>Role Permissions</h3>
+                  <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
+                    Customize what each role can do and rename roles
+                  </p>
+                </div>
+                <Button
+                  onClick={() => navigate('/admin/role-settings')}
+                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Customize
+                </Button>
               </div>
-              <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
-                <p className="font-medium" style={{ color: colors.brown }}>Manager</p>
-                <p className="text-sm" style={{ color: colors.brownLight }}>
-                  Access to Recipe Costing, Tip Payout, Cash Deposit, Coffee Orders, Equipment Maintenance, and user management
-                </p>
-              </div>
-              <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
-                <p className="font-medium" style={{ color: colors.brown }}>Lead</p>
-                <p className="text-sm" style={{ color: colors.brownLight }}>
-                  Access to Tip Payout, Coffee Orders, and Equipment Maintenance
-                </p>
-              </div>
-              <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
-                <p className="font-medium" style={{ color: colors.brown }}>Employee</p>
-                <p className="text-sm" style={{ color: colors.brownLight }}>
-                  Access to Equipment Maintenance only
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
         {/* Add User Sheet */}
         <Sheet open={showAddDialog} onOpenChange={setShowAddDialog}>
           <SheetContent className="sm:max-w-md overflow-y-auto">
@@ -664,6 +724,147 @@ export default function AdminUsers() {
                   )}
                 </Button>
               </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* Employee Detail Sheet */}
+        <Sheet open={showDetailSheet} onOpenChange={setShowDetailSheet}>
+          <SheetContent className="sm:max-w-md overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle style={{ color: colors.brown }}>
+                {detailUser?.full_name || detailUser?.email}
+              </SheetTitle>
+              <SheetDescription style={{ color: colors.brownLight }}>
+                Manager assignment &amp; compensation
+              </SheetDescription>
+            </SheetHeader>
+            <div className="space-y-5 mt-6">
+              {/* Manager Assignment */}
+              <div>
+                <Label style={{ color: colors.brown }}>Manager</Label>
+                <Select value={detailManager} onValueChange={setDetailManager}>
+                  <SelectTrigger
+                    className="mt-1"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                  >
+                    <SelectValue placeholder="Select manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No manager (auto-assign)</SelectItem>
+                    {managerCandidates.map(m => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.full_name || m.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Exempt Toggle */}
+              <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
+                <div>
+                  <Label style={{ color: colors.brown }}>Exempt (Salaried)</Label>
+                  <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+                    Exempt employees skip the time clock
+                  </p>
+                </div>
+                <Switch
+                  checked={detailExempt}
+                  onCheckedChange={setDetailExempt}
+                />
+              </div>
+
+              {/* Compensation Fields */}
+              {detailExempt ? (
+                <>
+                  <div>
+                    <Label style={{ color: colors.brown }}>Annual Salary</Label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: colors.brownLight }}>$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={detailAnnualSalary}
+                        onChange={(e) => setDetailAnnualSalary(e.target.value)}
+                        className="pl-7"
+                        placeholder="50000.00"
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label style={{ color: colors.brown }}>Pay Frequency</Label>
+                    <Select value={detailPayFrequency} onValueChange={setDetailPayFrequency}>
+                      <SelectTrigger
+                        className="mt-1"
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="biweekly">Biweekly</SelectItem>
+                        <SelectItem value="semi_monthly">Semi-Monthly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <Label style={{ color: colors.brown }}>Hourly Rate</Label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: colors.brownLight }}>$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={detailHourlyRate}
+                        onChange={(e) => setDetailHourlyRate(e.target.value)}
+                        className="pl-7"
+                        placeholder="15.00"
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label style={{ color: colors.brown }}>Pay Frequency</Label>
+                    <Select value={detailPayFrequency} onValueChange={setDetailPayFrequency}>
+                      <SelectTrigger
+                        className="mt-1"
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="biweekly">Biweekly</SelectItem>
+                        <SelectItem value="semi_monthly">Semi-Monthly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+
+              <Button
+                onClick={handleSaveDetail}
+                disabled={savingDetail}
+                className="w-full"
+                style={{ backgroundColor: colors.gold, color: colors.brown }}
+              >
+                {savingDetail ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Details'
+                )}
+              </Button>
             </div>
           </SheetContent>
         </Sheet>
