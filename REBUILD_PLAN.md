@@ -97,7 +97,7 @@
 
 ### 2.1 Database Schema
 
-Create migration: `supabase-migrations/078_vertical_system.sql`
+Create migration: `supabase-migrations/080_vertical_system.sql`
 
 ```sql
 -- =====================================================
@@ -209,7 +209,7 @@ CREATE POLICY "Platform admins can manage templates" ON vertical_templates
 
 ### 2.2 Seed the Coffee Vertical
 
-Create migration: `supabase-migrations/079_seed_coffee_vertical.sql`
+Create migration: `supabase-migrations/081_seed_coffee_vertical.sql`
 
 Seed the first vertical with:
 
@@ -245,8 +245,8 @@ Extend the existing platform admin page (`client/src/pages/platform-admin.tsx`) 
 
 ### 2.4 Deliverables Checklist
 
-- [ ] Migration `078_vertical_system.sql` — creates `verticals` and `vertical_templates` tables
-- [ ] Migration `079_seed_coffee_vertical.sql` — seeds coffee vertical + templates
+- [ ] Migration `080_vertical_system.sql` — creates `verticals` and `vertical_templates` tables
+- [ ] Migration `081_seed_coffee_vertical.sql` — seeds coffee vertical + templates
 - [ ] Update `shared/schema.ts` — add Drizzle definitions for new tables
 - [ ] Platform admin "Verticals" tab — CRUD for verticals and templates
 - [ ] Backfill existing tenant with `vertical_id`
@@ -1084,8 +1084,8 @@ Phase 2 (Frontend Shell) ───┤                            ├──→ Ph
 2. **During rebuild:** Keep current app running on `migrate-off-replit` branch
 3. **Rebuild on new branch:** `platform-rebuild` branch with new frontend
 4. **Migration day:**
-   - Run migration `078_vertical_system.sql` to add vertical tables
-   - Run migration `079_seed_coffee_vertical.sql` to create coffee vertical
+   - Run migration `080_vertical_system.sql` to add vertical tables
+   - Run migration `081_seed_coffee_vertical.sql` to create coffee vertical
    - Update Erwin Mills tenant: `SET vertical_id = (coffee vertical id)`
    - Deploy new frontend
    - Existing data (ingredients, recipes, deposits) is untouched — only the UI changes
