@@ -30,6 +30,7 @@ import {
   Edit2,
   Users,
   Filter,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAllEmployees, type UnifiedEmployee } from '@/hooks/use-all-employees';
 import {
@@ -1226,8 +1227,15 @@ function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employe
                     const totalHrs = calcHours(e.clock_in, e.clock_out);
                     const breakHrs = calcBreakHours(e.breaks ?? []);
                     const isOwnEntry = e.employee_id === user?.id;
+                    const elapsedHrs = !e.clock_out
+                      ? (Date.now() - new Date(e.clock_in).getTime()) / 3_600_000
+                      : 0;
+                    const isMissedClockOut = !e.clock_out && elapsedHrs > 12;
                     return (
-                      <tr key={e.id} style={{ borderBottom: `1px solid ${colors.cream}` }}>
+                      <tr key={e.id} style={{
+                        borderBottom: `1px solid ${colors.cream}`,
+                        backgroundColor: isMissedClockOut ? '#fef2f2' : undefined,
+                      }}>
                         {canViewAll && (
                           <td className="py-2 px-2" style={{ color: colors.brown }}>
                             {e.employee_name || '—'}
@@ -1248,21 +1256,39 @@ function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employe
                         </td>
                         <td className="py-2 px-2" style={{ color: colors.brown }}>{formatTimestamp(e.clock_in)}</td>
                         <td className="py-2 px-2" style={{ color: colors.brown }}>
-                          {e.clock_out ? formatTimestamp(e.clock_out) : <Badge style={{ backgroundColor: colors.green, color: '#fff' }}>Active</Badge>}
+                          {e.clock_out
+                            ? formatTimestamp(e.clock_out)
+                            : isMissedClockOut
+                              ? <Badge className="gap-1" style={{ backgroundColor: colors.red, color: '#fff' }}>
+                                  <AlertTriangle className="w-3 h-3" /> Missed clock-out
+                                </Badge>
+                              : <Badge style={{ backgroundColor: colors.green, color: '#fff' }}>Active</Badge>
+                          }
                         </td>
-                        <td className="text-right py-2 px-2 font-medium" style={{ color: colors.brown }}>
-                          {totalHrs > 0 ? totalHrs.toFixed(1) : '—'}
+                        <td className="text-right py-2 px-2 font-medium" style={{ color: isMissedClockOut ? colors.red : colors.brown }}>
+                          {totalHrs > 0
+                            ? totalHrs.toFixed(1)
+                            : isMissedClockOut
+                              ? `${Math.floor(elapsedHrs)}h ${Math.round((elapsedHrs % 1) * 60)}m`
+                              : '—'
+                          }
                         </td>
                         <td className="text-right py-2 px-2" style={{ color: colors.brownLight }}>
                           {breakHrs > 0 ? breakHrs.toFixed(1) : '—'}
                         </td>
                         <td className="py-2 px-2 text-right">
                           {isOwnEntry && (
-                            <Button variant="ghost" size="sm" onClick={() => openEditRequest(e)}
-                              className="h-7 w-7 p-0" title="Request edit"
-                              style={{ color: colors.brownLight }}>
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </Button>
+                            isMissedClockOut
+                              ? <Button size="sm" onClick={() => openEditRequest(e)}
+                                  className="h-7 gap-1 text-xs px-2"
+                                  style={{ backgroundColor: colors.red, color: '#fff' }}>
+                                  <Edit2 className="w-3 h-3" /> Fix
+                                </Button>
+                              : <Button variant="ghost" size="sm" onClick={() => openEditRequest(e)}
+                                  className="h-7 w-7 p-0" title="Request edit"
+                                  style={{ color: colors.brownLight }}>
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </Button>
                           )}
                         </td>
                       </tr>
