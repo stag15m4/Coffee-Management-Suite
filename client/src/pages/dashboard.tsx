@@ -6,6 +6,7 @@ import { RefreshCw, Users, Building2, AlertTriangle } from 'lucide-react';
 import { StoreCard } from '@/components/dashboard/StoreCard';
 import { MyDashboardCard } from '@/components/dashboard/MyDashboardCard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
+import { SetupWizard } from '@/components/dashboard/SetupWizard';
 import { useAllStoreMetrics } from '@/hooks/use-store-metrics';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -90,6 +91,9 @@ function ManagerOwnerDashboard() {
             Refresh
           </Button>
         </div>
+
+        {/* Setup wizard for new tenants */}
+        <SetupWizard />
 
         {/* Owner: Multi-location summary */}
         {isOwner && ownerAggregates && (
