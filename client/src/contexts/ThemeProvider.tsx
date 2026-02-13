@@ -152,12 +152,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const vt = vertical.theme;
       if (vt.primaryColor) {
         result.primary = vt.primaryColor;
-        result.primaryLight = lighten(vt.primaryColor);
+        result.primaryLight = lighten(vt.primaryColor, 0.82);
         result.primaryDark = darken(vt.primaryColor);
       }
       if (vt.secondaryColor) {
         result.secondary = vt.secondaryColor;
-        result.secondaryLight = lighten(vt.secondaryColor);
+        result.secondaryLight = lighten(vt.secondaryColor, 0.82);
       }
       if (vt.accentColor) {
         result.accent = vt.accentColor;
@@ -172,12 +172,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (branding) {
       if (branding.primary_color) {
         result.primary = branding.primary_color;
-        result.primaryLight = lighten(branding.primary_color);
+        result.primaryLight = lighten(branding.primary_color, 0.82);
         result.primaryDark = darken(branding.primary_color);
       }
       if (branding.secondary_color) {
         result.secondary = branding.secondary_color;
-        result.secondaryLight = lighten(branding.secondary_color);
+        result.secondaryLight = lighten(branding.secondary_color, 0.82);
       }
       if (branding.accent_color) {
         result.accent = branding.accent_color;

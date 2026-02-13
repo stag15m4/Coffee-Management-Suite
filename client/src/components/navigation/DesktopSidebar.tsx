@@ -291,9 +291,8 @@ function SidebarNavItem({ item, currentPath }: { item: NavItem; currentPath: str
               isOnPage ? 'font-medium' : 'hover:opacity-80'
             }`}
             style={{
-              color: isOnPage ? 'var(--color-primary)' : 'var(--color-secondary)',
-              backgroundColor: isOnPage ? 'var(--color-primary-light)' : undefined,
-              borderLeft: isOnPage ? '3px solid var(--color-primary)' : '3px solid transparent',
+              color: isOnPage ? 'white' : 'var(--color-secondary)',
+              backgroundColor: isOnPage ? 'var(--color-primary)' : undefined,
             }}
           >
             <item.icon className="w-4 h-4 flex-shrink-0" />
@@ -322,8 +321,8 @@ function SidebarNavItem({ item, currentPath }: { item: NavItem; currentPath: str
                     isActiveTab ? 'font-medium' : 'hover:opacity-80'
                   }`}
                   style={{
-                    color: isActiveTab ? 'var(--color-primary)' : 'var(--color-secondary-light)',
-                    backgroundColor: isActiveTab ? 'var(--color-primary-light)' : undefined,
+                    color: isActiveTab ? 'white' : 'var(--color-secondary-light)',
+                    backgroundColor: isActiveTab ? 'var(--color-primary)' : undefined,
                   }}
                 >
                   {tab.label}
@@ -363,15 +362,14 @@ function SidebarLink({
           isActive ? 'font-medium' : 'hover:opacity-80'
         }`}
         style={{
-          color: isActive ? 'var(--color-primary)' : 'var(--color-secondary)',
-          backgroundColor: isActive ? 'var(--color-primary-light)' : undefined,
-          borderLeft: isActive ? '3px solid var(--color-primary)' : '3px solid transparent',
+          color: isActive ? 'white' : 'var(--color-secondary)',
+          backgroundColor: isActive ? 'var(--color-primary)' : undefined,
         }}
         onClick={onClick}
       >
         <Icon
           className="w-4 h-4 flex-shrink-0"
-          style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-secondary-light)' }}
+          style={{ color: isActive ? 'white' : 'var(--color-secondary-light)' }}
         />
         <span className="truncate">{label}</span>
         {badge && (

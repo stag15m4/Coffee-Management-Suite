@@ -5,7 +5,7 @@
 export const colors = {
   // Core brand
   gold: '#C9A227',
-  goldLight: '#D4B23A',
+  goldLight: '#F5EDD0',
   goldDark: '#B8941F',
 
   // Browns
