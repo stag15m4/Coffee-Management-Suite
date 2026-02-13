@@ -4,6 +4,9 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { VerticalProvider } from "@/contexts/VerticalContext";
+import { ThemeProvider } from "@/contexts/ThemeProvider";
+import { NavigationProvider } from "@/components/navigation/NavigationProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import { FeedbackButton } from "@/components/FeedbackButton";
@@ -167,13 +170,19 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <AppResumeIndicator />
-          <Toaster />
-          <Router />
-          <CommandPalette />
-          <WhatsNew />
-          <Spotlight />
-          <AuthenticatedFeedbackButton />
+          <VerticalProvider>
+            <ThemeProvider>
+              <NavigationProvider>
+                <AppResumeIndicator />
+                <Toaster />
+                <Router />
+                <CommandPalette />
+                <WhatsNew />
+                <Spotlight />
+                <AuthenticatedFeedbackButton />
+              </NavigationProvider>
+            </ThemeProvider>
+          </VerticalProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
