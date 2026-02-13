@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase-queries';
+import { useVertical } from '@/contexts/VerticalContext';
+import { supabase, queryKeys } from '@/lib/supabase-queries';
 import { Button } from '@/components/ui/button';
 import {
   Users,
@@ -12,6 +13,8 @@ import {
   Check,
   X,
   Target,
+  Loader2,
+  Download,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -61,8 +64,10 @@ interface SetupProgress {
 
 export function SetupWizard() {
   const { tenant, hasRole } = useAuth();
+  const { vertical } = useVertical();
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   // Fetch stored setup_progress from tenant
   const { data: setupProgress } = useQuery<SetupProgress>({
@@ -149,6 +154,44 @@ export function SetupWizard() {
     await updateProgress({ dismissed: true });
   }
 
+  async function loadStarterData(templateType: 'ingredient' | 'recipe') {
+    if (!tenant?.id || !vertical?.id) return;
+    setLoadingTemplates(true);
+    try {
+      const { data: templates } = await supabase
+        .from('vertical_templates')
+        .select('name, data')
+        .eq('vertical_id', vertical.id)
+        .eq('template_type', templateType)
+        .eq('is_active', true)
+        .order('sort_order');
+
+      if (!templates || templates.length === 0) return;
+
+      if (templateType === 'ingredient') {
+        const rows = templates.map((t) => {
+          const d = t.data as Record<string, any>;
+          return {
+            name: d.name || t.name,
+            unit: d.unit || 'each',
+            cost: d.typical_cost ?? 0,
+            quantity: d.typical_quantity ?? 1,
+            ingredient_type: d.category === 'Supplies' ? 'Supply' : 'FOH Ingredient',
+            tenant_id: tenant.id,
+          };
+        });
+        await supabase.from('ingredients').insert(rows);
+        queryClient.invalidateQueries({ queryKey: queryKeys.ingredients });
+      }
+
+      // Auto-detect will pick up the new data
+      queryClient.invalidateQueries({ queryKey: ['tenant-setup-auto', tenant.id] });
+      await markStepComplete(templateType === 'ingredient' ? 'ingredients' : 'recipe');
+    } finally {
+      setLoadingTemplates(false);
+    }
+  }
+
   // Only show for owners
   if (!hasRole('owner')) return null;
   // Hide if dismissed or all done or still loading
@@ -232,6 +275,21 @@ export function SetupWizard() {
                     {step.description}
                   </p>
                   <div className="flex items-center gap-2">
+                    {step.id === 'ingredients' && vertical?.id && (
+                      <Button
+                        size="sm"
+                        onClick={() => loadStarterData('ingredient')}
+                        disabled={loadingTemplates}
+                        style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
+                      >
+                        {loadingTemplates ? (
+                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5 mr-1.5" />
+                        )}
+                        Load starter items
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
