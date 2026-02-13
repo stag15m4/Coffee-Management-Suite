@@ -42,12 +42,7 @@ function HomePage() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <CoffeeLoader fullScreen progressiveTexts={[
-      "What can I get started for you?",
-      "Grinding fresh beans...",
-      "Brewing a fresh pot...",
-      "Almost ready...",
-    ]} />;
+    return <CoffeeLoader fullScreen />;
   }
 
   if (!user) {

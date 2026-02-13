@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@supabase/supabase-js';
+import { useAuth } from '@/contexts/AuthContext';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -42,12 +43,13 @@ export function useIngredientCategories() {
 }
 
 export function useIngredients() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.ingredients,
+    queryKey: [...queryKeys.ingredients, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('v_ingredients')
-        .select('*');
+      let query = supabase.from('v_ingredients').select('*');
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -71,15 +73,18 @@ export function useProductCategories() {
 }
 
 export function useBaseTemplates() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.baseTemplates,
+    queryKey: [...queryKeys.baseTemplates, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('base_templates')
         .select(`
           *,
           base_template_ingredients(*)
         `);
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query;
       if (error) throw error;
       return (data || []).map((b: any) => ({
         ...b,
@@ -91,13 +96,13 @@ export function useBaseTemplates() {
 }
 
 export function useDrinkSizes() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.drinkSizes,
+    queryKey: [...queryKeys.drinkSizes, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('drink_sizes')
-        .select('*')
-        .order('display_order');
+      let query = supabase.from('drink_sizes').select('*');
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query.order('display_order');
       if (error) throw error;
       return data || [];
     },
@@ -106,10 +111,11 @@ export function useDrinkSizes() {
 }
 
 export function useRecipes() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.recipes,
+    queryKey: [...queryKeys.recipes, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('recipes')
         .select(`
           *,
@@ -119,6 +125,8 @@ export function useRecipes() {
           recipe_ingredients!recipe_ingredients_recipe_id_fkey(*)
         `)
         .eq('is_active', true);
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query;
       if (error) throw error;
       return (data || []).map((r: any) => ({
         ...r,
@@ -146,14 +154,13 @@ export function useProducts() {
 }
 
 export function useOverhead() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.overhead,
+    queryKey: [...queryKeys.overhead, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('overhead_settings')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
+      let query = supabase.from('overhead_settings').select('*');
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query.limit(1).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -162,12 +169,13 @@ export function useOverhead() {
 }
 
 export function useRecipePricing() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.recipePricing,
+    queryKey: [...queryKeys.recipePricing, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('recipe_size_pricing')
-        .select('*');
+      let query = supabase.from('recipe_size_pricing').select('*');
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -176,12 +184,13 @@ export function useRecipePricing() {
 }
 
 export function useRecipeSizeBases() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.recipeSizeBases,
+    queryKey: [...queryKeys.recipeSizeBases, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('recipe_size_bases')
-        .select('*');
+      let query = supabase.from('recipe_size_bases').select('*');
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -261,13 +270,13 @@ export function useUpdateOverhead() {
 }
 
 export function useOverheadItems() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.overheadItems,
+    queryKey: [...queryKeys.overheadItems, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('overhead_items')
-        .select('*')
-        .order('sort_order');
+      let query = supabase.from('overhead_items').select('*');
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query.order('sort_order');
       if (error) throw error;
       return data || [];
     },
@@ -276,14 +285,16 @@ export function useOverheadItems() {
 }
 
 export function useCashActivityRevenue() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.cashActivity,
+    queryKey: [...queryKeys.cashActivity, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('cash_activity')
         .select('drawer_date, gross_revenue, excluded_from_average')
-        .or('archived.is.null,archived.eq.false')
-        .order('drawer_date', { ascending: false });
+        .or('archived.is.null,archived.eq.false');
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query.order('drawer_date', { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -303,13 +314,13 @@ export interface RecipeVendor {
 }
 
 export function useRecipeVendors() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.recipeVendors,
+    queryKey: [...queryKeys.recipeVendors, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('recipe_vendors')
-        .select('*')
-        .order('name');
+      let query = supabase.from('recipe_vendors').select('*');
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query.order('name');
       if (error) throw error;
       return (data || []) as RecipeVendor[];
     },
