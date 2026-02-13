@@ -8,10 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Building2, 
-  Plus, 
-  LogOut, 
+import {
+  Building2,
+  Plus,
+  LogOut,
   Key,
   Loader2,
   Copy,
@@ -21,7 +21,11 @@ import {
   Users,
   Package,
   RefreshCw,
-  LayoutDashboard
+  LayoutDashboard,
+  Percent,
+  Store,
+  Globe,
+  TrendingUp
 } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import {
@@ -55,6 +59,7 @@ interface Reseller {
   stripe_customer_id: string | null;
   notes: string | null;
   is_active: boolean;
+  revenue_share_percent: number;
   created_at: string;
   updated_at: string;
 }
@@ -64,12 +69,31 @@ interface LicenseCode {
   code: string;
   reseller_id: string;
   tenant_id: string | null;
+  vertical_id: string | null;
   subscription_plan: string;
   redeemed_at: string | null;
   expires_at: string | null;
   created_at: string;
   tenant_name?: string;
   reseller_name?: string;
+  vertical_name?: string;
+}
+
+interface ResellerVertical {
+  id: string;
+  slug: string;
+  product_name: string;
+  display_name: string;
+  is_published: boolean;
+  tenant_count: number;
+  created_at: string;
+}
+
+interface ReferredTenant {
+  id: string;
+  name: string;
+  created_at: string;
+  vertical_name: string | null;
 }
 
 export default function ResellerManagement() {
@@ -81,6 +105,9 @@ export default function ResellerManagement() {
   const [resellers, setResellers] = useState<Reseller[]>([]);
   const [selectedReseller, setSelectedReseller] = useState<Reseller | null>(null);
   const [licenseCodes, setLicenseCodes] = useState<LicenseCode[]>([]);
+  const [resellerVerticals, setResellerVerticals] = useState<ResellerVertical[]>([]);
+  const [referredTenants, setReferredTenants] = useState<ReferredTenant[]>([]);
+  const [allVerticals, setAllVerticals] = useState<ResellerVertical[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'detail'>('list');
 
@@ -96,6 +123,7 @@ export default function ResellerManagement() {
     phone: '',
     companyAddress: '',
     seatsTotal: 0,
+    revenueSharePercent: 0,
     notes: '',
     isActive: true,
   });
@@ -104,6 +132,7 @@ export default function ResellerManagement() {
     count: 1,
     subscriptionPlan: 'premium',
     expiresAt: '',
+    verticalId: '',
   });
 
   useEffect(() => {
@@ -146,16 +175,30 @@ export default function ResellerManagement() {
     }
   };
 
+  const loadAllVerticals = async () => {
+    try {
+      const response = await fetch('/api/verticals', { headers: getAuthHeaders() });
+      if (response.ok) {
+        setAllVerticals(await response.json());
+      }
+    } catch {
+      // Non-critical — vertical picker just won't have options
+    }
+  };
+
   const loadResellerDetail = async (id: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/resellers/${id}`, {
-        headers: getAuthHeaders(),
-      });
-      if (response.ok) {
-        const data = await response.json();
+      const [resellerRes] = await Promise.all([
+        fetch(`/api/resellers/${id}`, { headers: getAuthHeaders() }),
+        loadAllVerticals(),
+      ]);
+      if (resellerRes.ok) {
+        const data = await resellerRes.json();
         setSelectedReseller(data);
         setLicenseCodes(data.licenseCodes || []);
+        setResellerVerticals(data.verticals || []);
+        setReferredTenants(data.referredTenants || []);
         setView('detail');
       }
     } catch (error) {
@@ -266,6 +309,7 @@ export default function ResellerManagement() {
           count: generateForm.count,
           subscriptionPlan: generateForm.subscriptionPlan,
           expiresAt: generateForm.expiresAt || null,
+          verticalId: generateForm.verticalId || null,
         }),
       });
 
@@ -276,7 +320,7 @@ export default function ResellerManagement() {
           description: `Generated ${codes.length} license code(s)` 
         });
         setShowGenerateCodesDialog(false);
-        setGenerateForm({ count: 1, subscriptionPlan: 'premium', expiresAt: '' });
+        setGenerateForm({ count: 1, subscriptionPlan: 'premium', expiresAt: '', verticalId: '' });
         loadResellerDetail(selectedReseller.id);
       } else {
         const error = await response.json();
@@ -330,6 +374,7 @@ export default function ResellerManagement() {
       phone: '',
       companyAddress: '',
       seatsTotal: 0,
+      revenueSharePercent: 0,
       notes: '',
       isActive: true,
     });
@@ -343,6 +388,7 @@ export default function ResellerManagement() {
       phone: reseller.phone || '',
       companyAddress: reseller.company_address || '',
       seatsTotal: reseller.seats_total,
+      revenueSharePercent: reseller.revenue_share_percent || 0,
       notes: reseller.notes || '',
       isActive: reseller.is_active,
     });
@@ -477,7 +523,7 @@ export default function ResellerManagement() {
           </>
         ) : selectedReseller && (
           <>
-            <div className="grid md:grid-cols-3 gap-6 mb-6">
+            <div className="grid md:grid-cols-4 gap-6 mb-6">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Total Seats</CardTitle>
@@ -501,6 +547,16 @@ export default function ResellerManagement() {
                 <CardContent>
                   <div className="text-3xl font-bold text-green-600">
                     {selectedReseller.seats_total - selectedReseller.seats_used}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Revenue Share</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold" style={{ color: colors.gold }}>
+                    {selectedReseller.revenue_share_percent || 0}%
                   </div>
                 </CardContent>
               </Card>
@@ -598,6 +654,12 @@ export default function ResellerManagement() {
                             </Button>
                           </div>
                           <div className="flex items-center gap-2">
+                            {code.vertical_name && (
+                              <Badge variant="outline" className="text-xs">
+                                <Store className="w-3 h-3 mr-1" />
+                                {code.vertical_name}
+                              </Badge>
+                            )}
                             {code.redeemed_at ? (
                               <Badge variant="secondary">
                                 Redeemed: {code.tenant_name || 'Unknown'}
@@ -607,9 +669,9 @@ export default function ResellerManagement() {
                                 <Badge variant="outline" className="bg-green-100 text-green-800">
                                   Available
                                 </Badge>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   className="h-6 w-6"
                                   onClick={() => handleDeleteLicenseCode(code.id)}
                                   data-testid={`button-delete-code-${code.id}`}
@@ -619,6 +681,81 @@ export default function ResellerManagement() {
                               </>
                             )}
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Custom Verticals */}
+            <div className="grid md:grid-cols-2 gap-6 mb-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+                  <CardTitle className="flex items-center gap-2">
+                    <Globe className="w-4 h-4" />
+                    Custom Verticals
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {resellerVerticals.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">
+                      No custom verticals yet. Verticals created for this reseller will appear here.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {resellerVerticals.map((v) => (
+                        <div key={v.id} className="flex items-center justify-between p-3 bg-muted rounded-md">
+                          <div>
+                            <p className="font-medium">{v.display_name}</p>
+                            <p className="text-xs text-muted-foreground">{v.product_name} &middot; /{v.slug}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              <Users className="w-3 h-3 mr-1" />
+                              {v.tenant_count} tenants
+                            </Badge>
+                            <Badge variant={v.is_published ? 'default' : 'secondary'}>
+                              {v.is_published ? 'Published' : 'Draft'}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Referred Tenants */}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4" />
+                    Referred Tenants
+                  </CardTitle>
+                  <Badge variant="outline">{referredTenants.length} total</Badge>
+                </CardHeader>
+                <CardContent>
+                  {referredTenants.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">
+                      No tenants have redeemed codes from this reseller yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {referredTenants.map((t) => (
+                        <div key={t.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                          <div>
+                            <p className="font-medium text-sm">{t.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Joined {new Date(t.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          {t.vertical_name && (
+                            <Badge variant="outline" className="text-xs">
+                              {t.vertical_name}
+                            </Badge>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -689,6 +826,19 @@ export default function ResellerManagement() {
                 value={resellerForm.seatsTotal}
                 onChange={(e) => setResellerForm({ ...resellerForm, seatsTotal: parseInt(e.target.value) || 0 })}
                 data-testid="input-reseller-seats"
+              />
+            </div>
+            <div>
+              <Label htmlFor="revenueShare">Revenue Share %</Label>
+              <Input
+                id="revenueShare"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={resellerForm.revenueSharePercent}
+                onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
+                data-testid="input-reseller-revenue-share"
               />
             </div>
             <div>
@@ -777,6 +927,19 @@ export default function ResellerManagement() {
               />
             </div>
             <div>
+              <Label htmlFor="edit-revenueShare">Revenue Share %</Label>
+              <Input
+                id="edit-revenueShare"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={resellerForm.revenueSharePercent}
+                onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
+                data-testid="input-edit-reseller-revenue-share"
+              />
+            </div>
+            <div>
               <Label htmlFor="edit-notes">Notes</Label>
               <Textarea
                 id="edit-notes"
@@ -838,6 +1001,26 @@ export default function ResellerManagement() {
                   <SelectItem value="alacarte">À La Carte (Individual Modules)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label htmlFor="vertical">Vertical (Optional)</Label>
+              <Select
+                value={generateForm.verticalId}
+                onValueChange={(value) => setGenerateForm({ ...generateForm, verticalId: value === 'none' ? '' : value })}
+              >
+                <SelectTrigger data-testid="select-vertical">
+                  <SelectValue placeholder="Any vertical" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Any vertical</SelectItem>
+                  {allVerticals.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>{v.display_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                If set, redeemed tenants will auto-assign to this vertical.
+              </p>
             </div>
             <div>
               <Label htmlFor="expires">Expiration Date (Optional)</Label>

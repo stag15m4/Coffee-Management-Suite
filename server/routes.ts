@@ -668,16 +668,34 @@ export async function registerRoutes(
       }
       
       const licenseCodes = await db.execute(sql`
-        SELECT lc.*, t.name as tenant_name
+        SELECT lc.*, t.name as tenant_name, v.display_name as vertical_name
         FROM license_codes lc
         LEFT JOIN tenants t ON lc.tenant_id = t.id
+        LEFT JOIN verticals v ON lc.vertical_id = v.id
         WHERE lc.reseller_id = ${req.params.id}
         ORDER BY lc.created_at DESC
       `);
-      
-      res.json({ 
-        ...reseller.rows[0], 
-        licenseCodes: licenseCodes.rows 
+
+      const verticals = await db.execute(sql`
+        SELECT v.*, (SELECT COUNT(*) FROM tenants t WHERE t.vertical_id = v.id) as tenant_count
+        FROM verticals v
+        WHERE v.reseller_id = ${req.params.id}
+        ORDER BY v.created_at DESC
+      `);
+
+      const referredTenants = await db.execute(sql`
+        SELECT t.id, t.name, t.created_at, v.display_name as vertical_name
+        FROM tenants t
+        LEFT JOIN verticals v ON t.vertical_id = v.id
+        WHERE t.reseller_id = ${req.params.id}
+        ORDER BY t.created_at DESC
+      `);
+
+      res.json({
+        ...reseller.rows[0],
+        licenseCodes: licenseCodes.rows,
+        verticals: verticals.rows,
+        referredTenants: referredTenants.rows,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -687,11 +705,11 @@ export async function registerRoutes(
   // Create reseller (platform admin only)
   app.post('/api/resellers', requirePlatformAdmin, async (req, res) => {
     try {
-      const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, notes } = req.body;
-      
+      const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, revenueSharePercent, notes } = req.body;
+
       const result = await db.execute(sql`
-        INSERT INTO resellers (name, contact_email, contact_name, phone, company_address, seats_total, notes)
-        VALUES (${name}, ${contactEmail}, ${contactName}, ${phone}, ${companyAddress}, ${seatsTotal || 0}, ${notes})
+        INSERT INTO resellers (name, contact_email, contact_name, phone, company_address, seats_total, revenue_share_percent, notes)
+        VALUES (${name}, ${contactEmail}, ${contactName}, ${phone}, ${companyAddress}, ${seatsTotal || 0}, ${revenueSharePercent || 0}, ${notes})
         RETURNING *
       `);
       
@@ -704,16 +722,17 @@ export async function registerRoutes(
   // Update reseller (platform admin only)
   app.put('/api/resellers/:id', requirePlatformAdmin, async (req, res) => {
     try {
-      const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, notes, isActive } = req.body;
-      
+      const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, revenueSharePercent, notes, isActive } = req.body;
+
       const result = await db.execute(sql`
-        UPDATE resellers 
-        SET name = ${name}, 
-            contact_email = ${contactEmail}, 
+        UPDATE resellers
+        SET name = ${name},
+            contact_email = ${contactEmail},
             contact_name = ${contactName},
             phone = ${phone},
             company_address = ${companyAddress},
             seats_total = ${seatsTotal},
+            revenue_share_percent = ${revenueSharePercent || 0},
             notes = ${notes},
             is_active = ${isActive},
             updated_at = NOW()
@@ -744,7 +763,7 @@ export async function registerRoutes(
   // Generate license codes for a reseller (platform admin only)
   app.post('/api/resellers/:id/generate-codes', requirePlatformAdmin, async (req, res) => {
     try {
-      const { count = 1, subscriptionPlan = 'premium', expiresAt } = req.body;
+      const { count = 1, subscriptionPlan = 'premium', expiresAt, verticalId } = req.body;
       const resellerId = req.params.id;
       
       // Check reseller exists and has available seats
@@ -779,8 +798,8 @@ export async function registerRoutes(
         const code = (codeResult.rows[0] as any).code;
         
         const result = await db.execute(sql`
-          INSERT INTO license_codes (code, reseller_id, subscription_plan, expires_at)
-          VALUES (${code}, ${resellerId}, ${subscriptionPlan}, ${expiresAt || null})
+          INSERT INTO license_codes (code, reseller_id, subscription_plan, expires_at, vertical_id)
+          VALUES (${code}, ${resellerId}, ${subscriptionPlan}, ${expiresAt || null}, ${verticalId || null})
           RETURNING *
         `);
         codes.push(result.rows[0]);
@@ -798,25 +817,28 @@ export async function registerRoutes(
       const code = req.params.code.toUpperCase().replace(/-/g, '');
       
       const result = await db.execute(sql`
-        SELECT lc.*, r.name as reseller_name
+        SELECT lc.*, r.name as reseller_name, v.display_name as vertical_name, v.slug as vertical_slug
         FROM license_codes lc
         JOIN resellers r ON lc.reseller_id = r.id
+        LEFT JOIN verticals v ON lc.vertical_id = v.id
         WHERE REPLACE(lc.code, '-', '') = ${code}
         AND lc.redeemed_at IS NULL
         AND (lc.expires_at IS NULL OR lc.expires_at > NOW())
         AND r.is_active = true
       `);
-      
+
       if (!result.rows.length) {
         return res.status(404).json({ valid: false, error: 'Invalid or expired license code' });
       }
-      
+
       const license = result.rows[0] as any;
-      res.json({ 
-        valid: true, 
+      res.json({
+        valid: true,
         code: license.code,
         subscriptionPlan: license.subscription_plan,
-        resellerName: license.reseller_name
+        resellerName: license.reseller_name,
+        verticalName: license.vertical_name,
+        verticalSlug: license.vertical_slug,
       });
     } catch (error: any) {
       res.status(500).json({ valid: false, error: error.message });
@@ -901,6 +923,187 @@ export async function registerRoutes(
       }
       
       res.status(204).end();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =====================================================
+  // VERTICAL MANAGEMENT ROUTES (Platform Admin Only)
+  // =====================================================
+
+  // Get all verticals (public for landing pages, full list for admins)
+  app.get('/api/verticals', async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT v.*, r.name as reseller_name
+        FROM verticals v
+        LEFT JOIN resellers r ON v.reseller_id = r.id
+        ORDER BY v.is_system DESC, v.created_at ASC
+      `);
+      res.json(result.rows);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get verticals for a specific reseller
+  app.get('/api/resellers/:id/verticals', requirePlatformAdmin, async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT * FROM verticals
+        WHERE reseller_id = ${req.params.id}
+        ORDER BY created_at DESC
+      `);
+      res.json(result.rows);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a vertical (platform admin, optionally for a reseller)
+  app.post('/api/verticals', requirePlatformAdmin, async (req, res) => {
+    try {
+      const {
+        slug, productName, displayName, resellerId,
+        theme, terms, workflows, suggestedModules,
+        landingContent, domains, isPublished
+      } = req.body;
+
+      if (!slug || !productName || !displayName) {
+        return res.status(400).json({ error: 'slug, productName, and displayName are required' });
+      }
+
+      const result = await db.execute(sql`
+        INSERT INTO verticals (
+          slug, product_name, display_name, reseller_id, is_system,
+          theme, terms, workflows, suggested_modules,
+          landing_content, domains, is_published
+        ) VALUES (
+          ${slug}, ${productName}, ${displayName}, ${resellerId || null}, ${!resellerId},
+          ${JSON.stringify(theme || {})}::jsonb,
+          ${JSON.stringify(terms || {})}::jsonb,
+          ${JSON.stringify(workflows || {})}::jsonb,
+          ${suggestedModules || []}::text[],
+          ${JSON.stringify(landingContent || {})}::jsonb,
+          ${domains || []}::text[],
+          ${isPublished ?? false}
+        )
+        RETURNING *
+      `);
+
+      res.status(201).json(result.rows[0]);
+    } catch (error: any) {
+      if (error.message?.includes('unique')) {
+        return res.status(409).json({ error: 'A vertical with that slug already exists' });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update a vertical
+  app.put('/api/verticals/:id', requirePlatformAdmin, async (req, res) => {
+    try {
+      const {
+        slug, productName, displayName,
+        theme, terms, workflows, suggestedModules,
+        landingContent, domains, isPublished
+      } = req.body;
+
+      const result = await db.execute(sql`
+        UPDATE verticals SET
+          slug = COALESCE(${slug}, slug),
+          product_name = COALESCE(${productName}, product_name),
+          display_name = COALESCE(${displayName}, display_name),
+          theme = COALESCE(${theme ? JSON.stringify(theme) : null}::jsonb, theme),
+          terms = COALESCE(${terms ? JSON.stringify(terms) : null}::jsonb, terms),
+          workflows = COALESCE(${workflows ? JSON.stringify(workflows) : null}::jsonb, workflows),
+          suggested_modules = COALESCE(${suggestedModules}::text[], suggested_modules),
+          landing_content = COALESCE(${landingContent ? JSON.stringify(landingContent) : null}::jsonb, landing_content),
+          domains = COALESCE(${domains}::text[], domains),
+          is_published = COALESCE(${isPublished}, is_published),
+          updated_at = NOW()
+        WHERE id = ${req.params.id}
+        RETURNING *
+      `);
+
+      if (!result.rows.length) {
+        return res.status(404).json({ error: 'Vertical not found' });
+      }
+
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete a vertical (only non-system verticals with no tenants)
+  app.delete('/api/verticals/:id', requirePlatformAdmin, async (req, res) => {
+    try {
+      // Check for active tenants
+      const tenantCheck = await db.execute(sql`
+        SELECT COUNT(*) as count FROM tenants WHERE vertical_id = ${req.params.id}
+      `);
+      if (parseInt((tenantCheck.rows[0] as any).count) > 0) {
+        return res.status(400).json({ error: 'Cannot delete vertical with active tenants' });
+      }
+
+      const result = await db.execute(sql`
+        DELETE FROM verticals WHERE id = ${req.params.id} AND is_system = false
+        RETURNING *
+      `);
+
+      if (!result.rows.length) {
+        return res.status(400).json({ error: 'Cannot delete system verticals' });
+      }
+
+      res.status(204).end();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Reseller analytics — signups, active tenants, revenue per vertical
+  app.get('/api/resellers/:id/analytics', requirePlatformAdmin, async (req, res) => {
+    try {
+      const resellerId = req.params.id;
+
+      // Total tenants via this reseller
+      const tenants = await db.execute(sql`
+        SELECT t.id, t.name, t.created_at, v.display_name as vertical_name,
+               lc.subscription_plan
+        FROM tenants t
+        LEFT JOIN verticals v ON t.vertical_id = v.id
+        LEFT JOIN license_codes lc ON t.license_code_id = lc.id
+        WHERE t.reseller_id = ${resellerId}
+        ORDER BY t.created_at DESC
+      `);
+
+      // Revenue share info
+      const reseller = await db.execute(sql`
+        SELECT revenue_share_percent, seats_total, seats_used
+        FROM resellers WHERE id = ${resellerId}
+      `);
+
+      // Verticals created by this reseller
+      const verticals = await db.execute(sql`
+        SELECT v.id, v.slug, v.display_name, v.is_published,
+               (SELECT COUNT(*) FROM tenants t WHERE t.vertical_id = v.id) as tenant_count
+        FROM verticals v
+        WHERE v.reseller_id = ${resellerId}
+        ORDER BY v.created_at DESC
+      `);
+
+      const resellerData = reseller.rows[0] as any;
+
+      res.json({
+        tenants: tenants.rows,
+        totalTenants: tenants.rows.length,
+        verticals: verticals.rows,
+        revenueSharePercent: parseFloat(resellerData?.revenue_share_percent || '0'),
+        seatsTotal: resellerData?.seats_total || 0,
+        seatsUsed: resellerData?.seats_used || 0,
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
