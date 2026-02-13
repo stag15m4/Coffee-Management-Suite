@@ -30,6 +30,12 @@ export interface VerticalConfig {
   terms: Record<string, VerticalTerm>;
   workflows: Record<string, boolean>;
   suggestedModules: string[];
+  landingContent: {
+    headline?: string;
+    subheadline?: string;
+    heroImage?: string | null;
+    ctaText?: string;
+  };
 }
 
 export interface VerticalContextType {
@@ -81,6 +87,7 @@ function parseVerticalRow(row: any): VerticalConfig {
     terms: row.terms ?? {},
     workflows: row.workflows ?? {},
     suggestedModules: row.suggested_modules ?? row.suggestedModules ?? [],
+    landingContent: row.landing_content ?? row.landingContent ?? {},
   };
 }
 
