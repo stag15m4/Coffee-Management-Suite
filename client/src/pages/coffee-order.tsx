@@ -826,7 +826,7 @@ export default function CoffeeOrder() {
   }, {} as Record<string, CoffeeProduct[]>);
 
   if (loading) {
-    return <CoffeeLoader fullScreen text="Brewing..." />;
+    return <CoffeeLoader fullScreen text="Loading..." />;
   }
 
   const hasProducts = products.length > 0;

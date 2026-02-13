@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { useNavigation, type NavItem } from './NavigationProvider';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeProvider';
@@ -15,6 +15,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 
 export function DesktopSidebar({ className }: { className?: string }) {
   const [location, setLocation] = useLocation();
+  const searchString = useSearch(); // Track search params so sidebar re-renders on tab change
   const { primaryItems, settingsItems, utilityItems, adminItems } = useNavigation();
   const {
     profile,
@@ -139,7 +140,7 @@ export function DesktopSidebar({ className }: { className?: string }) {
       {/* ---- Primary nav (scrollable) ---- */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
         {primaryItems.map((item) => (
-          <SidebarNavItem key={item.id} item={item} currentPath={location} />
+          <SidebarNavItem key={item.id} item={item} currentPath={location} searchString={searchString} />
         ))}
       </nav>
 
@@ -239,7 +240,7 @@ export function DesktopSidebar({ className }: { className?: string }) {
 // SidebarNavItem — handles expandable items with tabs
 // ---------------------------------------------------------------------------
 
-function SidebarNavItem({ item, currentPath }: { item: NavItem; currentPath: string }) {
+function SidebarNavItem({ item, currentPath, searchString }: { item: NavItem; currentPath: string; searchString: string }) {
   const isOnPage = currentPath === item.href;
   const hasTabs = item.tabs && item.tabs.length > 0;
   const [expanded, setExpanded] = useState(isOnPage);
@@ -276,9 +277,9 @@ function SidebarNavItem({ item, currentPath }: { item: NavItem; currentPath: str
     );
   }
 
-  // Expandable item with sub-tabs
+  // Expandable item with sub-tabs — use searchString from wouter for reactivity
   const activeTab = isOnPage
-    ? new URLSearchParams(window.location.search).get('tab') || item.tabs![0].id
+    ? new URLSearchParams(searchString).get('tab') || item.tabs![0].id
     : null;
 
   return (

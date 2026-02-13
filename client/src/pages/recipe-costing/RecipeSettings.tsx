@@ -50,7 +50,7 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
-              Minutes per Drink
+              Prep Minutes
             </label>
             {editing ? (
               <input
@@ -136,12 +136,12 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
         </div>
 
         <div className="mt-4 p-4 rounded-lg" style={{ backgroundColor: colors.cream }}>
-          <div className="text-sm" style={{ color: colors.brownLight }}>Overhead per Drink</div>
+          <div className="text-sm" style={{ color: colors.brownLight }}>Overhead per Item</div>
           <div className="text-3xl font-bold" style={{ color: colors.gold }}>
             {formatCurrency(overheadPerDrink)}
           </div>
           <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
-            Cost/min ({formatCurrency(costPerMinute)}) x Minutes/drink ({overhead?.minutes_per_drink || 1})
+            Cost/min ({formatCurrency(costPerMinute)}) x Prep min ({overhead?.minutes_per_drink || 1})
           </div>
         </div>
 

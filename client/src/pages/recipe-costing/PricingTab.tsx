@@ -344,7 +344,7 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, ov
           <tbody>
             {/* Drink Averages */}
             <tr style={{ backgroundColor: colors.creamDark }}>
-              <td className="px-4 py-2 font-semibold text-xs uppercase tracking-wider" style={{ color: colors.brown }}>Drinks</td>
+              <td className="px-4 py-2 font-semibold text-xs uppercase tracking-wider" style={{ color: colors.brown }}>Items</td>
               {standardDrinkSizes.map(size => (
                 <td key={size.id} className="px-4 py-2 text-right text-sm font-semibold" style={{ color: colors.brown }}>{size.name}</td>
               ))}

@@ -56,7 +56,7 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
 
   if (loading || retrying) {
     return <CoffeeLoader fullScreen progressiveTexts={[
-      "Brewing...",
+      "Loading...",
       "Grinding fresh beans...",
       "Making a fresh pot...",
       "Almost ready...",
@@ -108,7 +108,7 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
       );
     }
     return <CoffeeLoader fullScreen progressiveTexts={[
-      "Brewing...",
+      "Loading...",
       "Grinding fresh beans...",
       "Making a fresh pot...",
       "Almost ready...",

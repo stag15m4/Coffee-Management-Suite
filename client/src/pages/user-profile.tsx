@@ -370,7 +370,7 @@ export default function UserProfile() {
   }, [stream]);
 
   if (!profile) {
-    return <CoffeeLoader fullScreen text="Brewing..." />;
+    return <CoffeeLoader fullScreen text="Loading..." />;
   }
 
   return (

@@ -155,11 +155,11 @@ export default function OrganizationDashboard() {
 
   // Handle case where primaryTenant is not loaded yet
   if (!parentTenantId) {
-    return <CoffeeLoader fullScreen text="Brewing..." />;
+    return <CoffeeLoader fullScreen text="Loading..." />;
   }
 
   if (loading) {
-    return <CoffeeLoader fullScreen text="Brewing..." />;
+    return <CoffeeLoader fullScreen text="Loading..." />;
   }
 
   const childLocations = locations.filter(l => l.parent_tenant_id === parentTenantId);

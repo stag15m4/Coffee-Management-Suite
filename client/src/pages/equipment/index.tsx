@@ -777,7 +777,7 @@ export default function EquipmentMaintenance() {
         {isLoading ? (
           <Card style={{ backgroundColor: colors.white, borderColor: colors.gold }}>
             <CardContent className="p-8">
-              <CoffeeLoader text="Brewing..." />
+              <CoffeeLoader text="Loading..." />
             </CardContent>
           </Card>
         ) : activeTab === 'dashboard' ? (

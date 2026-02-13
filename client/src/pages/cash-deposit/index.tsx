@@ -539,7 +539,7 @@ export default function CashDeposit() {
   const diff = difference();
 
   if (loading) {
-    return <CoffeeLoader fullScreen text="Brewing..." />;
+    return <CoffeeLoader fullScreen text="Loading..." />;
   }
 
   const currentYear = new Date().getFullYear();

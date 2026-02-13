@@ -830,7 +830,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes
             <BookOpen className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
             <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>No recipes yet</h3>
             <p className="text-sm" style={{ color: colors.brownLight }}>
-              Add ingredients first, then create recipes to calculate your drink costs and margins.
+              Add ingredients first, then create recipes to calculate your costs and margins.
             </p>
           </div>
         )}

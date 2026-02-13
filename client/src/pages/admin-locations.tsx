@@ -334,7 +334,7 @@ export default function AdminLocations() {
 
         {loading ? (
           <div className="py-12">
-            <CoffeeLoader text="Brewing..." />
+            <CoffeeLoader text="Loading..." />
           </div>
         ) : locations.length === 0 ? (
           <Card style={{ backgroundColor: colors.white, borderStyle: 'dashed' }}>

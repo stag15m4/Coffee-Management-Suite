@@ -28,13 +28,13 @@ export const queryKeys = {
 };
 
 export function useIngredientCategories() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.ingredientCategories,
+    queryKey: [...queryKeys.ingredientCategories, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('ingredient_categories')
-        .select('*')
-        .order('display_order');
+      let query = supabase.from('ingredient_categories').select('*');
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query.order('display_order');
       if (error) throw error;
       return data || [];
     },
@@ -47,24 +47,31 @@ export function useIngredients() {
   return useQuery({
     queryKey: [...queryKeys.ingredients, tenant?.id],
     queryFn: async () => {
-      let query = supabase.from('v_ingredients').select('*');
+      // Query ingredients table directly (not v_ingredients view) so we can filter by tenant_id
+      let query = supabase
+        .from('ingredients')
+        .select('*, ingredient_categories(name)')
+        .eq('is_active', true);
       if (tenant?.id) query = query.eq('tenant_id', tenant.id);
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      return (data || []).map((row: any) => ({
+        ...row,
+        category_name: row.ingredient_categories?.name ?? null,
+      }));
     },
     staleTime: 30 * 1000,
   });
 }
 
 export function useProductCategories() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.productCategories,
+    queryKey: [...queryKeys.productCategories, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('product_categories')
-        .select('*')
-        .order('display_order');
+      let query = supabase.from('product_categories').select('*');
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query.order('display_order');
       if (error) throw error;
       return data || [];
     },
@@ -169,13 +176,11 @@ export function useOverhead() {
 }
 
 export function useRecipePricing() {
-  const { tenant } = useAuth();
   return useQuery({
-    queryKey: [...queryKeys.recipePricing, tenant?.id],
+    queryKey: queryKeys.recipePricing,
     queryFn: async () => {
-      let query = supabase.from('recipe_size_pricing').select('*');
-      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
-      const { data, error } = await query;
+      // recipe_size_pricing has no tenant_id column — tenant isolation via recipe_id + RLS
+      const { data, error } = await supabase.from('recipe_size_pricing').select('*');
       if (error) throw error;
       return data || [];
     },
@@ -184,13 +189,11 @@ export function useRecipePricing() {
 }
 
 export function useRecipeSizeBases() {
-  const { tenant } = useAuth();
   return useQuery({
-    queryKey: [...queryKeys.recipeSizeBases, tenant?.id],
+    queryKey: queryKeys.recipeSizeBases,
     queryFn: async () => {
-      let query = supabase.from('recipe_size_bases').select('*');
-      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
-      const { data, error } = await query;
+      // recipe_size_bases has no tenant_id column — tenant isolation via recipe_id + RLS
+      const { data, error } = await supabase.from('recipe_size_bases').select('*');
       if (error) throw error;
       return data || [];
     },

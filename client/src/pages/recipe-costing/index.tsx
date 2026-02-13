@@ -650,7 +650,7 @@ export default function RecipeCostingPage() {
   // ---------------------------------------------------------------------------
 
   if (loading) {
-    return <CoffeeLoader fullScreen text="Brewing..." />;
+    return <CoffeeLoader fullScreen />;
   }
 
   if (hasError) {
@@ -659,10 +659,10 @@ export default function RecipeCostingPage() {
         <div className="text-center p-8 rounded-lg max-w-md" style={{ backgroundColor: colors.white }}>
           <h2 className="text-xl font-bold mb-2" style={{ color: colors.brown }}>Connection Issue</h2>
           <p className="mb-4" style={{ color: colors.brownLight }}>
-            Unable to load Recipe Cost Manager data. This could be:
+            Unable to load Menu Cost Manager data. This could be:
           </p>
           <ul className="text-left mb-4 text-sm space-y-1" style={{ color: colors.brownLight }}>
-            <li>• Recipe Costing tables may not exist in database</li>
+            <li>• Menu costing tables may not exist in database</li>
             <li>• Network connectivity issue</li>
             <li>• Supabase project may need configuration</li>
           </ul>
@@ -688,7 +688,7 @@ export default function RecipeCostingPage() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold" style={{ color: colors.brown }}>
-              Recipe Cost Manager
+              Menu Cost Manager
             </h2>
             {isChildLocation && orgName && (
               <p className="text-sm" style={{ color: colors.brownLight }}>
@@ -722,6 +722,15 @@ export default function RecipeCostingPage() {
                 Recipes
               </TabButton>
             )}
+            <TabButton active={activeTab === 'vendors'} onClick={() => setActiveTab('vendors')}>
+              Vendors
+            </TabButton>
+            <TabButton active={activeTab === 'overhead'} onClick={() => setActiveTab('overhead')}>
+              Overhead
+            </TabButton>
+            <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')}>
+              Settings
+            </TabButton>
           </div>
         </div>
       </div>
@@ -766,6 +775,40 @@ export default function RecipeCostingPage() {
             onDeleteRecipe={handleDeleteRecipe}
             onAddBulkSize={handleAddBulkSize}
             onDeleteBulkSize={handleDeleteBulkSize}
+          />
+        )}
+        {activeTab === 'vendors' && (
+          <VendorsTab
+            ingredients={ingredients}
+            recipeVendors={recipeVendors}
+            tenantId={tenant?.id || ''}
+            onUpdateIngredientCost={handleUpdateIngredientCost}
+            onAddVendor={async (v) => { const result = await addVendorMutation.mutateAsync(v); return result; }}
+            onUpdateVendor={async (id, updates) => { const result = await updateVendorMutation.mutateAsync({ id, updates }); return result; }}
+            onDeleteVendor={async (id) => { await deleteVendorMutation.mutateAsync(id); }}
+          />
+        )}
+        {activeTab === 'overhead' && (
+          <OverheadTab
+            overhead={enhancedOverhead}
+            overheadItems={overheadItems as OverheadItem[]}
+            avgDailyRevenue={avgDailyRevenue}
+            cashDayCount={includedCashDays.length}
+            onAddOverheadItem={handleAddOverheadItem}
+            onUpdateOverheadItem={handleUpdateOverheadItem}
+            onDeleteOverheadItem={handleDeleteOverheadItem}
+          />
+        )}
+        {activeTab === 'settings' && (
+          <RecipeSettings
+            overhead={enhancedOverhead}
+            onUpdateOverhead={handleUpdateOverhead}
+            ingredients={ingredients}
+            recipes={recipes}
+            drinkSizes={drinkSizes}
+            baseTemplates={baseTemplates}
+            recipeSizeBases={recipeSizeBases}
+            recipePricing={pricingData}
           />
         )}
       </main>

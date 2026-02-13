@@ -658,7 +658,7 @@ export default function AdminTasks() {
   };
   
   if (loading) {
-    return <CoffeeLoader fullScreen text="Brewing..." />;
+    return <CoffeeLoader fullScreen text="Loading..." />;
   }
 
   return (

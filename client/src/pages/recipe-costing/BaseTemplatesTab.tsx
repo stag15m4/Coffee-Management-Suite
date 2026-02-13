@@ -102,7 +102,7 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAdd
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <input
               type="text"
-              placeholder="Template Name (e.g., Hot Drink Base)"
+              placeholder="Template Name (e.g., Base Recipe)"
               value={newTemplate.name}
               onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
               className="px-3 py-2 rounded-lg border-0 outline-none"
@@ -172,7 +172,7 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAdd
                 <div>
                   <h3 className="font-bold" style={{ color: colors.brown }}>{template.name}</h3>
                   <span className="text-sm" style={{ color: colors.brownLight }}>
-                    {template.drink_type === 'Food' ? 'Food items' : `${template.drink_type} drinks`} {template.description ? `- ${template.description}` : ''}
+                    {template.drink_type === 'Food' ? 'Food items' : `${template.drink_type} items`} {template.description ? `- ${template.description}` : ''}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -394,7 +394,7 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAdd
                             />
                             <input
                               type="number"
-                              placeholder="Size (oz) — 0 for non-drinks"
+                              placeholder="Size (oz) — 0 for non-liquid"
                               value={newSizeOz}
                               onChange={(e) => setNewSizeOz(e.target.value)}
                               className="w-full px-2 py-1.5 rounded border text-sm"
