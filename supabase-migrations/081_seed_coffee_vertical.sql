@@ -34,7 +34,7 @@ INSERT INTO verticals (
         "primaryColor": "#C9A227",
         "secondaryColor": "#4A3728",
         "accentColor": "#F5F0E1",
-        "backgroundColor": "#FFFDF7",
+        "backgroundColor": "#FFFFFF",
         "logoUrl": null,
         "iconEmoji": "☕",
         "loadingText": "Grinding beans..."

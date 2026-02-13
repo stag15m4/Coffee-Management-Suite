@@ -79,7 +79,7 @@ function parseVerticalRow(row: any): VerticalConfig {
       primaryColor: '#C9A227',
       secondaryColor: '#4A3728',
       accentColor: '#6B5344',
-      backgroundColor: '#FFFDF7',
+      backgroundColor: '#FFFFFF',
       logoUrl: null,
       iconEmoji: '',
       loadingText: 'Loading...',

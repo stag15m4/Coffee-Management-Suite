@@ -12,7 +12,7 @@ const RAW = {
   brownLight: '#6B5344',
   cream: '#F5F0E1',
   creamDark: '#E8E0CC',
-  white: '#FFFDF7',
+  white: '#FFFFFF',
   inputBg: '#FDF8E8',
 };
 

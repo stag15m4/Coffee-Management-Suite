@@ -19,7 +19,7 @@ export const colors = {
   // Creams / backgrounds — driven by vertical accent
   cream: 'var(--color-accent, #F5F0E1)',
   creamDark: 'var(--color-accent-dark, #E8E0CC)',
-  white: 'var(--color-background, #FFFDF7)',
+  white: 'var(--color-background, #FFFFFF)',
   inputBg: 'var(--color-input-bg, #FDF8E8)',
 
   // Semantic / status — not themed
