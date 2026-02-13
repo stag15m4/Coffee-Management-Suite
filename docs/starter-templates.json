@@ -1,0 +1,1214 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "description": "Starter template data for multi-vertical food service platform onboarding. Prices reflect US wholesale/restaurant supplier market (2024-2026).",
+    "notes": "Ingredient 'unit' is the measurement unit used in recipes. 'package_unit' is the purchase unit. 'typical_cost' is per package. 'typical_quantity' is how many recipe-units come in one package."
+  },
+
+  "coffee-shop": {
+    "ingredients": [
+      {
+        "name": "Espresso Beans",
+        "unit": "g",
+        "package_unit": "1 lb bag",
+        "typical_cost": 9.50,
+        "typical_quantity": 454,
+        "category": "Espresso & Coffee"
+      },
+      {
+        "name": "Drip Coffee Beans",
+        "unit": "g",
+        "package_unit": "5 lb bag",
+        "typical_cost": 38.00,
+        "typical_quantity": 2268,
+        "category": "Espresso & Coffee"
+      },
+      {
+        "name": "Whole Milk",
+        "unit": "oz",
+        "package_unit": "1 gallon",
+        "typical_cost": 4.25,
+        "typical_quantity": 128,
+        "category": "Milk & Dairy"
+      },
+      {
+        "name": "2% Milk",
+        "unit": "oz",
+        "package_unit": "1 gallon",
+        "typical_cost": 4.25,
+        "typical_quantity": 128,
+        "category": "Milk & Dairy"
+      },
+      {
+        "name": "Oat Milk",
+        "unit": "oz",
+        "package_unit": "32 oz carton",
+        "typical_cost": 4.50,
+        "typical_quantity": 32,
+        "category": "Milk & Dairy"
+      },
+      {
+        "name": "Almond Milk",
+        "unit": "oz",
+        "package_unit": "32 oz carton",
+        "typical_cost": 3.75,
+        "typical_quantity": 32,
+        "category": "Milk & Dairy"
+      },
+      {
+        "name": "Heavy Cream",
+        "unit": "oz",
+        "package_unit": "1 quart",
+        "typical_cost": 5.50,
+        "typical_quantity": 32,
+        "category": "Milk & Dairy"
+      },
+      {
+        "name": "Half & Half",
+        "unit": "oz",
+        "package_unit": "1 quart",
+        "typical_cost": 3.50,
+        "typical_quantity": 32,
+        "category": "Milk & Dairy"
+      },
+      {
+        "name": "Vanilla Syrup",
+        "unit": "ml",
+        "package_unit": "750 ml bottle",
+        "typical_cost": 7.50,
+        "typical_quantity": 750,
+        "category": "Syrups & Sauces"
+      },
+      {
+        "name": "Caramel Syrup",
+        "unit": "ml",
+        "package_unit": "750 ml bottle",
+        "typical_cost": 7.50,
+        "typical_quantity": 750,
+        "category": "Syrups & Sauces"
+      },
+      {
+        "name": "Hazelnut Syrup",
+        "unit": "ml",
+        "package_unit": "750 ml bottle",
+        "typical_cost": 7.50,
+        "typical_quantity": 750,
+        "category": "Syrups & Sauces"
+      },
+      {
+        "name": "Chocolate Sauce",
+        "unit": "oz",
+        "package_unit": "64 oz bottle",
+        "typical_cost": 12.00,
+        "typical_quantity": 64,
+        "category": "Syrups & Sauces"
+      },
+      {
+        "name": "White Mocha Sauce",
+        "unit": "oz",
+        "package_unit": "64 oz bottle",
+        "typical_cost": 14.50,
+        "typical_quantity": 64,
+        "category": "Syrups & Sauces"
+      },
+      {
+        "name": "Chai Concentrate",
+        "unit": "oz",
+        "package_unit": "32 oz carton",
+        "typical_cost": 6.50,
+        "typical_quantity": 32,
+        "category": "Syrups & Sauces"
+      },
+      {
+        "name": "Whipped Cream Chargers",
+        "unit": "each",
+        "package_unit": "box of 24",
+        "typical_cost": 8.00,
+        "typical_quantity": 24,
+        "category": "Toppings"
+      },
+      {
+        "name": "Matcha Powder",
+        "unit": "g",
+        "package_unit": "100 g tin",
+        "typical_cost": 18.00,
+        "typical_quantity": 100,
+        "category": "Toppings"
+      },
+      {
+        "name": "Cocoa Powder",
+        "unit": "g",
+        "package_unit": "1 lb bag",
+        "typical_cost": 6.50,
+        "typical_quantity": 454,
+        "category": "Toppings"
+      },
+      {
+        "name": "12 oz Hot Cup",
+        "unit": "each",
+        "package_unit": "sleeve of 50",
+        "typical_cost": 4.25,
+        "typical_quantity": 50,
+        "category": "Disposables"
+      },
+      {
+        "name": "16 oz Hot Cup",
+        "unit": "each",
+        "package_unit": "sleeve of 50",
+        "typical_cost": 4.75,
+        "typical_quantity": 50,
+        "category": "Disposables"
+      },
+      {
+        "name": "16 oz Cold Cup",
+        "unit": "each",
+        "package_unit": "sleeve of 50",
+        "typical_cost": 5.25,
+        "typical_quantity": 50,
+        "category": "Disposables"
+      },
+      {
+        "name": "24 oz Cold Cup",
+        "unit": "each",
+        "package_unit": "sleeve of 50",
+        "typical_cost": 6.00,
+        "typical_quantity": 50,
+        "category": "Disposables"
+      },
+      {
+        "name": "Hot Cup Lid",
+        "unit": "each",
+        "package_unit": "sleeve of 50",
+        "typical_cost": 3.00,
+        "typical_quantity": 50,
+        "category": "Disposables"
+      },
+      {
+        "name": "Cold Cup Lid",
+        "unit": "each",
+        "package_unit": "sleeve of 50",
+        "typical_cost": 3.25,
+        "typical_quantity": 50,
+        "category": "Disposables"
+      },
+      {
+        "name": "Cup Sleeve",
+        "unit": "each",
+        "package_unit": "pack of 100",
+        "typical_cost": 5.00,
+        "typical_quantity": 100,
+        "category": "Disposables"
+      },
+      {
+        "name": "Straw",
+        "unit": "each",
+        "package_unit": "box of 200",
+        "typical_cost": 5.50,
+        "typical_quantity": 200,
+        "category": "Disposables"
+      }
+    ],
+
+    "recipes": [
+      {
+        "name": "Latte",
+        "description": "Classic espresso with steamed milk. 16 oz serving.",
+        "suggested_price": 5.50,
+        "category": "Espresso Drinks",
+        "ingredients": [
+          { "ingredient_name": "Espresso Beans", "quantity": 18, "unit": "g" },
+          { "ingredient_name": "Whole Milk", "quantity": 12, "unit": "oz" },
+          { "ingredient_name": "16 oz Hot Cup", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Hot Cup Lid", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Cup Sleeve", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Iced Latte",
+        "description": "Espresso over ice with cold milk. 16 oz serving.",
+        "suggested_price": 5.75,
+        "category": "Iced Drinks",
+        "ingredients": [
+          { "ingredient_name": "Espresso Beans", "quantity": 18, "unit": "g" },
+          { "ingredient_name": "Whole Milk", "quantity": 10, "unit": "oz" },
+          { "ingredient_name": "16 oz Cold Cup", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Cold Cup Lid", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Straw", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Cappuccino",
+        "description": "Equal parts espresso, steamed milk, and foam. 12 oz serving.",
+        "suggested_price": 5.25,
+        "category": "Espresso Drinks",
+        "ingredients": [
+          { "ingredient_name": "Espresso Beans", "quantity": 18, "unit": "g" },
+          { "ingredient_name": "Whole Milk", "quantity": 6, "unit": "oz" },
+          { "ingredient_name": "12 oz Hot Cup", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Hot Cup Lid", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Cup Sleeve", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Americano",
+        "description": "Double espresso with hot water. 16 oz serving.",
+        "suggested_price": 4.25,
+        "category": "Espresso Drinks",
+        "ingredients": [
+          { "ingredient_name": "Espresso Beans", "quantity": 18, "unit": "g" },
+          { "ingredient_name": "16 oz Hot Cup", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Hot Cup Lid", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Cup Sleeve", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Mocha",
+        "description": "Espresso with chocolate sauce and steamed milk, topped with whipped cream. 16 oz serving.",
+        "suggested_price": 6.25,
+        "category": "Espresso Drinks",
+        "ingredients": [
+          { "ingredient_name": "Espresso Beans", "quantity": 18, "unit": "g" },
+          { "ingredient_name": "Whole Milk", "quantity": 10, "unit": "oz" },
+          { "ingredient_name": "Chocolate Sauce", "quantity": 1.5, "unit": "oz" },
+          { "ingredient_name": "Whipped Cream Chargers", "quantity": 0.1, "unit": "each" },
+          { "ingredient_name": "16 oz Hot Cup", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Hot Cup Lid", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Cup Sleeve", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Vanilla Latte",
+        "description": "Espresso with vanilla syrup and steamed milk. 16 oz serving.",
+        "suggested_price": 6.00,
+        "category": "Espresso Drinks",
+        "ingredients": [
+          { "ingredient_name": "Espresso Beans", "quantity": 18, "unit": "g" },
+          { "ingredient_name": "Whole Milk", "quantity": 12, "unit": "oz" },
+          { "ingredient_name": "Vanilla Syrup", "quantity": 30, "unit": "ml" },
+          { "ingredient_name": "16 oz Hot Cup", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Hot Cup Lid", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Cup Sleeve", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Cold Brew",
+        "description": "Slow-steeped cold coffee concentrate with water and ice. 16 oz serving. Uses ~28g beans per serving via batch steeping.",
+        "suggested_price": 5.00,
+        "category": "Iced Drinks",
+        "ingredients": [
+          { "ingredient_name": "Drip Coffee Beans", "quantity": 28, "unit": "g" },
+          { "ingredient_name": "16 oz Cold Cup", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Cold Cup Lid", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Straw", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Drip Coffee",
+        "description": "Batch-brewed drip coffee. 16 oz serving. Uses ~14g per serving based on standard brew ratio.",
+        "suggested_price": 3.25,
+        "category": "Brewed Coffee",
+        "ingredients": [
+          { "ingredient_name": "Drip Coffee Beans", "quantity": 14, "unit": "g" },
+          { "ingredient_name": "16 oz Hot Cup", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Hot Cup Lid", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Cup Sleeve", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Chai Latte",
+        "description": "Spiced chai concentrate with steamed milk. 16 oz serving.",
+        "suggested_price": 5.75,
+        "category": "Specialty Drinks",
+        "ingredients": [
+          { "ingredient_name": "Chai Concentrate", "quantity": 6, "unit": "oz" },
+          { "ingredient_name": "Whole Milk", "quantity": 10, "unit": "oz" },
+          { "ingredient_name": "16 oz Hot Cup", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Hot Cup Lid", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Cup Sleeve", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Hot Chocolate",
+        "description": "Steamed milk with chocolate sauce, topped with whipped cream. 16 oz serving.",
+        "suggested_price": 5.00,
+        "category": "Specialty Drinks",
+        "ingredients": [
+          { "ingredient_name": "Whole Milk", "quantity": 14, "unit": "oz" },
+          { "ingredient_name": "Chocolate Sauce", "quantity": 2, "unit": "oz" },
+          { "ingredient_name": "Whipped Cream Chargers", "quantity": 0.1, "unit": "each" },
+          { "ingredient_name": "16 oz Hot Cup", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Hot Cup Lid", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Cup Sleeve", "quantity": 1, "unit": "each" }
+        ]
+      }
+    ],
+
+    "equipment": [
+      {
+        "name": "Espresso Machine",
+        "category": "Brewing",
+        "typical_maintenance": [
+          {
+            "task": "Backflush with cleaner",
+            "interval_days": 1,
+            "description": "Run backflush cycle with espresso machine cleaner (e.g., Cafiza) to remove coffee oil buildup from the group heads."
+          },
+          {
+            "task": "Descale boiler",
+            "interval_days": 30,
+            "description": "Run descaling solution through the boiler and steam system to remove mineral deposits. Follow manufacturer instructions."
+          },
+          {
+            "task": "Replace group head gaskets",
+            "interval_days": 365,
+            "description": "Inspect and replace rubber group head gaskets and shower screens. Worn gaskets cause leaks and poor extraction."
+          },
+          {
+            "task": "Professional service",
+            "interval_days": 180,
+            "description": "Schedule professional technician for full inspection: pressure calibration, boiler inspection, valve checks, and seal replacement."
+          }
+        ]
+      },
+      {
+        "name": "Coffee Grinder",
+        "category": "Brewing",
+        "typical_maintenance": [
+          {
+            "task": "Calibrate grind size",
+            "interval_days": 7,
+            "description": "Dial in espresso grind by pulling test shots. Adjust for changes in bean age, humidity, and roast variation."
+          },
+          {
+            "task": "Clean burrs and chamber",
+            "interval_days": 7,
+            "description": "Remove hopper and upper burr. Brush out retained grounds and coffee oils from burr chamber. Use grinder cleaning tablets monthly."
+          },
+          {
+            "task": "Replace burrs",
+            "interval_days": 365,
+            "description": "Inspect burr sharpness and replace if dull or chipped. Flat burrs typically last 600-800 lbs of coffee; conical burrs last longer."
+          }
+        ]
+      },
+      {
+        "name": "Batch Brewer",
+        "category": "Brewing",
+        "typical_maintenance": [
+          {
+            "task": "Clean brew basket and carafe",
+            "interval_days": 1,
+            "description": "Wash brew basket, spray head, and carafe with hot soapy water. Remove coffee oil residue that causes bitter flavors."
+          },
+          {
+            "task": "Descale",
+            "interval_days": 30,
+            "description": "Run descaling solution through the brewing system to remove calcium and mineral buildup from water lines and heating element."
+          },
+          {
+            "task": "Replace spray head",
+            "interval_days": 180,
+            "description": "Inspect and replace the spray head if water distribution is uneven, which leads to under-extraction."
+          }
+        ]
+      },
+      {
+        "name": "Blender",
+        "category": "Brewing",
+        "typical_maintenance": [
+          {
+            "task": "Clean and sanitize",
+            "interval_days": 1,
+            "description": "Blend hot soapy water after each use session. Deep clean jar, lid, and blade assembly daily."
+          },
+          {
+            "task": "Inspect blade and gasket",
+            "interval_days": 30,
+            "description": "Check blade sharpness and rubber gasket seal. Replace if blending is inconsistent or jar leaks."
+          }
+        ]
+      },
+      {
+        "name": "Commercial Refrigerator",
+        "category": "Refrigeration",
+        "typical_maintenance": [
+          {
+            "task": "Check and log temperature",
+            "interval_days": 1,
+            "description": "Verify internal temperature is 35-38F. Log reading for health code compliance. Adjust thermostat if needed."
+          },
+          {
+            "task": "Clean condenser coils",
+            "interval_days": 90,
+            "description": "Vacuum or brush dust and debris from condenser coils (usually on the back or bottom). Dirty coils reduce efficiency and can cause failure."
+          },
+          {
+            "task": "Inspect door gaskets",
+            "interval_days": 90,
+            "description": "Check rubber door gaskets for cracks, tears, or weak seal. Replace if the dollar-bill test fails (bill slides out when door is closed)."
+          },
+          {
+            "task": "Deep clean interior",
+            "interval_days": 30,
+            "description": "Remove all items, wipe down shelves and walls with food-safe sanitizer. Check for expired items and clean drain pan."
+          }
+        ]
+      },
+      {
+        "name": "Ice Machine",
+        "category": "Refrigeration",
+        "typical_maintenance": [
+          {
+            "task": "Clean and sanitize bin",
+            "interval_days": 7,
+            "description": "Wipe down ice bin interior with food-safe sanitizer. Check for mold or slime buildup especially around the door and chute."
+          },
+          {
+            "task": "Run cleaning cycle",
+            "interval_days": 90,
+            "description": "Run manufacturer-recommended cleaning solution through the ice-making system. This removes scale and mineral buildup from evaporator plates."
+          },
+          {
+            "task": "Replace water filter",
+            "interval_days": 180,
+            "description": "Replace the inline water filter cartridge. Clogged filters reduce ice production and can introduce off-flavors."
+          },
+          {
+            "task": "Clean condenser",
+            "interval_days": 90,
+            "description": "Vacuum or brush condenser fins to remove dust. Ice machines in warm environments need this more frequently."
+          }
+        ]
+      },
+      {
+        "name": "Dishwasher",
+        "category": "Other",
+        "typical_maintenance": [
+          {
+            "task": "Clean wash and rinse arms",
+            "interval_days": 7,
+            "description": "Remove wash and rinse arms and clear any debris from spray nozzles. Clogged nozzles reduce cleaning effectiveness."
+          },
+          {
+            "task": "Check water temperature",
+            "interval_days": 7,
+            "description": "Verify wash temp reaches 150F minimum and final rinse reaches 180F (or per local health code). Adjust heating element if needed."
+          },
+          {
+            "task": "Descale",
+            "interval_days": 30,
+            "description": "Run a descaling cycle or add descaling solution to remove mineral deposits from the tank, heating element, and spray arms."
+          },
+          {
+            "task": "Clean drain and filter",
+            "interval_days": 1,
+            "description": "Remove and rinse the drain screen and filter basket. Food debris causes odors and reduces water flow."
+          }
+        ]
+      },
+      {
+        "name": "POS System",
+        "category": "Other",
+        "typical_maintenance": [
+          {
+            "task": "Software update check",
+            "interval_days": 30,
+            "description": "Check for and install POS software updates. Updates often include security patches, tax table changes, and feature improvements."
+          },
+          {
+            "task": "Clean touchscreen and card reader",
+            "interval_days": 7,
+            "description": "Wipe touchscreen with electronics-safe cleaner. Run a cleaning card through the chip/swipe reader to prevent read errors."
+          },
+          {
+            "task": "Backup transaction data",
+            "interval_days": 7,
+            "description": "Verify automatic cloud backups are completing. Run a manual backup if needed. Check that end-of-day reports are archiving properly."
+          },
+          {
+            "task": "Inspect cables and connections",
+            "interval_days": 90,
+            "description": "Check all power cables, ethernet, and peripheral connections (receipt printer, cash drawer, card reader). Replace worn cables."
+          }
+        ]
+      }
+    ],
+
+    "categories": {
+      "ingredient_categories": [
+        "Espresso & Coffee",
+        "Milk & Dairy",
+        "Syrups & Sauces",
+        "Toppings",
+        "Disposables"
+      ],
+      "recipe_categories": [
+        "Espresso Drinks",
+        "Brewed Coffee",
+        "Iced Drinks",
+        "Specialty Drinks"
+      ],
+      "equipment_categories": [
+        "Brewing",
+        "Refrigeration",
+        "Other"
+      ]
+    }
+  },
+
+  "pizzeria": {
+    "ingredients": [
+      {
+        "name": "All-Purpose Flour",
+        "unit": "oz",
+        "package_unit": "50 lb bag",
+        "typical_cost": 18.00,
+        "typical_quantity": 800,
+        "category": "Dough & Base"
+      },
+      {
+        "name": "Active Dry Yeast",
+        "unit": "oz",
+        "package_unit": "1 lb package",
+        "typical_cost": 6.50,
+        "typical_quantity": 16,
+        "category": "Dough & Base"
+      },
+      {
+        "name": "Salt",
+        "unit": "oz",
+        "package_unit": "3 lb box",
+        "typical_cost": 2.50,
+        "typical_quantity": 48,
+        "category": "Dough & Base"
+      },
+      {
+        "name": "Granulated Sugar",
+        "unit": "oz",
+        "package_unit": "4 lb bag",
+        "typical_cost": 4.00,
+        "typical_quantity": 64,
+        "category": "Dough & Base"
+      },
+      {
+        "name": "Olive Oil",
+        "unit": "oz",
+        "package_unit": "1 gallon",
+        "typical_cost": 28.00,
+        "typical_quantity": 128,
+        "category": "Dough & Base"
+      },
+      {
+        "name": "Cornmeal",
+        "unit": "oz",
+        "package_unit": "5 lb bag",
+        "typical_cost": 5.50,
+        "typical_quantity": 80,
+        "category": "Dough & Base"
+      },
+      {
+        "name": "Pizza Sauce",
+        "unit": "oz",
+        "package_unit": "#10 can (106 oz)",
+        "typical_cost": 6.50,
+        "typical_quantity": 106,
+        "category": "Sauces"
+      },
+      {
+        "name": "White Sauce / Alfredo",
+        "unit": "oz",
+        "package_unit": "32 oz container",
+        "typical_cost": 7.00,
+        "typical_quantity": 32,
+        "category": "Sauces"
+      },
+      {
+        "name": "Shredded Mozzarella",
+        "unit": "oz",
+        "package_unit": "5 lb bag",
+        "typical_cost": 16.50,
+        "typical_quantity": 80,
+        "category": "Cheeses"
+      },
+      {
+        "name": "Grated Parmesan",
+        "unit": "oz",
+        "package_unit": "1 lb bag",
+        "typical_cost": 8.50,
+        "typical_quantity": 16,
+        "category": "Cheeses"
+      },
+      {
+        "name": "Ricotta Cheese",
+        "unit": "oz",
+        "package_unit": "3 lb container",
+        "typical_cost": 7.50,
+        "typical_quantity": 48,
+        "category": "Cheeses"
+      },
+      {
+        "name": "Pepperoni",
+        "unit": "oz",
+        "package_unit": "5 lb bag",
+        "typical_cost": 22.00,
+        "typical_quantity": 80,
+        "category": "Meats"
+      },
+      {
+        "name": "Italian Sausage (crumbled)",
+        "unit": "oz",
+        "package_unit": "5 lb bag",
+        "typical_cost": 18.00,
+        "typical_quantity": 80,
+        "category": "Meats"
+      },
+      {
+        "name": "Diced Ham",
+        "unit": "oz",
+        "package_unit": "5 lb bag",
+        "typical_cost": 16.00,
+        "typical_quantity": 80,
+        "category": "Meats"
+      },
+      {
+        "name": "Bacon (cooked, crumbled)",
+        "unit": "oz",
+        "package_unit": "2 lb bag",
+        "typical_cost": 14.00,
+        "typical_quantity": 32,
+        "category": "Meats"
+      },
+      {
+        "name": "Grilled Chicken (diced)",
+        "unit": "oz",
+        "package_unit": "5 lb bag",
+        "typical_cost": 20.00,
+        "typical_quantity": 80,
+        "category": "Meats"
+      },
+      {
+        "name": "Bell Peppers (diced)",
+        "unit": "oz",
+        "package_unit": "per lb",
+        "typical_cost": 2.25,
+        "typical_quantity": 16,
+        "category": "Vegetables"
+      },
+      {
+        "name": "Yellow Onions (diced)",
+        "unit": "oz",
+        "package_unit": "3 lb bag",
+        "typical_cost": 3.00,
+        "typical_quantity": 48,
+        "category": "Vegetables"
+      },
+      {
+        "name": "Sliced Mushrooms",
+        "unit": "oz",
+        "package_unit": "5 lb case",
+        "typical_cost": 9.00,
+        "typical_quantity": 80,
+        "category": "Vegetables"
+      },
+      {
+        "name": "Sliced Black Olives",
+        "unit": "oz",
+        "package_unit": "#10 can (55 oz)",
+        "typical_cost": 5.50,
+        "typical_quantity": 55,
+        "category": "Vegetables"
+      },
+      {
+        "name": "Sliced Jalapenos",
+        "unit": "oz",
+        "package_unit": "64 oz jar",
+        "typical_cost": 5.00,
+        "typical_quantity": 64,
+        "category": "Vegetables"
+      },
+      {
+        "name": "Diced Tomatoes",
+        "unit": "oz",
+        "package_unit": "#10 can (102 oz)",
+        "typical_cost": 4.50,
+        "typical_quantity": 102,
+        "category": "Vegetables"
+      },
+      {
+        "name": "Fresh Spinach",
+        "unit": "oz",
+        "package_unit": "2.5 lb bag",
+        "typical_cost": 5.00,
+        "typical_quantity": 40,
+        "category": "Vegetables"
+      },
+      {
+        "name": "Fresh Basil",
+        "unit": "oz",
+        "package_unit": "4 oz clamshell",
+        "typical_cost": 3.50,
+        "typical_quantity": 4,
+        "category": "Vegetables"
+      },
+      {
+        "name": "Pineapple Tidbits",
+        "unit": "oz",
+        "package_unit": "#10 can (106 oz)",
+        "typical_cost": 5.00,
+        "typical_quantity": 106,
+        "category": "Vegetables"
+      },
+      {
+        "name": "Pizza Box 12\"",
+        "unit": "each",
+        "package_unit": "bundle of 50",
+        "typical_cost": 22.00,
+        "typical_quantity": 50,
+        "category": "Disposables"
+      },
+      {
+        "name": "Pizza Box 16\"",
+        "unit": "each",
+        "package_unit": "bundle of 50",
+        "typical_cost": 30.00,
+        "typical_quantity": 50,
+        "category": "Disposables"
+      },
+      {
+        "name": "Pizza Box 18\"",
+        "unit": "each",
+        "package_unit": "bundle of 50",
+        "typical_cost": 35.00,
+        "typical_quantity": 50,
+        "category": "Disposables"
+      },
+      {
+        "name": "Parchment Circle 16\"",
+        "unit": "each",
+        "package_unit": "pack of 100",
+        "typical_cost": 12.00,
+        "typical_quantity": 100,
+        "category": "Disposables"
+      }
+    ],
+
+    "recipes": [
+      {
+        "name": "Cheese Pizza",
+        "description": "Classic cheese pizza with marinara sauce and mozzarella. Base recipe for 14\" medium.",
+        "suggested_price": 13.99,
+        "category": "Classic Pizzas",
+        "size_variants": {
+          "small_12": { "multiplier": 0.7, "suggested_price": 10.99 },
+          "medium_14": { "multiplier": 1.0, "suggested_price": 13.99 },
+          "large_18": { "multiplier": 1.4, "suggested_price": 17.99 }
+        },
+        "ingredients": [
+          { "ingredient_name": "All-Purpose Flour", "quantity": 10, "unit": "oz" },
+          { "ingredient_name": "Active Dry Yeast", "quantity": 0.15, "unit": "oz" },
+          { "ingredient_name": "Salt", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Granulated Sugar", "quantity": 0.2, "unit": "oz" },
+          { "ingredient_name": "Olive Oil", "quantity": 0.5, "unit": "oz" },
+          { "ingredient_name": "Pizza Sauce", "quantity": 4, "unit": "oz" },
+          { "ingredient_name": "Shredded Mozzarella", "quantity": 8, "unit": "oz" },
+          { "ingredient_name": "Cornmeal", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Parchment Circle 16\"", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Pizza Box 16\"", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Pepperoni Pizza",
+        "description": "Marinara sauce, mozzarella, and classic pepperoni. Base recipe for 14\" medium.",
+        "suggested_price": 15.99,
+        "category": "Classic Pizzas",
+        "size_variants": {
+          "small_12": { "multiplier": 0.7, "suggested_price": 12.99 },
+          "medium_14": { "multiplier": 1.0, "suggested_price": 15.99 },
+          "large_18": { "multiplier": 1.4, "suggested_price": 20.99 }
+        },
+        "ingredients": [
+          { "ingredient_name": "All-Purpose Flour", "quantity": 10, "unit": "oz" },
+          { "ingredient_name": "Active Dry Yeast", "quantity": 0.15, "unit": "oz" },
+          { "ingredient_name": "Salt", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Granulated Sugar", "quantity": 0.2, "unit": "oz" },
+          { "ingredient_name": "Olive Oil", "quantity": 0.5, "unit": "oz" },
+          { "ingredient_name": "Pizza Sauce", "quantity": 4, "unit": "oz" },
+          { "ingredient_name": "Shredded Mozzarella", "quantity": 8, "unit": "oz" },
+          { "ingredient_name": "Pepperoni", "quantity": 3, "unit": "oz" },
+          { "ingredient_name": "Cornmeal", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Parchment Circle 16\"", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Pizza Box 16\"", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Margherita",
+        "description": "Fresh mozzarella, San Marzano-style sauce, fresh basil, and olive oil drizzle. Base recipe for 14\" medium.",
+        "suggested_price": 16.99,
+        "category": "Specialty Pizzas",
+        "size_variants": {
+          "small_12": { "multiplier": 0.7, "suggested_price": 13.99 },
+          "medium_14": { "multiplier": 1.0, "suggested_price": 16.99 },
+          "large_18": { "multiplier": 1.4, "suggested_price": 21.99 }
+        },
+        "ingredients": [
+          { "ingredient_name": "All-Purpose Flour", "quantity": 10, "unit": "oz" },
+          { "ingredient_name": "Active Dry Yeast", "quantity": 0.15, "unit": "oz" },
+          { "ingredient_name": "Salt", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Granulated Sugar", "quantity": 0.2, "unit": "oz" },
+          { "ingredient_name": "Olive Oil", "quantity": 1.0, "unit": "oz" },
+          { "ingredient_name": "Pizza Sauce", "quantity": 3.5, "unit": "oz" },
+          { "ingredient_name": "Shredded Mozzarella", "quantity": 7, "unit": "oz" },
+          { "ingredient_name": "Fresh Basil", "quantity": 0.5, "unit": "oz" },
+          { "ingredient_name": "Grated Parmesan", "quantity": 0.5, "unit": "oz" },
+          { "ingredient_name": "Cornmeal", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Parchment Circle 16\"", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Pizza Box 16\"", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Meat Lovers",
+        "description": "Loaded with pepperoni, Italian sausage, ham, and bacon on marinara and mozzarella. Base recipe for 14\" medium.",
+        "suggested_price": 18.99,
+        "category": "Specialty Pizzas",
+        "size_variants": {
+          "small_12": { "multiplier": 0.7, "suggested_price": 15.99 },
+          "medium_14": { "multiplier": 1.0, "suggested_price": 18.99 },
+          "large_18": { "multiplier": 1.4, "suggested_price": 24.99 }
+        },
+        "ingredients": [
+          { "ingredient_name": "All-Purpose Flour", "quantity": 10, "unit": "oz" },
+          { "ingredient_name": "Active Dry Yeast", "quantity": 0.15, "unit": "oz" },
+          { "ingredient_name": "Salt", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Granulated Sugar", "quantity": 0.2, "unit": "oz" },
+          { "ingredient_name": "Olive Oil", "quantity": 0.5, "unit": "oz" },
+          { "ingredient_name": "Pizza Sauce", "quantity": 4, "unit": "oz" },
+          { "ingredient_name": "Shredded Mozzarella", "quantity": 8, "unit": "oz" },
+          { "ingredient_name": "Pepperoni", "quantity": 2, "unit": "oz" },
+          { "ingredient_name": "Italian Sausage (crumbled)", "quantity": 2, "unit": "oz" },
+          { "ingredient_name": "Diced Ham", "quantity": 1.5, "unit": "oz" },
+          { "ingredient_name": "Bacon (cooked, crumbled)", "quantity": 1, "unit": "oz" },
+          { "ingredient_name": "Cornmeal", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Parchment Circle 16\"", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Pizza Box 16\"", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Supreme / Deluxe",
+        "description": "Pepperoni, sausage, bell peppers, onions, mushrooms, and black olives. Base recipe for 14\" medium.",
+        "suggested_price": 18.99,
+        "category": "Specialty Pizzas",
+        "size_variants": {
+          "small_12": { "multiplier": 0.7, "suggested_price": 15.99 },
+          "medium_14": { "multiplier": 1.0, "suggested_price": 18.99 },
+          "large_18": { "multiplier": 1.4, "suggested_price": 24.99 }
+        },
+        "ingredients": [
+          { "ingredient_name": "All-Purpose Flour", "quantity": 10, "unit": "oz" },
+          { "ingredient_name": "Active Dry Yeast", "quantity": 0.15, "unit": "oz" },
+          { "ingredient_name": "Salt", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Granulated Sugar", "quantity": 0.2, "unit": "oz" },
+          { "ingredient_name": "Olive Oil", "quantity": 0.5, "unit": "oz" },
+          { "ingredient_name": "Pizza Sauce", "quantity": 4, "unit": "oz" },
+          { "ingredient_name": "Shredded Mozzarella", "quantity": 8, "unit": "oz" },
+          { "ingredient_name": "Pepperoni", "quantity": 1.5, "unit": "oz" },
+          { "ingredient_name": "Italian Sausage (crumbled)", "quantity": 1.5, "unit": "oz" },
+          { "ingredient_name": "Bell Peppers (diced)", "quantity": 1.5, "unit": "oz" },
+          { "ingredient_name": "Yellow Onions (diced)", "quantity": 1, "unit": "oz" },
+          { "ingredient_name": "Sliced Mushrooms", "quantity": 1.5, "unit": "oz" },
+          { "ingredient_name": "Sliced Black Olives", "quantity": 1, "unit": "oz" },
+          { "ingredient_name": "Cornmeal", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Parchment Circle 16\"", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Pizza Box 16\"", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Veggie Pizza",
+        "description": "Bell peppers, onions, mushrooms, black olives, tomatoes, and spinach on marinara and mozzarella. Base recipe for 14\" medium.",
+        "suggested_price": 16.99,
+        "category": "Specialty Pizzas",
+        "size_variants": {
+          "small_12": { "multiplier": 0.7, "suggested_price": 13.99 },
+          "medium_14": { "multiplier": 1.0, "suggested_price": 16.99 },
+          "large_18": { "multiplier": 1.4, "suggested_price": 21.99 }
+        },
+        "ingredients": [
+          { "ingredient_name": "All-Purpose Flour", "quantity": 10, "unit": "oz" },
+          { "ingredient_name": "Active Dry Yeast", "quantity": 0.15, "unit": "oz" },
+          { "ingredient_name": "Salt", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Granulated Sugar", "quantity": 0.2, "unit": "oz" },
+          { "ingredient_name": "Olive Oil", "quantity": 0.5, "unit": "oz" },
+          { "ingredient_name": "Pizza Sauce", "quantity": 4, "unit": "oz" },
+          { "ingredient_name": "Shredded Mozzarella", "quantity": 7, "unit": "oz" },
+          { "ingredient_name": "Bell Peppers (diced)", "quantity": 1.5, "unit": "oz" },
+          { "ingredient_name": "Yellow Onions (diced)", "quantity": 1, "unit": "oz" },
+          { "ingredient_name": "Sliced Mushrooms", "quantity": 1.5, "unit": "oz" },
+          { "ingredient_name": "Sliced Black Olives", "quantity": 1, "unit": "oz" },
+          { "ingredient_name": "Diced Tomatoes", "quantity": 1.5, "unit": "oz" },
+          { "ingredient_name": "Fresh Spinach", "quantity": 1, "unit": "oz" },
+          { "ingredient_name": "Cornmeal", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Parchment Circle 16\"", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Pizza Box 16\"", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "Hawaiian",
+        "description": "Diced ham and pineapple on marinara and mozzarella. Base recipe for 14\" medium.",
+        "suggested_price": 15.99,
+        "category": "Classic Pizzas",
+        "size_variants": {
+          "small_12": { "multiplier": 0.7, "suggested_price": 12.99 },
+          "medium_14": { "multiplier": 1.0, "suggested_price": 15.99 },
+          "large_18": { "multiplier": 1.4, "suggested_price": 20.99 }
+        },
+        "ingredients": [
+          { "ingredient_name": "All-Purpose Flour", "quantity": 10, "unit": "oz" },
+          { "ingredient_name": "Active Dry Yeast", "quantity": 0.15, "unit": "oz" },
+          { "ingredient_name": "Salt", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Granulated Sugar", "quantity": 0.2, "unit": "oz" },
+          { "ingredient_name": "Olive Oil", "quantity": 0.5, "unit": "oz" },
+          { "ingredient_name": "Pizza Sauce", "quantity": 4, "unit": "oz" },
+          { "ingredient_name": "Shredded Mozzarella", "quantity": 8, "unit": "oz" },
+          { "ingredient_name": "Diced Ham", "quantity": 3, "unit": "oz" },
+          { "ingredient_name": "Pineapple Tidbits", "quantity": 3, "unit": "oz" },
+          { "ingredient_name": "Cornmeal", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Parchment Circle 16\"", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Pizza Box 16\"", "quantity": 1, "unit": "each" }
+        ]
+      },
+      {
+        "name": "White Pizza",
+        "description": "Alfredo/white sauce base with mozzarella, ricotta, parmesan, garlic, and spinach. No red sauce. Base recipe for 14\" medium.",
+        "suggested_price": 17.99,
+        "category": "Specialty Pizzas",
+        "size_variants": {
+          "small_12": { "multiplier": 0.7, "suggested_price": 14.99 },
+          "medium_14": { "multiplier": 1.0, "suggested_price": 17.99 },
+          "large_18": { "multiplier": 1.4, "suggested_price": 22.99 }
+        },
+        "ingredients": [
+          { "ingredient_name": "All-Purpose Flour", "quantity": 10, "unit": "oz" },
+          { "ingredient_name": "Active Dry Yeast", "quantity": 0.15, "unit": "oz" },
+          { "ingredient_name": "Salt", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Granulated Sugar", "quantity": 0.2, "unit": "oz" },
+          { "ingredient_name": "Olive Oil", "quantity": 0.75, "unit": "oz" },
+          { "ingredient_name": "White Sauce / Alfredo", "quantity": 3.5, "unit": "oz" },
+          { "ingredient_name": "Shredded Mozzarella", "quantity": 6, "unit": "oz" },
+          { "ingredient_name": "Ricotta Cheese", "quantity": 3, "unit": "oz" },
+          { "ingredient_name": "Grated Parmesan", "quantity": 1, "unit": "oz" },
+          { "ingredient_name": "Fresh Spinach", "quantity": 1.5, "unit": "oz" },
+          { "ingredient_name": "Cornmeal", "quantity": 0.25, "unit": "oz" },
+          { "ingredient_name": "Parchment Circle 16\"", "quantity": 1, "unit": "each" },
+          { "ingredient_name": "Pizza Box 16\"", "quantity": 1, "unit": "each" }
+        ]
+      }
+    ],
+
+    "equipment": [
+      {
+        "name": "Pizza Oven (Deck)",
+        "category": "Cooking",
+        "typical_maintenance": [
+          {
+            "task": "Clean deck stones",
+            "interval_days": 1,
+            "description": "Brush flour, cornmeal, and charred debris off the deck stones with a brass or stainless steel brush after the oven cools. Never use water on hot stones."
+          },
+          {
+            "task": "Check and calibrate temperature",
+            "interval_days": 7,
+            "description": "Verify oven temperature with an independent thermometer. Deck ovens should hold 500-550F for New York style or 700-800F for Neapolitan. Adjust thermostat if readings drift."
+          },
+          {
+            "task": "Inspect door seals and hinges",
+            "interval_days": 90,
+            "description": "Check door gaskets for cracks and hinges for alignment. Poor seals cause heat loss and uneven baking."
+          },
+          {
+            "task": "Professional inspection",
+            "interval_days": 365,
+            "description": "Schedule annual inspection by a commercial oven technician. Check gas lines, ignition system, thermostat calibration, and stone condition."
+          }
+        ]
+      },
+      {
+        "name": "Dough Mixer (Spiral)",
+        "category": "Dough Preparation",
+        "typical_maintenance": [
+          {
+            "task": "Clean bowl, hook, and guards",
+            "interval_days": 1,
+            "description": "Remove dough hook and bowl. Wash with warm soapy water and sanitize. Wipe down the mixer body, safety guard, and splash ring."
+          },
+          {
+            "task": "Grease gearbox and check belt",
+            "interval_days": 90,
+            "description": "Apply food-grade grease to gearbox fittings per manufacturer specs. Check drive belt tension and look for fraying or cracking."
+          },
+          {
+            "task": "Inspect dough hook for wear",
+            "interval_days": 180,
+            "description": "Check the spiral hook for bending, cracks, or worn coating. A damaged hook affects dough development and can contaminate product."
+          }
+        ]
+      },
+      {
+        "name": "Dough Sheeter / Roller",
+        "category": "Dough Preparation",
+        "typical_maintenance": [
+          {
+            "task": "Clean rollers and conveyor",
+            "interval_days": 1,
+            "description": "Wipe down rollers and conveyor belt with a damp cloth to remove dried dough. Do not submerge electrical components."
+          },
+          {
+            "task": "Lubricate roller bearings",
+            "interval_days": 30,
+            "description": "Apply food-grade lubricant to roller bearings and pivot points. Dry bearings cause squealing and uneven sheet thickness."
+          },
+          {
+            "task": "Check roller gap calibration",
+            "interval_days": 30,
+            "description": "Verify that both sides of the roller gap are even using a thickness gauge. Uneven gaps produce lopsided crusts."
+          }
+        ]
+      },
+      {
+        "name": "Prep Table / Refrigerated Station",
+        "category": "Preparation",
+        "typical_maintenance": [
+          {
+            "task": "Clean and sanitize surface",
+            "interval_days": 1,
+            "description": "Wipe down the entire stainless steel surface with food-safe sanitizer. Clean all ingredient pan inserts and cutting board surfaces."
+          },
+          {
+            "task": "Check refrigeration temperature",
+            "interval_days": 1,
+            "description": "Verify the cold rail holds ingredients at 40F or below. Log temperature for health code compliance."
+          },
+          {
+            "task": "Clean condenser coils",
+            "interval_days": 90,
+            "description": "Vacuum condenser coils under or behind the unit. Dust buildup forces the compressor to work harder and can cause cooling failure."
+          },
+          {
+            "task": "Inspect door gaskets",
+            "interval_days": 90,
+            "description": "Check rubber gaskets on access doors for cracks or loose fit. Replace if cold air is escaping."
+          }
+        ]
+      },
+      {
+        "name": "Walk-in Cooler",
+        "category": "Refrigeration",
+        "typical_maintenance": [
+          {
+            "task": "Check and log temperature",
+            "interval_days": 1,
+            "description": "Verify internal temperature is 34-38F. Log reading for health code compliance. Investigate immediately if above 40F."
+          },
+          {
+            "task": "Clean and organize interior",
+            "interval_days": 7,
+            "description": "Wipe down shelves and walls. Enforce FIFO (first in, first out) rotation. Check for expired items and clean any spills."
+          },
+          {
+            "task": "Inspect evaporator coils and drain",
+            "interval_days": 30,
+            "description": "Check evaporator coils for ice buildup. Clear the condensate drain line to prevent water pooling on the floor."
+          },
+          {
+            "task": "Check door gasket and hinges",
+            "interval_days": 90,
+            "description": "Inspect walk-in door gasket for tears or gaps. Check the door closer mechanism and hinges. A poor seal wastes energy and risks food safety."
+          }
+        ]
+      },
+      {
+        "name": "Pizza Peel Set",
+        "category": "Cooking",
+        "typical_maintenance": [
+          {
+            "task": "Clean and dry peels",
+            "interval_days": 1,
+            "description": "Wipe wooden peels with a damp cloth (do not soak). Wash metal/aluminum peels with soapy water and dry completely to prevent rust."
+          },
+          {
+            "task": "Sand and condition wooden peels",
+            "interval_days": 30,
+            "description": "Lightly sand wooden peels with fine-grit sandpaper to remove rough spots and charring. Apply food-grade mineral oil to prevent cracking."
+          },
+          {
+            "task": "Inspect handles",
+            "interval_days": 90,
+            "description": "Check peel handles for cracks, looseness, or splinters. A broken handle near a 550F oven is a serious safety hazard."
+          }
+        ]
+      },
+      {
+        "name": "Dough Docker",
+        "category": "Dough Preparation",
+        "typical_maintenance": [
+          {
+            "task": "Clean after use",
+            "interval_days": 1,
+            "description": "Wash dough docker pins and roller with warm soapy water. Remove any dried dough stuck between pins."
+          },
+          {
+            "task": "Inspect pins and roller",
+            "interval_days": 90,
+            "description": "Check that all docker pins are intact and the roller spins freely. Missing or bent pins cause uneven docking and bubble formation during baking."
+          }
+        ]
+      },
+      {
+        "name": "POS System",
+        "category": "Other",
+        "typical_maintenance": [
+          {
+            "task": "Software update check",
+            "interval_days": 30,
+            "description": "Check for and install POS software updates. Updates often include security patches, menu management improvements, and online ordering integration fixes."
+          },
+          {
+            "task": "Clean touchscreen and peripherals",
+            "interval_days": 7,
+            "description": "Wipe touchscreen with electronics-safe cleaner. Clean card reader with a cleaning card. Wipe receipt printer housing and check paper supply."
+          },
+          {
+            "task": "Backup data and verify reports",
+            "interval_days": 7,
+            "description": "Verify cloud backups are completing. Run a manual backup if needed. Check that daily sales summaries and inventory deductions are archiving properly."
+          },
+          {
+            "task": "Inspect cables and connections",
+            "interval_days": 90,
+            "description": "Check all power cables, ethernet, kitchen display connections, and peripheral cables (printer, cash drawer, card reader). Replace worn cables."
+          }
+        ]
+      }
+    ],
+
+    "categories": {
+      "ingredient_categories": [
+        "Dough & Base",
+        "Sauces",
+        "Cheeses",
+        "Meats",
+        "Vegetables",
+        "Disposables"
+      ],
+      "recipe_categories": [
+        "Classic Pizzas",
+        "Specialty Pizzas"
+      ],
+      "equipment_categories": [
+        "Cooking",
+        "Dough Preparation",
+        "Preparation",
+        "Refrigeration",
+        "Other"
+      ]
+    }
+  }
+}

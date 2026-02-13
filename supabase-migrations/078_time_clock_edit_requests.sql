@@ -33,15 +33,18 @@ CREATE INDEX IF NOT EXISTS idx_tc_edit_req_entry ON time_clock_edit_requests(tim
 
 ALTER TABLE time_clock_edit_requests ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view time clock edit requests" ON time_clock_edit_requests;
 CREATE POLICY "Users can view time clock edit requests" ON time_clock_edit_requests
     FOR SELECT USING (can_read_tenant_data(tenant_id));
 
+DROP POLICY IF EXISTS "Employees can request edits for own entries" ON time_clock_edit_requests;
 CREATE POLICY "Employees can request edits for own entries" ON time_clock_edit_requests
     FOR INSERT WITH CHECK (
         can_access_tenant(tenant_id)
         AND employee_id = auth.uid()
     );
 
+DROP POLICY IF EXISTS "Employees and leads can update edit requests" ON time_clock_edit_requests;
 CREATE POLICY "Employees and leads can update edit requests" ON time_clock_edit_requests
     FOR UPDATE USING (
         can_access_tenant(tenant_id)
@@ -53,6 +56,7 @@ CREATE POLICY "Employees and leads can update edit requests" ON time_clock_edit_
         can_access_tenant(tenant_id)
     );
 
+DROP POLICY IF EXISTS "Employees can delete own pending, managers can delete any" ON time_clock_edit_requests;
 CREATE POLICY "Employees can delete own pending, managers can delete any" ON time_clock_edit_requests
     FOR DELETE USING (
         can_access_tenant(tenant_id)
@@ -62,6 +66,7 @@ CREATE POLICY "Employees can delete own pending, managers can delete any" ON tim
         )
     );
 
+DROP POLICY IF EXISTS "Platform admins manage time clock edit requests" ON time_clock_edit_requests;
 CREATE POLICY "Platform admins manage time clock edit requests" ON time_clock_edit_requests
     FOR ALL USING (
         EXISTS (SELECT 1 FROM platform_admins WHERE id = auth.uid() AND is_active = true)
