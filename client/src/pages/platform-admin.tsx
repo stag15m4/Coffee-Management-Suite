@@ -473,7 +473,7 @@ export default function PlatformAdmin() {
 
       const tenantsWithStats = await Promise.all(
         (tenantsData || []).map(async (tenant) => {
-          const [{ count }, { data: loginData }] = await Promise.all([
+          const [{ count }, { data: loginData }, { data: assignmentData }] = await Promise.all([
             supabase
               .from('user_profiles')
               .select('*', { count: 'exact', head: true })
@@ -485,12 +485,28 @@ export default function PlatformAdmin() {
               .not('last_login_at', 'is', null)
               .order('last_login_at', { ascending: false })
               .limit(1),
+            // Also check cross-tenant activity via user_tenant_assignments
+            supabase
+              .from('user_tenant_assignments')
+              .select('updated_at')
+              .eq('tenant_id', tenant.id)
+              .eq('is_active', true)
+              .order('updated_at', { ascending: false })
+              .limit(1),
           ]);
+
+          // Use the most recent activity from either source
+          const profileLogin = loginData?.[0]?.last_login_at || null;
+          const assignmentActivity = assignmentData?.[0]?.updated_at || null;
+          let lastActive = profileLogin;
+          if (assignmentActivity && (!lastActive || assignmentActivity > lastActive)) {
+            lastActive = assignmentActivity;
+          }
 
           return {
             ...tenant,
             user_count: count || 0,
-            last_login_at: loginData?.[0]?.last_login_at || null,
+            last_login_at: lastActive,
             vertical_name: (tenant as any).verticals?.display_name || null,
           };
         })

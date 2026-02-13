@@ -268,6 +268,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setTenant(savedLocation);
             setActiveLocationId(savedLocationId);
 
+            // Record activity on this tenant via user_tenant_assignments
+            supabase
+              .from('user_tenant_assignments')
+              .update({ updated_at: new Date().toISOString() })
+              .eq('user_id', userId)
+              .eq('tenant_id', savedLocationId)
+              .then(() => {});
+
             // Load branding and modules for the saved location (not the profile's tenant)
             const [savedBrandingResult, savedModulesResult] = await Promise.all([
               supabase.from('tenant_branding').select('*').eq('tenant_id', savedLocationId).maybeSingle(),
@@ -809,10 +817,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRoleSettings((seeded as TenantRoleSetting[]) || null);
     }
 
+    // Record activity on this tenant via user_tenant_assignments
+    if (user) {
+      supabase
+        .from('user_tenant_assignments')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('user_id', user.id)
+        .eq('tenant_id', locationId)
+        .then(() => {});
+    }
+
     // Dispatch location-changed event so pages can refresh their data
     console.log('[AuthContext] Dispatching location-changed event for', locationId);
     window.dispatchEvent(new CustomEvent('location-changed', { detail: { locationId } }));
-  }, [accessibleLocations]);
+  }, [accessibleLocations, user]);
 
   // Platform admin: enter a tenant's dashboard view (requires profile or assignment)
   const enterTenantView = useCallback(async (tenantId: string) => {
