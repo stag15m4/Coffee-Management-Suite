@@ -157,7 +157,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       }
       if (vt.secondaryColor) {
         result.secondary = vt.secondaryColor;
-        result.secondaryLight = lighten(vt.secondaryColor, 0.82);
+        result.secondaryLight = lighten(vt.secondaryColor, 0.3);
       }
       if (vt.accentColor) {
         result.accent = vt.accentColor;
@@ -177,7 +177,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       }
       if (branding.secondary_color) {
         result.secondary = branding.secondary_color;
-        result.secondaryLight = lighten(branding.secondary_color, 0.82);
+        result.secondaryLight = lighten(branding.secondary_color, 0.3);
       }
       if (branding.accent_color) {
         result.accent = branding.accent_color;

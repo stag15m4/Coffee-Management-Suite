@@ -95,14 +95,13 @@ export function DesktopSidebar({ className }: { className?: string }) {
           <div ref={locationRef} className="relative mt-2">
             <button
               className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors hover:opacity-80"
-              style={{ color: 'var(--color-secondary)', backgroundColor: 'var(--color-accent)' }}
+              style={{ color: 'white', backgroundColor: 'var(--color-primary)' }}
               onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}
             >
-              <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
+              <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
               <span className="truncate font-medium">{tenant?.name || 'Select location'}</span>
               <ChevronDown
                 className={`w-3 h-3 ml-auto flex-shrink-0 transition-transform ${locationDropdownOpen ? 'rotate-180' : ''}`}
-                style={{ color: 'var(--color-secondary-light)' }}
               />
             </button>
 
