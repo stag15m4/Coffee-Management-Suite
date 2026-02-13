@@ -144,6 +144,7 @@ export function VerticalProvider({ children, verticalId: verticalIdProp }: Verti
             const config = parseVerticalRow(domainRow);
             setVertical(config);
             fetchedRef.current = config.id;
+            try { localStorage.setItem('vertical_slug', config.slug); } catch {}
             setLoading(false);
             return;
           }
@@ -171,6 +172,7 @@ export function VerticalProvider({ children, verticalId: verticalIdProp }: Verti
             const config = parseVerticalRow(row);
             setVertical(config);
             fetchedRef.current = config.id;
+            try { localStorage.setItem('vertical_slug', config.slug); } catch {}
             setLoading(false);
             return;
           }

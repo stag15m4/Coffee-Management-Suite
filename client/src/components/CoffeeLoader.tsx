@@ -168,8 +168,9 @@ export function CoffeeLoader({ size = 'md', text, progressiveTexts, fullScreen =
   const s = sizes[size];
   const [textIndex, setTextIndex] = useState(0);
 
-  // Auto-detect from vertical
-  const slug = vertical?.slug ?? 'coffee-shop';
+  // Auto-detect from vertical, fall back to cached slug from last session
+  const cachedSlug = typeof localStorage !== 'undefined' ? localStorage.getItem('vertical_slug') : null;
+  const slug = vertical?.slug ?? cachedSlug ?? 'coffee-shop';
 
   // Use explicit texts, or fall back to vertical-specific texts for fullScreen
   const resolvedTexts = progressiveTexts ?? (fullScreen ? (VERTICAL_TEXTS[slug] ?? DEFAULT_TEXTS) : undefined);
