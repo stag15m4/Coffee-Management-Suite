@@ -55,12 +55,7 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
   }, [retryProfileFetch]);
 
   if (loading || retrying) {
-    return <CoffeeLoader fullScreen progressiveTexts={[
-      "Loading...",
-      "Grinding fresh beans...",
-      "Making a fresh pot...",
-      "Almost ready...",
-    ]} />;
+    return <CoffeeLoader fullScreen />;
   }
 
   if (!user) {
@@ -76,13 +71,13 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
   if (!profile) {
     if (profileTimeout) {
       return (
-        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F0E1' }}>
-          <div className="text-center p-8 rounded-lg max-w-md" style={{ backgroundColor: '#FFFDF7' }}>
-            <h2 className="text-xl font-bold mb-2" style={{ color: '#4A3728' }}>Connection Issue</h2>
-            <p className="mb-4" style={{ color: '#6B5344' }}>
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center p-8 rounded-xl max-w-md bg-card shadow-lg">
+            <h2 className="text-xl font-semibold mb-2 text-foreground">Connection Issue</h2>
+            <p className="mb-4 text-muted-foreground">
               Unable to load your profile. This could be:
             </p>
-            <ul className="text-left mb-4 text-sm space-y-1" style={{ color: '#6B5344' }}>
+            <ul className="text-left mb-4 text-sm space-y-1 text-muted-foreground">
               <li>• Network connectivity issue</li>
               <li>• Supabase project may be paused</li>
               <li>• Database permissions need updating</li>
@@ -90,15 +85,13 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
             <div className="space-y-2">
               <button
                 onClick={handleManualRetry}
-                className="w-full px-4 py-2 rounded-lg font-semibold"
-                style={{ backgroundColor: '#C9A227', color: '#FFFDF7' }}
+                className="w-full px-4 py-2 rounded-lg font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
               >
                 Retry
               </button>
               <button
                 onClick={() => signOut()}
-                className="w-full px-4 py-2 rounded-lg font-semibold border"
-                style={{ borderColor: '#C9A227', color: '#4A3728', backgroundColor: 'transparent' }}
+                className="w-full px-4 py-2 rounded-lg font-semibold border border-border text-foreground hover:bg-accent transition-colors"
               >
                 Sign Out
               </button>
@@ -107,20 +100,15 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
         </div>
       );
     }
-    return <CoffeeLoader fullScreen progressiveTexts={[
-      "Loading...",
-      "Grinding fresh beans...",
-      "Making a fresh pot...",
-      "Almost ready...",
-    ]} />;
+    return <CoffeeLoader fullScreen />;
   }
 
   if (requiredRole && !hasRole(requiredRole)) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F0E1' }}>
-        <div className="text-center p-8 rounded-lg" style={{ backgroundColor: '#FFFDF7' }}>
-          <h2 className="text-xl font-bold mb-2" style={{ color: '#4A3728' }}>Access Denied</h2>
-          <p style={{ color: '#6B5344' }}>You don't have permission to access this page.</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center p-8 rounded-xl bg-card shadow-lg">
+          <h2 className="text-xl font-semibold mb-2 text-foreground">Access Denied</h2>
+          <p className="text-muted-foreground">You don't have permission to access this page.</p>
         </div>
       </div>
     );
@@ -128,10 +116,10 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
 
   if (module && !canAccessModule(module)) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F0E1' }}>
-        <div className="text-center p-8 rounded-lg" style={{ backgroundColor: '#FFFDF7' }}>
-          <h2 className="text-xl font-bold mb-2" style={{ color: '#4A3728' }}>Access Denied</h2>
-          <p style={{ color: '#6B5344' }}>You don't have permission to access this module.</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center p-8 rounded-xl bg-card shadow-lg">
+          <h2 className="text-xl font-semibold mb-2 text-foreground">Access Denied</h2>
+          <p className="text-muted-foreground">You don't have permission to access this module.</p>
         </div>
       </div>
     );

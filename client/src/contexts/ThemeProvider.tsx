@@ -5,13 +5,13 @@ import { useAuth } from '@/contexts/AuthContext';
 // These must be raw hex, NOT the CSS-var-based `colors` from @/lib/colors,
 // because ThemeProvider sets these as CSS custom-property values.
 const RAW = {
-  gold: '#C9A227',
-  goldLight: '#F5EDD0',
-  goldDark: '#B8941F',
-  brown: '#4A3728',
-  brownLight: '#6B5344',
-  cream: '#F5F5F5',
-  creamDark: '#E5E7EB',
+  gold: '#2563EB',         // Clean blue — universal SaaS primary
+  goldLight: '#EFF6FF',    // Very light blue tint
+  goldDark: '#1D4ED8',     // Darker blue for hover/active
+  brown: '#111827',        // Near-black (gray-900) for text
+  brownLight: '#6B7280',   // Mid gray (gray-500) for secondary text
+  cream: '#F9FAFB',        // Cool gray-50 for surfaces
+  creamDark: '#E5E7EB',    // gray-200 for borders
   white: '#FFFFFF',
   inputBg: '#F9FAFB',
 };

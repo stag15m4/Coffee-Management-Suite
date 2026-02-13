@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,8 +9,8 @@
      Colors: Crisp White, Slate Grays, Deep Navy (Primary), Sage Green (Success/Fresh), Burnt Orange (Accent/Heat)
   */
   
-  --font-display: 'Playfair Display', serif;
-  --font-body: 'Inter', sans-serif;
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   --background: 210 20% 98%;
@@ -82,7 +82,7 @@
     @apply bg-background text-foreground font-body antialiased;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display font-bold tracking-tight text-primary;
+    @apply font-display font-semibold tracking-tight text-foreground;
   }
   
   /* Hide placeholder text on focus — empty fields show only blinking cursor */
@@ -102,7 +102,22 @@
   }
   
   th {
-    @apply font-display text-xs uppercase tracking-wider text-muted-foreground font-semibold;
+    @apply font-body text-xs uppercase tracking-wider text-muted-foreground font-medium;
+  }
+}
+
+@layer utilities {
+  .hover-elevate {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .hover-elevate:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+  }
+  .hover-elevate:active,
+  .active-elevate-2:active {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    transform: translateY(0);
   }
 }
 

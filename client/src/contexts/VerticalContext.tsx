@@ -76,9 +76,9 @@ function parseVerticalRow(row: any): VerticalConfig {
     productName: row.product_name ?? row.productName ?? '',
     displayName: row.display_name ?? row.displayName ?? '',
     theme: row.theme ?? {
-      primaryColor: '#C9A227',
-      secondaryColor: '#4A3728',
-      accentColor: '#6B5344',
+      primaryColor: '#2563EB',
+      secondaryColor: '#111827',
+      accentColor: '#F9FAFB',
       backgroundColor: '#FFFFFF',
       logoUrl: null,
       iconEmoji: '',

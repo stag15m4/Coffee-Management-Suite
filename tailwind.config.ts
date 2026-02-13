@@ -6,9 +6,16 @@ export default {
   theme: {
     extend: {
       borderRadius: {
-        lg: ".5625rem", /* 9px */
-        md: ".375rem", /* 6px */
-        sm: ".1875rem", /* 3px */
+        lg: "0.75rem",  /* 12px */
+        md: "0.5rem",   /* 8px */
+        sm: "0.375rem", /* 6px */
+      },
+      boxShadow: {
+        sm: '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
+        DEFAULT: '0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06)',
+        md: '0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04)',
+        lg: '0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.04)',
+        xl: '0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
       },
       colors: {
         // Flat / base colors (regular buttons)
@@ -80,17 +87,6 @@ export default {
           away: "rgb(245 158 11)",
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
-        },
-        coffee: {
-          gold: '#C9A227',
-          'gold-light': '#D4B23A',
-          'gold-dark': '#B8941F',
-          brown: '#4A3728',
-          'brown-light': '#6B5344',
-          cream: '#F5F0E1',
-          'cream-dark': '#E8E0CC',
-          white: '#FFFDF7',
-          'input-bg': '#FDF8E8',
         },
       },
       fontFamily: {
