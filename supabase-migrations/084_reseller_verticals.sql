@@ -40,7 +40,7 @@ CREATE POLICY "Resellers can view their own verticals" ON verticals
             SELECT r.id FROM resellers r
             JOIN tenants t ON t.reseller_id = r.id
             JOIN user_profiles up ON up.tenant_id = t.id
-            WHERE up.user_id = auth.uid()
+            WHERE up.id = auth.uid()
         )
     );
 
