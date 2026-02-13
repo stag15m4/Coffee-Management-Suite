@@ -135,3 +135,19 @@
 .pizza-loader-steam-1 { animation: steam 2s ease-out infinite; }
 .pizza-loader-steam-2 { animation: steam 2s ease-out 0.5s infinite; }
 .pizza-loader-steam-3 { animation: steam 2s ease-out 1s infinite; }
+
+/* Default loader animations (neutral, no vertical) */
+@keyframes loader-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes loader-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.default-loader-spin {
+  animation: loader-spin 1s linear infinite;
+}
+.default-loader-pulse {
+  animation: loader-pulse 1.5s ease-in-out infinite;
+}

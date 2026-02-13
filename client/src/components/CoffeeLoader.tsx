@@ -158,6 +158,35 @@ function PizzaSvg({ s, primary }: { s: number; primary: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Default SVG — neutral pulsing circle, no vertical branding
+// ---------------------------------------------------------------------------
+
+function DefaultSvg({ s, primary }: { s: number; primary: string }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 80 80" fill="none" role="img" aria-label="Loading">
+      {/* Outer ring — rotates */}
+      <circle
+        cx="40" cy="40" r="30"
+        stroke="#E5E7EB"
+        strokeWidth="4"
+        fill="none"
+      />
+      <path
+        d="M 40 10 A 30 30 0 0 1 70 40"
+        stroke={primary}
+        strokeWidth="4"
+        strokeLinecap="round"
+        fill="none"
+        className="default-loader-spin"
+        style={{ transformOrigin: '40px 40px' }}
+      />
+      {/* Center dot */}
+      <circle cx="40" cy="40" r="4" fill={primary} className="default-loader-pulse" />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main loader component — auto-detects vertical for SVG and texts
 // ---------------------------------------------------------------------------
 
@@ -168,12 +197,13 @@ export function CoffeeLoader({ size = 'md', text, progressiveTexts, fullScreen =
   const s = sizes[size];
   const [textIndex, setTextIndex] = useState(0);
 
-  // Auto-detect from vertical, fall back to cached slug from last session
+  // Auto-detect from vertical, fall back to cached slug from last session.
+  // null = no context yet (show neutral loader)
   const cachedSlug = typeof localStorage !== 'undefined' ? localStorage.getItem('vertical_slug') : null;
-  const slug = vertical?.slug ?? cachedSlug ?? 'coffee-shop';
+  const slug = vertical?.slug ?? cachedSlug;
 
   // Use explicit texts, or fall back to vertical-specific texts for fullScreen
-  const resolvedTexts = progressiveTexts ?? (fullScreen ? (VERTICAL_TEXTS[slug] ?? DEFAULT_TEXTS) : undefined);
+  const resolvedTexts = progressiveTexts ?? (fullScreen ? (slug ? (VERTICAL_TEXTS[slug] ?? DEFAULT_TEXTS) : DEFAULT_TEXTS) : undefined);
   const safeIndex = resolvedTexts ? textIndex % resolvedTexts.length : 0;
   const displayText = resolvedTexts ? resolvedTexts[safeIndex] : text;
 
@@ -186,13 +216,15 @@ export function CoffeeLoader({ size = 'md', text, progressiveTexts, fullScreen =
     return () => clearInterval(timer);
   }, [resolvedTexts]);
 
-  // Pick SVG variant based on vertical
-  const svgElement =
-    slug === 'pizzeria' ? (
-      <PizzaSvg s={s} primary={themeColors.primary} />
-    ) : (
-      <CoffeeSvg s={s} primary={themeColors.primary} secondary={themeColors.secondary} />
-    );
+  // Pick SVG variant based on vertical — neutral spinner when unknown
+  let svgElement: React.ReactNode;
+  if (slug === 'pizzeria') {
+    svgElement = <PizzaSvg s={s} primary={themeColors.primary} />;
+  } else if (slug === 'coffee-shop') {
+    svgElement = <CoffeeSvg s={s} primary={themeColors.primary} secondary={themeColors.secondary} />;
+  } else {
+    svgElement = <DefaultSvg s={s} primary={themeColors.primary} />;
+  }
 
   const loader = (
     <div className="flex flex-col items-center justify-center gap-3">
