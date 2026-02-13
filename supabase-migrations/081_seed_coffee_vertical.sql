@@ -33,7 +33,7 @@ INSERT INTO verticals (
     '{
         "primaryColor": "#C9A227",
         "secondaryColor": "#4A3728",
-        "accentColor": "#F5F0E1",
+        "accentColor": "#F5F5F5",
         "backgroundColor": "#FFFFFF",
         "logoUrl": null,
         "iconEmoji": "☕",

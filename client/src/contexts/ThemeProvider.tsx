@@ -10,10 +10,10 @@ const RAW = {
   goldDark: '#B8941F',
   brown: '#4A3728',
   brownLight: '#6B5344',
-  cream: '#F5F0E1',
-  creamDark: '#E8E0CC',
+  cream: '#F5F5F5',
+  creamDark: '#E5E7EB',
   white: '#FFFFFF',
-  inputBg: '#FDF8E8',
+  inputBg: '#F9FAFB',
 };
 
 // ---------------------------------------------------------------------------

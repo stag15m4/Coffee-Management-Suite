@@ -17,10 +17,10 @@ export const colors = {
   brownLight: 'var(--color-secondary-light, #6B5344)',
 
   // Creams / backgrounds — driven by vertical accent
-  cream: 'var(--color-accent, #F5F0E1)',
-  creamDark: 'var(--color-accent-dark, #E8E0CC)',
+  cream: 'var(--color-accent, #F5F5F5)',
+  creamDark: 'var(--color-accent-dark, #E5E7EB)',
   white: 'var(--color-background, #FFFFFF)',
-  inputBg: 'var(--color-input-bg, #FDF8E8)',
+  inputBg: 'var(--color-input-bg, #F9FAFB)',
 
   // Semantic / status — not themed
   green: '#22c55e',
