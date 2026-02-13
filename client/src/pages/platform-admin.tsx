@@ -37,6 +37,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { formatRelativeTime, getActivityColor } from '@/hooks/use-store-profile';
 import { colors } from '@/lib/colors';
 
@@ -50,6 +57,14 @@ interface TenantWithStats {
   created_at: string;
   user_count?: number;
   last_login_at?: string | null;
+  vertical_id?: string | null;
+  vertical_name?: string | null;
+}
+
+interface VerticalOption {
+  id: string;
+  slug: string;
+  display_name: string;
 }
 
 interface SubscriptionPlan {
@@ -108,6 +123,8 @@ export default function PlatformAdmin() {
   const [selectedPlan, setSelectedPlan] = useState<string>('free');
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [savingSubscription, setSavingSubscription] = useState(false);
+  const [verticals, setVerticals] = useState<VerticalOption[]>([]);
+  const [selectedVerticalId, setSelectedVerticalId] = useState<string>('');
 
   // Platform admin management state
   const [admins, setAdmins] = useState<PlatformAdminRecord[]>([]);
@@ -155,9 +172,10 @@ export default function PlatformAdmin() {
 
   const loadSubscriptionData = async () => {
     try {
-      const [plansResult, modulesResult] = await Promise.all([
+      const [plansResult, modulesResult, verticalsResult] = await Promise.all([
         supabase.from('subscription_plans').select('*').order('display_order'),
         supabase.from('modules').select('*').order('display_order'),
+        supabase.from('verticals').select('id, slug, display_name').order('display_name'),
       ]);
 
       if (plansResult.data) {
@@ -165,6 +183,9 @@ export default function PlatformAdmin() {
       }
       if (modulesResult.data) {
         setModules(modulesResult.data);
+      }
+      if (verticalsResult.data) {
+        setVerticals(verticalsResult.data);
       }
     } catch (error: unknown) {
       console.error('Error loading subscription data:', error);
@@ -246,6 +267,7 @@ export default function PlatformAdmin() {
 
   const openSubscriptionDialog = async (tenant: TenantWithStats) => {
     setSelectedTenant(tenant);
+    setSelectedVerticalId(tenant.vertical_id || '');
     const plan = tenant.subscription_plan || 'free';
     setSelectedPlan(plan);
     
@@ -288,7 +310,10 @@ export default function PlatformAdmin() {
     try {
       const { error: planError } = await supabase
         .from('tenants')
-        .update({ subscription_plan: selectedPlan })
+        .update({
+          subscription_plan: selectedPlan,
+          vertical_id: selectedVerticalId || null,
+        })
         .eq('id', selectedTenant.id);
 
       if (planError) throw planError;
@@ -338,7 +363,7 @@ export default function PlatformAdmin() {
     try {
       const { data: tenantsData, error } = await supabase
         .from('tenants')
-        .select('*')
+        .select('*, verticals(display_name)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -363,6 +388,7 @@ export default function PlatformAdmin() {
             ...tenant,
             user_count: count || 0,
             last_login_at: loginData?.[0]?.last_login_at || null,
+            vertical_name: (tenant as any).verticals?.display_name || null,
           };
         })
       );
@@ -704,6 +730,11 @@ export default function PlatformAdmin() {
                         <Badge variant="outline" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
                           {tenant.subscription_status || 'trial'}
                         </Badge>
+                        {tenant.vertical_name && (
+                          <Badge variant="outline" style={{ borderColor: colors.gold, color: colors.gold }}>
+                            {tenant.vertical_name}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     {myTenantIds.has(tenant.id) && (
@@ -898,6 +929,32 @@ export default function PlatformAdmin() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 mt-4">
+              {/* Vertical Assignment */}
+              <div>
+                <Label className="mb-2 block" style={{ color: colors.brown }}>Business Vertical</Label>
+                <Select
+                  value={selectedVerticalId || 'none'}
+                  onValueChange={(value) => setSelectedVerticalId(value === 'none' ? '' : value)}
+                >
+                  <SelectTrigger
+                    className="w-full"
+                    style={{ borderColor: colors.creamDark, color: colors.brown }}
+                    data-testid="select-tenant-vertical"
+                  >
+                    <SelectValue placeholder="No vertical assigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No vertical assigned</SelectItem>
+                    {verticals.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>{v.display_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                  Controls theme, terminology, and starter templates for this tenant.
+                </p>
+              </div>
+
               {/* Premium Suite Toggle */}
               <div
                 className="p-4 rounded-xl border-2 cursor-pointer transition-colors"
