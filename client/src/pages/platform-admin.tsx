@@ -805,21 +805,29 @@ export default function PlatformAdmin() {
                         )}
                       </div>
                     </div>
-                    {myTenantIds.has(tenant.id) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          await enterTenantView(tenant.id);
-                          setLocation('/');
-                        }}
-                        style={{ backgroundColor: colors.gold, color: colors.white }}
-                        data-testid={`button-go-to-tenant-${tenant.id}`}
-                      >
-                        <ExternalLink className="w-4 h-4 mr-1" /> Go to page
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        // Ensure platform admin has an assignment so it shows in the store switcher
+                        if (user && !myTenantIds.has(tenant.id)) {
+                          await supabase.from('user_tenant_assignments').upsert({
+                            user_id: user.id,
+                            tenant_id: tenant.id,
+                            role: 'owner',
+                            is_active: true,
+                          }, { onConflict: 'user_id,tenant_id' });
+                          setMyTenantIds((prev) => { const next = new Set(Array.from(prev)); next.add(tenant.id); return next; });
+                        }
+                        await enterTenantView(tenant.id);
+                        setLocation('/');
+                      }}
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                      data-testid={`button-go-to-tenant-${tenant.id}`}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-1" /> Go to page
+                    </Button>
                     <Settings className="w-5 h-5" style={{ color: colors.brownLight }} />
                   </div>
                 </div>
