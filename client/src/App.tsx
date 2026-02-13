@@ -18,7 +18,7 @@ import { CoffeeLoader } from "@/components/CoffeeLoader";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
-import Home from "@/pages/home";
+import RecipeCostingPage from "@/pages/recipe-costing";
 import CashDeposit from "@/pages/cash-deposit";
 import TipPayout from "@/pages/tip-payout";
 import CoffeeOrder from "@/pages/coffee-order";
@@ -96,7 +96,7 @@ function Router() {
       </Route>
       <Route path="/recipe-costing">
         <ProtectedRoute module="recipe-costing">
-          <AppLayout><Home /></AppLayout>
+          <AppLayout><RecipeCostingPage /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/cash-deposit">
