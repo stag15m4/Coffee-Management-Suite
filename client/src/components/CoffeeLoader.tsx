@@ -101,58 +101,62 @@ function CoffeeSvg({ s, primary, secondary }: { s: number; primary: string; seco
 }
 
 // ---------------------------------------------------------------------------
-// Pizza SVG — pizza on a pan with a rocking cutter and steam
+// Pizza SVG — whole pie with slices that pop out one at a time
 // ---------------------------------------------------------------------------
+// 6 slices of 60° each. Center (40,40), radius 26. Crust ring behind.
+// Each slice is its own <g> with a CSS animation that slides it outward
+// from center, then back. Pepperoni use hardcoded red (not theme) so they
+// look correct before the vertical theme loads.
 
-function PizzaSvg({ s, primary }: { s: number; primary: string }) {
+const PIZZA_SLICES = [
+  // { path, dx, dy, pepperoni?, basil? }  — toppings positioned per-slice
+  { d: 'M 40 40 L 40 14 A 26 26 0 0 1 62.5 27 Z', dx: 4, dy: -7, pep: { cx: 48, cy: 24, r: 3 } },
+  { d: 'M 40 40 L 62.5 27 A 26 26 0 0 1 62.5 53 Z', dx: 8, dy: 0, pep: { cx: 56, cy: 40, r: 3.5 }, basil: { cx: 52, cy: 34, rot: -20 } },
+  { d: 'M 40 40 L 62.5 53 A 26 26 0 0 1 40 66 Z', dx: 4, dy: 7, pep: { cx: 48, cy: 56, r: 3 } },
+  { d: 'M 40 40 L 40 66 A 26 26 0 0 1 17.5 53 Z', dx: -4, dy: 7, pep: { cx: 32, cy: 56, r: 3.5 }, basil: { cx: 36, cy: 52, rot: 25 } },
+  { d: 'M 40 40 L 17.5 53 A 26 26 0 0 1 17.5 27 Z', dx: -8, dy: 0, pep: { cx: 24, cy: 40, r: 3 } },
+  { d: 'M 40 40 L 17.5 27 A 26 26 0 0 1 40 14 Z', dx: -4, dy: -7, pep: { cx: 32, cy: 24, r: 3.5 }, basil: { cx: 28, cy: 30, rot: -15 } },
+];
+
+function PizzaSvg({ s }: { s: number }) {
   return (
     <svg width={s} height={s} viewBox="0 0 80 80" fill="none" role="img" aria-label="Loading">
-      {/* Pizza pan */}
-      <ellipse cx="38" cy="66" rx="28" ry="5" fill="#E5E7EB" stroke="#D1D5DB" strokeWidth="1" />
+      {/* Plate / surface */}
+      <ellipse cx="40" cy="70" rx="26" ry="4" fill="#E5E7EB" />
 
-      {/* Pizza body */}
-      <circle cx="38" cy="38" r="24" fill="#F5D076" />
+      {/* Sauce circle (visible when slices pull away) */}
+      <circle cx="40" cy="40" r="26" fill="#CD212A" opacity="0.15" />
 
       {/* Crust ring */}
-      <circle cx="38" cy="38" r="24" fill="none" stroke="#C8943F" strokeWidth="3" />
+      <circle cx="40" cy="40" r="26" fill="none" stroke="#C8943F" strokeWidth="4" />
 
-      {/* Sauce layer (peeking through) */}
-      <circle cx="38" cy="38" r="20" fill={primary} opacity="0.2" />
-
-      {/* Cheese */}
-      <circle cx="38" cy="38" r="20" fill="#F5D076" opacity="0.6" />
-
-      {/* Slice lines */}
-      <line x1="38" y1="14" x2="38" y2="62" stroke="#E8C94A" strokeWidth="0.8" opacity="0.4" />
-      <line x1="14" y1="38" x2="62" y2="38" stroke="#E8C94A" strokeWidth="0.8" opacity="0.4" />
-      <line x1="21" y1="21" x2="55" y2="55" stroke="#E8C94A" strokeWidth="0.8" opacity="0.4" />
-      <line x1="55" y1="21" x2="21" y2="55" stroke="#E8C94A" strokeWidth="0.8" opacity="0.4" />
-
-      {/* Pepperoni */}
-      <circle cx="30" cy="28" r="3.5" fill={primary} />
-      <circle cx="46" cy="30" r="3" fill={primary} />
-      <circle cx="48" cy="46" r="3.5" fill={primary} />
-      <circle cx="32" cy="48" r="3" fill={primary} />
-      <circle cx="24" cy="40" r="3.5" fill={primary} />
-
-      {/* Basil leaves */}
-      <ellipse cx="38" cy="34" rx="2.5" ry="1" fill="#4CAF50" transform="rotate(-30 38 34)" />
-      <ellipse cx="42" cy="43" rx="2.5" ry="1" fill="#4CAF50" transform="rotate(20 42 43)" />
-
-      {/* Pizza cutter — rocks gently like the coffee spoon */}
-      <g className="pizza-loader-cut" style={{ transformOrigin: '38px 38px' }}>
-        {/* Handle */}
-        <line x1="38" y1="38" x2="56" y2="16" stroke="#9E9E9E" strokeWidth="2.2" strokeLinecap="round" />
-        {/* Circular blade */}
-        <circle cx="58" cy="14" r="4.5" fill="none" stroke="#BDBDBD" strokeWidth="2" />
-        {/* Grip knob */}
-        <circle cx="60" cy="11" r="2" fill="#757575" />
-      </g>
+      {/* 6 animated slices */}
+      {PIZZA_SLICES.map((slice, i) => (
+        <g
+          key={i}
+          className={`pizza-slice pizza-slice-${i}`}
+          style={{ '--slice-dx': `${slice.dx}px`, '--slice-dy': `${slice.dy}px` } as React.CSSProperties}
+        >
+          {/* Cheese slice */}
+          <path d={slice.d} fill="#F5D076" stroke="#E8C94A" strokeWidth="0.5" />
+          {/* Pepperoni */}
+          <circle cx={slice.pep.cx} cy={slice.pep.cy} r={slice.pep.r} fill="#CD212A" />
+          {/* Basil leaf (on some slices) */}
+          {slice.basil && (
+            <ellipse
+              cx={slice.basil.cx} cy={slice.basil.cy}
+              rx="3" ry="1.2"
+              fill="#388E3C"
+              transform={`rotate(${slice.basil.rot} ${slice.basil.cx} ${slice.basil.cy})`}
+            />
+          )}
+        </g>
+      ))}
 
       {/* Steam wisps */}
-      <path className="pizza-loader-steam-1" d="M 30 12 Q 28 6 30 0" stroke={primary} strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0" />
-      <path className="pizza-loader-steam-2" d="M 38 10 Q 40 4 38 -2" stroke={primary} strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0" />
-      <path className="pizza-loader-steam-3" d="M 46 12 Q 48 6 46 0" stroke={primary} strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0" />
+      <path className="pizza-loader-steam-1" d="M 32 10 Q 30 4 32 -2" stroke="#9E9E9E" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0" />
+      <path className="pizza-loader-steam-2" d="M 40 8 Q 42 2 40 -4" stroke="#9E9E9E" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0" />
+      <path className="pizza-loader-steam-3" d="M 48 10 Q 50 4 48 -2" stroke="#9E9E9E" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0" />
     </svg>
   );
 }
@@ -219,7 +223,7 @@ export function CoffeeLoader({ size = 'md', text, progressiveTexts, fullScreen =
   // Pick SVG variant based on vertical — neutral spinner when unknown
   let svgElement: React.ReactNode;
   if (slug === 'pizzeria') {
-    svgElement = <PizzaSvg s={s} primary={themeColors.primary} />;
+    svgElement = <PizzaSvg s={s} />;
   } else if (slug === 'coffee-shop') {
     svgElement = <CoffeeSvg s={s} primary={themeColors.primary} secondary={themeColors.secondary} />;
   } else {

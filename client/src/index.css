@@ -139,14 +139,22 @@
 .coffee-loader-steam-2 { animation: steam 2s ease-out 0.5s infinite; }
 .coffee-loader-steam-3 { animation: steam 2s ease-out 1s infinite; }
 
-/* Pizza loader animations */
-@keyframes pizza-cut {
-  0%, 100% { transform: rotate(-10deg); }
-  50% { transform: rotate(10deg); }
+/* Pizza loader animations — slices pop out one at a time */
+@keyframes pizza-slice-pop {
+  0%  { transform: translate(0, 0); }
+  8%  { transform: translate(var(--slice-dx), var(--slice-dy)); }
+  16% { transform: translate(0, 0); }
+  100% { transform: translate(0, 0); }
 }
-.pizza-loader-cut {
-  animation: pizza-cut 1.6s ease-in-out infinite;
+.pizza-slice {
+  animation: pizza-slice-pop 4.8s ease-in-out infinite;
 }
+.pizza-slice-0 { animation-delay: 0s; }
+.pizza-slice-1 { animation-delay: 0.8s; }
+.pizza-slice-2 { animation-delay: 1.6s; }
+.pizza-slice-3 { animation-delay: 2.4s; }
+.pizza-slice-4 { animation-delay: 3.2s; }
+.pizza-slice-5 { animation-delay: 4s; }
 .pizza-loader-steam-1 { animation: steam 2s ease-out infinite; }
 .pizza-loader-steam-2 { animation: steam 2s ease-out 0.5s infinite; }
 .pizza-loader-steam-3 { animation: steam 2s ease-out 1s infinite; }
