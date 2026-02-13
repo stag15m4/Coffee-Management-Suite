@@ -119,7 +119,7 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
           <button
             onClick={() => { resetVendorForm(); setShowVendorForm(true); }}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium"
-            style={{ backgroundColor: colors.gold, color: colors.brown }}
+            style={{ backgroundColor: colors.gold, color: colors.white }}
             data-testid="button-add-vendor"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -184,7 +184,7 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
                   onClick={handleSaveVendor}
                   disabled={!vendorForm.name.trim()}
                   className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                   data-testid="button-save-vendor"
                 >
                   <Check className="w-3.5 h-3.5" />

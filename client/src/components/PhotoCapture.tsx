@@ -306,7 +306,7 @@ export function PhotoCapture({
                   Switch Camera
                 </Button>
               )}
-              <Button onClick={capturePhoto} style={{ backgroundColor: colors.gold, color: colors.brown }}>
+              <Button onClick={capturePhoto} style={{ backgroundColor: colors.gold, color: colors.white }}>
                 <Camera className="w-4 h-4 mr-2" />
                 Capture Photo
               </Button>
@@ -359,7 +359,7 @@ export function PhotoCapture({
               <Button
                 onClick={handleConfirmUpload}
                 disabled={isUploading}
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
               >
                 {isUploading ? (
                   <>

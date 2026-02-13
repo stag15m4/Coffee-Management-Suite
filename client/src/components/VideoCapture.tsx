@@ -320,7 +320,7 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
               <Button
                 onClick={handleConfirm}
                 disabled={isUploading}
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
               >
                 {isUploading ? (
                   <>

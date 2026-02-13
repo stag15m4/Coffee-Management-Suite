@@ -504,7 +504,7 @@ export default function UserProfile() {
               onClick={handleUpdateProfile}
               disabled={updatingProfile}
               className="w-full"
-              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              style={{ backgroundColor: colors.gold, color: colors.white }}
               data-testid="button-update-profile"
             >
               {updatingProfile ? (
@@ -692,7 +692,7 @@ export default function UserProfile() {
               )}
               <Button
                 onClick={capturePhoto}
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
               >
                 <Camera className="w-4 h-4 mr-2" />
                 Capture Photo
@@ -751,7 +751,7 @@ export default function UserProfile() {
               <Button
                 onClick={handleConfirmUpload}
                 disabled={uploadingAvatar}
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
               >
                 {uploadingAvatar ? (
                   <>

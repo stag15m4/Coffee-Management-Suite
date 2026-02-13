@@ -291,7 +291,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes
               <button
                 onClick={handleAddRecipe}
                 className="px-4 py-2 font-semibold rounded-lg"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-save-new-recipe"
               >
                 Save
@@ -376,7 +376,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes
                   <button
                     onClick={() => handleSaveRecipe(recipe.id)}
                     className="px-3 py-1 rounded font-medium"
-                    style={{ backgroundColor: colors.gold, color: colors.brown }}
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
                     data-testid={`button-save-recipe-${recipe.id}`}
                   >
                     Save
@@ -505,7 +505,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes
                           }
                         }}
                         className="px-2 py-1 rounded text-sm font-medium"
-                        style={{ backgroundColor: colors.gold, color: colors.brown }}
+                        style={{ backgroundColor: colors.gold, color: colors.white }}
                         data-testid="button-save-batch-size"
                       >
                         Save
@@ -789,7 +789,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes
                               <button
                                 onClick={() => handleAddIngredient(recipe.id, size.id)}
                                 className="px-2 py-1 rounded text-sm font-semibold"
-                                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                                style={{ backgroundColor: colors.gold, color: colors.white }}
                                 data-testid={`button-save-ri-${size.id}`}
                               >
                                 Add

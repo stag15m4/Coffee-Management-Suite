@@ -164,7 +164,7 @@ export function DailyTipsEntry({
           <Button
             type="submit"
             disabled={savingTips}
-            style={{ backgroundColor: colors.gold, color: colors.brown }}
+            style={{ backgroundColor: colors.gold, color: colors.white }}
             data-testid="button-save-tips"
           >
             Save Tips

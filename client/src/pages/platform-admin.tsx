@@ -507,7 +507,7 @@ export default function PlatformAdmin() {
           <div className="flex items-center gap-2">
             <Button
               onClick={() => setLocation('/')}
-              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              style={{ backgroundColor: colors.gold, color: colors.white }}
               data-testid="button-my-dashboard"
             >
               <LayoutDashboard className="w-4 h-4 mr-2" />
@@ -582,7 +582,7 @@ export default function PlatformAdmin() {
           <h2 className="text-2xl font-bold" style={{ color: colors.brown }}>Businesses</h2>
           <Dialog open={showNewTenantDialog} onOpenChange={setShowNewTenantDialog}>
             <DialogTrigger asChild>
-              <Button style={{ backgroundColor: colors.gold, color: colors.brown }} data-testid="button-add-business">
+              <Button style={{ backgroundColor: colors.gold, color: colors.white }} data-testid="button-add-business">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Business
               </Button>
@@ -661,7 +661,7 @@ export default function PlatformAdmin() {
                   onClick={handleCreateTenant}
                   disabled={creating}
                   className="w-full"
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                   data-testid="button-create-tenant"
                 >
                   {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -714,7 +714,7 @@ export default function PlatformAdmin() {
                           await enterTenantView(tenant.id);
                           setLocation('/');
                         }}
-                        style={{ backgroundColor: colors.gold, color: colors.brown }}
+                        style={{ backgroundColor: colors.gold, color: colors.white }}
                         data-testid={`button-go-to-tenant-${tenant.id}`}
                       >
                         <ExternalLink className="w-4 h-4 mr-1" /> Go to page
@@ -781,7 +781,7 @@ export default function PlatformAdmin() {
           </h2>
           <Dialog open={showAddAdminDialog} onOpenChange={setShowAddAdminDialog}>
             <DialogTrigger asChild>
-              <Button style={{ backgroundColor: colors.gold, color: colors.brown }} data-testid="button-add-admin">
+              <Button style={{ backgroundColor: colors.gold, color: colors.white }} data-testid="button-add-admin">
                 <UserPlus className="w-4 h-4 mr-2" />
                 Add Admin
               </Button>
@@ -821,7 +821,7 @@ export default function PlatformAdmin() {
                   onClick={handleAddAdmin}
                   disabled={addingAdmin}
                   className="w-full"
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                   data-testid="button-confirm-add-admin"
                 >
                   {addingAdmin ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -1049,7 +1049,7 @@ export default function PlatformAdmin() {
                 onClick={saveSubscriptionSettings}
                 disabled={savingSubscription}
                 className="w-full"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-save-subscription"
               >
                 {savingSubscription ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -1084,7 +1084,7 @@ export default function PlatformAdmin() {
                 onClick={handleRenameTenant}
                 disabled={renaming}
                 className="w-full"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-confirm-rename-tenant"
               >
                 {renaming ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}

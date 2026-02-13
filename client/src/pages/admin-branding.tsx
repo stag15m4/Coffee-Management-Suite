@@ -119,7 +119,7 @@ export default function AdminBranding() {
           <Button
             onClick={saveBranding}
             disabled={saving}
-            style={{ backgroundColor: colors.gold, color: colors.brown }}
+            style={{ backgroundColor: colors.gold, color: colors.white }}
             data-testid="button-save-branding"
           >
             <Save className="w-4 h-4 mr-2" />

@@ -689,7 +689,7 @@ export default function AdminTasks() {
             <Button
               size="sm"
               onClick={() => { resetTaskForm(); setShowTaskForm(true); }}
-              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              style={{ backgroundColor: colors.gold, color: colors.white }}
               data-testid="button-new-task"
             >
               <Plus className="w-4 h-4 mr-1" />
@@ -796,7 +796,7 @@ export default function AdminTasks() {
                 <Button
                   onClick={handleAddCategory}
                   disabled={!newCategoryName.trim()}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                   data-testid="button-add-category"
                 >
                   <Plus className="w-4 h-4" />
@@ -1034,7 +1034,7 @@ export default function AdminTasks() {
                 <div className="flex gap-2">
                   <Button
                     type="submit"
-                    style={{ backgroundColor: colors.gold, color: colors.brown }}
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
                     data-testid="button-save-task"
                   >
                     {editingTask ? 'Update Task' : 'Create Task'}
@@ -1119,7 +1119,7 @@ export default function AdminTasks() {
                 <Button
                   className="mt-2"
                   onClick={() => { resetTaskForm(); setShowTaskForm(true); }}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   <Plus className="w-4 h-4 mr-1" />
                   Create First Task
@@ -1365,7 +1365,7 @@ export default function AdminTasks() {
                     <Button
                       onClick={handleAddComment}
                       disabled={!newComment.trim()}
-                      style={{ backgroundColor: colors.gold, color: colors.brown }}
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
                       data-testid="button-add-comment"
                     >
                       Add

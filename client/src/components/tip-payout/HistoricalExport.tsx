@@ -127,7 +127,7 @@ export function HistoricalExport({
             onClick={onExportHistorical}
             disabled={exportingHistory || !historyStartDate || !historyEndDate}
             className="gap-2"
-            style={{ backgroundColor: colors.gold, color: colors.brown }}
+            style={{ backgroundColor: colors.gold, color: colors.white }}
             data-testid="button-export-history"
           >
             <Download className="w-4 h-4" />

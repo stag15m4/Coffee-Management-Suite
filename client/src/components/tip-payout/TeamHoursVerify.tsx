@@ -68,7 +68,7 @@ export function TeamHoursVerify({
         <div className="flex justify-end">
           <Button
             type="submit"
-            style={{ backgroundColor: colors.gold, color: colors.brown }}
+            style={{ backgroundColor: colors.gold, color: colors.white }}
             data-testid="button-verify-hours"
           >
             Verify

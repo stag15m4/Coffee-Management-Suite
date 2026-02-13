@@ -168,7 +168,7 @@ export function EmployeeHoursEntry({
                 onClick={onAddHours}
                 disabled={savingHours || !selectedEmployee}
                 size="sm"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-add-hours"
               >
                 Add

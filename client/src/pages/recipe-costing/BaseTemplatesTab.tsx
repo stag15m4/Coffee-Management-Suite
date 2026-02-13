@@ -133,7 +133,7 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAdd
               <button
                 onClick={handleAddTemplate}
                 className="px-4 py-2 font-semibold rounded-lg"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-save-template"
               >
                 Save
@@ -306,7 +306,7 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAdd
                                 <button
                                   onClick={() => handleAddIngredient(template.id, size.id)}
                                   className="text-xs px-2 py-1 rounded"
-                                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                                  style={{ backgroundColor: colors.gold, color: colors.white }}
                                   data-testid={`button-confirm-ing-${size.id}`}
                                 >
                                   Add
@@ -424,7 +424,7 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAdd
                                   }
                                 }}
                                 className="flex-1 px-2 py-1.5 rounded text-sm font-medium"
-                                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                                style={{ backgroundColor: colors.gold, color: colors.white }}
                                 data-testid="button-save-new-size"
                               >
                                 Create

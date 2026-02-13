@@ -229,7 +229,7 @@ export default function Login() {
                 type="submit"
                 className="w-full"
                 disabled={isLoading}
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-login"
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
@@ -281,7 +281,7 @@ export default function Login() {
               type="submit"
               className="w-full"
               disabled={isResetting}
-              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              style={{ backgroundColor: colors.gold, color: colors.white }}
               data-testid="button-send-reset"
             >
               {isResetting ? 'Sending...' : 'Send Reset Link'}

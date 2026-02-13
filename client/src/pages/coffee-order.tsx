@@ -931,7 +931,7 @@ export default function CoffeeOrder() {
               onClick={saveVendor}
               disabled={saving}
               className="px-5 py-2 rounded-md text-sm font-semibold mb-6"
-              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              style={{ backgroundColor: colors.gold, color: colors.white }}
               data-testid="button-save-vendor"
             >
               Save Vendor Settings
@@ -982,7 +982,7 @@ export default function CoffeeOrder() {
                   onClick={addProduct}
                   disabled={!newProduct.name || saving}
                   className="px-4 py-2 rounded-md text-sm font-semibold flex items-center justify-center gap-2"
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                   data-testid="button-add-product"
                 >
                   <Plus className="w-4 h-4" /> Add
@@ -1117,7 +1117,7 @@ export default function CoffeeOrder() {
                     <button
                       onClick={() => loadOrder(order.items)}
                       className="px-4 py-2 rounded-md text-sm font-semibold"
-                      style={{ backgroundColor: colors.gold, color: colors.brown }}
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
                       data-testid={`button-load-order-${order.id}`}
                     >
                       Load
@@ -1144,7 +1144,7 @@ export default function CoffeeOrder() {
               <button
                 onClick={() => setShowSettings(true)}
                 className="px-6 py-3 rounded-lg font-semibold"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-goto-settings"
               >
                 Configure Products
@@ -1192,7 +1192,7 @@ export default function CoffeeOrder() {
                             <button
                               onClick={() => updateQty(product.id, 1)}
                               className="w-8 h-8 rounded-md flex items-center justify-center text-lg font-semibold"
-                              style={{ backgroundColor: colors.gold, color: colors.brown }}
+                              style={{ backgroundColor: colors.gold, color: colors.white }}
                               data-testid={`button-plus-${product.sku}`}
                             >
                               +

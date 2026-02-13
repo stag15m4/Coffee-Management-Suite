@@ -412,7 +412,7 @@ export default function AdminUsers() {
             <CardTitle style={{ color: colors.brown }}>Team Members</CardTitle>
             <Button
               onClick={() => setShowAddDialog(true)}
-              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              style={{ backgroundColor: colors.gold, color: colors.white }}
               data-testid="button-add-user"
             >
               <UserPlus className="w-4 h-4 mr-2" />
@@ -444,7 +444,7 @@ export default function AdminUsers() {
                   <Button
                     onClick={() => setShowSuccessDialog(false)}
                     className="w-full"
-                    style={{ backgroundColor: colors.gold, color: colors.brown }}
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
                     data-testid="button-close-success-dialog"
                   >
                     Done
@@ -494,7 +494,7 @@ export default function AdminUsers() {
                       {user.id === profile?.id || (user.role === 'owner' && !canEditOwners) ? (
                         <span
                           className="px-3 py-1 rounded text-sm font-medium"
-                          style={{ backgroundColor: colors.gold, color: colors.brown }}
+                          style={{ backgroundColor: colors.gold, color: colors.white }}
                         >
                           {getRoleDisplayName(user.role)}
                         </span>
@@ -578,7 +578,7 @@ export default function AdminUsers() {
                 </div>
                 <Button
                   onClick={() => navigate('/admin/role-settings')}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   <Shield className="w-4 h-4 mr-2" />
                   Customize
@@ -647,7 +647,7 @@ export default function AdminUsers() {
                 onClick={handleCreateUser}
                 disabled={creating || !newEmail}
                 className="w-full"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-create-user"
               >
                 {creating ? (
@@ -711,7 +711,7 @@ export default function AdminUsers() {
                   onClick={saveLocationAssignments}
                   disabled={savingLocations}
                   className="flex-1"
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                   data-testid="button-save-locations"
                 >
                   {savingLocations ? (
@@ -854,7 +854,7 @@ export default function AdminUsers() {
                 onClick={handleSaveDetail}
                 disabled={savingDetail}
                 className="w-full"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
               >
                 {savingDetail ? (
                   <>

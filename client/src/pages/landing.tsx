@@ -209,7 +209,7 @@ export default function Landing() {
             <div>
               <Badge 
                 className="mb-4"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
               >
                 Built for Food Service
               </Badge>
@@ -580,7 +580,7 @@ export default function Landing() {
                     <DialogTitle style={{ color: colors.brown }}>
                       {selectedModule.title}
                     </DialogTitle>
-                    <Badge style={{ backgroundColor: colors.gold, color: colors.brown }}>
+                    <Badge style={{ backgroundColor: colors.gold, color: colors.white }}>
                       {selectedModule.price}
                     </Badge>
                   </div>

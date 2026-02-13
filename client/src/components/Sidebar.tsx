@@ -172,7 +172,7 @@ export function Sidebar() {
       {adminViewingTenant && (
         <button
           className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90"
-          style={{ backgroundColor: colors.gold, color: colors.brown }}
+          style={{ backgroundColor: colors.gold, color: colors.white }}
           onClick={() => {
             exitTenantView();
             setLocation('/platform-admin');

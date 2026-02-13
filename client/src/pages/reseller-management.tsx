@@ -383,7 +383,7 @@ export default function ResellerManagement() {
         <div className="flex items-center gap-2">
           <Button
             onClick={() => setLocation('/')}
-            style={{ backgroundColor: colors.gold, color: colors.brown }}
+            style={{ backgroundColor: colors.gold, color: colors.white }}
             data-testid="button-my-dashboard"
           >
             <LayoutDashboard className="w-4 h-4 mr-2" />

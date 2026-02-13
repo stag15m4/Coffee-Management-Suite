@@ -530,7 +530,7 @@ export default function Billing() {
                   }}
                   disabled={checkoutLoading !== null}
                   className="w-full"
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   Get All 6 Modules — $99.99/mo
                 </Button>
@@ -621,7 +621,7 @@ export default function Billing() {
                               }
                             }}
                             disabled={checkoutLoading !== null}
-                            style={{ backgroundColor: colors.gold, color: colors.brown }}
+                            style={{ backgroundColor: colors.gold, color: colors.white }}
                           >
                             Get All Modules — $99.99/mo
                           </Button>
@@ -641,7 +641,7 @@ export default function Billing() {
                               }
                             }}
                             disabled={checkoutLoading !== null}
-                            style={{ backgroundColor: colors.gold, color: colors.brown }}
+                            style={{ backgroundColor: colors.gold, color: colors.white }}
                           >
                             Add Module — ${price.toFixed(2)}/mo
                           </Button>
@@ -715,7 +715,7 @@ export default function Billing() {
                   size="sm"
                   onClick={handleManageSubscription}
                   disabled={portalLoading}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   Add Payment Method
                 </Button>
@@ -796,7 +796,7 @@ export default function Billing() {
               <Button
                 onClick={handleGenerateReferralCode}
                 disabled={referralLoading}
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
               >
                 {referralLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Generate Referral Code
@@ -825,7 +825,7 @@ export default function Billing() {
                   size="sm"
                   onClick={handleRedeemReferral}
                   disabled={referralRedeemLoading || !referralRedeemCode.trim()}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   {referralRedeemLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Redeem'}
                 </Button>
@@ -885,7 +885,7 @@ export default function Billing() {
                   size="sm"
                   onClick={handleRedeemLicense}
                   disabled={licenseLoading || !licenseCode.trim()}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   {licenseLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Redeem'}
                 </Button>
@@ -930,7 +930,7 @@ export default function Billing() {
                           </Badge>
                         )}
                         {!isCurrentPlan && (
-                          <Badge className="absolute -top-2 right-4" style={{ backgroundColor: colors.gold, color: colors.brown }}>
+                          <Badge className="absolute -top-2 right-4" style={{ backgroundColor: colors.gold, color: colors.white }}>
                             Best Value
                           </Badge>
                         )}
@@ -956,7 +956,7 @@ export default function Billing() {
                                   <Button
                                     onClick={() => handleCheckout(price.id)}
                                     disabled={checkoutLoading === price.id}
-                                    style={{ backgroundColor: colors.gold, color: colors.brown }}
+                                    style={{ backgroundColor: colors.gold, color: colors.white }}
                                   >
                                     {checkoutLoading === price.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Subscribe
@@ -1012,7 +1012,7 @@ export default function Billing() {
                                   className="h-7 text-xs"
                                   onClick={() => handleCheckout(product.prices[0].id)}
                                   disabled={checkoutLoading === product.prices[0].id}
-                                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                                  style={{ backgroundColor: colors.gold, color: colors.white }}
                                 >
                                   {checkoutLoading === product.prices[0].id && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
                                   Add

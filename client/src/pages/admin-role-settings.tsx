@@ -114,7 +114,7 @@ export default function AdminRoleSettings() {
                 {!isOwnerRole && hasEdits && (
                   <Button size="sm" onClick={() => handleSave(setting)}
                     disabled={updateSetting.isPending}
-                    style={{ backgroundColor: colors.gold, color: colors.brown }}>
+                    style={{ backgroundColor: colors.gold, color: colors.white }}>
                     <Save className="w-3.5 h-3.5 mr-1" /> Save
                   </Button>
                 )}

@@ -88,7 +88,7 @@ export function TipPayoutHeader({
                   <Button
                     type="submit"
                     disabled={addingEmployee || !newEmployeeName.trim()}
-                    style={{ backgroundColor: colors.gold, color: colors.brown }}
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
                     data-testid="button-add-employee"
                   >
                     <Plus className="w-4 h-4 mr-1" />

@@ -169,7 +169,7 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
               <button
                 onClick={handleSave}
                 className="px-4 py-2 font-semibold rounded-lg"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-save-settings"
               >
                 Save Changes

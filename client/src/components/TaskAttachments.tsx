@@ -284,7 +284,7 @@ export function TaskAttachments({ taskId, tenantId, userName }: TaskAttachmentsP
             size="sm"
             onClick={handleAddLink}
             disabled={addAttachment.isPending}
-            style={{ backgroundColor: colors.gold, color: colors.brown }}
+            style={{ backgroundColor: colors.gold, color: colors.white }}
           >
             {addAttachment.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save'}
           </Button>
@@ -330,7 +330,7 @@ export function TaskAttachments({ taskId, tenantId, userName }: TaskAttachmentsP
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              style={{ backgroundColor: colors.gold, color: colors.white }}
             >
               <ExternalLink className="w-4 h-4" />
               Open in New Tab

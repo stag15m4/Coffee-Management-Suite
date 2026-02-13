@@ -542,7 +542,7 @@ export default function TipPayout() {
                 </p>
                 <Button
                   onClick={() => setManageDialogOpen(true)}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   <Users className="w-4 h-4 mr-2" />
                   Add Employees

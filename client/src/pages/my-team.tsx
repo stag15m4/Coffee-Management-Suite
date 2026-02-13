@@ -374,7 +374,7 @@ export default function MyTeam() {
                           </p>
                           <Button
                             size="sm"
-                            style={{ backgroundColor: colors.gold, color: colors.brown }}
+                            style={{ backgroundColor: colors.gold, color: colors.white }}
                             onClick={() => setLocation('/billing')}
                           >
                             <TrendingUp className="w-3 h-3 mr-1" />
@@ -414,7 +414,7 @@ export default function MyTeam() {
                           </p>
                           <Button
                             size="sm"
-                            style={{ backgroundColor: colors.gold, color: colors.brown }}
+                            style={{ backgroundColor: colors.gold, color: colors.white }}
                             onClick={() => setLocation('/billing')}
                           >
                             <TrendingUp className="w-3 h-3 mr-1" />
@@ -454,7 +454,7 @@ export default function MyTeam() {
                           </p>
                           <Button
                             size="sm"
-                            style={{ backgroundColor: colors.gold, color: colors.brown }}
+                            style={{ backgroundColor: colors.gold, color: colors.white }}
                             onClick={() => setLocation('/billing')}
                           >
                             <TrendingUp className="w-3 h-3 mr-1" />
@@ -494,7 +494,7 @@ export default function MyTeam() {
                           </p>
                           <Button
                             size="sm"
-                            style={{ backgroundColor: colors.gold, color: colors.brown }}
+                            style={{ backgroundColor: colors.gold, color: colors.white }}
                             onClick={() => setLocation('/billing')}
                           >
                             <TrendingUp className="w-3 h-3 mr-1" />

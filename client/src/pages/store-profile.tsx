@@ -391,7 +391,7 @@ function OperatingHoursCard({
                 size="sm"
                 onClick={handleSave}
                 disabled={upsertMutation.isPending}
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
               >
                 <Check className="w-4 h-4 mr-1" />
                 Save
@@ -563,7 +563,7 @@ function DrawerDefaultCard({
                 size="sm"
                 onClick={handleSave}
                 disabled={updateMutation.isPending}
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
               >
                 <Check className="w-4 h-4 mr-1" />
                 Save

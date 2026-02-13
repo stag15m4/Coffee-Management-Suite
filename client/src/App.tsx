@@ -22,7 +22,7 @@ import RecipeCostingPage from "@/pages/recipe-costing";
 import CashDeposit from "@/pages/cash-deposit";
 import TipPayout from "@/pages/tip-payout";
 import CoffeeOrder from "@/pages/coffee-order";
-import EquipmentMaintenance from "@/pages/equipment-maintenance";
+import EquipmentMaintenance from "@/pages/equipment";
 import AdminTasks from "@/pages/admin-tasks";
 import CalendarWorkforce from "@/pages/calendar-workforce";
 import AdminUsers from "@/pages/admin-users";

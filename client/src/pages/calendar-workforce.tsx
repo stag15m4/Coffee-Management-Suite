@@ -448,7 +448,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
           <div className="flex gap-2">
             <Button
               onClick={() => { setEditingShift(null); setConflictWarning(null); setSelectedEmployeeKey(''); setNewShiftDate(formatDate(new Date())); setNewShiftStart('08:00'); setNewShiftEnd('16:00'); setNewShiftPosition(''); setNewShiftNotes(''); setShowCreateDialog(true); }}
-              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              style={{ backgroundColor: colors.gold, color: colors.white }}
             >
               <Plus className="w-4 h-4 mr-1" /> Add Shift
             </Button>
@@ -592,7 +592,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
               )}
               <div className="flex gap-2 pt-2">
                 <Button onClick={handleSaveShift} disabled={createShift.isPending || updateShift.isPending}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }} className="flex-1">
+                  style={{ backgroundColor: colors.gold, color: colors.white }} className="flex-1">
                   <Check className="w-4 h-4 mr-1" />
                   {editingShift ? 'Update' : 'Create'}
                 </Button>
@@ -686,7 +686,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
               </div>
               <Button onClick={handleSaveTemplate} disabled={createTemplate.isPending}
-                style={{ backgroundColor: colors.gold, color: colors.brown }}>
+                style={{ backgroundColor: colors.gold, color: colors.white }}>
                 <Plus className="w-4 h-4 mr-1" /> Save Template
               </Button>
             </div>
@@ -793,7 +793,7 @@ function TimeOffTab({ tenantId, canApprove, currentUserId }: {
             My Requests
           </CardTitle>
           <Button size="sm" onClick={() => setShowForm(!showForm)}
-            style={{ backgroundColor: colors.gold, color: colors.brown }}>
+            style={{ backgroundColor: colors.gold, color: colors.white }}>
             <Plus className="w-4 h-4 mr-1" /> Request
           </Button>
         </CardHeader>
@@ -838,7 +838,7 @@ function TimeOffTab({ tenantId, canApprove, currentUserId }: {
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={handleSubmitRequest} disabled={createRequest.isPending}
-                    style={{ backgroundColor: colors.gold, color: colors.brown }}>
+                    style={{ backgroundColor: colors.gold, color: colors.white }}>
                     Submit Request
                   </Button>
                   <Button variant="outline" onClick={() => setShowForm(false)}
@@ -1311,7 +1311,7 @@ function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employe
               </div>
               <div className="flex gap-2 pt-2">
                 <Button onClick={handleSubmitEditRequest} disabled={createEdit.isPending}
-                  style={{ backgroundColor: colors.gold, color: colors.brown }} className="flex-1">
+                  style={{ backgroundColor: colors.gold, color: colors.white }} className="flex-1">
                   <Check className="w-4 h-4 mr-1" /> Submit Request
                 </Button>
                 <Button variant="outline" onClick={() => setEditRequestEntry(null)}
@@ -1558,7 +1558,7 @@ function ExportTab({ tenantId, employees }: {
                   </tbody>
                 </table>
               </div>
-              <Button onClick={handleDownload} style={{ backgroundColor: colors.gold, color: colors.brown }}>
+              <Button onClick={handleDownload} style={{ backgroundColor: colors.gold, color: colors.white }}>
                 <Download className="w-4 h-4 mr-2" /> Download CSV
               </Button>
             </>
@@ -1655,7 +1655,7 @@ export default function CalendarWorkforce() {
               onClick={() => setActiveTab(t.key)}
               style={
                 activeTab === t.key
-                  ? { backgroundColor: colors.gold, color: colors.brown }
+                  ? { backgroundColor: colors.gold, color: colors.white }
                   : { borderColor: colors.gold, color: colors.brown }
               }
             >

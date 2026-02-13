@@ -300,7 +300,7 @@ export default function OrganizationDashboard() {
           </h2>
           <Link href="/admin/locations">
             <Button
-              style={{ backgroundColor: colors.gold, color: colors.brown }}
+              style={{ backgroundColor: colors.gold, color: colors.white }}
               data-testid="button-manage-locations"
             >
               <Plus className="w-4 h-4 mr-2" />

@@ -257,7 +257,7 @@ export default function AdminLocations() {
           <CardContent className="py-8 text-center">
             <p style={{ color: colors.brown }}>Only owners can manage locations.</p>
             <Link href="/dashboard">
-              <Button className="mt-4" style={{ backgroundColor: colors.gold, color: colors.brown }}>
+              <Button className="mt-4" style={{ backgroundColor: colors.gold, color: colors.white }}>
                 Back to Dashboard
               </Button>
             </Link>
@@ -532,7 +532,7 @@ export default function AdminLocations() {
                 onClick={handleSave}
                 disabled={saving || !formData.name.trim() || !formData.slug.trim()}
                 className="flex-1"
-                style={{ backgroundColor: colors.gold, color: colors.brown }}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-save-location"
               >
                 {saving ? 'Saving...' : editingLocation ? 'Update' : 'Create Location'}
