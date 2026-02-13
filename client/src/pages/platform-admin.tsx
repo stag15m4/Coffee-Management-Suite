@@ -19,10 +19,8 @@ import {
   XCircle,
   Loader2,
   Settings,
-  Package,
   Key,
   ShieldCheck,
-  Pencil,
   Trash2,
   UserPlus,
   ExternalLink,
@@ -65,6 +63,23 @@ interface VerticalOption {
   id: string;
   slug: string;
   display_name: string;
+}
+
+// Match a business name to a vertical using slug/display_name keywords
+function matchVertical(name: string, verticals: VerticalOption[]): VerticalOption | null {
+  if (!name || verticals.length === 0) return null;
+  const lower = name.toLowerCase();
+
+  for (const v of verticals) {
+    const words = [
+      ...v.slug.split('-'),
+      ...v.display_name.toLowerCase().split(/\s+/),
+    ];
+    if (words.some((w) => w.length >= 3 && lower.includes(w))) {
+      return v;
+    }
+  }
+  return null;
 }
 
 interface SubscriptionPlan {
@@ -125,6 +140,11 @@ export default function PlatformAdmin() {
   const [savingSubscription, setSavingSubscription] = useState(false);
   const [verticals, setVerticals] = useState<VerticalOption[]>([]);
   const [selectedVerticalId, setSelectedVerticalId] = useState<string>('');
+  const [editTenantName, setEditTenantName] = useState<string>('');
+  const [verticalPrompt, setVerticalPrompt] = useState(false); // true = name didn't match any vertical
+  const [showCreateVertical, setShowCreateVertical] = useState(false);
+  const [newVerticalName, setNewVerticalName] = useState('');
+  const [creatingVertical, setCreatingVertical] = useState(false);
 
   // Platform admin management state
   const [admins, setAdmins] = useState<PlatformAdminRecord[]>([]);
@@ -133,12 +153,6 @@ export default function PlatformAdmin() {
   const [newAdminName, setNewAdminName] = useState('');
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [removingAdminId, setRemovingAdminId] = useState<string | null>(null);
-
-  // Rename tenant state
-  const [showRenameTenantDialog, setShowRenameTenantDialog] = useState(false);
-  const [renameTenantId, setRenameTenantId] = useState('');
-  const [renameTenantName, setRenameTenantName] = useState('');
-  const [renaming, setRenaming] = useState(false);
 
   // Tenant IDs where this admin has a user profile
   const [myTenantIds, setMyTenantIds] = useState<Set<string>>(new Set());
@@ -267,10 +281,28 @@ export default function PlatformAdmin() {
 
   const openSubscriptionDialog = async (tenant: TenantWithStats) => {
     setSelectedTenant(tenant);
-    setSelectedVerticalId(tenant.vertical_id || '');
+    setEditTenantName(tenant.name);
+    setShowCreateVertical(false);
+    setNewVerticalName('');
+
+    // Auto-match vertical from name if none assigned
+    if (!tenant.vertical_id) {
+      const match = matchVertical(tenant.name, verticals);
+      if (match) {
+        setSelectedVerticalId(match.id);
+        setVerticalPrompt(false);
+      } else {
+        setSelectedVerticalId('');
+        setVerticalPrompt(true); // prompt user to choose or create
+      }
+    } else {
+      setSelectedVerticalId(tenant.vertical_id);
+      setVerticalPrompt(false);
+    }
+
     const plan = tenant.subscription_plan || 'free';
     setSelectedPlan(plan);
-    
+
     if (plan === 'alacarte') {
       const { data: subs } = await supabase
         .from('tenant_module_subscriptions')
@@ -280,8 +312,63 @@ export default function PlatformAdmin() {
     } else {
       setSelectedModules([]);
     }
-    
+
     setShowSubscriptionDialog(true);
+  };
+
+  // Re-run auto-match when name changes (only if no vertical manually selected)
+  const handleNameChange = (name: string) => {
+    setEditTenantName(name);
+    if (!selectedVerticalId || selectedVerticalId === '') {
+      const match = matchVertical(name, verticals);
+      if (match) {
+        setSelectedVerticalId(match.id);
+        setVerticalPrompt(false);
+      } else {
+        setVerticalPrompt(true);
+      }
+    }
+  };
+
+  const handleCreateVertical = async () => {
+    const displayName = newVerticalName.trim();
+    if (!displayName) return;
+
+    setCreatingVertical(true);
+    try {
+      const slug = displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const productName = displayName.replace(/\s+/g, '') + 'Suite';
+
+      const res = await fetch('/api/verticals', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          slug,
+          productName,
+          displayName,
+          isPublished: false,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to create vertical');
+      }
+
+      const created = await res.json();
+      // Add to local list and auto-select
+      const newOption: VerticalOption = { id: created.id, slug: created.slug, display_name: created.display_name };
+      setVerticals((prev) => [...prev, newOption]);
+      setSelectedVerticalId(created.id);
+      setVerticalPrompt(false);
+      setShowCreateVertical(false);
+      setNewVerticalName('');
+      toast({ title: `Vertical "${displayName}" created` });
+    } catch (error: any) {
+      toast({ title: 'Error creating vertical', description: error.message, variant: 'destructive' });
+    } finally {
+      setCreatingVertical(false);
+    }
   };
 
   const toggleModule = (moduleId: string) => {
@@ -308,15 +395,31 @@ export default function PlatformAdmin() {
     
     setSavingSubscription(true);
     try {
+      const newName = editTenantName.trim();
+      if (!newName) {
+        toast({ title: 'Business name is required', variant: 'destructive' });
+        setSavingSubscription(false);
+        return;
+      }
+
       const { error: planError } = await supabase
         .from('tenants')
         .update({
+          name: newName,
           subscription_plan: selectedPlan,
           vertical_id: selectedVerticalId || null,
         })
         .eq('id', selectedTenant.id);
 
       if (planError) throw planError;
+
+      // Keep branding company_name in sync with tenant name
+      if (newName !== selectedTenant.name) {
+        await supabase
+          .from('tenant_branding')
+          .update({ company_name: newName })
+          .eq('tenant_id', selectedTenant.id);
+      }
 
       await supabase
         .from('tenant_module_subscriptions')
@@ -462,47 +565,6 @@ export default function PlatformAdmin() {
       loadTenants();
     } catch (error: any) {
       toast({ title: 'Error updating tenant', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const openRenameDialog = (tenant: TenantWithStats) => {
-    setRenameTenantId(tenant.id);
-    setRenameTenantName(tenant.name);
-    setShowRenameTenantDialog(true);
-  };
-
-  const handleRenameTenant = async () => {
-    if (!renameTenantName.trim()) {
-      toast({ title: 'Business name is required', variant: 'destructive' });
-      return;
-    }
-
-    setRenaming(true);
-    try {
-      const newName = renameTenantName.trim();
-
-      // Update both tenants.name and tenant_branding.company_name
-      // so the new name shows everywhere across the platform
-      const [tenantResult, brandingResult] = await Promise.all([
-        supabase
-          .from('tenants')
-          .update({ name: newName })
-          .eq('id', renameTenantId),
-        supabase
-          .from('tenant_branding')
-          .update({ company_name: newName })
-          .eq('tenant_id', renameTenantId),
-      ]);
-
-      if (tenantResult.error) throw tenantResult.error;
-      if (brandingResult.error) throw brandingResult.error;
-      toast({ title: 'Business renamed successfully!' });
-      setShowRenameTenantDialog(false);
-      loadTenants();
-    } catch (error: any) {
-      toast({ title: 'Error renaming business', description: error.message, variant: 'destructive' });
-    } finally {
-      setRenaming(false);
     }
   };
 
@@ -700,7 +762,13 @@ export default function PlatformAdmin() {
 
         <div className="space-y-4">
           {tenants.map((tenant) => (
-            <Card key={tenant.id} className="hover:shadow-lg transition-shadow" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+            <Card
+              key={tenant.id}
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+              onClick={() => openSubscriptionDialog(tenant)}
+              data-testid={`card-tenant-${tenant.id}`}
+            >
               <CardContent className="py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -741,7 +809,8 @@ export default function PlatformAdmin() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={async () => {
+                        onClick={async (e) => {
+                          e.stopPropagation();
                           await enterTenantView(tenant.id);
                           setLocation('/');
                         }}
@@ -751,44 +820,7 @@ export default function PlatformAdmin() {
                         <ExternalLink className="w-4 h-4 mr-1" /> Go to page
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openRenameDialog(tenant)}
-                      style={{ borderColor: colors.gold, color: colors.gold }}
-                      data-testid={`button-rename-tenant-${tenant.id}`}
-                    >
-                      <Pencil className="w-4 h-4 mr-1" /> Rename
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openSubscriptionDialog(tenant)}
-                      style={{ borderColor: colors.gold, color: colors.gold }}
-                      data-testid={`button-manage-subscription-${tenant.id}`}
-                    >
-                      <Package className="w-4 h-4 mr-1" /> Modules
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleTenantActive(tenant.id, tenant.is_active)}
-                      style={tenant.is_active
-                        ? { borderColor: colors.red, color: colors.red }
-                        : { borderColor: colors.green, color: colors.green }
-                      }
-                      data-testid={`button-toggle-tenant-${tenant.id}`}
-                    >
-                      {tenant.is_active ? (
-                        <>
-                          <XCircle className="w-4 h-4 mr-1" /> Deactivate
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="w-4 h-4 mr-1" /> Activate
-                        </>
-                      )}
-                    </Button>
+                    <Settings className="w-5 h-5" style={{ color: colors.brownLight }} />
                   </div>
                 </div>
               </CardContent>
@@ -919,26 +951,46 @@ export default function PlatformAdmin() {
           )}
         </div>
 
-        {/* Subscription Management Dialog */}
+        {/* Unified Tenant Management Dialog */}
         <Dialog open={showSubscriptionDialog} onOpenChange={setShowSubscriptionDialog}>
           <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Manage Subscription</DialogTitle>
+              <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Manage Business</DialogTitle>
               <DialogDescription style={{ color: colors.brownLight }}>
-                {selectedTenant?.name} - Configure plan and modules
+                Configure settings, vertical, plan, and modules
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 mt-4">
+              {/* Business Name */}
+              <div>
+                <Label className="mb-2 block" style={{ color: colors.brown }} htmlFor="edit-tenant-name">Business Name</Label>
+                <Input
+                  id="edit-tenant-name"
+                  value={editTenantName}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder="Business name"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                  data-testid="input-edit-tenant-name"
+                />
+              </div>
+
               {/* Vertical Assignment */}
               <div>
                 <Label className="mb-2 block" style={{ color: colors.brown }}>Business Vertical</Label>
                 <Select
                   value={selectedVerticalId || 'none'}
-                  onValueChange={(value) => setSelectedVerticalId(value === 'none' ? '' : value)}
+                  onValueChange={(value) => {
+                    setSelectedVerticalId(value === 'none' ? '' : value);
+                    setVerticalPrompt(false);
+                  }}
                 >
                   <SelectTrigger
                     className="w-full"
-                    style={{ borderColor: colors.creamDark, color: colors.brown }}
+                    style={{
+                      borderColor: verticalPrompt && !selectedVerticalId ? colors.gold : colors.creamDark,
+                      color: colors.brown,
+                      boxShadow: verticalPrompt && !selectedVerticalId ? `0 0 0 2px ${colors.gold}40` : undefined,
+                    }}
                     data-testid="select-tenant-vertical"
                   >
                     <SelectValue placeholder="No vertical assigned" />
@@ -950,9 +1002,57 @@ export default function PlatformAdmin() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
-                  Controls theme, terminology, and starter templates for this tenant.
-                </p>
+                {verticalPrompt && !selectedVerticalId ? (
+                  <p className="text-xs mt-1 font-medium" style={{ color: colors.gold }}>
+                    No vertical matched this name. Please choose one above or create a new one.
+                  </p>
+                ) : (
+                  <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                    Controls theme, terminology, and starter templates for this tenant.
+                  </p>
+                )}
+
+                {/* Create New Vertical */}
+                {!showCreateVertical ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 px-0"
+                    style={{ color: colors.gold }}
+                    onClick={() => setShowCreateVertical(true)}
+                    data-testid="button-create-vertical"
+                  >
+                    <Plus className="w-3 h-3 mr-1" /> Create new vertical
+                  </Button>
+                ) : (
+                  <div className="mt-2 flex gap-2">
+                    <Input
+                      value={newVerticalName}
+                      onChange={(e) => setNewVerticalName(e.target.value)}
+                      placeholder="e.g. Bakery, Juice Bar..."
+                      className="flex-1"
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                      data-testid="input-new-vertical-name"
+                      onKeyDown={(e) => e.key === 'Enter' && handleCreateVertical()}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleCreateVertical}
+                      disabled={creatingVertical || !newVerticalName.trim()}
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                      data-testid="button-confirm-create-vertical"
+                    >
+                      {creatingVertical ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setShowCreateVertical(false); setNewVerticalName(''); }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Premium Suite Toggle */}
@@ -1112,41 +1212,29 @@ export default function PlatformAdmin() {
                 {savingSubscription ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Save Changes
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
 
-        {/* Rename Tenant Dialog */}
-        <Dialog open={showRenameTenantDialog} onOpenChange={setShowRenameTenantDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Rename Business</DialogTitle>
-              <DialogDescription style={{ color: colors.brownLight }}>
-                Update the business name. All data and history will be preserved.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div>
-                <Label style={{ color: colors.brown }} htmlFor="rename-tenant-name">Business Name</Label>
-                <Input
-                  id="rename-tenant-name"
-                  value={renameTenantName}
-                  onChange={(e) => setRenameTenantName(e.target.value)}
-                  placeholder="New business name"
-                  style={{ backgroundColor: colors.inputBg }}
-                  data-testid="input-rename-tenant-name"
-                />
-              </div>
-              <Button
-                onClick={handleRenameTenant}
-                disabled={renaming}
-                className="w-full"
-                style={{ backgroundColor: colors.gold, color: colors.white }}
-                data-testid="button-confirm-rename-tenant"
-              >
-                {renaming ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Save Name
-              </Button>
+              {/* Activate / Deactivate */}
+              {selectedTenant && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  style={selectedTenant.is_active
+                    ? { borderColor: colors.red, color: colors.red }
+                    : { borderColor: colors.green, color: colors.green }
+                  }
+                  onClick={async () => {
+                    await toggleTenantActive(selectedTenant.id, selectedTenant.is_active);
+                    setShowSubscriptionDialog(false);
+                  }}
+                  data-testid={`button-toggle-tenant-${selectedTenant.id}`}
+                >
+                  {selectedTenant.is_active ? (
+                    <><XCircle className="w-4 h-4 mr-1" /> Deactivate Business</>
+                  ) : (
+                    <><CheckCircle className="w-4 h-4 mr-1" /> Activate Business</>
+                  )}
+                </Button>
+              )}
             </div>
           </DialogContent>
         </Dialog>
