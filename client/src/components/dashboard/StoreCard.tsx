@@ -13,6 +13,7 @@ import {
   Clock,
   User,
   CalendarDays,
+  Play,
 } from 'lucide-react';
 import type { StoreMetrics, ActionItem } from '@/hooks/use-store-metrics';
 import { canViewSection } from '@/hooks/use-store-metrics';
@@ -24,7 +25,7 @@ import {
   getActivityColor,
 } from '@/hooks/use-store-profile';
 import { useTodayShifts } from '@/hooks/use-shifts';
-import { formatTime } from '@/hooks/use-store-profile';
+import { useActiveClockedIn } from '@/hooks/use-time-clock';
 import { colors } from '@/lib/colors';
 
 interface StoreCardProps {
@@ -57,6 +58,7 @@ export function StoreCard({
   const { data: teamMembers } = useStoreTeamMembers(location.id);
   const { data: operatingHours } = useStoreOperatingHours(location.id);
   const { data: todayShifts } = useTodayShifts(location.id);
+  const { data: activeClockedIn } = useActiveClockedIn(location.id);
 
   const todayHoursStr = getTodayHours(operatingHours);
 
@@ -91,6 +93,20 @@ export function StoreCard({
     if (!latest) return m.last_login_at;
     return m.last_login_at > latest ? m.last_login_at : latest;
   }, null) ?? null;
+
+  // --- Clock-in status & running late detection ---
+  const clockedInIds = new Set((activeClockedIn || []).map((e) => e.employee_id));
+
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const LATE_THRESHOLD_MINUTES = 10;
+
+  const runningLate = (todayShifts || []).filter((s) => {
+    if (!s.employee_id || clockedInIds.has(s.employee_id)) return false;
+    const [h, m] = s.start_time.split(':').map(Number);
+    const shiftStart = h * 60 + m;
+    return nowMinutes > shiftStart + LATE_THRESHOLD_MINUTES;
+  });
 
   return (
     <Card
@@ -264,7 +280,53 @@ export function StoreCard({
           </div>
         )}
 
-        {/* Working Today */}
+        {/* Clocked In Now */}
+        {activeClockedIn && activeClockedIn.length > 0 && (
+          <div
+            className="flex items-center gap-2 py-2 mt-1"
+            style={{ borderTop: `1px solid ${colors.cream}` }}
+          >
+            <Play className="w-4 h-4 flex-shrink-0" style={{ color: colors.green }} />
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-medium" style={{ color: colors.brown }}>
+                {activeClockedIn.length} clocked in
+              </span>
+              <span className="text-xs truncate" style={{ color: colors.brownLight }}>
+                {activeClockedIn
+                  .map((e) => e.employee_name?.split(' ')[0])
+                  .filter(Boolean)
+                  .join(', ')}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Running Late — scheduled but not clocked in */}
+        {runningLate.length > 0 && (
+          <div
+            className="flex items-center gap-2 py-2 mt-1"
+            style={{ borderTop: `1px solid ${colors.cream}` }}
+          >
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: colors.red }} />
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-medium" style={{ color: colors.red }}>
+                {runningLate.length} running late
+              </span>
+              <span className="text-xs truncate" style={{ color: colors.brownLight }}>
+                {runningLate
+                  .map((s) => {
+                    const firstName = s.employee_name?.split(' ')[0];
+                    const [h, m] = s.start_time.split(':').map(Number);
+                    const time = new Date(0, 0, 0, h, m).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                    return `${firstName} (${time})`;
+                  })
+                  .join(', ')}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Scheduled Today */}
         {todayShifts && todayShifts.length > 0 && (
           <div
             className="flex items-center gap-2 py-2 mt-1"

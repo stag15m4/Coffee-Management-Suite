@@ -40,6 +40,27 @@ function mapEntry(e: any): TimeClockEntry {
 
 const ENTRY_SELECT = '*, employee:user_profiles!employee_id(full_name, avatar_url), time_clock_breaks(*)';
 
+/** All currently-clocked-in entries for a given tenant (manager view). */
+export function useActiveClockedIn(tenantId?: string) {
+  return useQuery({
+    queryKey: ['time-clock-active-all', tenantId],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      const { data, error } = await supabase
+        .from('time_clock_entries')
+        .select(ENTRY_SELECT)
+        .eq('tenant_id', tenantId)
+        .is('clock_out', null)
+        .order('clock_in', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(mapEntry);
+    },
+    enabled: !!tenantId,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+}
+
 export function useActiveClockEntry() {
   const { tenant, user } = useAuth();
   return useQuery({
