@@ -1,7 +1,20 @@
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import { useVertical } from '@/contexts/VerticalContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { colors } from '@/lib/colors';
+// Raw hex fallbacks — used as defaults before any vertical/branding is loaded.
+// These must be raw hex, NOT the CSS-var-based `colors` from @/lib/colors,
+// because ThemeProvider sets these as CSS custom-property values.
+const RAW = {
+  gold: '#C9A227',
+  goldLight: '#F5EDD0',
+  goldDark: '#B8941F',
+  brown: '#4A3728',
+  brownLight: '#6B5344',
+  cream: '#F5F0E1',
+  creamDark: '#E8E0CC',
+  white: '#FFFDF7',
+  inputBg: '#FDF8E8',
+};
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,15 +105,15 @@ function darken(hex: string, amount = 0.1): string {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_COLORS: ThemeColors = {
-  primary: colors.gold,
-  primaryLight: colors.goldLight,
-  primaryDark: colors.goldDark,
-  secondary: colors.brown,
-  secondaryLight: colors.brownLight,
-  accent: colors.cream,
-  accentDark: colors.creamDark,
-  background: colors.white,
-  inputBg: colors.inputBg,
+  primary: RAW.gold,
+  primaryLight: RAW.goldLight,
+  primaryDark: RAW.goldDark,
+  secondary: RAW.brown,
+  secondaryLight: RAW.brownLight,
+  accent: RAW.cream,
+  accentDark: RAW.creamDark,
+  background: RAW.white,
+  inputBg: RAW.inputBg,
 };
 
 const DEFAULT_META: ThemeMeta = {

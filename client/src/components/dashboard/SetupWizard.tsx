@@ -84,11 +84,16 @@ export function SetupWizard() {
     queryKey: ['tenant-setup-auto', tenant?.id],
     queryFn: async () => {
       if (!tenant?.id) return {} as Record<string, boolean>;
-      const [profiles, ingredients, recipes, tenantRow] = await Promise.all([
+      const [profiles, assignments, ingredients, recipes, tenantRow] = await Promise.all([
         supabase
           .from('user_profiles')
           .select('id', { count: 'exact', head: true })
           .eq('tenant_id', tenant.id),
+        supabase
+          .from('user_tenant_assignments')
+          .select('id', { count: 'exact', head: true })
+          .eq('tenant_id', tenant.id)
+          .eq('is_active', true),
         supabase
           .from('ingredients')
           .select('id', { count: 'exact', head: true })
@@ -104,7 +109,7 @@ export function SetupWizard() {
           .single(),
       ]);
       return {
-        team: (profiles.count ?? 0) > 1,
+        team: ((profiles.count ?? 0) + (assignments.count ?? 0)) > 1,
         ingredients: (ingredients.count ?? 0) > 0,
         recipe: (recipes.count ?? 0) > 0,
         drawer: tenantRow.data?.starting_drawer_default != null,
@@ -164,7 +169,7 @@ export function SetupWizard() {
         </h3>
         <span
           className="text-xs font-medium px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-secondary)' }}
+          style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
         >
           {completedCount} of {SETUP_STEPS.length} complete
         </span>
@@ -226,14 +231,24 @@ export function SetupWizard() {
                   <p className="text-sm opacity-60" style={{ color: 'var(--color-secondary)' }}>
                     {step.description}
                   </p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => navigate(step.href)}
-                    style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
-                  >
-                    Set up &rarr;
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(step.href)}
+                      style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                    >
+                      Set up &rarr;
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="opacity-50 hover:opacity-100"
+                      onClick={() => markStepComplete(step.id)}
+                    >
+                      Skip
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
