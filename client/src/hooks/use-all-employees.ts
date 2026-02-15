@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-queries';
-import { useAuth } from '@/contexts/AuthContext';
 
 /**
  * A unified employee record that can come from either user_profiles (logged-in
@@ -15,6 +14,8 @@ export interface UnifiedEmployee {
   tip_employee_id: string | null;
   avatar_url: string | null;
   role: string | null;
+  /** Manager-assigned calendar color (hex), or null for auto */
+  schedule_color: string | null;
   /** 'profile' | 'tip' | 'both' */
   source: 'profile' | 'tip' | 'both';
 }
@@ -33,12 +34,12 @@ export function useAllEmployees(tenantId?: string) {
       const [profilesResult, tipResult] = await Promise.all([
         supabase
           .from('user_profiles')
-          .select('id, full_name, avatar_url, role, email')
+          .select('id, full_name, avatar_url, role, email, schedule_color')
           .eq('tenant_id', tenantId)
           .eq('is_active', true),
         supabase
           .from('tip_employees')
-          .select('id, name, is_active')
+          .select('id, name, is_active, schedule_color')
           .eq('tenant_id', tenantId)
           .or('is_active.eq.true,is_active.is.null')
           .order('name'),
@@ -68,7 +69,7 @@ export function useAllEmployees(tenantId?: string) {
           if (extraIds.length > 0) {
             const { data: extra } = await supabase
               .from('user_profiles')
-              .select('id, full_name, avatar_url, role, email')
+              .select('id, full_name, avatar_url, role, email, schedule_color')
               .in('id', extraIds)
               .eq('is_active', true);
             if (extra) assignmentProfiles = extra;
@@ -92,6 +93,7 @@ export function useAllEmployees(tenantId?: string) {
           existing.user_profile_id = existing.user_profile_id ?? p.id;
           existing.avatar_url = existing.avatar_url ?? p.avatar_url;
           existing.role = existing.role ?? p.role;
+          existing.schedule_color = existing.schedule_color ?? p.schedule_color;
           existing.source = existing.source === 'tip' ? 'both' : existing.source;
         } else {
           byName.set(key, {
@@ -100,6 +102,7 @@ export function useAllEmployees(tenantId?: string) {
             tip_employee_id: null,
             avatar_url: p.avatar_url,
             role: p.role,
+            schedule_color: p.schedule_color ?? null,
             source: 'profile',
           });
         }
@@ -111,6 +114,7 @@ export function useAllEmployees(tenantId?: string) {
         const existing = byName.get(key);
         if (existing) {
           existing.tip_employee_id = existing.tip_employee_id ?? t.id;
+          existing.schedule_color = existing.schedule_color ?? t.schedule_color;
           existing.source = existing.source === 'profile' ? 'both' : existing.source;
         } else {
           byName.set(key, {
@@ -119,6 +123,7 @@ export function useAllEmployees(tenantId?: string) {
             tip_employee_id: t.id,
             avatar_url: null,
             role: null,
+            schedule_color: t.schedule_color ?? null,
             source: 'tip',
           });
         }
@@ -128,5 +133,29 @@ export function useAllEmployees(tenantId?: string) {
     },
     enabled: !!tenantId,
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useUpdateEmployeeColor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (emp: { user_profile_id: string | null; tip_employee_id: string | null; color: string }) => {
+      if (emp.user_profile_id) {
+        const { error } = await supabase
+          .from('user_profiles')
+          .update({ schedule_color: emp.color })
+          .eq('id', emp.user_profile_id);
+        if (error) throw error;
+      } else if (emp.tip_employee_id) {
+        const { error } = await supabase
+          .from('tip_employees')
+          .update({ schedule_color: emp.color })
+          .eq('id', emp.tip_employee_id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-employees'] });
+    },
   });
 }

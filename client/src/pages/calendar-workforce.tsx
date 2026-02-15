@@ -36,7 +36,7 @@ import {
   MapPin,
   Link,
 } from 'lucide-react';
-import { useAllEmployees, type UnifiedEmployee } from '@/hooks/use-all-employees';
+import { useAllEmployees, useUpdateEmployeeColor, type UnifiedEmployee } from '@/hooks/use-all-employees';
 import {
   useShifts,
   useCreateShift,
@@ -323,13 +323,13 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
     }
   }, [newTemplateName, newTemplateDay, newTemplateStart, newTemplateEnd, newTemplateEmployee, newTemplatePosition, employees, createTemplate, toast]);
 
-  // Employee color mapping — key is a composite key used for calendar events
+  // Employee color mapping — use saved schedule_color or fall back to palette
+  const updateEmployeeColor = useUpdateEmployeeColor();
   const employeeColorMap = useMemo(() => {
     const map = new Map<string, string>();
     employees.forEach((m, i) => {
-      // Key by whichever ID is available
       const key = m.user_profile_id ?? m.tip_employee_id ?? m.name;
-      map.set(key, EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length]);
+      map.set(key, m.schedule_color || EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length]);
     });
     return map;
   }, [employees]);
@@ -804,13 +804,33 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
       {/* Employee legend */}
       {employees.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {employees.map((e, i) => (
-            <div key={e.name} className="flex items-center gap-1.5 text-xs" style={{ color: colors.brown }}>
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length] }} />
-              {e.name}
-            </div>
-          ))}
+        <div className="flex flex-wrap gap-2 items-center">
+          {employees.map((e) => {
+            const key = e.user_profile_id ?? e.tip_employee_id ?? e.name;
+            const currentColor = employeeColorMap.get(key) ?? colors.gold;
+            return (
+              <div key={e.name} className="flex items-center gap-1.5 text-xs" style={{ color: colors.brown }}>
+                {canEdit ? (
+                  <label className="relative cursor-pointer">
+                    <div className="w-4 h-4 rounded-full border border-white/50 shadow-sm transition-transform hover:scale-125"
+                      style={{ backgroundColor: currentColor }} />
+                    <input type="color" value={currentColor}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      onChange={(ev) => {
+                        updateEmployeeColor.mutate({
+                          user_profile_id: e.user_profile_id,
+                          tip_employee_id: e.tip_employee_id,
+                          color: ev.target.value,
+                        });
+                      }} />
+                  </label>
+                ) : (
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: currentColor }} />
+                )}
+                {e.name}
+              </div>
+            );
+          })}
         </div>
       )}
 
