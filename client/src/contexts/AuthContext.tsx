@@ -189,13 +189,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setProfile(profileData);
 
-      // Fetch tenant, branding, and modules ALL in parallel with timeouts - use allSettled for resilience
-      const [tenantSettled, brandingSettled, modulesSettled] = await Promise.allSettled([
-        withTimeout(supabase.from('tenants').select('*').eq('id', profileData.tenant_id).single(), 'Tenant query'),
-        withTimeout(supabase.from('tenant_branding').select('*').eq('tenant_id', profileData.tenant_id).maybeSingle(), 'Branding query'),
-        withTimeout(supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: profileData.tenant_id }), 'Modules query')
+      // -----------------------------------------------------------------------
+      // SINGLE parallel batch: fetch everything that depends only on profileData
+      // Previously this was 4 sequential round-trips; now it's 1 parallel batch.
+      // -----------------------------------------------------------------------
+      const isOwner = profileData.role === 'owner';
+      const primaryTenantId = profileData.tenant_id;
+
+      const [
+        tenantSettled,
+        brandingSettled,
+        modulesSettled,
+        childLocationsSettled,
+        assignmentsSettled,
+        roleSettingsSettled,
+      ] = await Promise.allSettled([
+        withTimeout(supabase.from('tenants').select('*').eq('id', primaryTenantId).single(), 'Tenant query'),
+        withTimeout(supabase.from('tenant_branding').select('*').eq('tenant_id', primaryTenantId).maybeSingle(), 'Branding query'),
+        withTimeout(supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: primaryTenantId }), 'Modules query'),
+        // Child locations — only meaningful for owners, but cheap no-op for others
+        isOwner
+          ? withTimeout(supabase.from('tenants').select('*').eq('parent_tenant_id', primaryTenantId).eq('is_active', true).order('name'), 'Child locations query')
+          : Promise.resolve(null),
+        // Cross-tenant assignments
+        withTimeout(supabase.from('user_tenant_assignments').select('tenant:tenants!inner(*)').eq('user_id', userId).eq('is_active', true), 'User assignments query'),
+        // Role settings
+        withTimeout(supabase.from('tenant_role_settings').select('*').eq('tenant_id', primaryTenantId).order('role'), 'Role settings query'),
       ]);
-      
+
+      // --- Process tenant ---
       const tenantResult = tenantSettled.status === 'fulfilled' ? tenantSettled.value : null;
       const brandingResult = brandingSettled.status === 'fulfilled' ? brandingSettled.value : null;
       const modulesResult = modulesSettled.status === 'fulfilled' ? modulesSettled.value : null;
@@ -204,45 +226,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const tenantData = (tenantResult as any).data as Tenant;
         setTenant(tenantData);
         setPrimaryTenant(tenantData);
-        
-        // Load all accessible locations (parent/child for owners, plus any user_tenant_assignments)
+
+        // --- Build accessible locations list ---
         let allLocations: Tenant[] = [tenantData];
 
         try {
-          if (profileData.role === 'owner') {
-            // Owners get child locations of their primary tenant (with timeout)
-            const childLocationsResult = await withTimeout(
-              supabase
-                .from('tenants')
-                .select('*')
-                .eq('parent_tenant_id', tenantData.id)
-                .eq('is_active', true)
-                .order('name'),
-              'Child locations query'
-            );
-
-            const childLocations = childLocationsResult && !(childLocationsResult as any).error
-              ? (childLocationsResult as any).data
+          if (isOwner) {
+            const childResult = childLocationsSettled.status === 'fulfilled' ? childLocationsSettled.value : null;
+            const childLocations = childResult && !(childResult as any).error
+              ? (childResult as any).data
               : null;
-
             allLocations = [tenantData, ...(childLocations || [])];
             setIsParentTenant((childLocations?.length || 0) > 0);
           } else {
             setIsParentTenant(false);
           }
 
-          // Also load any additional locations from user_tenant_assignments for all users (with timeout)
-          const assignmentsResult = await withTimeout(
-            supabase
-              .from('user_tenant_assignments')
-              .select('tenant:tenants!inner(*)')
-              .eq('user_id', userId)
-              .eq('is_active', true),
-            'User assignments query'
-          );
-
-          const assignments = assignmentsResult && !(assignmentsResult as any).error
-            ? (assignmentsResult as any).data
+          const assignResult = assignmentsSettled.status === 'fulfilled' ? assignmentsSettled.value : null;
+          const assignments = assignResult && !(assignResult as any).error
+            ? (assignResult as any).data
             : null;
 
           if (assignments && assignments.length > 0) {
@@ -253,22 +255,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (err) {
           console.warn('[AuthContext] Failed to load additional locations:', err);
-          // Continue with just the primary tenant
         }
 
         setAccessibleLocations(allLocations);
-        
-        // Check if there's a saved active location in session storage
+
+        // --- Restore saved location ---
         const savedLocationId = sessionStorage.getItem('selected_location_id');
         if (savedLocationId && savedLocationId !== tenantData.id) {
-          // Validate the saved location is in accessible locations list
           const savedLocation = allLocations.find(loc => loc.id === savedLocationId);
 
           if (savedLocation) {
             setTenant(savedLocation);
             setActiveLocationId(savedLocationId);
 
-            // Record activity on this tenant via user_tenant_assignments
+            // Record activity (fire-and-forget)
             supabase
               .from('user_tenant_assignments')
               .update({ updated_at: new Date().toISOString() })
@@ -276,7 +276,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .eq('tenant_id', savedLocationId)
               .then(() => {});
 
-            // Load branding and modules for the saved location (not the profile's tenant)
+            // Load branding and modules for the saved location
             const [savedBrandingResult, savedModulesResult] = await Promise.all([
               supabase.from('tenant_branding').select('*').eq('tenant_id', savedLocationId).maybeSingle(),
               supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: savedLocationId }),
@@ -291,39 +291,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setActiveLocationId(tenantData.id);
         }
       }
+
+      // --- Process branding ---
       if (brandingResult && !(brandingResult as any).error && (brandingResult as any).data) {
         setBranding((brandingResult as any).data);
       }
 
-      // Handle modules - log results for debugging
-      console.log('DEBUG: Modules RPC result:', JSON.stringify(modulesResult));
-      
+      // --- Process modules ---
       if (!modulesResult || (modulesResult as any).error) {
         const errorMsg = modulesResult ? (modulesResult as any).error?.message : 'Query failed';
         console.warn('Module access RPC failed:', errorMsg);
-        // Security: Any error defaults to no modules - do not grant access on failure
         setEnabledModules([]);
       } else {
-        // RPC succeeded - use the result (empty array is legitimate)
-        console.log('DEBUG: Modules loaded:', (modulesResult as any).data || []);
         setEnabledModules(((modulesResult as any).data || []) as ModuleId[]);
       }
 
-      // Load role settings for this tenant
-      const effectiveTenantId = (tenant as any)?.id || profileData.tenant_id;
+      // --- Process role settings ---
       try {
-        const roleSettingsResult = await withTimeout(
-          supabase.from('tenant_role_settings').select('*').eq('tenant_id', effectiveTenantId).order('role'),
-          'Role settings query'
-        );
-        let settings = roleSettingsResult && !(roleSettingsResult as any).error
-          ? (roleSettingsResult as any).data
-          : null;
+        const rsResult = roleSettingsSettled.status === 'fulfilled' ? roleSettingsSettled.value : null;
+        let settings = rsResult && !(rsResult as any).error ? (rsResult as any).data : null;
         if (!settings || settings.length === 0) {
-          // Auto-seed defaults
-          await supabase.rpc('seed_tenant_role_settings', { p_tenant_id: effectiveTenantId });
+          await supabase.rpc('seed_tenant_role_settings', { p_tenant_id: primaryTenantId });
           const { data: seeded } = await supabase
-            .from('tenant_role_settings').select('*').eq('tenant_id', effectiveTenantId).order('role');
+            .from('tenant_role_settings').select('*').eq('tenant_id', primaryTenantId).order('role');
           settings = seeded;
         }
         setRoleSettings(settings || null);
