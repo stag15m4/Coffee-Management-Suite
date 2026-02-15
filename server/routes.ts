@@ -7,6 +7,7 @@ import { sendOrderEmail, sendFeedbackEmail, type OrderEmailData, type FeedbackEm
 import { registerObjectStorageRoutes } from "./objectStorageRoutes";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
+import ical from "node-ical";
 
 // Helper to verify platform admin status
 async function verifyPlatformAdmin(userId: string | undefined): Promise<boolean> {
@@ -1331,6 +1332,101 @@ export async function registerRoutes(
       res.status(201).json({ userId, email, isNewUser });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── iCal Sync ───────────────────────────────────────────────
+  app.post('/api/calendar/sync-ical', async (req: Request, res: Response) => {
+    const userId = req.headers['x-user-id'] as string;
+    if (!userId) return res.status(401).json({ error: 'Auth required' });
+
+    const { subscriptionId } = req.body;
+    if (!subscriptionId) return res.status(400).json({ error: 'subscriptionId required' });
+
+    try {
+      // Fetch subscription
+      const subResult = await db.execute(sql`
+        SELECT * FROM ical_subscriptions WHERE id = ${subscriptionId}::uuid
+      `);
+      if (!subResult.rows.length) return res.status(404).json({ error: 'Subscription not found' });
+      const sub = subResult.rows[0] as any;
+
+      // Verify user belongs to this tenant with lead+ role
+      const roleResult = await db.execute(sql`
+        SELECT role FROM user_profiles
+        WHERE id = ${userId}::uuid AND tenant_id = ${sub.tenant_id}::uuid
+      `);
+      if (!roleResult.rows.length) return res.status(403).json({ error: 'Not authorized' });
+      const role = (roleResult.rows[0] as any).role;
+      if (!['owner', 'manager', 'lead'].includes(role)) {
+        return res.status(403).json({ error: 'Lead role or higher required' });
+      }
+
+      // Fetch + parse iCal feed
+      const events = await ical.async.fromURL(sub.url);
+      let syncCount = 0;
+
+      for (const [, event] of Object.entries(events)) {
+        if ((event as any).type !== 'VEVENT') continue;
+        const vevent = event as ical.VEvent;
+
+        const startDate = vevent.start?.toISOString().split('T')[0];
+        if (!startDate) continue;
+        const endDate = vevent.end?.toISOString().split('T')[0] || startDate;
+        const title = vevent.summary || 'Untitled Event';
+        const description = vevent.description || null;
+        const location = vevent.location || null;
+        const uid = vevent.uid || null;
+
+        if (!uid) continue;
+
+        await db.execute(sql`
+          INSERT INTO calendar_events (
+            tenant_id, title, description, start_date, end_date,
+            location, color, source, ical_uid, ical_subscription_id
+          ) VALUES (
+            ${sub.tenant_id}::uuid,
+            ${title},
+            ${description},
+            ${startDate},
+            ${endDate},
+            ${location},
+            ${sub.color || '#3b82f6'},
+            'ical',
+            ${uid},
+            ${subscriptionId}::uuid
+          )
+          ON CONFLICT (ical_subscription_id, ical_uid)
+          WHERE ical_uid IS NOT NULL
+          DO UPDATE SET
+            title = EXCLUDED.title,
+            description = EXCLUDED.description,
+            start_date = EXCLUDED.start_date,
+            end_date = EXCLUDED.end_date,
+            location = EXCLUDED.location,
+            updated_at = NOW()
+        `);
+        syncCount++;
+      }
+
+      // Update last_synced_at
+      await db.execute(sql`
+        UPDATE ical_subscriptions
+        SET last_synced_at = NOW(), sync_error = NULL, updated_at = NOW()
+        WHERE id = ${subscriptionId}::uuid
+      `);
+
+      res.json({ success: true, count: syncCount });
+    } catch (err: any) {
+      // Store error on subscription for visibility
+      try {
+        await db.execute(sql`
+          UPDATE ical_subscriptions
+          SET sync_error = ${err.message || 'Unknown error'}, updated_at = NOW()
+          WHERE id = ${subscriptionId}::uuid
+        `);
+      } catch { /* ignore */ }
+      res.status(500).json({ error: 'Failed to sync iCal feed', details: err.message });
     }
   });
 

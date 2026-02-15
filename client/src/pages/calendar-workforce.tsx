@@ -31,6 +31,10 @@ import {
   Users,
   Filter,
   AlertTriangle,
+  Star,
+  RefreshCw,
+  MapPin,
+  Link,
 } from 'lucide-react';
 import { useAllEmployees, type UnifiedEmployee } from '@/hooks/use-all-employees';
 import {
@@ -77,7 +81,18 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import type { EventInput, EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
+import type { EventInput, EventClickArg, DateSelectArg, EventDropArg, EventContentArg } from '@fullcalendar/core';
+import {
+  useCalendarEvents,
+  useCreateCalendarEvent,
+  useUpdateCalendarEvent,
+  useDeleteCalendarEvent,
+  useICalSubscriptions,
+  useCreateICalSubscription,
+  useDeleteICalSubscription,
+  useSyncICal,
+  type CalendarEvent,
+} from '@/hooks/use-calendar-events';
 
 import { colors } from '@/lib/colors';
 
@@ -174,6 +189,43 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   const [newTemplateEnd, setNewTemplateEnd] = useState('16:00');
   const [newTemplateEmployee, setNewTemplateEmployee] = useState('');
   const [newTemplatePosition, setNewTemplatePosition] = useState('');
+
+  // Calendar events
+  const { data: calendarEvents } = useCalendarEvents(startDate, endDate);
+  const createCalendarEvent = useCreateCalendarEvent();
+  const updateCalendarEvent = useUpdateCalendarEvent();
+  const deleteCalendarEvent = useDeleteCalendarEvent();
+  const { data: icalSubs } = useICalSubscriptions();
+  const createICalSub = useCreateICalSubscription();
+  const deleteICalSub = useDeleteICalSubscription();
+  const syncICal = useSyncICal();
+
+  const [showEventsPanel, setShowEventsPanel] = useState(false);
+  const [viewingEvent, setViewingEvent] = useState<CalendarEvent | null>(null);
+  const [showCreateEventDialog, setShowCreateEventDialog] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [newEventStartDate, setNewEventStartDate] = useState('');
+  const [newEventEndDate, setNewEventEndDate] = useState('');
+  const [newEventLocation, setNewEventLocation] = useState('');
+  const [newEventDescription, setNewEventDescription] = useState('');
+  const [newEventColor, setNewEventColor] = useState('#3b82f6');
+  const [newICalName, setNewICalName] = useState('');
+  const [newICalUrl, setNewICalUrl] = useState('');
+
+  // Auto-sync stale iCal subscriptions on load
+  const [didAutoSync, setDidAutoSync] = useState(false);
+  useEffect(() => {
+    if (didAutoSync || !icalSubs || icalSubs.length === 0) return;
+    setDidAutoSync(true);
+    const STALE_MS = 60 * 60 * 1000; // 1 hour
+    const now = Date.now();
+    icalSubs.forEach((sub) => {
+      const lastSynced = sub.last_synced_at ? new Date(sub.last_synced_at).getTime() : 0;
+      if (now - lastSynced > STALE_MS) {
+        syncICal.mutate(sub.id);
+      }
+    });
+  }, [icalSubs, didAutoSync]);
 
   // Conflict detection — match by employee_name (the common field across both sources)
   const checkConflicts = useCallback((employeeName: string, date: string, startTime: string, endTime: string, excludeShiftId?: string) => {
@@ -273,10 +325,9 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
     return map;
   }, [employees]);
 
-  // Convert shifts to FullCalendar events
+  // Convert shifts + calendar events to FullCalendar events
   const events: EventInput[] = useMemo(() => {
-    if (!shifts) return [];
-    return shifts.map((s) => {
+    const shiftEvents: EventInput[] = (shifts || []).map((s) => {
       const colorKey = s.employee_id ?? s.tip_employee_id ?? s.employee_name ?? '';
       return {
         id: s.id,
@@ -286,10 +337,27 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
         backgroundColor: employeeColorMap.get(colorKey) ?? colors.gold,
         borderColor: employeeColorMap.get(colorKey) ?? colors.gold,
         textColor: '#fff',
-        extendedProps: { shift: s },
+        extendedProps: { type: 'shift', shift: s },
       };
     });
-  }, [shifts, employeeColorMap]);
+
+    const eventBanners: EventInput[] = (calendarEvents || []).map((e) => ({
+      id: `event-${e.id}`,
+      title: e.title,
+      start: e.start_date,
+      // FullCalendar all-day end is exclusive, so add 1 day
+      end: new Date(new Date(e.end_date + 'T00:00:00').getTime() + 86_400_000)
+        .toISOString().split('T')[0],
+      allDay: true,
+      backgroundColor: e.color || '#3b82f6',
+      borderColor: e.color || '#3b82f6',
+      textColor: '#fff',
+      editable: false,
+      extendedProps: { type: 'event', calendarEvent: e },
+    }));
+
+    return [...shiftEvents, ...eventBanners];
+  }, [shifts, calendarEvents, employeeColorMap]);
 
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
     if (!canEdit) return;
@@ -307,6 +375,11 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   }, [canEdit]);
 
   const handleEventClick = useCallback((clickInfo: EventClickArg) => {
+    const eventType = clickInfo.event.extendedProps.type;
+    if (eventType === 'event') {
+      setViewingEvent(clickInfo.event.extendedProps.calendarEvent as CalendarEvent);
+      return;
+    }
     const shift = clickInfo.event.extendedProps.shift as Shift;
     if (canEdit) {
       setEditingShift(shift);
@@ -322,7 +395,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   }, [canEdit]);
 
   const handleEventDrop = useCallback(async (dropInfo: EventDropArg) => {
-    if (!canEdit) {
+    if (!canEdit || dropInfo.event.extendedProps.type === 'event') {
       dropInfo.revert();
       return;
     }
@@ -345,7 +418,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   }, [canEdit, updateShift, toast]);
 
   const handleEventResize = useCallback(async (resizeInfo: any) => {
-    if (!canEdit) { resizeInfo.revert(); return; }
+    if (!canEdit || resizeInfo.event.extendedProps.type === 'event') { resizeInfo.revert(); return; }
     const shift = resizeInfo.event.extendedProps.shift as Shift;
     const newEnd = resizeInfo.event.end;
     if (!newEnd) { resizeInfo.revert(); return; }
@@ -464,9 +537,181 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                 Apply Template
               </Button>
             )}
+            <Button variant="outline" onClick={() => setShowEventsPanel(!showEventsPanel)}
+              style={{ borderColor: showEventsPanel ? colors.gold : colors.creamDark, color: colors.brown }}>
+              <Star className="w-4 h-4 mr-1" /> Events
+            </Button>
           </div>
         )}
       </div>
+
+      {/* Events Panel */}
+      {showEventsPanel && canEdit && (
+        <Card style={{ backgroundColor: colors.cream, borderColor: colors.creamDark }}>
+          <CardContent className="p-4 space-y-4">
+            {/* Add Manual Event */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2" style={{ color: colors.brown }}>Add Event</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="sm:col-span-2">
+                  <Input placeholder="Event title" value={newEventTitle}
+                    onChange={(e) => setNewEventTitle(e.target.value)}
+                    style={{ borderColor: colors.creamDark }} />
+                </div>
+                <div>
+                  <Label className="text-xs" style={{ color: colors.brown }}>Start Date</Label>
+                  <Input type="date" value={newEventStartDate}
+                    onChange={(e) => { setNewEventStartDate(e.target.value); if (!newEventEndDate) setNewEventEndDate(e.target.value); }}
+                    style={{ borderColor: colors.creamDark }} />
+                </div>
+                <div>
+                  <Label className="text-xs" style={{ color: colors.brown }}>End Date</Label>
+                  <Input type="date" value={newEventEndDate}
+                    onChange={(e) => setNewEventEndDate(e.target.value)}
+                    style={{ borderColor: colors.creamDark }} />
+                </div>
+                <div>
+                  <Input placeholder="Location (optional)" value={newEventLocation}
+                    onChange={(e) => setNewEventLocation(e.target.value)}
+                    style={{ borderColor: colors.creamDark }} />
+                </div>
+                <div>
+                  <Label className="text-xs mb-1 block" style={{ color: colors.brown }}>Color</Label>
+                  <div className="flex gap-1">
+                    {['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899'].map((c) => (
+                      <button key={c} onClick={() => setNewEventColor(c)}
+                        className="w-6 h-6 rounded-full border-2 transition-transform"
+                        style={{ backgroundColor: c, borderColor: newEventColor === c ? colors.brown : 'transparent', transform: newEventColor === c ? 'scale(1.2)' : 'scale(1)' }} />
+                    ))}
+                  </div>
+                </div>
+                <div className="sm:col-span-2">
+                  <Input placeholder="Description (optional)" value={newEventDescription}
+                    onChange={(e) => setNewEventDescription(e.target.value)}
+                    style={{ borderColor: colors.creamDark }} />
+                </div>
+                <div className="sm:col-span-2">
+                  <Button
+                    disabled={!newEventTitle || !newEventStartDate || !newEventEndDate || createCalendarEvent.isPending}
+                    onClick={async () => {
+                      try {
+                        await createCalendarEvent.mutateAsync({
+                          title: newEventTitle,
+                          start_date: newEventStartDate,
+                          end_date: newEventEndDate,
+                          location: newEventLocation || null,
+                          description: newEventDescription || null,
+                          color: newEventColor,
+                        });
+                        setNewEventTitle(''); setNewEventStartDate(''); setNewEventEndDate('');
+                        setNewEventLocation(''); setNewEventDescription(''); setNewEventColor('#3b82f6');
+                        toast({ title: 'Event created' });
+                      } catch {
+                        toast({ title: 'Error', description: 'Failed to create event.', variant: 'destructive' });
+                      }
+                    }}
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> Add Event
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* iCal Subscriptions */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2" style={{ color: colors.brown }}>iCal Feeds</h3>
+              {icalSubs && icalSubs.length > 0 && (
+                <div className="space-y-2 mb-2">
+                  {icalSubs.map((sub) => (
+                    <div key={sub.id} className="flex items-center gap-2 text-xs p-2 rounded" style={{ backgroundColor: colors.white }}>
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: sub.color }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate" style={{ color: colors.brown }}>{sub.name}</div>
+                        <div className="truncate opacity-60" style={{ color: colors.brown }}>{sub.url}</div>
+                        {sub.last_synced_at && (
+                          <div className="opacity-50" style={{ color: colors.brown }}>
+                            Last synced: {new Date(sub.last_synced_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                          </div>
+                        )}
+                        {sub.sync_error && (
+                          <div className="text-red-500">Error: {sub.sync_error}</div>
+                        )}
+                      </div>
+                      <Button variant="outline" size="sm"
+                        disabled={syncICal.isPending}
+                        onClick={() => { syncICal.mutate(sub.id); toast({ title: 'Syncing...' }); }}
+                        style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                        <RefreshCw className={`w-3 h-3 ${syncICal.isPending ? 'animate-spin' : ''}`} />
+                      </Button>
+                      <Button variant="outline" size="sm"
+                        onClick={() => { if (confirm('Remove this iCal feed? Its synced events will be deleted.')) deleteICalSub.mutate(sub.id); }}
+                        style={{ borderColor: colors.creamDark, color: '#ef4444' }}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Input placeholder="Feed name" value={newICalName}
+                  onChange={(e) => setNewICalName(e.target.value)}
+                  className="flex-1" style={{ borderColor: colors.creamDark }} />
+                <Input placeholder="iCal URL (.ics)" value={newICalUrl}
+                  onChange={(e) => setNewICalUrl(e.target.value)}
+                  className="flex-[2]" style={{ borderColor: colors.creamDark }} />
+                <Button
+                  disabled={!newICalName || !newICalUrl || createICalSub.isPending}
+                  onClick={async () => {
+                    try {
+                      const sub = await createICalSub.mutateAsync({ name: newICalName, url: newICalUrl });
+                      setNewICalName(''); setNewICalUrl('');
+                      syncICal.mutate(sub.id);
+                      toast({ title: 'Feed added, syncing...' });
+                    } catch {
+                      toast({ title: 'Error', description: 'Failed to add feed.', variant: 'destructive' });
+                    }
+                  }}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}>
+                  <Link className="w-4 h-4 mr-1" /> Add Feed
+                </Button>
+              </div>
+            </div>
+
+            {/* Upcoming Events this week */}
+            {calendarEvents && calendarEvents.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-2" style={{ color: colors.brown }}>This Week's Events</h3>
+                <div className="space-y-1">
+                  {calendarEvents.map((ev) => (
+                    <div key={ev.id} className="flex items-center gap-2 text-xs p-2 rounded" style={{ backgroundColor: colors.white }}>
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: ev.color }} />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium" style={{ color: colors.brown }}>{ev.title}</span>
+                        <span className="opacity-60 ml-2" style={{ color: colors.brown }}>
+                          {formatDateShort(ev.start_date)}{ev.end_date !== ev.start_date ? ` – ${formatDateShort(ev.end_date)}` : ''}
+                        </span>
+                        {ev.location && <span className="opacity-50 ml-1" style={{ color: colors.brown }}> · {ev.location}</span>}
+                      </div>
+                      <Badge variant="outline" className="text-[10px]" style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                        {ev.source}
+                      </Badge>
+                      {ev.source === 'manual' && (
+                        <Button variant="outline" size="sm"
+                          onClick={() => { if (confirm('Delete this event?')) deleteCalendarEvent.mutate(ev.id); }}
+                          style={{ borderColor: colors.creamDark, color: '#ef4444' }}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* FullCalendar */}
       <Card style={{ backgroundColor: colors.white }}>
@@ -483,7 +728,8 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
             dayMaxEvents
             slotMinTime="05:00:00"
             slotMaxTime="23:00:00"
-            allDaySlot={false}
+            allDaySlot={true}
+            allDayText=""
             height="auto"
             select={handleDateSelect}
             eventClick={handleEventClick}
@@ -492,7 +738,16 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
             slotLabelFormat={{ hour: 'numeric', minute: '2-digit', hour12: true }}
             dayHeaderFormat={{ weekday: 'short', month: 'numeric', day: 'numeric' }}
             eventTimeFormat={{ hour: 'numeric', minute: '2-digit', hour12: true }}
-            eventContent={(arg) => {
+            eventContent={(arg: EventContentArg) => {
+              if (arg.event.extendedProps.type === 'event') {
+                const calEvent = arg.event.extendedProps.calendarEvent as CalendarEvent;
+                return (
+                  <div className="flex items-center gap-1 px-1 py-0.5 text-xs font-medium truncate cursor-pointer">
+                    <Star className="w-3 h-3 flex-shrink-0 fill-current" />
+                    <span className="truncate">{calEvent.title}</span>
+                  </div>
+                );
+              }
               const shift = arg.event.extendedProps.shift as Shift;
               const avatarUrl = shift.employee_avatar
                 || employees.find((e) => e.name === shift.employee_name)?.avatar_url
@@ -607,6 +862,61 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                   style={{ borderColor: colors.creamDark, color: colors.brown }}>
                   Cancel
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Event Detail Dialog */}
+      {viewingEvent && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setViewingEvent(null)}>
+          <Card className="w-full max-w-sm" style={{ backgroundColor: colors.white }} onClick={(e) => e.stopPropagation()}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: viewingEvent.color }} />
+                <CardTitle className="text-base" style={{ color: colors.brown }}>{viewingEvent.title}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="text-sm" style={{ color: colors.brown }}>
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4 opacity-60" />
+                  {formatDateShort(viewingEvent.start_date)}
+                  {viewingEvent.end_date !== viewingEvent.start_date && ` – ${formatDateShort(viewingEvent.end_date)}`}
+                </div>
+                {viewingEvent.location && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <MapPin className="w-4 h-4 opacity-60" />
+                    {viewingEvent.location}
+                  </div>
+                )}
+                {viewingEvent.description && (
+                  <p className="mt-2 opacity-70">{viewingEvent.description}</p>
+                )}
+              </div>
+              <div className="flex items-center justify-between pt-2">
+                <Badge variant="outline" className="text-[10px]" style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                  {viewingEvent.source === 'ical' ? 'iCal' : 'Manual'}
+                </Badge>
+                <div className="flex gap-2">
+                  {viewingEvent.source === 'manual' && canEdit && (
+                    <Button variant="outline" size="sm"
+                      onClick={() => {
+                        if (confirm('Delete this event?')) {
+                          deleteCalendarEvent.mutate(viewingEvent.id);
+                          setViewingEvent(null);
+                        }
+                      }}
+                      style={{ borderColor: colors.creamDark, color: '#ef4444' }}>
+                      <Trash2 className="w-3 h-3 mr-1" /> Delete
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => setViewingEvent(null)}
+                    style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                    Close
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1662,6 +1972,8 @@ export default function CalendarWorkforce() {
     queryClient.invalidateQueries({ queryKey: ['time-clock-edits'] });
     queryClient.invalidateQueries({ queryKey: ['time-clock-edits-mine'] });
     queryClient.invalidateQueries({ queryKey: ['all-employees'] });
+    queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+    queryClient.invalidateQueries({ queryKey: ['ical-subscriptions'] });
   }, []);
 
   useLocationChange(() => {
@@ -1674,6 +1986,8 @@ export default function CalendarWorkforce() {
     queryClient.invalidateQueries({ queryKey: ['time-clock-edits'] });
     queryClient.invalidateQueries({ queryKey: ['time-clock-edits-mine'] });
     queryClient.invalidateQueries({ queryKey: ['all-employees'] });
+    queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+    queryClient.invalidateQueries({ queryKey: ['ical-subscriptions'] });
   }, []);
 
   if (!tenant) {
