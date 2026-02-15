@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useShifts, type Shift } from '@/hooks/use-shifts';
+import { useShifts, useAcceptShift, useDeclineShift, type Shift } from '@/hooks/use-shifts';
 import { useMyTimeOffRequests, type TimeOffRequest } from '@/hooks/use-time-off';
 import {
   useActiveClockEntry,
@@ -22,6 +22,8 @@ import {
   CalendarDays,
   Timer,
   Plane,
+  Check,
+  X,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';
@@ -120,6 +122,12 @@ export function MyDashboardCard() {
   const clockOut = useClockOut();
   const startBreak = useStartBreak();
   const endBreak = useEndBreak();
+  const acceptShift = useAcceptShift();
+  const declineShift = useDeclineShift();
+
+  // Inline decline state
+  const [decliningShiftId, setDecliningShiftId] = useState<string | null>(null);
+  const [declineReason, setDeclineReason] = useState('');
 
   // Filter shifts to current user
   const myShifts = useMemo(() => {
@@ -129,6 +137,13 @@ export function MyDashboardCard() {
       (s) => s.employee_id === user.id || (myName && s.employee_name?.toLowerCase() === myName)
     );
   }, [allShifts, user?.id, profile?.full_name]);
+
+  // Shifts needing a response
+  const pendingShifts = useMemo(() => {
+    return myShifts.filter(
+      (s) => s.status === 'published' && s.employee_id === user?.id && !s.acceptance
+    );
+  }, [myShifts, user?.id]);
 
   const nextShift = useMemo(() => getNextShift(myShifts), [myShifts]);
   const weekHours = useMemo(() => (clockEntries ? calcWeekHours(clockEntries) : 0), [clockEntries]);
@@ -323,6 +338,17 @@ export function MyDashboardCard() {
         </div>
       </div>
 
+      {/* Pending shifts alert */}
+      {pendingShifts.length > 0 && (
+        <div className="px-5 py-2 flex items-center gap-2 text-sm"
+          style={{ backgroundColor: '#fef3c7', color: '#92400e', borderBottom: `1px solid ${colors.creamDark}` }}>
+          <CalendarDays className="w-4 h-4 flex-shrink-0" />
+          <span className="font-medium">
+            {pendingShifts.length} shift{pendingShifts.length !== 1 ? 's' : ''} awaiting your response
+          </span>
+        </div>
+      )}
+
       {/* My Shifts This Week */}
       {myShifts.length > 0 && (
         <div className="px-5 pb-4">
@@ -335,26 +361,79 @@ export function MyDashboardCard() {
               ({myShifts.length} shift{myShifts.length !== 1 ? 's' : ''})
             </span>
           </div>
-          <div className="space-y-1">
-            {myShifts.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center gap-3 text-sm py-1 px-2 rounded"
-                style={{ backgroundColor: colors.cream }}
-              >
-                <span className="w-20 flex-shrink-0 font-medium" style={{ color: colors.brown }}>
-                  {formatDate(s.date)}
-                </span>
-                <span style={{ color: colors.brownLight }}>
-                  {formatTime(s.start_time)} &ndash; {formatTime(s.end_time)}
-                </span>
-                {s.position && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-auto">
-                    {s.position}
-                  </Badge>
-                )}
-              </div>
-            ))}
+          <div className="space-y-1.5">
+            {myShifts.map((s) => {
+              const isPending = s.status === 'published' && s.employee_id === user?.id && !s.acceptance;
+              const isDeclining = decliningShiftId === s.id;
+              return (
+                <div key={s.id} className="space-y-1">
+                  <div className="flex items-center gap-3 text-sm py-1.5 px-2 rounded"
+                    style={{ backgroundColor: colors.cream }}>
+                    <span className="w-20 flex-shrink-0 font-medium" style={{ color: colors.brown }}>
+                      {formatDate(s.date)}
+                    </span>
+                    <span style={{ color: colors.brownLight }}>
+                      {formatTime(s.start_time)} &ndash; {formatTime(s.end_time)}
+                    </span>
+                    {s.position && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        {s.position}
+                      </Badge>
+                    )}
+                    <div className="ml-auto flex items-center gap-1 flex-shrink-0">
+                      {s.acceptance === 'accepted' && (
+                        <Badge className="bg-green-100 text-green-800 text-[10px] px-1.5 py-0">Accepted</Badge>
+                      )}
+                      {s.acceptance === 'declined' && (
+                        <Badge className="bg-red-100 text-red-800 text-[10px] px-1.5 py-0">Declined</Badge>
+                      )}
+                      {isPending && (
+                        <>
+                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
+                            disabled={acceptShift.isPending}
+                            title="Accept shift"
+                            onClick={async () => {
+                              try { await acceptShift.mutateAsync(s.id); toast({ title: 'Shift accepted' }); }
+                              catch { toast({ title: 'Failed to accept', variant: 'destructive' }); }
+                            }}>
+                            <Check className="w-3.5 h-3.5" style={{ color: '#22c55e' }} />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
+                            title="Decline shift"
+                            onClick={() => setDecliningShiftId(isDeclining ? null : s.id)}>
+                            <X className="w-3.5 h-3.5" style={{ color: '#ef4444' }} />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {isDeclining && (
+                    <div className="flex gap-2 px-2">
+                      <input
+                        type="text"
+                        placeholder="Reason (optional)"
+                        value={declineReason}
+                        onChange={(e) => setDeclineReason(e.target.value)}
+                        className="flex-1 text-xs px-2 py-1 rounded border"
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                      />
+                      <Button size="sm" className="text-xs"
+                        disabled={declineShift.isPending}
+                        onClick={async () => {
+                          try {
+                            await declineShift.mutateAsync({ shiftId: s.id, reason: declineReason || undefined });
+                            toast({ title: 'Shift declined' });
+                            setDecliningShiftId(null); setDeclineReason('');
+                          } catch { toast({ title: 'Failed to decline', variant: 'destructive' }); }
+                        }}
+                        style={{ backgroundColor: '#ef4444', color: '#fff' }}>
+                        Decline
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

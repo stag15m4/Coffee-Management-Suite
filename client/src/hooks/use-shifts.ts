@@ -17,6 +17,9 @@ export interface Shift {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  acceptance: 'accepted' | 'declined' | null;
+  accepted_at: string | null;
+  decline_reason: string | null;
   employee_avatar?: string | null;
 }
 
@@ -156,6 +159,62 @@ export function useDeleteShift() {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('shifts').delete().eq('id', id);
       if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['shifts-today'] });
+    },
+  });
+}
+
+export function useAcceptShift() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (shiftId: string) => {
+      if (!user?.id) throw new Error('No user');
+      const { data, error } = await supabase
+        .from('shifts')
+        .update({
+          acceptance: 'accepted',
+          accepted_at: new Date().toISOString(),
+          decline_reason: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', shiftId)
+        .eq('employee_id', user.id)
+        .select(SHIFT_SELECT)
+        .single();
+      if (error) throw error;
+      return mapShift(data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['shifts-today'] });
+    },
+  });
+}
+
+export function useDeclineShift() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ shiftId, reason }: { shiftId: string; reason?: string }) => {
+      if (!user?.id) throw new Error('No user');
+      const { data, error } = await supabase
+        .from('shifts')
+        .update({
+          acceptance: 'declined',
+          accepted_at: new Date().toISOString(),
+          decline_reason: reason ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', shiftId)
+        .eq('employee_id', user.id)
+        .select(SHIFT_SELECT)
+        .single();
+      if (error) throw error;
+      return mapShift(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shifts'] });

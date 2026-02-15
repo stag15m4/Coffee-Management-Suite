@@ -42,6 +42,8 @@ import {
   useCreateShift,
   useUpdateShift,
   useDeleteShift,
+  useAcceptShift,
+  useDeclineShift,
   useBulkCreateShifts,
   useShiftTemplates,
   useCreateShiftTemplate,
@@ -167,7 +169,14 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   const createTemplate = useCreateShiftTemplate();
   const deleteTemplate = useDeleteShiftTemplate();
   const { data: timeOffRequests } = useTimeOffRequests('approved');
+  const acceptShift = useAcceptShift();
+  const declineShift = useDeclineShift();
+  const { user } = useAuth();
   const { toast } = useToast();
+
+  // Shift detail dialog state (employee accept/decline)
+  const [viewingShiftDetail, setViewingShiftDetail] = useState<Shift | null>(null);
+  const [declineReason, setDeclineReason] = useState('');
 
   // Create shift dialog state
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -391,8 +400,11 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
       setNewShiftNotes(shift.notes ?? '');
       setConflictWarning(null);
       setShowCreateDialog(true);
+    } else if (shift.employee_id === user?.id && shift.status === 'published') {
+      setViewingShiftDetail(shift);
+      setDeclineReason('');
     }
-  }, [canEdit]);
+  }, [canEdit, user?.id]);
 
   const handleEventDrop = useCallback(async (dropInfo: EventDropArg) => {
     if (!canEdit || dropInfo.event.extendedProps.type === 'event') {
@@ -445,6 +457,8 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
     }
     try {
       if (editingShift) {
+        // Reset acceptance if employee changed
+        const employeeChanged = (emp.user_profile_id ?? null) !== editingShift.employee_id;
         await updateShift.mutateAsync({
           id: editingShift.id,
           employee_id: emp.user_profile_id ?? null,
@@ -455,6 +469,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
           end_time: newShiftEnd,
           position: newShiftPosition || null,
           notes: newShiftNotes || null,
+          ...(employeeChanged ? { acceptance: null, accepted_at: null, decline_reason: null } : {}),
         });
         toast({ title: 'Shift updated' });
       } else {
@@ -752,6 +767,14 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
               const avatarUrl = shift.employee_avatar
                 || employees.find((e) => e.name === shift.employee_name)?.avatar_url
                 || null;
+              // Acceptance indicator for published shifts with an assigned employee
+              const showAcceptance = shift.status === 'published' && shift.employee_id;
+              const acceptIcon = shift.acceptance === 'accepted' ? '\u2713'
+                : shift.acceptance === 'declined' ? '\u2717'
+                : showAcceptance ? '?' : null;
+              const acceptBg = shift.acceptance === 'accepted' ? '#22c55e'
+                : shift.acceptance === 'declined' ? '#ef4444'
+                : '#eab308';
               return (
                 <div className="flex items-center gap-1 overflow-hidden w-full px-0.5 py-0.5">
                   {avatarUrl ? (
@@ -761,10 +784,17 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                       {(shift.employee_name || '?').charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <div className="truncate text-xs leading-tight">
+                  <div className="truncate text-xs leading-tight flex-1 min-w-0">
                     <div className="font-medium truncate">{shift.employee_name || 'Unassigned'}</div>
                     <div className="opacity-80">{arg.timeText}</div>
                   </div>
+                  {acceptIcon && (
+                    <span className="text-[9px] font-bold flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: acceptBg, color: '#fff' }}
+                      title={shift.acceptance === 'accepted' ? 'Accepted' : shift.acceptance === 'declined' ? 'Declined' : 'Pending response'}>
+                      {acceptIcon}
+                    </span>
+                  )}
                 </div>
               );
             }}
@@ -846,6 +876,20 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                   <span>{conflictWarning}</span>
                 </div>
               )}
+              {editingShift?.acceptance && (
+                <div className="flex items-center gap-2 p-2 rounded-lg text-sm"
+                  style={{
+                    backgroundColor: editingShift.acceptance === 'accepted' ? '#dcfce7' : '#fef2f2',
+                    color: editingShift.acceptance === 'accepted' ? '#166534' : '#991b1b',
+                    border: `1px solid ${editingShift.acceptance === 'accepted' ? '#bbf7d0' : '#fecaca'}`,
+                  }}>
+                  {editingShift.acceptance === 'accepted' ? (
+                    <><Check className="w-4 h-4" /> Accepted by employee</>
+                  ) : (
+                    <><X className="w-4 h-4" /> Declined{editingShift.decline_reason ? `: "${editingShift.decline_reason}"` : ''}</>
+                  )}
+                </div>
+              )}
               <div className="flex gap-2 pt-2">
                 <Button onClick={handleSaveShift} disabled={createShift.isPending || updateShift.isPending}
                   style={{ backgroundColor: colors.gold, color: colors.white }} className="flex-1">
@@ -918,6 +962,97 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                   </Button>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Shift Detail / Accept-Decline Dialog (employee view) */}
+      {viewingShiftDetail && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setViewingShiftDetail(null)}>
+          <Card className="w-full max-w-sm" style={{ backgroundColor: colors.white }} onClick={(e) => e.stopPropagation()}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base" style={{ color: colors.brown }}>Shift Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="text-sm space-y-1.5" style={{ color: colors.brown }}>
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4 opacity-60" />
+                  <span>{formatDateShort(viewingShiftDetail.date)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 opacity-60" />
+                  <span>{formatTimeDisplay(viewingShiftDetail.start_time)} – {formatTimeDisplay(viewingShiftDetail.end_time)}</span>
+                </div>
+                {viewingShiftDetail.position && (
+                  <Badge variant="secondary" className="text-xs">{viewingShiftDetail.position}</Badge>
+                )}
+                {viewingShiftDetail.notes && (
+                  <p className="text-xs opacity-70 mt-1">{viewingShiftDetail.notes}</p>
+                )}
+              </div>
+
+              {/* Current acceptance status */}
+              {viewingShiftDetail.acceptance === 'accepted' && (
+                <Badge className="bg-green-100 text-green-800">Accepted</Badge>
+              )}
+              {viewingShiftDetail.acceptance === 'declined' && (
+                <Badge className="bg-red-100 text-red-800">Declined</Badge>
+              )}
+              {!viewingShiftDetail.acceptance && (
+                <Badge className="bg-yellow-100 text-yellow-800">Pending Response</Badge>
+              )}
+
+              {/* Accept/Decline actions */}
+              {viewingShiftDetail.status === 'published' && (
+                <div className="space-y-2 pt-2" style={{ borderTop: `1px solid ${colors.creamDark}` }}>
+                  {viewingShiftDetail.acceptance !== 'declined' && (
+                    <Textarea
+                      placeholder="Reason for declining (optional)"
+                      value={declineReason}
+                      onChange={(e) => setDeclineReason(e.target.value)}
+                      rows={2}
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                    />
+                  )}
+                  <div className="flex gap-2">
+                    {viewingShiftDetail.acceptance !== 'accepted' && (
+                      <Button className="flex-1"
+                        disabled={acceptShift.isPending}
+                        onClick={async () => {
+                          try {
+                            await acceptShift.mutateAsync(viewingShiftDetail.id);
+                            toast({ title: 'Shift accepted' });
+                            setViewingShiftDetail(null);
+                          } catch { toast({ title: 'Failed to accept shift', variant: 'destructive' }); }
+                        }}
+                        style={{ backgroundColor: '#22c55e', color: '#fff' }}>
+                        <Check className="w-4 h-4 mr-1" /> Accept
+                      </Button>
+                    )}
+                    {viewingShiftDetail.acceptance !== 'declined' && (
+                      <Button className="flex-1" variant="outline"
+                        disabled={declineShift.isPending}
+                        onClick={async () => {
+                          try {
+                            await declineShift.mutateAsync({ shiftId: viewingShiftDetail.id, reason: declineReason || undefined });
+                            toast({ title: 'Shift declined' });
+                            setViewingShiftDetail(null);
+                          } catch { toast({ title: 'Failed to decline shift', variant: 'destructive' }); }
+                        }}
+                        style={{ borderColor: '#ef4444', color: '#ef4444' }}>
+                        <X className="w-4 h-4 mr-1" /> Decline
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <Button variant="outline" size="sm" className="w-full mt-2"
+                onClick={() => setViewingShiftDetail(null)}
+                style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                Close
+              </Button>
             </CardContent>
           </Card>
         </div>
