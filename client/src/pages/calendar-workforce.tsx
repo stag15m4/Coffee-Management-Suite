@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar as DateCalendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import {
   CalendarDays,
@@ -285,6 +287,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
           start_time: t.start_time.slice(0, 5),
           end_time: t.end_time.slice(0, 5),
           position: t.position,
+          status: 'published',
         };
       });
     if (newShifts.length === 0) {
@@ -482,6 +485,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
           end_time: newShiftEnd,
           position: newShiftPosition || null,
           notes: newShiftNotes || null,
+          status: 'published',
         });
         toast({ title: 'Shift created' });
       }
@@ -859,9 +863,31 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
               </div>
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Date</Label>
-                <Input type="date" value={newShiftDate}
-                  onChange={(e) => { const d = e.target.value; setNewShiftDate(d); checkConflicts(selectedEmployeeKey, d, newShiftStart, newShiftEnd, editingShift?.id); }}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal"
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}>
+                      <CalendarDays className="w-4 h-4 mr-2 opacity-50" />
+                      {newShiftDate
+                        ? new Date(newShiftDate + 'T00:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+                        : 'Pick a date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <DateCalendar
+                      mode="single"
+                      selected={newShiftDate ? new Date(newShiftDate + 'T00:00:00') : undefined}
+                      onSelect={(day) => {
+                        if (day) {
+                          const d = formatDate(day);
+                          setNewShiftDate(d);
+                          checkConflicts(selectedEmployeeKey, d, newShiftStart, newShiftEnd, editingShift?.id);
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
