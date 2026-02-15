@@ -971,8 +971,10 @@ function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employe
 
   // Edit request state
   const [editRequestEntry, setEditRequestEntry] = useState<TimeClockEntry | null>(null);
-  const [editReqClockIn, setEditReqClockIn] = useState('');
-  const [editReqClockOut, setEditReqClockOut] = useState('');
+  const [editReqClockInDate, setEditReqClockInDate] = useState('');
+  const [editReqClockInTime, setEditReqClockInTime] = useState('');
+  const [editReqClockOutDate, setEditReqClockOutDate] = useState('');
+  const [editReqClockOutTime, setEditReqClockOutTime] = useState('');
   const [editReqReason, setEditReqReason] = useState('');
   const [reviewNotes, setReviewNotes] = useState('');
 
@@ -1051,16 +1053,26 @@ function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employe
   }, [activeEntry, activeBreak, startBreak, endBreak, toast]);
 
   const openEditRequest = useCallback((entry: TimeClockEntry) => {
-    // Pre-fill with the entry's current times in datetime-local format
-    const toLocal = (ts: string) => {
+    // Pre-fill with the entry's current times split into date + time
+    const splitLocal = (ts: string) => {
       const d = new Date(ts);
       const offset = d.getTimezoneOffset();
       const local = new Date(d.getTime() - offset * 60_000);
-      return local.toISOString().slice(0, 16);
+      const iso = local.toISOString();
+      return { date: iso.slice(0, 10), time: iso.slice(11, 16) };
     };
     setEditRequestEntry(entry);
-    setEditReqClockIn(toLocal(entry.clock_in));
-    setEditReqClockOut(entry.clock_out ? toLocal(entry.clock_out) : '');
+    const inParts = splitLocal(entry.clock_in);
+    setEditReqClockInDate(inParts.date);
+    setEditReqClockInTime(inParts.time);
+    if (entry.clock_out) {
+      const outParts = splitLocal(entry.clock_out);
+      setEditReqClockOutDate(outParts.date);
+      setEditReqClockOutTime(outParts.time);
+    } else {
+      setEditReqClockOutDate(inParts.date);
+      setEditReqClockOutTime('');
+    }
     setEditReqReason('');
   }, []);
 
@@ -1071,9 +1083,12 @@ function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employe
       return;
     }
     // At least one field must be different from original
-    const toISO = (localStr: string) => localStr ? new Date(localStr).toISOString() : null;
-    const newClockIn = toISO(editReqClockIn);
-    const newClockOut = toISO(editReqClockOut);
+    const combineToISO = (date: string, time: string) => {
+      if (!date || !time) return null;
+      return new Date(`${date}T${time}`).toISOString();
+    };
+    const newClockIn = combineToISO(editReqClockInDate, editReqClockInTime);
+    const newClockOut = combineToISO(editReqClockOutDate, editReqClockOutTime);
     const origIn = editRequestEntry.clock_in;
     const origOut = editRequestEntry.clock_out;
 
@@ -1099,7 +1114,7 @@ function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employe
     } catch {
       toast({ title: 'Error', description: 'Failed to submit edit request.', variant: 'destructive' });
     }
-  }, [editRequestEntry, editReqClockIn, editReqClockOut, editReqReason, createEdit, toast]);
+  }, [editRequestEntry, editReqClockInDate, editReqClockInTime, editReqClockOutDate, editReqClockOutTime, editReqReason, createEdit, toast]);
 
   const handleReviewEdit = useCallback(async (id: string, status: 'approved' | 'denied') => {
     try {
@@ -1319,15 +1334,29 @@ function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employe
               </div>
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Corrected Clock In</Label>
-                <Input type="datetime-local" value={editReqClockIn}
-                  onChange={(e) => setEditReqClockIn(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                <div className="flex gap-2">
+                  <Input type="date" value={editReqClockInDate}
+                    onChange={(e) => setEditReqClockInDate(e.target.value)}
+                    className="flex-1"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                  <Input type="time" value={editReqClockInTime}
+                    onChange={(e) => setEditReqClockInTime(e.target.value)}
+                    className="w-28"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Corrected Clock Out</Label>
-                <Input type="datetime-local" value={editReqClockOut}
-                  onChange={(e) => setEditReqClockOut(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                <div className="flex gap-2">
+                  <Input type="date" value={editReqClockOutDate}
+                    onChange={(e) => setEditReqClockOutDate(e.target.value)}
+                    className="flex-1"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                  <Input type="time" value={editReqClockOutTime}
+                    onChange={(e) => setEditReqClockOutTime(e.target.value)}
+                    className="w-28"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Reason <span style={{ color: colors.red }}>*</span></Label>
