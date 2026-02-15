@@ -981,12 +981,12 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Select value={newTemplateEmployee} onValueChange={setNewTemplateEmployee}>
+                <Select value={newTemplateEmployee || '__unassigned__'} onValueChange={(v) => setNewTemplateEmployee(v === '__unassigned__' ? '' : v)}>
                   <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
                     <SelectValue placeholder="Employee (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="__unassigned__">Unassigned</SelectItem>
                     {employees.map((e) => (
                       <SelectItem key={e.name} value={e.name}>{e.name}</SelectItem>
                     ))}
