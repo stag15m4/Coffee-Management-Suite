@@ -221,6 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const tenantResult = tenantSettled.status === 'fulfilled' ? tenantSettled.value : null;
       const brandingResult = brandingSettled.status === 'fulfilled' ? brandingSettled.value : null;
       const modulesResult = modulesSettled.status === 'fulfilled' ? modulesSettled.value : null;
+      let restoredSavedLocation = false;
 
       if (tenantResult && !(tenantResult as any).error && (tenantResult as any).data) {
         const tenantData = (tenantResult as any).data as Tenant;
@@ -267,6 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (savedLocation) {
             setTenant(savedLocation);
             setActiveLocationId(savedLocationId);
+            restoredSavedLocation = true;
 
             // Record activity (fire-and-forget)
             supabase
@@ -281,7 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               supabase.from('tenant_branding').select('*').eq('tenant_id', savedLocationId).maybeSingle(),
               supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: savedLocationId }),
             ]);
-            if (savedBrandingResult.data) setBranding(savedBrandingResult.data);
+            setBranding(savedBrandingResult.data || null);
             if (savedModulesResult.data) setEnabledModules(savedModulesResult.data as ModuleId[]);
           } else {
             sessionStorage.removeItem('selected_location_id');
@@ -292,18 +294,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // --- Process branding ---
-      if (brandingResult && !(brandingResult as any).error && (brandingResult as any).data) {
+      // --- Process branding (only if we didn't already load a saved location's branding) ---
+      if (!restoredSavedLocation && brandingResult && !(brandingResult as any).error && (brandingResult as any).data) {
         setBranding((brandingResult as any).data);
       }
 
-      // --- Process modules ---
-      if (!modulesResult || (modulesResult as any).error) {
-        const errorMsg = modulesResult ? (modulesResult as any).error?.message : 'Query failed';
-        console.warn('Module access RPC failed:', errorMsg);
-        setEnabledModules([]);
-      } else {
-        setEnabledModules(((modulesResult as any).data || []) as ModuleId[]);
+      // --- Process modules (only if we didn't already load a saved location's modules) ---
+      if (!restoredSavedLocation) {
+        if (!modulesResult || (modulesResult as any).error) {
+          const errorMsg = modulesResult ? (modulesResult as any).error?.message : 'Query failed';
+          console.warn('Module access RPC failed:', errorMsg);
+          setEnabledModules([]);
+        } else {
+          setEnabledModules(((modulesResult as any).data || []) as ModuleId[]);
+        }
       }
 
       // --- Process role settings ---
