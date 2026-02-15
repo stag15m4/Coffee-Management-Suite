@@ -403,19 +403,19 @@ export default function RecipeCostingPage() {
   const handleAddBulkSize = async (name: string, oz: number): Promise<boolean> => {
     try {
       const { data: maxOrder } = await supabase
-        .from('drink_sizes')
+        .from('product_sizes')
         .select('display_order')
         .order('display_order', { ascending: false })
         .limit(1);
       const nextOrder = (maxOrder?.[0]?.display_order || 0) + 1;
 
       const { error } = await supabase
-        .from('drink_sizes')
+        .from('product_sizes')
         .insert({ name, size_oz: oz, display_order: nextOrder, drink_type: 'bulk', tenant_id: profile?.tenant_id });
 
       if (error) {
         console.error('Supabase error adding bulk size:', error);
-        alert('Error adding bulk size: ' + error.message + '\n\nMake sure your Supabase RLS policies allow inserts on the drink_sizes table.');
+        alert('Error adding bulk size: ' + error.message + '\n\nMake sure your Supabase RLS policies allow inserts on the product_sizes table.');
         return false;
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.drinkSizes });
@@ -443,7 +443,7 @@ export default function RecipeCostingPage() {
       }
 
       const { error } = await supabase
-        .from('drink_sizes')
+        .from('product_sizes')
         .delete()
         .eq('id', sizeId);
 
@@ -463,14 +463,14 @@ export default function RecipeCostingPage() {
 
   const handleAddDrinkSize = async (size: { name: string; size_oz: number; drink_type: string }): Promise<string> => {
     const { data: maxOrder } = await supabase
-      .from('drink_sizes')
+      .from('product_sizes')
       .select('display_order')
       .order('display_order', { ascending: false })
       .limit(1);
     const nextOrder = (maxOrder?.[0]?.display_order || 0) + 1;
 
     const { data, error } = await supabase
-      .from('drink_sizes')
+      .from('product_sizes')
       .insert({ name: size.name, size_oz: size.size_oz, display_order: nextOrder, drink_type: size.drink_type, tenant_id: profile?.tenant_id })
       .select('id')
       .single();

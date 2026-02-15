@@ -107,7 +107,7 @@ export function useDrinkSizes() {
   return useQuery({
     queryKey: [...queryKeys.drinkSizes, tenant?.id],
     queryFn: async () => {
-      let query = supabase.from('drink_sizes').select('*');
+      let query = supabase.from('product_sizes').select('*');
       if (tenant?.id) query = query.eq('tenant_id', tenant.id);
       const { data, error } = await query.order('display_order');
       if (error) throw error;
