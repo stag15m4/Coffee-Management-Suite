@@ -32,7 +32,13 @@ export default function TipPayout() {
 
   // Core data state
   const [employees, setEmployees] = useState<TipEmployee[]>([]);
-  const [weekKey, setWeekKey] = useState(getMonday());
+  const [weekKey, setWeekKeyRaw] = useState(() => {
+    return sessionStorage.getItem('tip-payout-weekKey') || getMonday();
+  });
+  const setWeekKey = useCallback((key: string) => {
+    sessionStorage.setItem('tip-payout-weekKey', key);
+    setWeekKeyRaw(key);
+  }, []);
   const [employeeHours, setEmployeeHours] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
@@ -334,7 +340,7 @@ export default function TipPayout() {
     const actual = Object.values(employeeHours).reduce((a, b) => a + b, 0);
     const diff = Math.abs(actual - declared);
     if (diff < 0.1) {
-      setHoursVerifyResult({ match: true, message: `Perfect! ${formatHoursMinutes(actual)}` });
+      setHoursVerifyResult({ match: true, message: `Perfect! ${formatHoursMinutes(declared)}` });
     } else {
       setHoursVerifyResult({
         match: false,
