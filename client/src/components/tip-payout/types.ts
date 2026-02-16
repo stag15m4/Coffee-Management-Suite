@@ -38,6 +38,20 @@ export interface PayoutCalculation {
   weekRange: { start: string; end: string };
 }
 
+export interface ImportedHours {
+  tipEmployeeId: string;
+  tipEmployeeName: string;
+  totalHours: number;
+  entryCount: number;
+  matched: boolean;
+}
+
+export interface UnmatchedEntry {
+  employeeName: string;
+  totalHours: number;
+  entryCount: number;
+}
+
 export interface Colors {
   gold: string;
   goldLight: string;

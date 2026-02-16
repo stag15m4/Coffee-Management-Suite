@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users } from 'lucide-react';
 
-import { CC_FEE_RATE, TipEmployee } from '@/components/tip-payout/types';
-import { formatHoursMinutes, getMonday, getWeekRange } from '@/components/tip-payout/utils';
+import { CC_FEE_RATE, TipEmployee, ImportedHours, UnmatchedEntry } from '@/components/tip-payout/types';
+import { formatHoursMinutes, getMonday, getWeekRange, calcNetHoursFromEntry, TimeclockEntry } from '@/components/tip-payout/utils';
 import { buildCsvContent, buildWeeklyPdfHtml, buildHistoricalGroupHtml, buildHistoricalIndividualHtml, buildLoadingHtml } from '@/components/tip-payout/export-helpers';
 import { TipPayoutHeader } from '@/components/tip-payout/TipPayoutHeader';
 import { DailyTipsEntry } from '@/components/tip-payout/DailyTipsEntry';
@@ -18,6 +18,7 @@ import { EmployeeHoursEntry } from '@/components/tip-payout/EmployeeHoursEntry';
 import { TeamHoursVerify } from '@/components/tip-payout/TeamHoursVerify';
 import { PayoutSummary } from '@/components/tip-payout/PayoutSummary';
 import { HistoricalExport } from '@/components/tip-payout/HistoricalExport';
+import { TimeclockImportDialog } from '@/components/tip-payout/TimeclockImportDialog';
 import { colors } from '@/lib/colors';
 
 export default function TipPayout() {
@@ -64,6 +65,14 @@ export default function TipPayout() {
   const [newEmployeeName, setNewEmployeeName] = useState('');
   const [addingEmployee, setAddingEmployee] = useState(false);
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
+
+  // Timeclock import
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importPreviewData, setImportPreviewData] = useState<ImportedHours[]>([]);
+  const [importUnmatched, setImportUnmatched] = useState<UnmatchedEntry[]>([]);
+  const [importSkippedCount, setImportSkippedCount] = useState(0);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importConfirming, setImportConfirming] = useState(false);
 
   // Historical export
   const [historyStartDate, setHistoryStartDate] = useState('');
@@ -349,6 +358,141 @@ export default function TipPayout() {
     }
   };
 
+  // --- Timeclock import ---
+
+  const handleImportClick = async () => {
+    if (!tenant?.id) return;
+    setImportDialogOpen(true);
+    setImportLoading(true);
+    setImportPreviewData([]);
+    setImportUnmatched([]);
+    setImportSkippedCount(0);
+
+    try {
+      // Build week range: Monday 00:00 to next Monday 00:00
+      const mondayStart = `${weekKey}T00:00:00`;
+      const nextMonday = new Date(weekKey + 'T00:00:00');
+      nextMonday.setDate(nextMonday.getDate() + 7);
+      const nextMondayStr = nextMonday.toISOString().split('T')[0] + 'T00:00:00';
+
+      const { data: entries, error } = await supabase
+        .from('time_clock_entries')
+        .select('id, employee_id, tip_employee_id, employee_name, clock_in, clock_out, time_clock_breaks(id, break_start, break_end, is_paid)')
+        .eq('tenant_id', tenant.id)
+        .gte('clock_in', mondayStart)
+        .lt('clock_in', nextMondayStr)
+        .order('clock_in', { ascending: true });
+
+      if (error) throw error;
+
+      // Build lookup maps for tip employees
+      const byTipId = new Map(employees.map(e => [e.id, e]));
+      const byNameLower = new Map(employees.map(e => [e.name.trim().toLowerCase(), e]));
+
+      const hoursMap = new Map<string, ImportedHours>();
+      const unmatchedMap = new Map<string, UnmatchedEntry>();
+      let skipped = 0;
+
+      for (const entry of (entries || []) as TimeclockEntry[]) {
+        if (!entry.clock_out) {
+          skipped++;
+          continue;
+        }
+
+        // Resolve to a tip employee
+        let tipEmp: TipEmployee | undefined;
+        if (entry.tip_employee_id) {
+          tipEmp = byTipId.get(entry.tip_employee_id);
+        }
+        if (!tipEmp && entry.employee_name) {
+          tipEmp = byNameLower.get(entry.employee_name.trim().toLowerCase());
+        }
+
+        const netHours = calcNetHoursFromEntry(entry);
+
+        if (tipEmp) {
+          const existing = hoursMap.get(tipEmp.id);
+          if (existing) {
+            existing.totalHours += netHours;
+            existing.entryCount += 1;
+          } else {
+            hoursMap.set(tipEmp.id, {
+              tipEmployeeId: tipEmp.id,
+              tipEmployeeName: tipEmp.name,
+              totalHours: netHours,
+              entryCount: 1,
+              matched: true,
+            });
+          }
+        } else {
+          const name = entry.employee_name || 'Unknown';
+          const existing = unmatchedMap.get(name);
+          if (existing) {
+            existing.totalHours += netHours;
+            existing.entryCount += 1;
+          } else {
+            unmatchedMap.set(name, { employeeName: name, totalHours: netHours, entryCount: 1 });
+          }
+        }
+      }
+
+      setImportPreviewData(Array.from(hoursMap.values()));
+      setImportUnmatched(Array.from(unmatchedMap.values()));
+      setImportSkippedCount(skipped);
+    } catch (error: any) {
+      toast({ title: 'Error loading timeclock data', description: error.message, variant: 'destructive' });
+      setImportDialogOpen(false);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!tenant?.id) return;
+    const matched = importPreviewData.filter(d => d.matched);
+    if (matched.length === 0) return;
+
+    setImportConfirming(true);
+    try {
+      for (const item of matched) {
+        const { data: existing } = await supabase
+          .from('tip_employee_hours')
+          .select('id')
+          .eq('tenant_id', tenant.id)
+          .eq('employee_id', item.tipEmployeeId)
+          .eq('week_key', weekKey)
+          .maybeSingle();
+
+        if (existing) {
+          const { error } = await supabase
+            .from('tip_employee_hours')
+            .update({ hours: item.totalHours, updated_at: new Date().toISOString() })
+            .eq('id', existing.id)
+            .eq('tenant_id', tenant.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from('tip_employee_hours')
+            .insert({
+              tenant_id: tenant.id,
+              employee_id: item.tipEmployeeId,
+              week_key: weekKey,
+              hours: item.totalHours,
+            });
+          if (error) throw error;
+        }
+      }
+
+      toast({ title: `Imported hours for ${matched.length} ${matched.length === 1 ? 'employee' : 'employees'}` });
+      setImportDialogOpen(false);
+      loadWeekData();
+    } catch (error: any) {
+      toast({ title: 'Error importing hours', description: error.message, variant: 'destructive' });
+    } finally {
+      setImportConfirming(false);
+    }
+  };
+
   // --- Exports ---
 
   const exportCSV = () => {
@@ -572,6 +716,7 @@ export default function TipPayout() {
                   onEditEmployee={editEmployee}
                   onDeleteEmployee={deleteHours}
                   onAddNewEmployee={() => setManageDialogOpen(true)}
+                  onImportFromTimeclock={handleImportClick}
                 />
 
                 <PayoutSummary
@@ -612,6 +757,18 @@ export default function TipPayout() {
           </CardContent>
         </Card>
       </main>
+
+      <TimeclockImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        previewData={importPreviewData}
+        unmatchedEntries={importUnmatched}
+        skippedCount={importSkippedCount}
+        loading={importLoading}
+        confirming={importConfirming}
+        onConfirm={confirmImport}
+        colors={colors}
+      />
     </div>
   );
 }

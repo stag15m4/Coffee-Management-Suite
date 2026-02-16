@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Clock, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Clock, Download, Pencil, Plus, Trash2 } from 'lucide-react';
 import { TipEmployee, Colors } from './types';
 import { formatCurrency, formatHoursMinutes } from './utils';
 
@@ -23,6 +23,7 @@ interface EmployeeHoursEntryProps {
   onEditEmployee: (name: string, hours: number) => void;
   onDeleteEmployee: (name: string) => void;
   onAddNewEmployee: () => void;
+  onImportFromTimeclock: () => void;
 }
 
 const ADD_NEW_VALUE = '__add_new__';
@@ -43,6 +44,7 @@ export function EmployeeHoursEntry({
   onEditEmployee,
   onDeleteEmployee,
   onAddNewEmployee,
+  onImportFromTimeclock,
 }: EmployeeHoursEntryProps) {
   const availableEmployees = employees.filter(e => !employeeHours[e.name] || e.name === selectedEmployee);
 
@@ -56,9 +58,20 @@ export function EmployeeHoursEntry({
 
   return (
     <section>
-      <div className="flex items-center gap-2 mb-3" style={{ color: colors.brown }}>
-        <Clock className="w-5 h-5" />
-        <h3 className="font-semibold text-lg">Employee Hours</h3>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2" style={{ color: colors.brown }}>
+          <Clock className="w-5 h-5" />
+          <h3 className="font-semibold text-lg">Employee Hours</h3>
+        </div>
+        <Button
+          onClick={onImportFromTimeclock}
+          variant="outline"
+          size="sm"
+          style={{ borderColor: colors.gold, color: colors.brown }}
+        >
+          <Download className="w-4 h-4 mr-1.5" />
+          Import from Timeclock
+        </Button>
       </div>
 
       <Table>
