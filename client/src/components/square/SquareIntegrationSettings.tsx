@@ -121,9 +121,9 @@ export default function SquareIntegrationSettings() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
-    const squareCallback = params.get('square_callback');
+    const state = params.get('state');
 
-    if (code && squareCallback) {
+    if (code && state) {
       // Clear the URL params
       window.history.replaceState({}, '', window.location.pathname);
 

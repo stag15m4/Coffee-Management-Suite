@@ -64,10 +64,11 @@ export function getSquareOAuthUrl(tenantId: string, redirectUri: string): string
   const params = new URLSearchParams({
     client_id: getSquareAppId(),
     response_type: 'code',
-    scope: 'TIMECARDS_READ TIMECARDS_SETTINGS_READ EMPLOYEES_READ MERCHANT_PROFILE_READ',
     state: tenantId,
     redirect_uri: redirectUri,
   });
 
-  return `${baseUrl}/oauth2/authorize?${params.toString()}`;
+  // Square expects scopes as space-separated (%20), not plus-encoded (+)
+  const scopes = 'TIMECARDS_READ TIMECARDS_SETTINGS_READ EMPLOYEES_READ MERCHANT_PROFILE_READ';
+  return `${baseUrl}/oauth2/authorize?${params.toString()}&scope=${encodeURIComponent(scopes)}`;
 }

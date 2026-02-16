@@ -501,7 +501,10 @@ export async function registerRoutes(
       const auth = await verifySquareAdmin(req, res);
       if (!auth) return;
 
-      const redirectUri = `${req.protocol}://${req.get('host')}/admin/integrations?square_callback=true`;
+      // Use X-Forwarded headers (set by Codespace proxy / reverse proxies) to build the real URL
+      const proto = req.get('x-forwarded-proto') || req.protocol;
+      const host = req.get('x-forwarded-host') || req.get('host');
+      const redirectUri = `${proto}://${host}/admin/integrations`;
       const url = getSquareOAuthUrl(auth.tenantId, redirectUri);
       res.json({ url });
     } catch (error: any) {
