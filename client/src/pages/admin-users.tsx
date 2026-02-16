@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Mail, MapPin, Building2, Check, X, Shield, DollarSign } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Mail, MapPin, Building2, Check, X, Shield, DollarSign, Eye, EyeOff, Clock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -90,7 +90,13 @@ export default function AdminUsers() {
   const [detailHourlyRate, setDetailHourlyRate] = useState('');
   const [detailAnnualSalary, setDetailAnnualSalary] = useState('');
   const [detailPayFrequency, setDetailPayFrequency] = useState('biweekly');
+  const [detailPin, setDetailPin] = useState('');
+  const [showPin, setShowPin] = useState(false);
   const [savingDetail, setSavingDetail] = useState(false);
+
+  // Kiosk settings (owner only)
+  const [kioskCode, setKioskCode] = useState('');
+  const [savingKioskCode, setSavingKioskCode] = useState(false);
 
   // Check if current tenant has child locations (multi-location enabled)
   const hasMultipleLocations = locations.length > 0;
@@ -154,6 +160,11 @@ export default function AdminUsers() {
     if (profile?.tenant_id) {
       loadUsers();
       loadLocations();
+      // Load kiosk code for owners
+      if (profile.role === 'owner') {
+        supabase.from('tenants').select('kiosk_code').eq('id', profile.tenant_id).single()
+          .then(({ data }) => { if (data?.kiosk_code) setKioskCode(data.kiosk_code); });
+      }
     } else {
       setLoading(false);
     }
@@ -174,6 +185,17 @@ export default function AdminUsers() {
       setDetailHourlyRate(match?.hourly_rate != null ? String(match.hourly_rate) : '');
       setDetailAnnualSalary(match?.annual_salary != null ? String(match.annual_salary) : '');
       setDetailPayFrequency(match?.pay_frequency || 'biweekly');
+      // Fetch kiosk PIN
+      setDetailPin('');
+      setShowPin(false);
+      supabase
+        .from('user_profiles')
+        .select('kiosk_pin')
+        .eq('id', detailUser.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.kiosk_pin) setDetailPin(data.kiosk_pin);
+        });
     }
   }, [detailUser, managerData]);
 
@@ -345,6 +367,18 @@ export default function AdminUsers() {
           pay_frequency: detailPayFrequency || 'biweekly',
         },
       });
+      // Save kiosk PIN if changed
+      if (detailPin && detailPin.length === 4 && profile?.tenant_id) {
+        const pinResp = await fetch('/api/kiosk/update-pin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: detailUser.id, tenantId: profile.tenant_id, newPin: detailPin }),
+        });
+        if (!pinResp.ok) {
+          const pinErr = await pinResp.json();
+          throw new Error(pinErr.error || 'Failed to update PIN');
+        }
+      }
       toast({ title: 'Employee details saved' });
       setShowDetailSheet(false);
     } catch (error: any) {
@@ -850,6 +884,40 @@ export default function AdminUsers() {
                 </>
               )}
 
+              {/* Kiosk PIN */}
+              <div>
+                <Label style={{ color: colors.brown }}>Kiosk PIN</Label>
+                <div className="flex gap-2 mt-1">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showPin ? 'text' : 'password'}
+                      value={detailPin}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        setDetailPin(val);
+                      }}
+                      maxLength={4}
+                      placeholder="4-digit PIN"
+                      inputMode="numeric"
+                      className="tracking-widest"
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowPin(!showPin)}
+                    style={{ borderColor: colors.creamDark, color: colors.brownLight }}
+                    type="button"
+                  >
+                    {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                  Used for Time Clock Kiosk
+                </p>
+              </div>
+
               <Button
                 onClick={handleSaveDetail}
                 disabled={savingDetail}
@@ -868,6 +936,71 @@ export default function AdminUsers() {
             </div>
           </SheetContent>
         </Sheet>
+
+        {/* Kiosk Settings (owner only) */}
+        {isOwner && (
+          <Card className="mt-6" style={{ backgroundColor: colors.white }}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+                <Clock className="w-5 h-5" style={{ color: colors.gold }} />
+                Time Clock Kiosk
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label style={{ color: colors.brown }}>Store Code</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    value={kioskCode}
+                    onChange={(e) => setKioskCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10))}
+                    placeholder="e.g., COB"
+                    className="tracking-widest uppercase flex-1"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                  />
+                  <Button
+                    onClick={async () => {
+                      if (!profile?.tenant_id) return;
+                      setSavingKioskCode(true);
+                      try {
+                        const resp = await fetch('/api/kiosk/set-code', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ tenantId: profile.tenant_id, kioskCode }),
+                        });
+                        if (!resp.ok) {
+                          const err = await resp.json();
+                          throw new Error(err.error);
+                        }
+                        toast({ title: 'Kiosk code saved' });
+                      } catch (err: any) {
+                        toast({ title: 'Error', description: err.message, variant: 'destructive' });
+                      } finally {
+                        setSavingKioskCode(false);
+                      }
+                    }}
+                    disabled={savingKioskCode}
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
+                  >
+                    {savingKioskCode ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
+                  </Button>
+                </div>
+                <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                  Employees enter this code on the kiosk iPad to identify your store.
+                </p>
+              </div>
+              {kioskCode && (
+                <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
+                  <p className="text-sm" style={{ color: colors.brownLight }}>
+                    Kiosk URL:{' '}
+                    <span className="font-mono font-medium" style={{ color: colors.brown }}>
+                      {window.location.origin}/kiosk
+                    </span>
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );

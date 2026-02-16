@@ -16,6 +16,8 @@ export interface UnifiedEmployee {
   role: string | null;
   /** Manager-assigned calendar color (hex), or null for auto */
   schedule_color: string | null;
+  /** Hourly rate for pay calculations (from user_profiles) */
+  hourly_rate: number | null;
   /** 'profile' | 'tip' | 'both' */
   source: 'profile' | 'tip' | 'both';
 }
@@ -34,7 +36,7 @@ export function useAllEmployees(tenantId?: string) {
       const [profilesResult, tipResult] = await Promise.all([
         supabase
           .from('user_profiles')
-          .select('id, full_name, avatar_url, role, email, schedule_color')
+          .select('id, full_name, avatar_url, role, email, schedule_color, hourly_rate')
           .eq('tenant_id', tenantId)
           .eq('is_active', true),
         supabase
@@ -69,7 +71,7 @@ export function useAllEmployees(tenantId?: string) {
           if (extraIds.length > 0) {
             const { data: extra } = await supabase
               .from('user_profiles')
-              .select('id, full_name, avatar_url, role, email, schedule_color')
+              .select('id, full_name, avatar_url, role, email, schedule_color, hourly_rate')
               .in('id', extraIds)
               .eq('is_active', true);
             if (extra) assignmentProfiles = extra;
@@ -103,6 +105,7 @@ export function useAllEmployees(tenantId?: string) {
             avatar_url: p.avatar_url,
             role: p.role,
             schedule_color: p.schedule_color ?? null,
+            hourly_rate: (p as any).hourly_rate ?? null,
             source: 'profile',
           });
         }
@@ -124,6 +127,7 @@ export function useAllEmployees(tenantId?: string) {
             avatar_url: null,
             role: null,
             schedule_color: t.schedule_color ?? null,
+            hourly_rate: null,
             source: 'tip',
           });
         }

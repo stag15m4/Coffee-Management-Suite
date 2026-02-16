@@ -207,6 +207,71 @@ export function useTimeClockEntries(startDate: string, endDate: string, employee
   });
 }
 
+/** Fetch all time clock entries for a pay period (all employees). Used by Timesheets grid. */
+export function usePayPeriodTimeClockEntries(periodStart: string, periodEnd: string) {
+  const { tenant } = useAuth();
+  return useQuery({
+    queryKey: ['time-clock', tenant?.id, periodStart, periodEnd, 'all'],
+    queryFn: async () => {
+      if (!tenant?.id) return [];
+      const { data, error } = await supabase
+        .from('time_clock_entries')
+        .select(ENTRY_SELECT)
+        .eq('tenant_id', tenant.id)
+        .gte('clock_in', `${periodStart}T00:00:00`)
+        .lte('clock_in', `${periodEnd}T23:59:59`)
+        .order('clock_in', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(mapEntry);
+    },
+    enabled: !!tenant?.id && !!periodStart && !!periodEnd,
+    staleTime: 30_000,
+  });
+}
+
+/** Fetch time clock entries for a single employee in a pay period. Used by drill-down. */
+export function useEmployeePayPeriodEntries(employeeId: string, periodStart: string, periodEnd: string) {
+  const { tenant } = useAuth();
+  return useQuery({
+    queryKey: ['time-clock', tenant?.id, periodStart, periodEnd, employeeId],
+    queryFn: async () => {
+      if (!tenant?.id || !employeeId) return [];
+      const { data, error } = await supabase
+        .from('time_clock_entries')
+        .select(ENTRY_SELECT)
+        .eq('tenant_id', tenant.id)
+        .eq('employee_id', employeeId)
+        .gte('clock_in', `${periodStart}T00:00:00`)
+        .lte('clock_in', `${periodEnd}T23:59:59`)
+        .order('clock_in', { ascending: true });
+      if (error) throw error;
+      return (data || []).map(mapEntry);
+    },
+    enabled: !!tenant?.id && !!employeeId && !!periodStart && !!periodEnd,
+    staleTime: 30_000,
+  });
+}
+
+/** Update manager_notes on a time clock entry. */
+export function useUpdateEntryManagerNotes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, manager_notes }: { id: string; manager_notes: string }) => {
+      const { data, error } = await supabase
+        .from('time_clock_entries')
+        .update({ manager_notes, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-clock'] });
+    },
+  });
+}
+
 export function useEditTimeClockEntry() {
   const { user } = useAuth();
   const queryClient = useQueryClient();

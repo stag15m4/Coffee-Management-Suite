@@ -37,6 +37,7 @@ import Billing from "@/pages/billing";
 import Reporting from "@/pages/reporting";
 import AdminRoleSettings from "@/pages/admin-role-settings";
 import StoreProfile from "@/pages/store-profile";
+import Kiosk from "@/pages/kiosk";
 
 function HomePage() {
   const { user, loading } = useAuth();
@@ -61,6 +62,7 @@ function HomePage() {
 function Router() {
   return (
     <Switch>
+      <Route path="/kiosk" component={Kiosk} />
       <Route path="/login" component={Login} />
       <Route path="/platform-admin" component={PlatformAdmin} />
       <Route path="/reseller-management" component={ResellerManagement} />

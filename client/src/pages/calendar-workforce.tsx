@@ -17,20 +17,13 @@ import {
   CalendarDays,
   Clock,
   Plane,
-  Download,
   Plus,
   Check,
   X,
   ChevronLeft,
   ChevronRight,
-  Play,
-  Square,
-  Coffee,
   Trash2,
-  Edit2,
   Users,
-  Filter,
-  AlertTriangle,
   Star,
   RefreshCw,
   MapPin,
@@ -60,24 +53,7 @@ import {
   useCancelTimeOffRequest,
   type TimeOffRequest,
 } from '@/hooks/use-time-off';
-import {
-  useActiveClockEntry,
-  useClockIn,
-  useClockOut,
-  useStartBreak,
-  useEndBreak,
-  useTimeClockEntries,
-  useEditTimeClockEntry,
-  type TimeClockEntry,
-} from '@/hooks/use-time-clock';
-import {
-  useMyTimeClockEdits,
-  useTimeClockEdits,
-  useCreateTimeClockEdit,
-  useReviewTimeClockEdit,
-  useCancelTimeClockEdit,
-  type TimeClockEditRequest,
-} from '@/hooks/use-time-clock-edits';
+import { TimeClockTab } from '@/components/time-clock/TimeClockTab';
 
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -105,7 +81,7 @@ const EMPLOYEE_COLORS = [
   '#556B2F', '#6B8E23', '#808000', '#BDB76B', '#DAA520',
 ];
 
-type TabType = 'schedule' | 'time-off' | 'time-clock' | 'export';
+type TabType = 'schedule' | 'time-off' | 'time-clock';
 
 function getMonday(d: Date): Date {
   const date = new Date(d);
@@ -129,24 +105,8 @@ function formatTimeDisplay(time: string): string {
     : `${displayHour}${suffix}`;
 }
 
-function formatTimestamp(ts: string): string {
-  return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
-
 function formatDateShort(d: string): string {
   return new Date(d + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
-
-function calcHours(clockIn: string, clockOut: string | null): number {
-  if (!clockOut) return 0;
-  return (new Date(clockOut).getTime() - new Date(clockIn).getTime()) / 3_600_000;
-}
-
-function calcBreakHours(breaks: { break_start: string; break_end: string | null }[]): number {
-  return breaks.reduce((sum, b) => {
-    if (!b.break_end) return sum;
-    return sum + (new Date(b.break_end).getTime() - new Date(b.break_start).getTime()) / 3_600_000;
-  }, 0);
 }
 
 // ─── SCHEDULE TAB ────────────────────────────────────────
@@ -1506,678 +1466,6 @@ function TimeOffTab({ tenantId, canApprove, currentUserId }: {
   );
 }
 
-// ─── TIME CLOCK TAB ──────────────────────────────────────
-
-function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employees }: {
-  tenantId: string;
-  canApprove: boolean;
-  canViewAll: boolean;
-  currentUserId: string;
-  employees: UnifiedEmployee[];
-}) {
-  const { user } = useAuth();
-  const { data: activeEntry, isLoading: loadingActive } = useActiveClockEntry();
-  const clockIn = useClockIn();
-  const clockOut = useClockOut();
-  const startBreak = useStartBreak();
-  const endBreak = useEndBreak();
-  const { toast } = useToast();
-
-  // Edit request state
-  const [editRequestEntry, setEditRequestEntry] = useState<TimeClockEntry | null>(null);
-  const [editReqClockInDate, setEditReqClockInDate] = useState('');
-  const [editReqClockInTime, setEditReqClockInTime] = useState('');
-  const [editReqClockOutDate, setEditReqClockOutDate] = useState('');
-  const [editReqClockOutTime, setEditReqClockOutTime] = useState('');
-  const [editReqReason, setEditReqReason] = useState('');
-  const [reviewNotes, setReviewNotes] = useState('');
-
-  // Edit request hooks
-  const { data: myEdits } = useMyTimeClockEdits();
-  const { data: allEdits } = useTimeClockEdits();
-  const createEdit = useCreateTimeClockEdit();
-  const reviewEdit = useReviewTimeClockEdit();
-  const cancelEdit = useCancelTimeClockEdit();
-
-  const pendingTeamEdits = useMemo(() => {
-    if (!allEdits || !canApprove) return [];
-    return allEdits.filter((r) => {
-      if (r.status !== 'pending') return false;
-      // Manager routing: show direct reports + unassigned employees
-      if (r.employee_manager_id === currentUserId) return true;
-      if (!r.employee_manager_id) return true;
-      return false;
-    });
-  }, [allEdits, canApprove, currentUserId]);
-
-  // Timesheet date range
-  const [timesheetStart, setTimesheetStart] = useState(() => {
-    const d = getMonday(new Date());
-    return formatDate(d);
-  });
-  const [timesheetEnd, setTimesheetEnd] = useState(() => {
-    const d = getMonday(new Date());
-    return formatDate(new Date(d.getTime() + 6 * 86_400_000));
-  });
-  const [filterEmployee, setFilterEmployee] = useState<string>('all');
-
-  const { data: entries, isLoading: loadingEntries } = useTimeClockEntries(
-    timesheetStart,
-    timesheetEnd,
-    filterEmployee === 'all' ? undefined : filterEmployee
-  );
-
-  const activeBreak = useMemo(() => {
-    if (!activeEntry?.breaks) return null;
-    return activeEntry.breaks.find((b) => !b.break_end) ?? null;
-  }, [activeEntry]);
-
-  const handleClockIn = useCallback(async () => {
-    try {
-      await clockIn.mutateAsync(undefined);
-      toast({ title: 'Clocked in', description: `Started at ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` });
-    } catch {
-      toast({ title: 'Error', description: 'Failed to clock in.', variant: 'destructive' });
-    }
-  }, [clockIn, toast]);
-
-  const handleClockOut = useCallback(async () => {
-    if (!activeEntry) return;
-    try {
-      await clockOut.mutateAsync({ id: activeEntry.id });
-      toast({ title: 'Clocked out' });
-    } catch {
-      toast({ title: 'Error', description: 'Failed to clock out.', variant: 'destructive' });
-    }
-  }, [activeEntry, clockOut, toast]);
-
-  const handleBreakToggle = useCallback(async () => {
-    if (!activeEntry) return;
-    try {
-      if (activeBreak) {
-        await endBreak.mutateAsync(activeBreak.id);
-        toast({ title: 'Break ended' });
-      } else {
-        await startBreak.mutateAsync({ entryId: activeEntry.id });
-        toast({ title: 'Break started' });
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to toggle break.', variant: 'destructive' });
-    }
-  }, [activeEntry, activeBreak, startBreak, endBreak, toast]);
-
-  const openEditRequest = useCallback((entry: TimeClockEntry) => {
-    // Pre-fill with the entry's current times split into date + time
-    const splitLocal = (ts: string) => {
-      const d = new Date(ts);
-      const offset = d.getTimezoneOffset();
-      const local = new Date(d.getTime() - offset * 60_000);
-      const iso = local.toISOString();
-      return { date: iso.slice(0, 10), time: iso.slice(11, 16) };
-    };
-    setEditRequestEntry(entry);
-    const inParts = splitLocal(entry.clock_in);
-    setEditReqClockInDate(inParts.date);
-    setEditReqClockInTime(inParts.time);
-    if (entry.clock_out) {
-      const outParts = splitLocal(entry.clock_out);
-      setEditReqClockOutDate(outParts.date);
-      setEditReqClockOutTime(outParts.time);
-    } else {
-      setEditReqClockOutDate(inParts.date);
-      setEditReqClockOutTime('');
-    }
-    setEditReqReason('');
-  }, []);
-
-  const handleSubmitEditRequest = useCallback(async () => {
-    if (!editRequestEntry) return;
-    if (!editReqReason.trim()) {
-      toast({ title: 'Please provide a reason', variant: 'destructive' });
-      return;
-    }
-    // At least one field must be different from original
-    const combineToISO = (date: string, time: string) => {
-      if (!date || !time) return null;
-      return new Date(`${date}T${time}`).toISOString();
-    };
-    const newClockIn = combineToISO(editReqClockInDate, editReqClockInTime);
-    const newClockOut = combineToISO(editReqClockOutDate, editReqClockOutTime);
-    const origIn = editRequestEntry.clock_in;
-    const origOut = editRequestEntry.clock_out;
-
-    const clockInChanged = newClockIn && newClockIn !== origIn;
-    const clockOutChanged = newClockOut !== origOut;
-
-    if (!clockInChanged && !clockOutChanged) {
-      toast({ title: 'No changes detected', description: 'Adjust the clock-in or clock-out time.', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      await createEdit.mutateAsync({
-        time_clock_entry_id: editRequestEntry.id,
-        original_clock_in: editRequestEntry.clock_in,
-        original_clock_out: editRequestEntry.clock_out,
-        requested_clock_in: clockInChanged ? newClockIn : null,
-        requested_clock_out: clockOutChanged ? newClockOut : null,
-        reason: editReqReason.trim(),
-      });
-      toast({ title: 'Edit request submitted', description: 'Your manager will review it.' });
-      setEditRequestEntry(null);
-    } catch {
-      toast({ title: 'Error', description: 'Failed to submit edit request.', variant: 'destructive' });
-    }
-  }, [editRequestEntry, editReqClockInDate, editReqClockInTime, editReqClockOutDate, editReqClockOutTime, editReqReason, createEdit, toast]);
-
-  const handleReviewEdit = useCallback(async (id: string, status: 'approved' | 'denied') => {
-    try {
-      await reviewEdit.mutateAsync({ id, status, review_notes: reviewNotes || undefined });
-      toast({ title: `Edit request ${status}` });
-      setReviewNotes('');
-    } catch {
-      toast({ title: 'Error', description: 'Failed to review edit request.', variant: 'destructive' });
-    }
-  }, [reviewEdit, reviewNotes, toast]);
-
-  const statusColor = (s: string) => {
-    switch (s) {
-      case 'approved': return colors.green;
-      case 'denied': return colors.red;
-      case 'pending': return colors.yellow;
-      case 'cancelled': return colors.brownLight;
-      default: return colors.brown;
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Clock In/Out card */}
-      <Card style={{ backgroundColor: colors.white }}>
-        <CardContent className="pt-6">
-          <div className="flex flex-col items-center space-y-4">
-            {loadingActive ? (
-              <CoffeeLoader text="Loading..." />
-            ) : activeEntry ? (
-              <>
-                <div className="text-center">
-                  <p className="text-sm" style={{ color: colors.brownLight }}>Clocked in since</p>
-                  <p className="text-2xl font-bold" style={{ color: colors.brown }}>
-                    {formatTimestamp(activeEntry.clock_in)}
-                  </p>
-                  {activeBreak && (
-                    <Badge style={{ backgroundColor: colors.yellow, color: colors.brown }} className="mt-1">
-                      On Break
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex gap-3">
-                  <Button onClick={handleBreakToggle} variant="outline"
-                    disabled={startBreak.isPending || endBreak.isPending}
-                    style={{ borderColor: colors.yellow, color: colors.brown }}>
-                    <Coffee className="w-4 h-4 mr-1" />
-                    {activeBreak ? 'End Break' : 'Start Break'}
-                  </Button>
-                  <Button onClick={handleClockOut} disabled={clockOut.isPending}
-                    style={{ backgroundColor: colors.red, color: '#fff' }}>
-                    <Square className="w-4 h-4 mr-1" /> Clock Out
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-center">
-                  <p className="text-sm" style={{ color: colors.brownLight }}>Not clocked in</p>
-                </div>
-                <Button onClick={handleClockIn} disabled={clockIn.isPending} size="lg"
-                  style={{ backgroundColor: colors.green, color: '#fff' }}>
-                  <Play className="w-5 h-5 mr-2" /> Clock In
-                </Button>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Timesheet */}
-      <Card style={{ backgroundColor: colors.white }}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
-            <Clock className="w-5 h-5" style={{ color: colors.gold }} />
-            Timesheet
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Input type="date" value={timesheetStart}
-              onChange={(e) => setTimesheetStart(e.target.value)}
-              className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-            <span className="text-sm" style={{ color: colors.brownLight }}>to</span>
-            <Input type="date" value={timesheetEnd}
-              onChange={(e) => setTimesheetEnd(e.target.value)}
-              className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-            {canViewAll && (
-              <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-                <SelectTrigger className="w-[180px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
-                  <SelectValue placeholder="All employees" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Employees</SelectItem>
-                  {employees.filter((e) => e.user_profile_id).map((e) => (
-                    <SelectItem key={e.user_profile_id!} value={e.user_profile_id!}>{e.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
-          {loadingEntries ? (
-            <CoffeeLoader text="Loading timesheet..." />
-          ) : (!entries || entries.length === 0) ? (
-            <p className="text-sm py-4 text-center" style={{ color: colors.brownLight }}>
-              No time clock entries for this period.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ borderBottom: `1px solid ${colors.creamDark}` }}>
-                    {canViewAll && <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Employee</th>}
-                    <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Date</th>
-                    <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>In</th>
-                    <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Out</th>
-                    <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>Hours</th>
-                    <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>Breaks</th>
-                    <th className="py-2 px-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {entries.map((e) => {
-                    const totalHrs = calcHours(e.clock_in, e.clock_out);
-                    const breakHrs = calcBreakHours(e.breaks ?? []);
-                    const isOwnEntry = e.employee_id === user?.id;
-                    const elapsedHrs = !e.clock_out
-                      ? (Date.now() - new Date(e.clock_in).getTime()) / 3_600_000
-                      : 0;
-                    const isMissedClockOut = !e.clock_out && elapsedHrs > 12;
-                    return (
-                      <tr key={e.id} style={{
-                        borderBottom: `1px solid ${colors.cream}`,
-                        backgroundColor: isMissedClockOut ? '#fef2f2' : undefined,
-                      }}>
-                        {canViewAll && (
-                          <td className="py-2 px-2" style={{ color: colors.brown }}>
-                            {e.employee_name || '—'}
-                            {e.is_edited && (
-                              <Badge variant="outline" className="ml-1 text-[10px]" style={{ borderColor: colors.yellow, color: colors.yellow }}>
-                                edited
-                              </Badge>
-                            )}
-                          </td>
-                        )}
-                        <td className="py-2 px-2" style={{ color: colors.brown }}>
-                          {new Date(e.clock_in).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                          {!canViewAll && e.is_edited && (
-                            <Badge variant="outline" className="ml-1 text-[10px]" style={{ borderColor: colors.yellow, color: colors.yellow }}>
-                              edited
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="py-2 px-2" style={{ color: colors.brown }}>{formatTimestamp(e.clock_in)}</td>
-                        <td className="py-2 px-2" style={{ color: colors.brown }}>
-                          {e.clock_out
-                            ? formatTimestamp(e.clock_out)
-                            : isMissedClockOut
-                              ? <Badge className="gap-1" style={{ backgroundColor: colors.red, color: '#fff' }}>
-                                  <AlertTriangle className="w-3 h-3" /> Missed clock-out
-                                </Badge>
-                              : <Badge style={{ backgroundColor: colors.green, color: '#fff' }}>Active</Badge>
-                          }
-                        </td>
-                        <td className="text-right py-2 px-2 font-medium" style={{ color: isMissedClockOut ? colors.red : colors.brown }}>
-                          {totalHrs > 0
-                            ? totalHrs.toFixed(1)
-                            : isMissedClockOut
-                              ? `${Math.floor(elapsedHrs)}h ${Math.round((elapsedHrs % 1) * 60)}m`
-                              : '—'
-                          }
-                        </td>
-                        <td className="text-right py-2 px-2" style={{ color: colors.brownLight }}>
-                          {breakHrs > 0 ? breakHrs.toFixed(1) : '—'}
-                        </td>
-                        <td className="py-2 px-2 text-right">
-                          {isOwnEntry && (
-                            isMissedClockOut
-                              ? <Button size="sm" onClick={() => openEditRequest(e)}
-                                  className="h-7 gap-1 text-xs px-2"
-                                  style={{ backgroundColor: colors.red, color: '#fff' }}>
-                                  <Edit2 className="w-3 h-3" /> Fix
-                                </Button>
-                              : <Button variant="ghost" size="sm" onClick={() => openEditRequest(e)}
-                                  className="h-7 w-7 p-0" title="Request edit"
-                                  style={{ color: colors.brownLight }}>
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </Button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Edit Request Dialog */}
-      {editRequestEntry && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setEditRequestEntry(null)}>
-          <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }} onClick={(e) => e.stopPropagation()}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
-                <Edit2 className="w-5 h-5" style={{ color: colors.gold }} />
-                Request Time Edit
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-2 rounded-lg text-sm" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
-                <p className="font-medium" style={{ color: colors.brown }}>Current entry:</p>
-                <p>In: {formatTimestamp(editRequestEntry.clock_in)} &middot; {new Date(editRequestEntry.clock_in).toLocaleDateString([], { month: 'short', day: 'numeric' })}</p>
-                <p>Out: {editRequestEntry.clock_out ? `${formatTimestamp(editRequestEntry.clock_out)} · ${new Date(editRequestEntry.clock_out).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : 'Not clocked out'}</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label style={{ color: colors.brown }}>Corrected Clock In</Label>
-                <div className="flex gap-2">
-                  <Input type="date" value={editReqClockInDate}
-                    onChange={(e) => setEditReqClockInDate(e.target.value)}
-                    className="flex-1"
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-                  <Input type="time" value={editReqClockInTime}
-                    onChange={(e) => setEditReqClockInTime(e.target.value)}
-                    className="w-28"
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label style={{ color: colors.brown }}>Corrected Clock Out</Label>
-                <div className="flex gap-2">
-                  <Input type="date" value={editReqClockOutDate}
-                    onChange={(e) => setEditReqClockOutDate(e.target.value)}
-                    className="flex-1"
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-                  <Input type="time" value={editReqClockOutTime}
-                    onChange={(e) => setEditReqClockOutTime(e.target.value)}
-                    className="w-28"
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label style={{ color: colors.brown }}>Reason <span style={{ color: colors.red }}>*</span></Label>
-                <Textarea value={editReqReason} placeholder="e.g. Forgot to clock out, clocked in late..."
-                  onChange={(e) => setEditReqReason(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} rows={2} />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button onClick={handleSubmitEditRequest} disabled={createEdit.isPending}
-                  style={{ backgroundColor: colors.gold, color: colors.white }} className="flex-1">
-                  <Check className="w-4 h-4 mr-1" /> Submit Request
-                </Button>
-                <Button variant="outline" onClick={() => setEditRequestEntry(null)}
-                  style={{ borderColor: colors.creamDark, color: colors.brown }}>
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* My Edit Requests */}
-      {myEdits && myEdits.length > 0 && (
-        <Card style={{ backgroundColor: colors.white }}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base" style={{ color: colors.brown }}>
-              <Edit2 className="w-5 h-5" style={{ color: colors.gold }} />
-              My Edit Requests
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {myEdits.map((r) => (
-              <div key={r.id} className="flex items-center justify-between p-3 rounded-lg"
-                style={{ backgroundColor: colors.cream }}>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" style={{ borderColor: statusColor(r.status), color: statusColor(r.status) }}>
-                      {r.status}
-                    </Badge>
-                    <span className="text-xs" style={{ color: colors.brownLight }}>
-                      {new Date(r.original_clock_in).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                  <div className="text-xs mt-1 space-y-0.5" style={{ color: colors.brown }}>
-                    {r.requested_clock_in && (
-                      <p>Clock in: {formatTimestamp(r.original_clock_in)} → <span className="font-medium">{formatTimestamp(r.requested_clock_in)}</span></p>
-                    )}
-                    {r.requested_clock_out && (
-                      <p>Clock out: {r.original_clock_out ? formatTimestamp(r.original_clock_out) : 'Missing'} → <span className="font-medium">{formatTimestamp(r.requested_clock_out)}</span></p>
-                    )}
-                  </div>
-                  <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>{r.reason}</p>
-                  {r.review_notes && (
-                    <p className="text-xs mt-0.5 italic" style={{ color: colors.brownLight }}>
-                      Note: {r.review_notes}
-                    </p>
-                  )}
-                </div>
-                {r.status === 'pending' && (
-                  <Button variant="ghost" size="sm" onClick={() => cancelEdit.mutate(r.id)}
-                    style={{ color: colors.red }}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Pending Edit Requests (approvers) */}
-      {canApprove && (
-        <Card style={{ backgroundColor: colors.white }}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
-              <Users className="w-5 h-5" style={{ color: colors.gold }} />
-              Pending Edit Requests
-              {pendingTeamEdits.length > 0 && (
-                <Badge style={{ backgroundColor: colors.yellow, color: colors.brown }}>
-                  {pendingTeamEdits.length}
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {pendingTeamEdits.length === 0 ? (
-              <p className="text-sm py-4 text-center" style={{ color: colors.brownLight }}>
-                No pending edit requests.
-              </p>
-            ) : (
-              pendingTeamEdits.map((r) => (
-                <div key={r.id} className="p-3 rounded-lg space-y-2" style={{ backgroundColor: colors.cream }}>
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: colors.brown }}>
-                      {r.employee_name || 'Unknown'}
-                    </p>
-                    <p className="text-xs" style={{ color: colors.brownLight }}>
-                      {new Date(r.original_clock_in).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
-                    </p>
-                    <div className="text-xs mt-1 space-y-0.5" style={{ color: colors.brown }}>
-                      {r.requested_clock_in && (
-                        <p>Clock in: {formatTimestamp(r.original_clock_in)} → <span className="font-medium">{formatTimestamp(r.requested_clock_in)}</span></p>
-                      )}
-                      {r.requested_clock_out && (
-                        <p>Clock out: {r.original_clock_out ? formatTimestamp(r.original_clock_out) : 'Missing'} → <span className="font-medium">{formatTimestamp(r.requested_clock_out)}</span></p>
-                      )}
-                    </div>
-                    <p className="text-xs mt-1" style={{ color: colors.brownLight }}>Reason: {r.reason}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      placeholder="Review notes (optional)"
-                      value={reviewNotes}
-                      onChange={(e) => setReviewNotes(e.target.value)}
-                      className="text-xs h-8 flex-1"
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                    />
-                    <Button size="sm" onClick={() => handleReviewEdit(r.id, 'approved')}
-                      disabled={reviewEdit.isPending}
-                      style={{ backgroundColor: colors.green, color: '#fff' }}>
-                      <Check className="w-3 h-3 mr-1" /> Approve
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleReviewEdit(r.id, 'denied')}
-                      disabled={reviewEdit.isPending}
-                      style={{ borderColor: colors.red, color: colors.red }}>
-                      <X className="w-3 h-3 mr-1" /> Deny
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-// ─── EXPORT TAB ──────────────────────────────────────────
-
-function ExportTab({ tenantId, employees }: {
-  tenantId: string;
-  employees: UnifiedEmployee[];
-}) {
-  const [startDate, setStartDate] = useState(() => {
-    const d = getMonday(new Date());
-    return formatDate(d);
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const d = getMonday(new Date());
-    return formatDate(new Date(d.getTime() + 6 * 86_400_000));
-  });
-  const [filterEmployee, setFilterEmployee] = useState<string>('all');
-
-  const { data: entries, isLoading } = useTimeClockEntries(
-    startDate,
-    endDate,
-    filterEmployee === 'all' ? undefined : filterEmployee
-  );
-
-  const exportRows = useMemo(() => {
-    if (!entries) return [];
-    return entries.map((e) => {
-      const totalHrs = calcHours(e.clock_in, e.clock_out);
-      const breakHrs = calcBreakHours(e.breaks ?? []);
-      return {
-        employee: e.employee_name || 'Unknown',
-        date: new Date(e.clock_in).toLocaleDateString(),
-        clockIn: new Date(e.clock_in).toLocaleString(),
-        clockOut: e.clock_out ? new Date(e.clock_out).toLocaleString() : '',
-        totalHours: totalHrs.toFixed(2),
-        breakHours: breakHrs.toFixed(2),
-        netHours: Math.max(0, totalHrs - breakHrs).toFixed(2),
-      };
-    });
-  }, [entries]);
-
-  const handleDownload = useCallback(() => {
-    const headers = ['Employee', 'Date', 'Clock In', 'Clock Out', 'Total Hours', 'Break Hours', 'Net Hours'];
-    const rows = exportRows.map((r) => [r.employee, r.date, r.clockIn, r.clockOut, r.totalHours, r.breakHours, r.netHours]);
-    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `payroll_${startDate}_${endDate}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [exportRows, startDate, endDate]);
-
-  return (
-    <div className="space-y-4">
-      <Card style={{ backgroundColor: colors.white }}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
-            <Download className="w-5 h-5" style={{ color: colors.gold }} />
-            Payroll Export
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-              className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-            <span className="text-sm" style={{ color: colors.brownLight }}>to</span>
-            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-              className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-            <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-              <SelectTrigger className="w-[180px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
-                <SelectValue placeholder="All employees" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Employees</SelectItem>
-                {employees.filter((e) => e.user_profile_id).map((e) => (
-                  <SelectItem key={e.user_profile_id!} value={e.user_profile_id!}>{e.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {isLoading ? (
-            <CoffeeLoader text="Loading data..." />
-          ) : exportRows.length === 0 ? (
-            <p className="text-sm py-4 text-center" style={{ color: colors.brownLight }}>
-              No time clock data for this period.
-            </p>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr style={{ borderBottom: `1px solid ${colors.creamDark}` }}>
-                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Employee</th>
-                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Date</th>
-                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>In</th>
-                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Out</th>
-                      <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>Total</th>
-                      <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>Breaks</th>
-                      <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>Net</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {exportRows.map((r, i) => (
-                      <tr key={i} style={{ borderBottom: `1px solid ${colors.cream}` }}>
-                        <td className="py-2 px-2" style={{ color: colors.brown }}>{r.employee}</td>
-                        <td className="py-2 px-2" style={{ color: colors.brown }}>{r.date}</td>
-                        <td className="py-2 px-2" style={{ color: colors.brown }}>{r.clockIn}</td>
-                        <td className="py-2 px-2" style={{ color: colors.brown }}>{r.clockOut || '—'}</td>
-                        <td className="text-right py-2 px-2 font-medium" style={{ color: colors.brown }}>{r.totalHours}</td>
-                        <td className="text-right py-2 px-2" style={{ color: colors.brownLight }}>{r.breakHours}</td>
-                        <td className="text-right py-2 px-2 font-bold" style={{ color: colors.gold }}>{r.netHours}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Button onClick={handleDownload} style={{ backgroundColor: colors.gold, color: colors.white }}>
-                <Download className="w-4 h-4 mr-2" /> Download CSV
-              </Button>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 // ─── MAIN PAGE ───────────────────────────────────────────
 
 export default function CalendarWorkforce() {
@@ -2191,7 +1479,6 @@ export default function CalendarWorkforce() {
     setLocation(`/calendar-workforce?tab=${tab}`);
   }, [setLocation]);
 
-  const isLead = hasRole('lead');
   const isManager = hasRole('manager');
 
   // Permission-based access
@@ -2199,6 +1486,7 @@ export default function CalendarWorkforce() {
   const canDeleteShifts = hasPermission('delete_shifts');
   const canApproveTimeOff = hasPermission('approve_time_off');
   const canApproveTimeEdits = hasPermission('approve_time_edits');
+  const canApproveTimesheets = hasPermission('approve_timesheets');
   const canExportPayroll = hasPermission('export_payroll');
   const isExempt = profile?.is_exempt ?? false;
 
@@ -2242,7 +1530,6 @@ export default function CalendarWorkforce() {
     { key: 'schedule', label: 'Schedule', icon: CalendarDays, show: true },
     { key: 'time-off', label: 'Time Off', icon: Plane, show: true },
     { key: 'time-clock', label: 'Time Clock', icon: Clock, show: !isExempt },
-    { key: 'export', label: 'Export', icon: Download, show: canExportPayroll },
   ];
 
   return (
@@ -2297,14 +1584,13 @@ export default function CalendarWorkforce() {
         {activeTab === 'time-clock' && !isExempt && (
           <TimeClockTab
             tenantId={tenantId}
-            canApprove={canApproveTimeEdits}
+            canApproveEdits={canApproveTimeEdits}
+            canApproveTimesheets={canApproveTimesheets}
             canViewAll={canExportPayroll || isManager}
+            canExport={canExportPayroll}
             currentUserId={user?.id ?? ''}
             employees={employees}
           />
-        )}
-        {activeTab === 'export' && canExportPayroll && (
-          <ExportTab tenantId={tenantId} employees={employees} />
         )}
       </main>
     </div>

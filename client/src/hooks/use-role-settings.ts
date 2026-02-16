@@ -16,7 +16,8 @@ export type PermissionKey =
   | 'manage_orders'
   | 'manage_branding'
   | 'manage_locations'
-  | 'manage_cash_deposits';
+  | 'manage_cash_deposits'
+  | 'approve_timesheets';
 
 export interface TenantRoleSetting {
   id: string;
@@ -37,6 +38,7 @@ export interface TenantRoleSetting {
   manage_branding: boolean;
   manage_locations: boolean;
   manage_cash_deposits: boolean;
+  approve_timesheets: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +58,7 @@ export const ALL_PERMISSIONS: { key: PermissionKey; label: string; category: str
   { key: 'manage_cash_deposits', label: 'Manage Cash Deposits', category: 'Admin' },
   { key: 'view_reports', label: 'View Reports', category: 'Reporting' },
   { key: 'export_payroll', label: 'Export Payroll', category: 'Reporting' },
+  { key: 'approve_timesheets', label: 'Approve Timesheets', category: 'Approvals' },
 ];
 
 export function useRoleSettings() {

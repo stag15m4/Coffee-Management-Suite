@@ -723,12 +723,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         'approve_time_off', 'approve_time_edits', 'manage_shifts', 'delete_shifts',
         'manage_recipes', 'manage_users', 'view_reports', 'export_payroll',
         'manage_equipment', 'manage_tasks', 'manage_orders', 'manage_branding',
-        'manage_locations', 'manage_cash_deposits',
+        'manage_locations', 'manage_cash_deposits', 'approve_timesheets',
       ]),
       manager: new Set<PermissionKey>([
         'approve_time_off', 'approve_time_edits', 'manage_shifts', 'delete_shifts',
         'manage_recipes', 'manage_users', 'view_reports', 'export_payroll',
         'manage_equipment', 'manage_tasks', 'manage_orders', 'manage_cash_deposits',
+        'approve_timesheets',
       ]),
       lead: new Set<PermissionKey>([
         'approve_time_off', 'approve_time_edits', 'manage_shifts', 'view_reports',

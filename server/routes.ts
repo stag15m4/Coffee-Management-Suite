@@ -1430,6 +1430,423 @@ export async function registerRoutes(
     }
   });
 
+  // ─── KIOSK ENDPOINTS ──────────────────────────────────────
+
+  // Rate limiting for PIN attempts
+  const kioskRateLimit = new Map<string, { count: number; resetTime: number }>();
+  function checkKioskRate(ip: string): boolean {
+    const now = Date.now();
+    const entry = kioskRateLimit.get(ip);
+    if (!entry || now >= entry.resetTime) {
+      kioskRateLimit.set(ip, { count: 1, resetTime: now + 60_000 });
+      return true;
+    }
+    if (entry.count >= 10) return false;
+    entry.count++;
+    return true;
+  }
+
+  // POST /api/kiosk/verify — validate store code, return tenant info
+  app.post('/api/kiosk/verify', async (req, res) => {
+    try {
+      const { code } = req.body;
+      if (!code || typeof code !== 'string') {
+        return res.status(400).json({ error: 'Store code is required' });
+      }
+      const result = await db.execute(sql`
+        SELECT t.id, t.name, tb.logo_url
+        FROM tenants t
+        LEFT JOIN tenant_branding tb ON tb.tenant_id = t.id
+        WHERE UPPER(t.kiosk_code) = UPPER(${code.trim()})
+        LIMIT 1
+      `);
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Store not found' });
+      }
+      const row = result.rows[0] as any;
+      res.json({ tenantId: row.id, tenantName: row.name, logoUrl: row.logo_url || null });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // POST /api/kiosk/punch — look up employee by PIN, return clock status
+  app.post('/api/kiosk/punch', async (req, res) => {
+    try {
+      const ip = req.ip || req.socket.remoteAddress || 'unknown';
+      if (!checkKioskRate(ip)) {
+        return res.status(429).json({ error: 'Too many attempts. Try again in a minute.' });
+      }
+      const { tenantId, pin } = req.body;
+      if (!tenantId || !pin) {
+        return res.status(400).json({ error: 'Missing tenantId or pin' });
+      }
+
+      // Look up in user_profiles first, then tip_employees
+      let emp: { id: string; fullName: string; avatarUrl: string | null; role: string; source: 'user_profile' | 'tip_employee' } | null = null;
+
+      const upResult = await db.execute(sql`
+        SELECT id, full_name, avatar_url, role
+        FROM user_profiles
+        WHERE tenant_id = ${tenantId}::uuid AND kiosk_pin = ${pin} AND is_active = true
+        LIMIT 1
+      `);
+      if (upResult.rows.length > 0) {
+        const r = upResult.rows[0] as any;
+        emp = { id: r.id, fullName: r.full_name, avatarUrl: r.avatar_url, role: r.role, source: 'user_profile' };
+      } else {
+        // Check tip_employees
+        const teResult = await db.execute(sql`
+          SELECT id, name, avatar_url
+          FROM tip_employees
+          WHERE tenant_id = ${tenantId}::uuid AND kiosk_pin = ${pin} AND is_active = true
+          LIMIT 1
+        `);
+        if (teResult.rows.length > 0) {
+          const r = teResult.rows[0] as any;
+          emp = { id: r.id, fullName: r.name, avatarUrl: r.avatar_url || null, role: 'employee', source: 'tip_employee' };
+        }
+      }
+
+      if (!emp) {
+        return res.status(401).json({ error: 'Invalid PIN' });
+      }
+
+      // Check for active clock entry (could be under employee_id or tip_employee_id)
+      const entryResult = emp.source === 'user_profile'
+        ? await db.execute(sql`
+            SELECT tce.id, tce.clock_in,
+                   tcb.id AS break_id, tcb.break_start
+            FROM time_clock_entries tce
+            LEFT JOIN time_clock_breaks tcb
+              ON tcb.time_clock_entry_id = tce.id AND tcb.break_end IS NULL
+            WHERE tce.employee_id = ${emp.id}::uuid
+              AND tce.tenant_id = ${tenantId}::uuid
+              AND tce.clock_out IS NULL
+            ORDER BY tce.clock_in DESC
+            LIMIT 1
+          `)
+        : await db.execute(sql`
+            SELECT tce.id, tce.clock_in,
+                   tcb.id AS break_id, tcb.break_start
+            FROM time_clock_entries tce
+            LEFT JOIN time_clock_breaks tcb
+              ON tcb.time_clock_entry_id = tce.id AND tcb.break_end IS NULL
+            WHERE tce.tip_employee_id = ${emp.id}::uuid
+              AND tce.tenant_id = ${tenantId}::uuid
+              AND tce.clock_out IS NULL
+            ORDER BY tce.clock_in DESC
+            LIMIT 1
+          `);
+
+      let status: 'clocked_out' | 'clocked_in' | 'on_break' = 'clocked_out';
+      let activeEntryId: string | null = null;
+      let clockInTime: string | null = null;
+      let activeBreakId: string | null = null;
+      let breakStartTime: string | null = null;
+
+      if (entryResult.rows.length > 0) {
+        const row = entryResult.rows[0] as any;
+        activeEntryId = row.id;
+        clockInTime = row.clock_in;
+        if (row.break_id) {
+          status = 'on_break';
+          activeBreakId = row.break_id;
+          breakStartTime = row.break_start;
+        } else {
+          status = 'clocked_in';
+        }
+      }
+
+      res.json({
+        employee: { id: emp.id, fullName: emp.fullName, avatarUrl: emp.avatarUrl, role: emp.role, source: emp.source },
+        status,
+        activeEntryId,
+        clockInTime,
+        activeBreakId,
+        breakStartTime,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // POST /api/kiosk/clock-in
+  app.post('/api/kiosk/clock-in', async (req, res) => {
+    try {
+      const { tenantId, employeeId, source, employeeName } = req.body;
+      if (!tenantId || !employeeId) {
+        return res.status(400).json({ error: 'Missing tenantId or employeeId' });
+      }
+      const isTipEmployee = source === 'tip_employee';
+
+      // Verify employee belongs to tenant
+      const empCheck = isTipEmployee
+        ? await db.execute(sql`SELECT name FROM tip_employees WHERE id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid AND is_active = true LIMIT 1`)
+        : await db.execute(sql`SELECT full_name as name FROM user_profiles WHERE id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid AND is_active = true LIMIT 1`);
+      if (empCheck.rows.length === 0) {
+        return res.status(403).json({ error: 'Invalid employee' });
+      }
+      const name = employeeName || (empCheck.rows[0] as any).name;
+
+      // Verify not already clocked in
+      const idCol = isTipEmployee ? 'tip_employee_id' : 'employee_id';
+      const openCheck = await db.execute(
+        isTipEmployee
+          ? sql`SELECT 1 FROM time_clock_entries WHERE tip_employee_id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid AND clock_out IS NULL LIMIT 1`
+          : sql`SELECT 1 FROM time_clock_entries WHERE employee_id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid AND clock_out IS NULL LIMIT 1`
+      );
+      if (openCheck.rows.length > 0) {
+        return res.status(409).json({ error: 'Already clocked in' });
+      }
+
+      const result = isTipEmployee
+        ? await db.execute(sql`
+            INSERT INTO time_clock_entries (tenant_id, tip_employee_id, employee_name, clock_in)
+            VALUES (${tenantId}::uuid, ${employeeId}::uuid, ${name}, NOW())
+            RETURNING id, clock_in
+          `)
+        : await db.execute(sql`
+            INSERT INTO time_clock_entries (tenant_id, employee_id, employee_name, clock_in)
+            VALUES (${tenantId}::uuid, ${employeeId}::uuid, ${name}, NOW())
+            RETURNING id, clock_in
+          `);
+      const row = result.rows[0] as any;
+      res.json({ success: true, entryId: row.id, clockIn: row.clock_in });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to clock in' });
+    }
+  });
+
+  // POST /api/kiosk/clock-out
+  app.post('/api/kiosk/clock-out', async (req, res) => {
+    try {
+      const { tenantId, employeeId, entryId } = req.body;
+      if (!tenantId || !employeeId || !entryId) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      // End any active breaks
+      await db.execute(sql`
+        UPDATE time_clock_breaks
+        SET break_end = NOW()
+        WHERE time_clock_entry_id = ${entryId}::uuid AND break_end IS NULL
+      `);
+      // Clock out
+      const result = await db.execute(sql`
+        UPDATE time_clock_entries
+        SET clock_out = NOW(), updated_at = NOW()
+        WHERE id = ${entryId}::uuid AND employee_id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid
+        RETURNING clock_out
+      `);
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Entry not found' });
+      }
+      const row = result.rows[0] as any;
+      res.json({ success: true, clockOut: row.clock_out });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to clock out' });
+    }
+  });
+
+  // POST /api/kiosk/break-start
+  app.post('/api/kiosk/break-start', async (req, res) => {
+    try {
+      const { tenantId, employeeId, entryId } = req.body;
+      if (!tenantId || !employeeId || !entryId) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      // Verify no active break
+      const activeBreak = await db.execute(sql`
+        SELECT 1 FROM time_clock_breaks
+        WHERE time_clock_entry_id = ${entryId}::uuid AND break_end IS NULL
+        LIMIT 1
+      `);
+      if (activeBreak.rows.length > 0) {
+        return res.status(409).json({ error: 'Already on break' });
+      }
+      const result = await db.execute(sql`
+        INSERT INTO time_clock_breaks (tenant_id, time_clock_entry_id, break_start, break_type)
+        VALUES (${tenantId}::uuid, ${entryId}::uuid, NOW(), 'break')
+        RETURNING id, break_start
+      `);
+      const row = result.rows[0] as any;
+      res.json({ success: true, breakId: row.id, breakStart: row.break_start });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to start break' });
+    }
+  });
+
+  // POST /api/kiosk/break-end
+  app.post('/api/kiosk/break-end', async (req, res) => {
+    try {
+      const { tenantId, breakId } = req.body;
+      if (!tenantId || !breakId) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      const result = await db.execute(sql`
+        UPDATE time_clock_breaks
+        SET break_end = NOW()
+        WHERE id = ${breakId}::uuid AND tenant_id = ${tenantId}::uuid AND break_end IS NULL
+        RETURNING break_end
+      `);
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Break not found' });
+      }
+      const row = result.rows[0] as any;
+      res.json({ success: true, breakEnd: row.break_end });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to end break' });
+    }
+  });
+
+  // GET /api/kiosk/my-hours — employee's time entries for a date range
+  app.get('/api/kiosk/my-hours', async (req, res) => {
+    try {
+      const { tenantId, employeeId, source, start, end } = req.query as Record<string, string>;
+      if (!tenantId || !employeeId || !start || !end) {
+        return res.status(400).json({ error: 'Missing required query params' });
+      }
+      const isTip = source === 'tip_employee';
+      const result = await db.execute(
+        isTip
+          ? sql`
+              SELECT tce.id, tce.clock_in, tce.clock_out, tce.notes,
+                     COALESCE(
+                       json_agg(
+                         json_build_object('id', tcb.id, 'break_start', tcb.break_start, 'break_end', tcb.break_end)
+                       ) FILTER (WHERE tcb.id IS NOT NULL),
+                       '[]'
+                     ) AS breaks,
+                     CASE WHEN EXISTS (
+                       SELECT 1 FROM time_clock_edit_requests tcer
+                       WHERE tcer.entry_id = tce.id AND tcer.status = 'pending'
+                     ) THEN true ELSE false END AS has_pending_edit
+              FROM time_clock_entries tce
+              LEFT JOIN time_clock_breaks tcb ON tcb.time_clock_entry_id = tce.id
+              WHERE tce.tip_employee_id = ${employeeId}::uuid
+                AND tce.tenant_id = ${tenantId}::uuid
+                AND tce.clock_in >= ${start}::date
+                AND tce.clock_in < (${end}::date + INTERVAL '1 day')
+              GROUP BY tce.id
+              ORDER BY tce.clock_in ASC
+            `
+          : sql`
+              SELECT tce.id, tce.clock_in, tce.clock_out, tce.notes,
+                     COALESCE(
+                       json_agg(
+                         json_build_object('id', tcb.id, 'break_start', tcb.break_start, 'break_end', tcb.break_end)
+                       ) FILTER (WHERE tcb.id IS NOT NULL),
+                       '[]'
+                     ) AS breaks,
+                     CASE WHEN EXISTS (
+                       SELECT 1 FROM time_clock_edit_requests tcer
+                       WHERE tcer.entry_id = tce.id AND tcer.status = 'pending'
+                     ) THEN true ELSE false END AS has_pending_edit
+              FROM time_clock_entries tce
+              LEFT JOIN time_clock_breaks tcb ON tcb.time_clock_entry_id = tce.id
+              WHERE tce.employee_id = ${employeeId}::uuid
+                AND tce.tenant_id = ${tenantId}::uuid
+                AND tce.clock_in >= ${start}::date
+                AND tce.clock_in < (${end}::date + INTERVAL '1 day')
+              GROUP BY tce.id
+              ORDER BY tce.clock_in ASC
+            `
+      );
+      res.json(result.rows);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to fetch hours' });
+    }
+  });
+
+  // POST /api/kiosk/edit-request — submit a time clock edit request
+  app.post('/api/kiosk/edit-request', async (req, res) => {
+    try {
+      const { tenantId, employeeId, entryId, correctedClockIn, correctedClockOut, reason } = req.body;
+      if (!tenantId || !employeeId || !entryId || !reason) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      // Verify entry belongs to employee
+      const entryCheck = await db.execute(sql`
+        SELECT 1 FROM time_clock_entries
+        WHERE id = ${entryId}::uuid AND employee_id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid
+        LIMIT 1
+      `);
+      if (entryCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Entry not found' });
+      }
+      const result = await db.execute(sql`
+        INSERT INTO time_clock_edit_requests (tenant_id, entry_id, requested_by, corrected_clock_in, corrected_clock_out, reason, status)
+        VALUES (${tenantId}::uuid, ${entryId}::uuid, ${employeeId}::uuid,
+                ${correctedClockIn || null}::timestamptz, ${correctedClockOut || null}::timestamptz,
+                ${reason}, 'pending')
+        RETURNING id
+      `);
+      const row = result.rows[0] as any;
+      res.json({ success: true, requestId: row.id });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to submit edit request' });
+    }
+  });
+
+  // POST /api/kiosk/update-pin — manager updates employee PIN
+  app.post('/api/kiosk/update-pin', async (req, res) => {
+    try {
+      const { userId, tenantId, newPin } = req.body;
+      if (!userId || !tenantId || !newPin) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      if (!/^\d{4}$/.test(newPin)) {
+        return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
+      }
+      // Check uniqueness within tenant
+      const dupCheck = await db.execute(sql`
+        SELECT 1 FROM user_profiles
+        WHERE tenant_id = ${tenantId}::uuid AND kiosk_pin = ${newPin} AND is_active = true AND id != ${userId}::uuid
+        LIMIT 1
+      `);
+      if (dupCheck.rows.length > 0) {
+        return res.status(409).json({ error: 'PIN already in use by another employee' });
+      }
+      await db.execute(sql`
+        UPDATE user_profiles SET kiosk_pin = ${newPin}, updated_at = NOW()
+        WHERE id = ${userId}::uuid AND tenant_id = ${tenantId}::uuid
+      `);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to update PIN' });
+    }
+  });
+
+  // POST /api/kiosk/set-code — owner sets kiosk store code
+  app.post('/api/kiosk/set-code', async (req, res) => {
+    try {
+      const { tenantId, kioskCode } = req.body;
+      if (!tenantId) {
+        return res.status(400).json({ error: 'Missing tenantId' });
+      }
+      const code = (kioskCode || '').trim().toUpperCase();
+      if (code && (code.length < 2 || code.length > 10 || !/^[A-Z0-9]+$/.test(code))) {
+        return res.status(400).json({ error: 'Code must be 2-10 alphanumeric characters' });
+      }
+      // Check uniqueness
+      if (code) {
+        const dupCheck = await db.execute(sql`
+          SELECT 1 FROM tenants WHERE UPPER(kiosk_code) = ${code} AND id != ${tenantId}::uuid
+          LIMIT 1
+        `);
+        if (dupCheck.rows.length > 0) {
+          return res.status(409).json({ error: 'Code already in use by another store' });
+        }
+      }
+      await db.execute(sql`
+        UPDATE tenants SET kiosk_code = ${code || null} WHERE id = ${tenantId}::uuid
+      `);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to set kiosk code' });
+    }
+  });
+
   return httpServer;
 }
 
