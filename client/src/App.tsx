@@ -37,6 +37,7 @@ import Billing from "@/pages/billing";
 import Reporting from "@/pages/reporting";
 import AdminRoleSettings from "@/pages/admin-role-settings";
 import StoreProfile from "@/pages/store-profile";
+import AdminIntegrations from "@/pages/admin-integrations";
 import Kiosk from "@/pages/kiosk";
 
 function HomePage() {
@@ -84,6 +85,11 @@ function Router() {
       <Route path="/admin/role-settings">
         <ProtectedRoute>
           <AppLayout><AdminRoleSettings /></AppLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/integrations">
+        <ProtectedRoute>
+          <AppLayout><AdminIntegrations /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/organization">

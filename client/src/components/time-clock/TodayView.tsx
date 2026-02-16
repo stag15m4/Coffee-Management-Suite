@@ -52,6 +52,7 @@ interface TodayRow {
   dailyTotal: number; // hours
   breakHours: number;
   isLateClockOut: boolean;
+  hasSquareEntries: boolean;
 }
 
 interface TodayViewProps {
@@ -124,6 +125,7 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
       let dailyTotal = 0;
       let breakHours = 0;
       let isLateClockOut = false;
+      let hasSquareEntries = false;
 
       for (const entry of empEntries) {
         if (!clockIn || new Date(entry.clock_in) < new Date(clockIn)) {
@@ -136,6 +138,7 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
         }
         dailyTotal += calcHours(entry.clock_in, entry.clock_out);
         breakHours += calcBreakHours(entry.breaks ?? []);
+        if ((entry as any).source === 'square') hasSquareEntries = true;
 
         // Late clock-out: shift ended but not clocked out
         if (!entry.clock_out && empShifts.length > 0) {
@@ -166,6 +169,7 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
         dailyTotal,
         breakHours,
         isLateClockOut,
+        hasSquareEntries,
       });
     }
 
@@ -244,7 +248,14 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
                     {rows.map((row) => (
                       <tr key={row.employeeId} style={{ borderBottom: `1px solid ${colors.cream}` }}>
                         <td className="py-2 px-2 font-medium" style={{ color: colors.brown }}>
-                          {row.name}
+                          <span className="flex items-center gap-1">
+                            {row.name}
+                            {row.hasSquareEntries && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0" style={{ borderColor: colors.blue, color: colors.blue }}>
+                                Square
+                              </Badge>
+                            )}
+                          </span>
                         </td>
                         <td className="py-2 px-2 text-xs" style={{ color: colors.brownLight }}>
                           {row.schedule || '--'}

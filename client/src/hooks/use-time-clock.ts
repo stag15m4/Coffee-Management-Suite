@@ -10,6 +10,7 @@ export interface TimeClockBreak {
   break_end: string | null;
   break_type: string;
   created_at: string;
+  external_id?: string | null;
 }
 
 export interface TimeClockEntry {
@@ -27,6 +28,8 @@ export interface TimeClockEntry {
   employee_name?: string;
   employee_avatar?: string | null;
   breaks?: TimeClockBreak[];
+  source?: string;
+  external_id?: string | null;
 }
 
 function mapEntry(e: any): TimeClockEntry {

@@ -3,6 +3,8 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { WebhookHandlers } from "./webhookHandlers";
+import { SquareWebhookHandlers } from "./squareWebhookHandlers";
+import { startSquareSyncScheduler } from "./squareSync";
 
 const app = express();
 const httpServer = createServer(app);
@@ -47,6 +49,43 @@ app.post(
       res.status(200).json({ received: true });
     } catch (error: any) {
       log(`Webhook error: ${error.message}`, 'stripe');
+      res.status(400).json({ error: 'Webhook processing error' });
+    }
+  }
+);
+
+// Square webhook (must be before express.json() for raw body access)
+app.post(
+  '/api/square/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    const signature = req.headers['x-square-hmacsha256-signature'];
+
+    if (!signature) {
+      return res.status(400).json({ error: 'Missing Square signature' });
+    }
+
+    try {
+      const sig = Array.isArray(signature) ? signature[0] : signature;
+      const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+
+      if (!signatureKey) {
+        log('SQUARE_WEBHOOK_SIGNATURE_KEY not configured', 'square');
+        return res.status(500).json({ error: 'Webhook not configured' });
+      }
+
+      const notificationUrl = `${req.protocol}://${req.get('host')}/api/square/webhook`;
+
+      await SquareWebhookHandlers.processWebhook(
+        req.body.toString(),
+        sig,
+        signatureKey,
+        notificationUrl
+      );
+
+      res.status(200).json({ received: true });
+    } catch (error: any) {
+      log(`Square webhook error: ${error.message}`, 'square');
       res.status(400).json({ error: 'Webhook processing error' });
     }
   }
@@ -118,6 +157,7 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+      startSquareSyncScheduler();
     },
   );
 })();

@@ -471,6 +471,220 @@ export async function registerRoutes(
   });
 
   // =====================================================
+  // SQUARE INTEGRATION ROUTES
+  // =====================================================
+  const { squareService } = await import('./squareService');
+  const { getSquareOAuthUrl } = await import('./squareClient');
+
+  // Helper: verify user is owner/manager of the given tenant
+  async function verifySquareAdmin(req: Request, res: Response): Promise<{ userId: string; tenantId: string } | null> {
+    const userId = req.headers['x-user-id'] as string;
+    if (!userId) {
+      res.status(401).json({ error: 'Authentication required' });
+      return null;
+    }
+    const profileResult = await db.execute(sql`
+      SELECT tenant_id, role FROM user_profiles WHERE id = ${userId}::uuid
+    `);
+    const profile = profileResult.rows[0] as any;
+    if (!profile || !['owner', 'manager'].includes(profile.role)) {
+      res.status(403).json({ error: 'Owner or manager access required' });
+      return null;
+    }
+    return { userId, tenantId: profile.tenant_id };
+  }
+
+  // --- OAuth ---
+
+  app.get('/api/square/auth-url', async (req, res) => {
+    try {
+      const auth = await verifySquareAdmin(req, res);
+      if (!auth) return;
+
+      const redirectUri = `${req.protocol}://${req.get('host')}/admin/integrations?square_callback=true`;
+      const url = getSquareOAuthUrl(auth.tenantId, redirectUri);
+      res.json({ url });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/square/callback', async (req, res) => {
+    try {
+      const auth = await verifySquareAdmin(req, res);
+      if (!auth) return;
+
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ error: 'Missing authorization code' });
+      }
+
+      const tokens = await squareService.exchangeCodeForTokens(code);
+      await squareService.saveTenantSquareTokens(
+        auth.tenantId,
+        tokens.merchantId,
+        tokens.accessToken,
+        tokens.refreshToken,
+        tokens.expiresAt
+      );
+
+      // Fetch locations so admin can pick one
+      const locations = await squareService.listLocations(auth.tenantId);
+
+      res.json({ success: true, locations });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/square/disconnect', async (req, res) => {
+    try {
+      const auth = await verifySquareAdmin(req, res);
+      if (!auth) return;
+
+      await squareService.disconnectSquare(auth.tenantId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/square/status/:tenantId', async (req, res) => {
+    try {
+      const auth = await verifySquareAdmin(req, res);
+      if (!auth) return;
+
+      const status = await squareService.getSquareStatus(auth.tenantId);
+      res.json(status || { connected: false });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // --- Location & Sync ---
+
+  app.post('/api/square/set-location/:tenantId', async (req, res) => {
+    try {
+      const auth = await verifySquareAdmin(req, res);
+      if (!auth) return;
+
+      const { locationId } = req.body;
+      if (!locationId) {
+        return res.status(400).json({ error: 'Missing locationId' });
+      }
+
+      await squareService.setSquareLocation(auth.tenantId, locationId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/square/toggle-sync/:tenantId', async (req, res) => {
+    try {
+      const auth = await verifySquareAdmin(req, res);
+      if (!auth) return;
+
+      const { enabled } = req.body;
+      await squareService.toggleSquareSync(auth.tenantId, !!enabled);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/square/sync/:tenantId', async (req, res) => {
+    try {
+      const auth = await verifySquareAdmin(req, res);
+      if (!auth) return;
+
+      const result = await squareService.syncShiftsForTenant(auth.tenantId, {
+        startDate: req.body.startDate,
+        endDate: req.body.endDate,
+      });
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/square/locations/:tenantId', async (req, res) => {
+    try {
+      const auth = await verifySquareAdmin(req, res);
+      if (!auth) return;
+
+      const locations = await squareService.listLocations(auth.tenantId);
+      res.json(locations);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // --- Employee Mapping ---
+
+  app.get('/api/square/team-members/:tenantId', async (req, res) => {
+    try {
+      const auth = await verifySquareAdmin(req, res);
+      if (!auth) return;
+
+      const members = await squareService.listTeamMembers(auth.tenantId);
+      res.json(members);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/square/suggest-mappings/:tenantId', async (req, res) => {
+    try {
+      const auth = await verifySquareAdmin(req, res);
+      if (!auth) return;
+
+      const suggestions = await squareService.suggestEmployeeMappings(auth.tenantId);
+      res.json(suggestions);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/square/mappings/:tenantId', async (req, res) => {
+    try {
+      const auth = await verifySquareAdmin(req, res);
+      if (!auth) return;
+
+      const mappings = await squareService.getMappings(auth.tenantId);
+      res.json(mappings);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/square/mappings/:tenantId', async (req, res) => {
+    try {
+      const auth = await verifySquareAdmin(req, res);
+      if (!auth) return;
+
+      const { mappingId, action, userProfileId, tipEmployeeId } = req.body;
+      if (!mappingId || !action) {
+        return res.status(400).json({ error: 'Missing mappingId or action' });
+      }
+
+      if (action === 'confirm') {
+        await squareService.confirmMapping(mappingId, userProfileId || null, tipEmployeeId || null, auth.userId);
+      } else if (action === 'ignore') {
+        await squareService.ignoreMapping(mappingId);
+      } else if (action === 'delete') {
+        await squareService.deleteMapping(mappingId);
+      } else {
+        return res.status(400).json({ error: 'Invalid action' });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =====================================================
   // BILLING MODULES
   // =====================================================
 

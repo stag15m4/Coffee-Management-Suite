@@ -19,6 +19,7 @@ import {
   User,
   Shield,
   MoreHorizontal,
+  Plug,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -253,6 +254,14 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
         label: 'Role Settings',
         href: '/admin/role-settings',
         icon: Settings,
+        requiredRole: 'owner',
+        isAccessible: hasRole('owner'),
+      },
+      {
+        id: 'settings-integrations',
+        label: 'Integrations',
+        href: '/admin/integrations',
+        icon: Plug,
         requiredRole: 'owner',
         isAccessible: hasRole('owner'),
       },

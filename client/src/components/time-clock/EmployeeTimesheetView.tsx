@@ -441,7 +441,7 @@ export function EmployeeTimesheetView({
                             {hasData && row.scheduledHours > 0 ? diff.text : '--'}
                           </td>
                           <td className="py-1.5 px-2 text-right">
-                            {row.entries.length > 0 && (
+                            {row.entries.length > 0 && (row.entries[0] as any).source !== 'square' && (
                               <Button variant="ghost" size="sm" onClick={() => setEditEntry(row.entries[0])}
                                 className="h-6 w-6 p-0" title="Request edit"
                                 style={{ color: colors.brownLight }}>
