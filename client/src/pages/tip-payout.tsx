@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users } from 'lucide-react';
 
-import { CC_FEE_RATE, TipEmployee, ImportedHours, UnmatchedEntry } from '@/components/tip-payout/types';
+import { CC_FEE_RATE, TipEmployee, ImportedHours, UnmatchedEntry, isEmployeeTipEligible } from '@/components/tip-payout/types';
 import { formatHoursMinutes, getMonday, getWeekRange, calcNetHoursFromEntry, TimeclockEntry } from '@/components/tip-payout/utils';
 import { buildCsvContent, buildWeeklyPdfHtml, buildHistoricalGroupHtml, buildHistoricalIndividualHtml, buildLoadingHtml } from '@/components/tip-payout/export-helpers';
 import { TipPayoutHeader } from '@/components/tip-payout/TipPayoutHeader';
@@ -236,6 +236,25 @@ export default function TipPayout() {
     }
   };
 
+  const toggleTipEligible = async (employeeId: string, newEligibleStatus: boolean) => {
+    if (!tenant?.id) return;
+    try {
+      const { error } = await supabase
+        .from('tip_employees')
+        .update({ tip_eligible: newEligibleStatus })
+        .eq('id', employeeId)
+        .eq('tenant_id', tenant.id);
+      if (error) throw error;
+      toast({
+        title: newEligibleStatus ? 'Employee is now tip-eligible' : 'Employee removed from tip pool',
+      });
+      loadEmployees();
+      loadAllEmployees();
+    } catch (error: any) {
+      toast({ title: 'Error updating eligibility', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const saveTips = async () => {
     if (!tenant?.id) return;
     const cashTotal = cashEntries.reduce((a, b) => a + (parseFloat(String(b)) || 0), 0);
@@ -385,9 +404,10 @@ export default function TipPayout() {
 
       if (error) throw error;
 
-      // Build lookup maps for tip employees
-      const byTipId = new Map(employees.map(e => [e.id, e]));
-      const byNameLower = new Map(employees.map(e => [e.name.trim().toLowerCase(), e]));
+      // Build lookup maps for tip-eligible employees only
+      const eligible = employees.filter(isEmployeeTipEligible);
+      const byTipId = new Map(eligible.map(e => [e.id, e]));
+      const byNameLower = new Map(eligible.map(e => [e.name.trim().toLowerCase(), e]));
 
       const hoursMap = new Map<string, ImportedHours>();
       const unmatchedMap = new Map<string, UnmatchedEntry>();
@@ -624,6 +644,8 @@ export default function TipPayout() {
   const totalTeamHours = Object.values(employeeHours).reduce((a, b) => a + b, 0);
   const hourlyRate = totalTeamHours > 0 ? totalPool / totalTeamHours : 0;
   const weekRange = getWeekRange(weekKey);
+  const tipEligibleEmployees = employees.filter(isEmployeeTipEligible);
+
   // --- Loading state ---
 
   if (loading) {
@@ -647,6 +669,7 @@ export default function TipPayout() {
         showInactive={showInactive}
         onToggleShowInactive={() => setShowInactive(!showInactive)}
         onToggleEmployeeActive={toggleEmployeeActive}
+        onToggleTipEligible={toggleTipEligible}
         dialogOpen={manageDialogOpen}
         onDialogOpenChange={(open) => {
           setManageDialogOpen(open);
@@ -702,7 +725,7 @@ export default function TipPayout() {
               <>
                 <EmployeeHoursEntry
                   colors={colors}
-                  employees={employees}
+                  employees={tipEligibleEmployees}
                   employeeHours={employeeHours}
                   hourlyRate={hourlyRate}
                   selectedEmployee={selectedEmployee}

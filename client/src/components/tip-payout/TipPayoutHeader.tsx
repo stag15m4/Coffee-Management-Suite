@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, UserPlus, Users, UserX, RotateCcw } from 'lucide-react';
-import { TipEmployee, Colors, isEmployeeActive } from './types';
+import { TipEmployee, Colors, isEmployeeActive, isEmployeeTipEligible } from './types';
 
 interface TipPayoutHeaderProps {
   colors: Colors;
@@ -18,6 +18,7 @@ interface TipPayoutHeaderProps {
   showInactive: boolean;
   onToggleShowInactive: () => void;
   onToggleEmployeeActive: (employeeId: string, newStatus: boolean) => void;
+  onToggleTipEligible: (employeeId: string, newStatus: boolean) => void;
   dialogOpen: boolean;
   onDialogOpenChange: (open: boolean) => void;
 }
@@ -35,6 +36,7 @@ export function TipPayoutHeader({
   showInactive,
   onToggleShowInactive,
   onToggleEmployeeActive,
+  onToggleTipEligible,
   dialogOpen,
   onDialogOpenChange,
 }: TipPayoutHeaderProps) {
@@ -114,6 +116,7 @@ export function TipPayoutHeader({
                     .filter(e => showInactive || isEmployeeActive(e))
                     .map(emp => {
                       const active = isEmployeeActive(emp);
+                      const eligible = isEmployeeTipEligible(emp);
                       return (
                         <div
                           key={emp.id}
@@ -123,37 +126,53 @@ export function TipPayoutHeader({
                             opacity: active ? 1 : 0.7,
                           }}
                         >
-                          <div className="flex items-center gap-2">
-                            {!active && <UserX className="w-4 h-4" style={{ color: colors.red }} />}
-                            <span style={{ color: colors.brown }}>{emp.name}</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            {!active && <UserX className="w-4 h-4 flex-shrink-0" style={{ color: colors.red }} />}
+                            <span className="truncate" style={{ color: colors.brown }}>{emp.name}</span>
                             {!active && (
                               <span
-                                className="text-xs px-2 py-0.5 rounded"
+                                className="text-xs px-2 py-0.5 rounded flex-shrink-0"
                                 style={{ backgroundColor: colors.creamDark, color: colors.brownLight }}
                               >
                                 Inactive
                               </span>
                             )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onToggleEmployeeActive(emp.id, !active)}
-                            style={{ color: active ? colors.red : colors.green }}
-                            data-testid={`button-toggle-employee-${emp.id}`}
-                          >
-                            {active ? (
-                              <>
-                                <UserX className="w-4 h-4 mr-1" />
-                                Deactivate
-                              </>
-                            ) : (
-                              <>
-                                <RotateCcw className="w-4 h-4 mr-1" />
-                                Reactivate
-                              </>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {active && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onToggleTipEligible(emp.id, !eligible)}
+                                className="text-xs px-2"
+                                style={{
+                                  color: eligible ? colors.green : colors.brownLight,
+                                  backgroundColor: eligible ? undefined : colors.creamDark,
+                                }}
+                              >
+                                {eligible ? 'Tips: Yes' : 'Tips: No'}
+                              </Button>
                             )}
-                          </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onToggleEmployeeActive(emp.id, !active)}
+                              style={{ color: active ? colors.red : colors.green }}
+                              data-testid={`button-toggle-employee-${emp.id}`}
+                            >
+                              {active ? (
+                                <>
+                                  <UserX className="w-4 h-4 mr-1" />
+                                  Deactivate
+                                </>
+                              ) : (
+                                <>
+                                  <RotateCcw className="w-4 h-4 mr-1" />
+                                  Reactivate
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       );
                     })}

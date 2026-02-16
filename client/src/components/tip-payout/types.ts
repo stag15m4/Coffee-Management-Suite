@@ -5,10 +5,14 @@ export interface TipEmployee {
   tenant_id: string;
   name: string;
   is_active: boolean | null;
+  tip_eligible: boolean | null;
 }
 
 // Helper to treat null as active (true)
 export const isEmployeeActive = (emp: TipEmployee) => emp.is_active !== false;
+
+// Helper to treat null as eligible (true) — backward compat for existing records
+export const isEmployeeTipEligible = (emp: TipEmployee) => emp.tip_eligible !== false;
 
 export interface WeeklyTipData {
   id?: string;
