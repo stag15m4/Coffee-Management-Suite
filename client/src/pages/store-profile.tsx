@@ -437,6 +437,7 @@ function OperatingHoursCard({
                       value={day.open_time}
                       onChange={(e) => updateDay(day.day_of_week, 'open_time', e.target.value)}
                       className="w-28 h-8 text-sm"
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                     />
                     <span className="text-sm" style={{ color: colors.brownLight }}>to</span>
                     <Input
@@ -444,6 +445,7 @@ function OperatingHoursCard({
                       value={day.close_time}
                       onChange={(e) => updateDay(day.day_of_week, 'close_time', e.target.value)}
                       className="w-28 h-8 text-sm"
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                     />
                   </>
                 )}

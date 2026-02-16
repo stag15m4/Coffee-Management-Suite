@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearch, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppResume } from '@/hooks/use-app-resume';
@@ -12,8 +12,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Calendar as DateCalendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import {
   CalendarDays,
@@ -86,6 +84,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { EventInput, EventClickArg, DateSelectArg, EventDropArg, EventContentArg } from '@fullcalendar/core';
+import type FullCalendarType from '@fullcalendar/react';
 import {
   useCalendarEvents,
   useCreateCalendarEvent,
@@ -158,9 +157,25 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   canDelete: boolean;
   employees: UnifiedEmployee[];
 }) {
-  const [currentWeek, setCurrentWeek] = useState(() => getMonday(new Date()));
-  const startDate = formatDate(currentWeek);
-  const endDate = formatDate(new Date(currentWeek.getTime() + 6 * 86_400_000));
+  type CalView = 'timeGridDay' | 'timeGridWeek' | 'dayGridMonth';
+  const [calendarView, setCalendarView] = useState<CalView>('timeGridWeek');
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const calendarRef = useRef<FullCalendarType>(null);
+
+  const { startDate, endDate } = useMemo(() => {
+    if (calendarView === 'timeGridDay') {
+      const d = formatDate(currentDate);
+      return { startDate: d, endDate: d };
+    }
+    if (calendarView === 'dayGridMonth') {
+      const first = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const last = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      return { startDate: formatDate(first), endDate: formatDate(last) };
+    }
+    // week
+    const monday = getMonday(currentDate);
+    return { startDate: formatDate(monday), endDate: formatDate(new Date(monday.getTime() + 6 * 86_400_000)) };
+  }, [calendarView, currentDate]);
 
   const { data: shifts, isLoading } = useShifts(startDate, endDate);
   const createShift = useCreateShift();
@@ -210,6 +225,14 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   const createICalSub = useCreateICalSubscription();
   const deleteICalSub = useDeleteICalSubscription();
   const syncICal = useSyncICal();
+
+  // Sync FullCalendar when view or date changes
+  useEffect(() => {
+    const api = calendarRef.current?.getApi();
+    if (!api) return;
+    if (api.view.type !== calendarView) api.changeView(calendarView);
+    api.gotoDate(startDate);
+  }, [calendarView, startDate]);
 
   const [showEventsPanel, setShowEventsPanel] = useState(false);
   const [viewingEvent, setViewingEvent] = useState<CalendarEvent | null>(null);
@@ -278,7 +301,8 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
       .filter((t) => t.employee_name || t.employee_id || t.tip_employee_id)
       .map((t) => {
         const dayOffset = t.day_of_week === 0 ? 6 : t.day_of_week - 1;
-        const shiftDate = new Date(currentWeek.getTime() + dayOffset * 86_400_000);
+        const monday = getMonday(currentDate);
+        const shiftDate = new Date(monday.getTime() + dayOffset * 86_400_000);
         return {
           employee_id: t.employee_id ?? null,
           tip_employee_id: t.tip_employee_id ?? null,
@@ -300,7 +324,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
     } catch {
       toast({ title: 'Error', description: 'Failed to apply template.', variant: 'destructive' });
     }
-  }, [templates, currentWeek, bulkCreate, toast]);
+  }, [templates, currentDate, bulkCreate, toast]);
 
   const handleSaveTemplate = useCallback(async () => {
     if (!newTemplateName.trim()) {
@@ -508,9 +532,17 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
     }
   }, [editingShift, deleteShift, toast]);
 
-  const navigateWeek = useCallback((direction: number) => {
-    setCurrentWeek((prev) => new Date(prev.getTime() + direction * 7 * 86_400_000));
-  }, []);
+  const navigate = useCallback((direction: number) => {
+    setCurrentDate((prev) => {
+      if (calendarView === 'timeGridDay') {
+        return new Date(prev.getTime() + direction * 86_400_000);
+      }
+      if (calendarView === 'dayGridMonth') {
+        return new Date(prev.getFullYear(), prev.getMonth() + direction, 1);
+      }
+      return new Date(prev.getTime() + direction * 7 * 86_400_000);
+    });
+  }, [calendarView]);
 
   if (isLoading) {
     return <CoffeeLoader text="Loading schedule..." />;
@@ -518,27 +550,44 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
   return (
     <div className="space-y-4">
-      {/* Week navigation + add button */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => navigateWeek(-1)}
-            style={{ borderColor: colors.creamDark, color: colors.brown }}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <span className="text-sm font-medium" style={{ color: colors.brown }}>
-            {new Date(startDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })} – {new Date(endDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-          </span>
-          <Button variant="outline" size="icon" onClick={() => navigateWeek(1)}
-            style={{ borderColor: colors.creamDark, color: colors.brown }}>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setCurrentWeek(getMonday(new Date()))}
-            style={{ borderColor: colors.creamDark, color: colors.brown }}>
-            Today
-          </Button>
+      {/* Navigation + view toggle */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => navigate(-1)}
+              style={{ borderColor: colors.creamDark, color: colors.brown }}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-sm font-medium text-center" style={{ color: colors.brown }}>
+              {calendarView === 'timeGridDay'
+                ? new Date(startDate + 'T00:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+                : calendarView === 'dayGridMonth'
+                  ? new Date(startDate + 'T00:00:00').toLocaleDateString([], { month: 'long', year: 'numeric' })
+                  : `${new Date(startDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${new Date(endDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
+            </span>
+            <Button variant="outline" size="icon" onClick={() => navigate(1)}
+              style={{ borderColor: colors.creamDark, color: colors.brown }}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}
+              style={{ borderColor: colors.creamDark, color: colors.brown }}>
+              Today
+            </Button>
+          </div>
+          <div className="flex rounded-md overflow-hidden border" style={{ borderColor: colors.creamDark }}>
+            {([['timeGridDay', 'Day'], ['timeGridWeek', 'Week'], ['dayGridMonth', 'Month']] as const).map(([view, label]) => (
+              <button key={view} onClick={() => setCalendarView(view)}
+                className="px-3 py-1.5 text-xs font-medium transition-colors"
+                style={calendarView === view
+                  ? { backgroundColor: colors.gold, color: colors.white }
+                  : { backgroundColor: colors.white, color: colors.brown }}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         {canEdit && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               onClick={() => { setEditingShift(null); setConflictWarning(null); setSelectedEmployeeKey(''); setNewShiftDate(formatDate(new Date())); setNewShiftStart('08:00'); setNewShiftEnd('16:00'); setNewShiftPosition(''); setNewShiftNotes(''); setShowCreateDialog(true); }}
               style={{ backgroundColor: colors.gold, color: colors.white }}
@@ -581,13 +630,13 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                   <Label className="text-xs" style={{ color: colors.brown }}>Start Date</Label>
                   <Input type="date" value={newEventStartDate}
                     onChange={(e) => { setNewEventStartDate(e.target.value); if (!newEventEndDate) setNewEventEndDate(e.target.value); }}
-                    style={{ borderColor: colors.creamDark }} />
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
                 </div>
                 <div>
                   <Label className="text-xs" style={{ color: colors.brown }}>End Date</Label>
                   <Input type="date" value={newEventEndDate}
                     onChange={(e) => setNewEventEndDate(e.target.value)}
-                    style={{ borderColor: colors.creamDark }} />
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
                 </div>
                 <div>
                   <Input placeholder="Location (optional)" value={newEventLocation}
@@ -736,8 +785,9 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
       <Card style={{ backgroundColor: colors.white }}>
         <CardContent className="p-2 sm:p-4">
           <FullCalendar
+            ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView="timeGridWeek"
+            initialView={calendarView}
             initialDate={startDate}
             headerToolbar={false}
             events={events}
@@ -771,16 +821,31 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
               const avatarUrl = shift.employee_avatar
                 || employees.find((e) => e.name === shift.employee_name)?.avatar_url
                 || null;
-              // Acceptance indicator for published shifts with an assigned employee
-              const showAcceptance = shift.status === 'published' && shift.employee_id;
-              const acceptIcon = shift.acceptance === 'accepted' ? '\u2713'
-                : shift.acceptance === 'declined' ? '\u2717'
-                : showAcceptance ? '?' : null;
-              const acceptBg = shift.acceptance === 'accepted' ? '#22c55e'
-                : shift.acceptance === 'declined' ? '#ef4444'
-                : '#eab308';
+              // Acceptance status
+              const isPublished = shift.status === 'published' && shift.employee_id;
+              const isUnclaimed = isPublished && !shift.acceptance;
+              const isAccepted = shift.acceptance === 'accepted';
+              const isDeclined = shift.acceptance === 'declined';
+              const borderLeft = isAccepted ? '3px solid #22c55e'
+                : isDeclined ? '3px solid #ef4444'
+                : isUnclaimed ? '3px solid #f59e0b'
+                : 'none';
+
+              // Month view: compact rendering
+              if (arg.view.type === 'dayGridMonth') {
+                return (
+                  <div className="flex items-center gap-1 px-1 py-0.5 text-[10px] truncate w-full"
+                    style={{ borderLeft, opacity: isDeclined ? 0.6 : 1 }}>
+                    <span className="font-medium truncate">{shift.employee_name || 'Unassigned'}</span>
+                    {isUnclaimed && <span style={{ color: '#f59e0b' }}>!</span>}
+                  </div>
+                );
+              }
+
+              // Day + Week view: full rendering
               return (
-                <div className="flex items-center gap-1 overflow-hidden w-full px-0.5 py-0.5">
+                <div className="flex items-center gap-1 overflow-hidden w-full px-0.5 py-0.5"
+                  style={{ borderLeft, opacity: isDeclined ? 0.7 : 1 }}>
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="" className="w-5 h-5 rounded-full flex-shrink-0 object-cover" style={{ border: '1px solid rgba(255,255,255,0.5)' }} />
                   ) : (
@@ -791,13 +856,21 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                   <div className="truncate text-xs leading-tight flex-1 min-w-0">
                     <div className="font-medium truncate">{shift.employee_name || 'Unassigned'}</div>
                     <div className="opacity-80">{arg.timeText}</div>
+                    {isUnclaimed && (
+                      <div className="text-[9px] font-semibold" style={{ color: '#fbbf24' }}>Unclaimed</div>
+                    )}
                   </div>
-                  {acceptIcon && (
+                  {isAccepted && (
                     <span className="text-[9px] font-bold flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: acceptBg, color: '#fff' }}
-                      title={shift.acceptance === 'accepted' ? 'Accepted' : shift.acceptance === 'declined' ? 'Declined' : 'Pending response'}>
-                      {acceptIcon}
-                    </span>
+                      style={{ backgroundColor: '#22c55e', color: '#fff' }} title="Accepted">{'\u2713'}</span>
+                  )}
+                  {isDeclined && (
+                    <span className="text-[9px] font-bold flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: '#ef4444', color: '#fff' }} title="Declined">{'\u2717'}</span>
+                  )}
+                  {isUnclaimed && (
+                    <span className="text-[9px] font-bold flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center animate-pulse"
+                      style={{ backgroundColor: '#f59e0b', color: '#fff' }} title="Unclaimed">!</span>
                   )}
                 </div>
               );
@@ -841,7 +914,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
       {/* Create/Edit shift dialog */}
       {showCreateDialog && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowCreateDialog(false)}>
-          <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }} onClick={(e) => e.stopPropagation()}>
+          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto" style={{ backgroundColor: colors.white }} onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <CardTitle style={{ color: colors.brown }}>
                 {editingShift ? 'Edit Shift' : 'New Shift'}
@@ -851,7 +924,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Employee</Label>
                 <Select value={selectedEmployeeKey} onValueChange={(v) => { setSelectedEmployeeKey(v); checkConflicts(v, newShiftDate, newShiftStart, newShiftEnd, editingShift?.id); }}>
-                  <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
+                  <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
@@ -863,57 +936,47 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
               </div>
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal"
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}>
-                      <CalendarDays className="w-4 h-4 mr-2 opacity-50" />
-                      {newShiftDate
-                        ? new Date(newShiftDate + 'T00:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
-                        : 'Pick a date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <DateCalendar
-                      mode="single"
-                      selected={newShiftDate ? new Date(newShiftDate + 'T00:00:00') : undefined}
-                      onSelect={(day) => {
-                        if (day) {
-                          const d = formatDate(day);
-                          setNewShiftDate(d);
-                          checkConflicts(selectedEmployeeKey, d, newShiftStart, newShiftEnd, editingShift?.id);
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Input
+                  id="shift-date"
+                  type="date"
+                  value={newShiftDate}
+                  onChange={(e) => { const d = e.target.value; setNewShiftDate(d); checkConflicts(selectedEmployeeKey, d, newShiftStart, newShiftEnd, editingShift?.id); }}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label style={{ color: colors.brown }}>Start</Label>
-                  <Input type="time" value={newShiftStart}
+                  <Label style={{ color: colors.brown }}>Start Time</Label>
+                  <Input
+                    id="shift-start"
+                    type="time"
+                    value={newShiftStart}
                     onChange={(e) => { const t = e.target.value; setNewShiftStart(t); checkConflicts(selectedEmployeeKey, newShiftDate, t, newShiftEnd, editingShift?.id); }}
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  />
                 </div>
                 <div className="space-y-1.5">
-                  <Label style={{ color: colors.brown }}>End</Label>
-                  <Input type="time" value={newShiftEnd}
+                  <Label style={{ color: colors.brown }}>End Time</Label>
+                  <Input
+                    id="shift-end"
+                    type="time"
+                    value={newShiftEnd}
                     onChange={(e) => { const t = e.target.value; setNewShiftEnd(t); checkConflicts(selectedEmployeeKey, newShiftDate, newShiftStart, t, editingShift?.id); }}
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Position (optional)</Label>
                 <Input value={newShiftPosition} placeholder="e.g. Barista, Closer"
                   onChange={(e) => setNewShiftPosition(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
               </div>
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Notes (optional)</Label>
                 <Textarea value={newShiftNotes} placeholder="Any notes..."
                   onChange={(e) => setNewShiftNotes(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} rows={2} />
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} rows={2} />
               </div>
               {conflictWarning && (
                 <div className="flex items-start gap-2 p-2 rounded-lg text-sm"
@@ -1157,9 +1220,9 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Input type="time" value={newTemplateStart} onChange={(e) => setNewTemplateStart(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
                 <Input type="time" value={newTemplateEnd} onChange={(e) => setNewTemplateEnd(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Select value={newTemplateEmployee || '__unassigned__'} onValueChange={(v) => setNewTemplateEmployee(v === '__unassigned__' ? '' : v)}>
@@ -1298,13 +1361,13 @@ function TimeOffTab({ tenantId, canApprove, currentUserId }: {
                     <Label style={{ color: colors.brown }}>Start Date</Label>
                     <Input type="date" value={formData.start_date}
                       onChange={(e) => setFormData((f) => ({ ...f, start_date: e.target.value }))}
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
                   </div>
                   <div className="space-y-1.5">
                     <Label style={{ color: colors.brown }}>End Date</Label>
                     <Input type="date" value={formData.end_date}
                       onChange={(e) => setFormData((f) => ({ ...f, end_date: e.target.value }))}
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -1688,11 +1751,11 @@ function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employe
           <div className="flex items-center gap-2 flex-wrap">
             <Input type="date" value={timesheetStart}
               onChange={(e) => setTimesheetStart(e.target.value)}
-              className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+              className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
             <span className="text-sm" style={{ color: colors.brownLight }}>to</span>
             <Input type="date" value={timesheetEnd}
               onChange={(e) => setTimesheetEnd(e.target.value)}
-              className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+              className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
             {canViewAll && (
               <Select value={filterEmployee} onValueChange={setFilterEmployee}>
                 <SelectTrigger className="w-[180px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
@@ -1829,11 +1892,11 @@ function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employe
                   <Input type="date" value={editReqClockInDate}
                     onChange={(e) => setEditReqClockInDate(e.target.value)}
                     className="flex-1"
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
                   <Input type="time" value={editReqClockInTime}
                     onChange={(e) => setEditReqClockInTime(e.target.value)}
                     className="w-28"
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -1842,11 +1905,11 @@ function TimeClockTab({ tenantId, canApprove, canViewAll, currentUserId, employe
                   <Input type="date" value={editReqClockOutDate}
                     onChange={(e) => setEditReqClockOutDate(e.target.value)}
                     className="flex-1"
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
                   <Input type="time" value={editReqClockOutTime}
                     onChange={(e) => setEditReqClockOutTime(e.target.value)}
                     className="w-28"
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -2051,10 +2114,10 @@ function ExportTab({ tenantId, employees }: {
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2 flex-wrap">
             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-              className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+              className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
             <span className="text-sm" style={{ color: colors.brownLight }}>to</span>
             <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-              className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+              className="w-auto" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
             <Select value={filterEmployee} onValueChange={setFilterEmployee}>
               <SelectTrigger className="w-[180px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
                 <SelectValue placeholder="All employees" />

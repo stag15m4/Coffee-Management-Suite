@@ -167,7 +167,7 @@ export function EquipmentList({
                         type="date"
                         value={editingEquipment.in_service_date || ''}
                         onChange={e => setEditingEquipment({ ...editingEquipment, in_service_date: e.target.value || null })}
-                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }}
                         data-testid="input-edit-equipment-in-service-date"
                       />
                     </div>
@@ -231,7 +231,7 @@ export function EquipmentList({
                             type="date"
                             value={editingEquipment.purchase_date || ''}
                             onChange={e => setEditingEquipment({ ...editingEquipment, purchase_date: e.target.value || null })}
-                            style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                            style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                             data-testid="input-edit-equipment-purchase-date"
                           />
                         </div>

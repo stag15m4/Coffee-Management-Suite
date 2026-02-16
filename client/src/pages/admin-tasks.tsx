@@ -900,7 +900,7 @@ export default function AdminTasks() {
                       value={taskForm.due_date}
                       onChange={(e) => setTaskForm(prev => ({ ...prev, due_date: e.target.value }))}
 
-                      style={{ backgroundColor: colors.inputBg }}
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                       data-testid="input-due-date"
                     />
                   </div>
@@ -1311,7 +1311,7 @@ export default function AdminTasks() {
                     value={selectedTask.completed_at.split('T')[0]}
                     onChange={(e) => handleCompletionDateChange(selectedTask, e.target.value)}
                     className="w-48 mt-1"
-                    style={{ backgroundColor: colors.inputBg }}
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   />
                 </div>
               )}

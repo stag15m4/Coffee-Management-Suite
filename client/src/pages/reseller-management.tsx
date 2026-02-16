@@ -1030,6 +1030,7 @@ export default function ResellerManagement() {
                 value={generateForm.expiresAt}
                 onChange={(e) => setGenerateForm({ ...generateForm, expiresAt: e.target.value })}
                 data-testid="input-generate-expires"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
               />
             </div>
             {selectedReseller && (

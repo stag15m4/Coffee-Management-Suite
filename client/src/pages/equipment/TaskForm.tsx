@@ -152,7 +152,7 @@ export function TaskForm({
                 type="date"
                 value={newTaskLastServiced}
                 onChange={e => setNewTaskLastServiced(e.target.value)}
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                 data-testid="input-last-serviced"
               />
               <p className="text-xs mt-1" style={{ color: colors.brownLight }}>

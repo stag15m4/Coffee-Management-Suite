@@ -154,7 +154,7 @@ export function EquipmentForm({
             type="date"
             value={newEquipmentInServiceDate}
             onChange={e => setNewEquipmentInServiceDate(e.target.value)}
-            style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
+            style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }}
             data-testid="input-equipment-in-service-date"
           />
         </div>
@@ -218,7 +218,7 @@ export function EquipmentForm({
                 type="date"
                 value={newEquipmentPurchaseDate}
                 onChange={e => setNewEquipmentPurchaseDate(e.target.value)}
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                 data-testid="input-equipment-purchase-date"
               />
             </div>

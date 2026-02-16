@@ -120,7 +120,7 @@ export function LogMaintenanceModal({
                 type="date"
                 value={completionDate}
                 onChange={e => setCompletionDate(e.target.value)}
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                 data-testid="input-completion-date"
               />
             </div>
@@ -187,7 +187,7 @@ export function EditLastServicedModal({
               type="date"
               value={editLastServicedDate}
               onChange={e => setEditLastServicedDate(e.target.value)}
-              style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+              style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
               data-testid="input-edit-last-serviced-date"
             />
             <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
