@@ -281,7 +281,8 @@ export default function CashDeposit() {
         toast({ title: 'Entry saved successfully' });
       }
 
-      resetForm();
+      const savedDate = formData.drawer_date;
+      resetForm(savedDate);
       loadEntries();
     } catch (error: any) {
       toast({
@@ -294,8 +295,15 @@ export default function CashDeposit() {
     }
   };
 
-  const resetForm = () => {
-    setFormData(getDefaultFormData(today, drawerDefault));
+  const resetForm = (savedDate?: string) => {
+    // After saving, advance to the next day; otherwise reset to today
+    let nextDate = today;
+    if (savedDate) {
+      const d = new Date(savedDate + 'T00:00:00');
+      d.setDate(d.getDate() + 1);
+      nextDate = d.toISOString().split('T')[0];
+    }
+    setFormData(getDefaultFormData(nextDate, drawerDefault));
     setEditingEntry(null);
   };
 
