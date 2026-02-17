@@ -338,7 +338,7 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
         <table className="w-full text-sm">
           <thead>
             <tr style={{ backgroundColor: colors.brown }}>
-              <th colSpan={Math.max(standardDrinkSizes.length, foodSizes.length) + 2} className="px-4 py-3 text-left font-semibold" style={{ color: colors.white }}>Store Averages</th>
+              <th colSpan={standardDrinkSizes.length + 2} className="px-4 py-3 text-left font-semibold" style={{ color: colors.white }}>Store Averages</th>
             </tr>
           </thead>
           <tbody>
@@ -402,69 +402,6 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
               </td>
             </tr>
 
-            {/* Food Item Averages */}
-            {foodSizes.length > 0 && (
-              <>
-                <tr style={{ backgroundColor: colors.creamDark }}>
-                  <td className="px-4 py-2 font-semibold text-xs uppercase tracking-wider" style={{ color: colors.brown }}>Food Items</td>
-                  {foodAverages.map(avg => (
-                    <td key={avg.sizeId} className="px-4 py-2 text-right text-sm font-semibold" style={{ color: colors.brown }}>{avg.sizeName}</td>
-                  ))}
-                  <td className="px-4 py-2 text-right text-sm font-semibold" style={{ color: colors.gold }}>Overall</td>
-                </tr>
-                <tr style={{ backgroundColor: colors.white }}>
-                  <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>Cost</td>
-                  {foodAverages.map(avg => (
-                    <td key={avg.sizeId} className="px-4 py-2 text-right font-mono" style={{ color: colors.brown }}>
-                      {avg.count > 0 ? formatCurrency(avg.avgCost) : '-'}
-                    </td>
-                  ))}
-                  <td className="px-4 py-2 text-right font-mono font-semibold" style={{ color: colors.brown }}>
-                    {foodOverallAverage.count > 0 ? formatCurrency(foodOverallAverage.avgCost) : '-'}
-                  </td>
-                </tr>
-                <tr style={{ backgroundColor: colors.cream }}>
-                  <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>Sale</td>
-                  {foodAverages.map(avg => (
-                    <td key={avg.sizeId} className="px-4 py-2 text-right font-mono" style={{ color: colors.brown }}>
-                      {avg.count > 0 ? formatCurrency(avg.avgSale) : '-'}
-                    </td>
-                  ))}
-                  <td className="px-4 py-2 text-right font-mono font-semibold" style={{ color: colors.brown }}>
-                    {foodOverallAverage.count > 0 ? formatCurrency(foodOverallAverage.avgSale) : '-'}
-                  </td>
-                </tr>
-                <tr style={{ backgroundColor: colors.white }}>
-                  <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>Profit</td>
-                  {foodAverages.map(avg => (
-                    <td key={avg.sizeId} className="px-4 py-2 text-right font-mono" style={{ color: avg.avgProfit >= 0 ? colors.green : colors.red }}>
-                      {avg.count > 0 ? formatCurrency(avg.avgProfit) : '-'}
-                    </td>
-                  ))}
-                  <td className="px-4 py-2 text-right font-mono font-semibold" style={{ color: foodOverallAverage.avgProfit >= 0 ? colors.green : colors.red }}>
-                    {foodOverallAverage.count > 0 ? formatCurrency(foodOverallAverage.avgProfit) : '-'}
-                  </td>
-                </tr>
-                <tr style={{ backgroundColor: colors.creamDark }}>
-                  <td className="px-4 py-2 font-semibold" style={{ color: colors.brown }}>Margin</td>
-                  {foodAverages.map(avg => {
-                    const marginColor = avg.avgMargin > 31 ? colors.green : avg.avgMargin > 25 ? colors.gold : colors.red;
-                    return (
-                      <td key={avg.sizeId} className="px-4 py-2 text-right font-mono font-semibold" style={{ color: avg.count > 0 ? marginColor : colors.brownLight }}>
-                        {avg.count > 0 ? formatPercent(avg.avgMargin) : '-'}
-                      </td>
-                    );
-                  })}
-                  <td className="px-4 py-2 text-right font-mono font-bold" style={{
-                    color: foodOverallAverage.count > 0
-                      ? (foodOverallAverage.avgMargin > 31 ? colors.green : foodOverallAverage.avgMargin > 25 ? colors.gold : colors.red)
-                      : colors.brownLight
-                  }}>
-                    {foodOverallAverage.count > 0 ? formatPercent(foodOverallAverage.avgMargin) : '-'}
-                  </td>
-                </tr>
-              </>
-            )}
           </tbody>
         </table>
       </div>
