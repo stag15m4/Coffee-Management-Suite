@@ -16,9 +16,11 @@ import { INGREDIENT_TYPES } from './types';
 interface IngredientsTabProps {
   ingredients: Ingredient[];
   categories: Category[];
+  productCategories: Category[];
   onUpdate: (id: string, updates: Partial<Ingredient>) => Promise<void>;
   onAdd: (ingredient: Partial<Ingredient>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onCreateRecipeFromIngredients: (data: { name: string; category_id: string; ingredient_ids: string[] }) => Promise<void>;
 }
 
 const EMPTY_FORM = {
@@ -34,11 +36,14 @@ const EMPTY_FORM = {
   item_number: '',
 };
 
-export const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd, onDelete }: IngredientsTabProps) => {
+export const IngredientsTab = ({ ingredients, categories, productCategories, onUpdate, onAdd, onDelete, onCreateRecipeFromIngredients }: IngredientsTabProps) => {
   const [selectedType, setSelectedType] = useState<string>('FOH Ingredient');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [transferTarget, setTransferTarget] = useState<string>('');
+  const [showCreateRecipe, setShowCreateRecipe] = useState(false);
+  const [newRecipeName, setNewRecipeName] = useState('');
+  const [newRecipeCategoryId, setNewRecipeCategoryId] = useState('');
   const [showExtraColumns, setShowExtraColumns] = useState(false);
 
   // Sheet state (unified for add + edit)
@@ -201,6 +206,85 @@ export const IngredientsTab = ({ ingredients, categories, onUpdate, onAdd, onDel
             data-testid="button-clear-selection"
           >
             Clear Selection
+          </button>
+          <div className="ml-auto">
+            <button
+              onClick={() => setShowCreateRecipe(!showCreateRecipe)}
+              className="px-4 py-2 font-semibold rounded-lg transition-all"
+              style={{ backgroundColor: colors.gold, color: colors.white }}
+              data-testid="button-create-recipe"
+            >
+              Create Recipe
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create Recipe inline form */}
+      {showCreateRecipe && selectedItems.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: colors.cream, border: `2px solid ${colors.gold}` }}>
+          <span className="text-sm font-medium" style={{ color: colors.brown }}>
+            New recipe with {selectedItems.size} ingredient{selectedItems.size > 1 ? 's' : ''}:
+          </span>
+          <input
+            type="text"
+            placeholder="Recipe name"
+            value={newRecipeName}
+            onChange={(e) => setNewRecipeName(e.target.value)}
+            className="px-3 py-2 rounded-lg border-2 outline-none"
+            style={{ borderColor: colors.gold, color: colors.brown }}
+            data-testid="input-create-recipe-name"
+          />
+          <select
+            value={newRecipeCategoryId}
+            onChange={(e) => setNewRecipeCategoryId(e.target.value)}
+            className="px-3 py-2 rounded-lg border-2 outline-none"
+            style={{ borderColor: colors.gold, color: colors.brown }}
+            data-testid="select-create-recipe-category"
+          >
+            <option value="">Select type...</option>
+            {productCategories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={async () => {
+              if (!newRecipeName.trim() || !newRecipeCategoryId) {
+                alert('Please enter a recipe name and select a type');
+                return;
+              }
+              await onCreateRecipeFromIngredients({
+                name: newRecipeName.trim(),
+                category_id: newRecipeCategoryId,
+                ingredient_ids: Array.from(selectedItems),
+              });
+              setNewRecipeName('');
+              setNewRecipeCategoryId('');
+              setShowCreateRecipe(false);
+              setSelectedItems(new Set());
+            }}
+            disabled={!newRecipeName.trim() || !newRecipeCategoryId}
+            className="px-4 py-2 font-semibold rounded-lg transition-all"
+            style={{
+              backgroundColor: newRecipeName.trim() && newRecipeCategoryId ? colors.gold : colors.creamDark,
+              color: newRecipeName.trim() && newRecipeCategoryId ? colors.white : colors.brownLight,
+              opacity: newRecipeName.trim() && newRecipeCategoryId ? 1 : 0.6,
+            }}
+            data-testid="button-confirm-create-recipe"
+          >
+            Create
+          </button>
+          <button
+            onClick={() => {
+              setShowCreateRecipe(false);
+              setNewRecipeName('');
+              setNewRecipeCategoryId('');
+            }}
+            className="px-3 py-2 rounded-lg"
+            style={{ color: colors.brownLight }}
+            data-testid="button-cancel-create-recipe"
+          >
+            Cancel
           </button>
         </div>
       )}

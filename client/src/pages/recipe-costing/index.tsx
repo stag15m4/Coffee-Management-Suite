@@ -21,7 +21,7 @@ import {
   useIngredients,
   useProductCategories,
   useBaseTemplates,
-  useDrinkSizes,
+  useProductSizes,
   useRecipes,
   useOverhead,
   useOverheadItems,
@@ -116,7 +116,7 @@ export default function RecipeCostingPage() {
   const { data: ingredients = [], isLoading: loadingIngredients, isError: errorIngredients } = useIngredients();
   const { data: productCategories = [], isLoading: loadingProductCategories, isError: errorProductCategories } = useProductCategories();
   const { data: baseTemplates = [], isLoading: loadingBaseTemplates, isError: errorBaseTemplates } = useBaseTemplates();
-  const { data: drinkSizes = [], isLoading: loadingDrinkSizes, isError: errorDrinkSizes } = useDrinkSizes();
+  const { data: productSizes = [], isLoading: loadingProductSizes, isError: errorProductSizes } = useProductSizes();
   const { data: recipes = [], isLoading: loadingRecipes, isError: errorRecipes } = useRecipes();
   const { data: overhead, isLoading: loadingOverhead, isError: errorOverhead } = useOverhead();
   const { data: overheadItems = [], isLoading: loadingOverheadItems } = useOverheadItems();
@@ -183,11 +183,11 @@ export default function RecipeCostingPage() {
   // ---------------------------------------------------------------------------
 
   const loading = loadingCategories || loadingIngredients || loadingProductCategories ||
-                  loadingBaseTemplates || loadingDrinkSizes || loadingRecipes ||
+                  loadingBaseTemplates || loadingProductSizes || loadingRecipes ||
                   loadingOverhead || loadingPricing || loadingRecipeSizeBases;
 
   const hasError = errorCategories || errorIngredients || errorProductCategories ||
-                   errorBaseTemplates || errorDrinkSizes || errorRecipes ||
+                   errorBaseTemplates || errorProductSizes || errorRecipes ||
                    errorOverhead || errorPricing || errorRecipeSizeBases;
 
   // ---------------------------------------------------------------------------
@@ -386,6 +386,47 @@ export default function RecipeCostingPage() {
     }
   };
 
+  const handleCreateRecipeFromIngredients = async (data: { name: string; category_id: string; ingredient_ids: string[] }) => {
+    try {
+      const { data: newRecipe, error } = await supabase
+        .from('recipes')
+        .insert({
+          name: data.name,
+          category_id: data.category_id,
+          is_active: true,
+          is_bulk_recipe: false,
+          tenant_id: profile?.tenant_id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add selected ingredients to all non-bulk sizes with quantity 1
+      const nonBulkSizes = productSizes.filter(s => !s.name.toLowerCase().includes('bulk'));
+      if (nonBulkSizes.length > 0 && data.ingredient_ids.length > 0) {
+        const inserts = data.ingredient_ids.flatMap(ingredientId => {
+          const ingredient = ingredients.find(i => i.id === ingredientId);
+          const unit = ingredient?.usage_unit || ingredient?.unit || 'oz';
+          return nonBulkSizes.map(size => ({
+            recipe_id: newRecipe.id,
+            ingredient_id: ingredientId,
+            size_id: size.id,
+            quantity: 1,
+            unit,
+          }));
+        });
+        const { error: ingError } = await supabase.from('recipe_ingredients').insert(inserts);
+        if (ingError) throw ingError;
+      }
+
+      invalidateRecipeData();
+      setActiveTab('recipes');
+    } catch (error: any) {
+      alert('Error creating recipe: ' + error.message);
+    }
+  };
+
   const handleUpdateRecipe = async (id: string, updates: { name?: string; category_id?: string; base_template_id?: string | null; is_bulk_recipe?: boolean; minutes_per_drink?: number | null }) => {
     try {
       const { error } = await supabase
@@ -411,14 +452,14 @@ export default function RecipeCostingPage() {
 
       const { error } = await supabase
         .from('product_sizes')
-        .insert({ name, size_oz: oz, display_order: nextOrder, drink_type: 'bulk', tenant_id: profile?.tenant_id });
+        .insert({ name, size_value: oz, display_order: nextOrder, product_type: 'bulk', tenant_id: profile?.tenant_id });
 
       if (error) {
         console.error('Supabase error adding bulk size:', error);
         alert('Error adding bulk size: ' + error.message + '\n\nMake sure your Supabase RLS policies allow inserts on the product_sizes table.');
         return false;
       }
-      queryClient.invalidateQueries({ queryKey: queryKeys.drinkSizes });
+      queryClient.invalidateQueries({ queryKey: queryKeys.productSizes });
       return true;
     } catch (error: any) {
       console.error('Error in handleAddBulkSize:', error);
@@ -428,7 +469,7 @@ export default function RecipeCostingPage() {
   };
 
   const handleDeleteBulkSize = async (sizeId: string) => {
-    const name = drinkSizes.find(s => s.id === sizeId)?.name || 'this batch size';
+    const name = productSizes.find(s => s.id === sizeId)?.name || 'this batch size';
     if (!await confirm({ title: `Delete ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) return;
     try {
       const { error: ingredientError } = await supabase
@@ -452,7 +493,7 @@ export default function RecipeCostingPage() {
         alert('Error deleting bulk size: ' + error.message);
         return;
       }
-      queryClient.invalidateQueries({ queryKey: queryKeys.drinkSizes });
+      queryClient.invalidateQueries({ queryKey: queryKeys.productSizes });
       queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
       showDeleteUndoToast({ itemName: name, undo: { type: 'none' } });
     } catch (error: any) {
@@ -461,7 +502,7 @@ export default function RecipeCostingPage() {
     }
   };
 
-  const handleAddDrinkSize = async (size: { name: string; size_oz: number; drink_type: string }): Promise<string> => {
+  const handleAddProductSize = async (size: { name: string; size_value: number; product_type: string }): Promise<string> => {
     const { data: maxOrder } = await supabase
       .from('product_sizes')
       .select('display_order')
@@ -471,12 +512,12 @@ export default function RecipeCostingPage() {
 
     const { data, error } = await supabase
       .from('product_sizes')
-      .insert({ name: size.name, size_oz: size.size_oz, display_order: nextOrder, drink_type: size.drink_type, tenant_id: profile?.tenant_id })
+      .insert({ name: size.name, size_value: size.size_value, display_order: nextOrder, product_type: size.product_type, tenant_id: profile?.tenant_id })
       .select('id')
       .single();
 
     if (error) throw error;
-    queryClient.invalidateQueries({ queryKey: queryKeys.drinkSizes });
+    queryClient.invalidateQueries({ queryKey: queryKeys.productSizes });
     return data.id;
   };
 
@@ -741,7 +782,7 @@ export default function RecipeCostingPage() {
             recipes={recipes}
             ingredients={ingredients}
             baseTemplates={baseTemplates}
-            drinkSizes={drinkSizes}
+            productSizes={productSizes}
             overhead={enhancedOverhead}
             pricingData={pricingData}
             recipeSizeBases={recipeSizeBases}
@@ -752,9 +793,11 @@ export default function RecipeCostingPage() {
           <IngredientsTab
             ingredients={ingredients}
             categories={ingredientCategories}
+            productCategories={productCategories}
             onUpdate={handleUpdateIngredient}
             onAdd={handleAddIngredient}
             onDelete={handleDeleteIngredient}
+            onCreateRecipeFromIngredients={handleCreateRecipeFromIngredients}
           />
         )}
         {activeTab === 'recipes' && !adminViewingTenant && (
@@ -763,7 +806,7 @@ export default function RecipeCostingPage() {
             ingredients={ingredients}
             productCategories={productCategories}
             baseTemplates={baseTemplates}
-            drinkSizes={drinkSizes}
+            productSizes={productSizes}
             overhead={enhancedOverhead}
             recipeSizeBases={recipeSizeBases}
             onAddRecipe={handleAddRecipe}
@@ -779,7 +822,7 @@ export default function RecipeCostingPage() {
             onAddTemplateIngredient={handleAddTemplateIngredient}
             onDeleteTemplateIngredient={handleDeleteTemplateIngredient}
             onDeleteTemplate={handleDeleteBaseTemplate}
-            onAddDrinkSize={handleAddDrinkSize}
+            onAddProductSize={handleAddProductSize}
             onRemoveTemplateSize={handleRemoveTemplateSize}
           />
         )}
@@ -811,7 +854,7 @@ export default function RecipeCostingPage() {
             onUpdateOverhead={handleUpdateOverhead}
             ingredients={ingredients}
             recipes={recipes}
-            drinkSizes={drinkSizes}
+            productSizes={productSizes}
             baseTemplates={baseTemplates}
             recipeSizeBases={recipeSizeBases}
             recipePricing={pricingData}
@@ -859,12 +902,12 @@ export default function RecipeCostingPage() {
               <BaseTemplatesTab
                 baseTemplates={baseTemplates}
                 ingredients={ingredients}
-                drinkSizes={drinkSizes}
+                productSizes={productSizes}
                 onAddTemplate={handleAddBaseTemplate}
                 onAddTemplateIngredient={handleAddTemplateIngredient}
                 onDeleteTemplateIngredient={handleDeleteTemplateIngredient}
                 onDeleteTemplate={handleDeleteBaseTemplate}
-                onAddDrinkSize={handleAddDrinkSize}
+                onAddProductSize={handleAddProductSize}
                 onRemoveTemplateSize={handleRemoveTemplateSize}
               />
             )}
@@ -885,7 +928,7 @@ export default function RecipeCostingPage() {
                 onUpdateOverhead={handleUpdateOverhead}
                 ingredients={ingredients}
                 recipes={recipes}
-                drinkSizes={drinkSizes}
+                productSizes={productSizes}
                 baseTemplates={baseTemplates}
                 recipeSizeBases={recipeSizeBases}
                 recipePricing={pricingData}

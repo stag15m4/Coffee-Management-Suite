@@ -3,21 +3,21 @@ import { Trash2, X, Plus, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { colors } from '@/lib/colors';
-import type { BaseTemplate, Ingredient, DrinkSize } from './types';
+import type { BaseTemplate, Ingredient, ProductSize } from './types';
 
 interface BaseTemplatesTabProps {
   baseTemplates: BaseTemplate[];
   ingredients: Ingredient[];
-  drinkSizes: DrinkSize[];
+  productSizes: ProductSize[];
   onAddTemplate: (template: { name: string; drink_type: string; description?: string }) => Promise<void>;
   onAddTemplateIngredient: (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => Promise<void>;
   onDeleteTemplateIngredient: (id: string) => Promise<void>;
   onDeleteTemplate: (id: string) => Promise<void>;
-  onAddDrinkSize: (size: { name: string; size_oz: number; drink_type: string }) => Promise<string>;
+  onAddProductSize: (size: { name: string; size_value: number; product_type: string }) => Promise<string>;
   onRemoveTemplateSize: (templateId: string, sizeId: string) => Promise<void>;
 }
 
-export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient, onDeleteTemplate, onAddDrinkSize, onRemoveTemplateSize }: BaseTemplatesTabProps) => {
+export const BaseTemplatesTab = ({ baseTemplates, ingredients, productSizes, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient, onDeleteTemplate, onAddProductSize, onRemoveTemplateSize }: BaseTemplatesTabProps) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
   const [newTemplate, setNewTemplate] = useState({ name: '', drink_type: 'Hot', description: '' });
@@ -156,7 +156,7 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAdd
           const usedSizeIds = Array.from(new Set((template.ingredients || []).map(i => i.size_id)));
           const pendingForTemplate = (pendingSizes[template.id] || []).filter(id => !usedSizeIds.includes(id));
           const allShownSizeIds = [...usedSizeIds, ...pendingForTemplate];
-          const templateSizes = drinkSizes.filter(s => allShownSizeIds.includes(s.id));
+          const templateSizes = productSizes.filter(s => allShownSizeIds.includes(s.id));
           return (
             <div
               key={template.id}
@@ -406,10 +406,10 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAdd
                                 onClick={async () => {
                                   if (!newSizeName.trim()) return;
                                   try {
-                                    const newId = await onAddDrinkSize({
+                                    const newId = await onAddProductSize({
                                       name: newSizeName.trim(),
-                                      size_oz: parseFloat(newSizeOz) || 0,
-                                      drink_type: template.drink_type,
+                                      size_value: parseFloat(newSizeOz) || 0,
+                                      product_type: template.drink_type,
                                     });
                                     setPendingSizes(prev => ({
                                       ...prev,
@@ -445,14 +445,14 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAdd
                         ) : (
                           <div className="py-1">
                             {(() => {
-                              const matchingType = drinkSizes.filter(s =>
-                                (s.drink_type || '').toLowerCase() === (template.drink_type || '').toLowerCase()
+                              const matchingType = productSizes.filter(s =>
+                                (s.product_type || '').toLowerCase() === (template.drink_type || '').toLowerCase()
                                 && !allShownSizeIds.includes(s.id)
                               );
-                              const otherSizes = drinkSizes.filter(s =>
-                                (s.drink_type || '').toLowerCase() !== (template.drink_type || '').toLowerCase()
+                              const otherSizes = productSizes.filter(s =>
+                                (s.product_type || '').toLowerCase() !== (template.drink_type || '').toLowerCase()
                                 && !allShownSizeIds.includes(s.id)
-                                && s.drink_type !== 'bulk'
+                                && s.product_type !== 'bulk'
                               );
 
                               return (
@@ -501,7 +501,7 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAdd
                                           style={{ color: colors.brown }}
                                           data-testid={`option-size-${size.id}`}
                                         >
-                                          {size.name} <span className="text-xs" style={{ color: colors.brownLight }}>({size.drink_type})</span>
+                                          {size.name} <span className="text-xs" style={{ color: colors.brownLight }}>({size.product_type})</span>
                                         </button>
                                       ))}
                                     </>

@@ -5,7 +5,7 @@ import type {
   Recipe,
   Ingredient,
   BaseTemplate,
-  DrinkSize,
+  ProductSize,
   OverheadSettings,
   RecipeSizePricing,
   RecipeIngredient,
@@ -15,26 +15,26 @@ interface PricingTabProps {
   recipes: Recipe[];
   ingredients: Ingredient[];
   baseTemplates: BaseTemplate[];
-  drinkSizes: DrinkSize[];
+  productSizes: ProductSize[];
   overhead: OverheadSettings | null;
   pricingData: RecipeSizePricing[];
   recipeSizeBases: { id?: string; recipe_id: string; size_id: string; base_template_id: string }[];
   onUpdatePricing: (recipeId: string, sizeId: string, salePrice: number) => Promise<void>;
 }
 
-export const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, overhead, pricingData, recipeSizeBases, onUpdatePricing }: PricingTabProps) => {
+export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, overhead, pricingData, recipeSizeBases, onUpdatePricing }: PricingTabProps) => {
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
   // Filter out bulk sizes and separate drink sizes from food sizes
   // Exclude bulk from both drink and food sizes
-  const allDrinkTypeSizes = drinkSizes.filter(s =>
+  const allDrinkTypeSizes = productSizes.filter(s =>
     !s.name.toLowerCase().includes('bulk') &&
-    (!s.drink_type || s.drink_type.toLowerCase() !== 'food')
+    (!s.product_type || s.product_type.toLowerCase() !== 'food')
   );
-  const allFoodSizes = drinkSizes.filter(s =>
+  const allFoodSizes = productSizes.filter(s =>
     !s.name.toLowerCase().includes('bulk') &&
-    s.drink_type && s.drink_type.toLowerCase() === 'food'
+    s.product_type && s.product_type.toLowerCase() === 'food'
   );
 
   // Filter out bulk recipes (they are manufacturing recipes, not for sale directly)
@@ -113,14 +113,14 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, ov
     if (!bulkRecipe || !bulkRecipe.is_bulk_recipe) return 0;
 
     // Find the bulk size for this recipe
-    const bulkSizes = drinkSizes.filter(s => s.name.toLowerCase().includes('bulk'));
+    const bulkSizes = productSizes.filter(s => s.name.toLowerCase().includes('bulk'));
     let totalCost = 0;
     let batchSizeOz = 0;
 
     for (const size of bulkSizes) {
       const sizeIngredients = bulkRecipe.recipe_ingredients?.filter((ri: RecipeIngredient) => ri.size_id === size.id) || [];
       if (sizeIngredients.length > 0) {
-        batchSizeOz = size.size_oz;
+        batchSizeOz = size.size_value;
         for (const ri of sizeIngredients) {
           const ing = ingredients.find(i => i.id === ri.ingredient_id);
           if (ing) {

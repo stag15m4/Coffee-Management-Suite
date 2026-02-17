@@ -10,7 +10,7 @@ import type {
   Category,
   BaseTemplate,
   BaseTemplateIngredient,
-  DrinkSize,
+  ProductSize,
   OverheadSettings,
   RecipeSizeBase,
   RecipeIngredient,
@@ -21,7 +21,7 @@ interface RecipesTabProps {
   ingredients: Ingredient[];
   productCategories: Category[];
   baseTemplates: BaseTemplate[];
-  drinkSizes: DrinkSize[];
+  productSizes: ProductSize[];
   overhead: OverheadSettings | null;
   recipeSizeBases: RecipeSizeBase[];
   onAddRecipe: (recipe: { name: string; category_id: string; base_template_id?: string; is_bulk_recipe?: boolean }) => Promise<void>;
@@ -38,11 +38,11 @@ interface RecipesTabProps {
   onAddTemplateIngredient: (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => Promise<void>;
   onDeleteTemplateIngredient: (id: string) => Promise<void>;
   onDeleteTemplate: (id: string) => Promise<void>;
-  onAddDrinkSize: (size: { name: string; size_oz: number; drink_type: string }) => Promise<string>;
+  onAddProductSize: (size: { name: string; size_value: number; product_type: string }) => Promise<string>;
   onRemoveTemplateSize: (templateId: string, sizeId: string) => Promise<void>;
 }
 
-export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase, onDuplicateRecipe, onDeleteRecipe, onAddBulkSize, onDeleteBulkSize, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient, onDeleteTemplate, onAddDrinkSize, onRemoveTemplateSize }: RecipesTabProps) => {
+export const RecipesTab = ({ recipes, ingredients, productCategories, productSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase, onDuplicateRecipe, onDeleteRecipe, onAddBulkSize, onDeleteBulkSize, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient, onDeleteTemplate, onAddProductSize, onRemoveTemplateSize }: RecipesTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -75,14 +75,14 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes
     if (!bulkRecipe || !bulkRecipe.is_bulk_recipe) return 0;
 
     // Find the bulk size for this recipe
-    const bulkSizes = drinkSizes.filter(s => s.name.toLowerCase().includes('bulk'));
+    const bulkSizes = productSizes.filter(s => s.name.toLowerCase().includes('bulk'));
     let totalCost = 0;
     let batchSizeOz = 0;
 
     for (const size of bulkSizes) {
       const sizeIngredients = bulkRecipe.recipe_ingredients?.filter((ri: RecipeIngredient) => ri.size_id === size.id) || [];
       if (sizeIngredients.length > 0) {
-        batchSizeOz = size.size_oz;
+        batchSizeOz = size.size_value;
         for (const ri of sizeIngredients) {
           const ing = ingredients.find(i => i.id === ri.ingredient_id);
           if (ing) {
@@ -262,12 +262,12 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes
             <BaseTemplatesTab
               baseTemplates={baseTemplates}
               ingredients={ingredients}
-              drinkSizes={drinkSizes}
+              productSizes={productSizes}
               onAddTemplate={onAddTemplate}
               onAddTemplateIngredient={onAddTemplateIngredient}
               onDeleteTemplateIngredient={onDeleteTemplateIngredient}
               onDeleteTemplate={onDeleteTemplate}
-              onAddDrinkSize={onAddDrinkSize}
+              onAddProductSize={onAddProductSize}
               onRemoveTemplateSize={onRemoveTemplateSize}
             />
           </div>
@@ -571,10 +571,10 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes
                   )}
                   <div className="grid gap-3">
                     {(recipe.is_bulk_recipe
-                      ? drinkSizes.filter(s => s.name.toLowerCase().includes('bulk'))
+                      ? productSizes.filter(s => s.name.toLowerCase().includes('bulk'))
                       : (() => {
-                          const foodSizes = drinkSizes.filter(s => !s.name.toLowerCase().includes('bulk') && s.drink_type?.toLowerCase() === 'food');
-                          const drinkTypeSizes = drinkSizes.filter(s => !s.name.toLowerCase().includes('bulk') && s.drink_type?.toLowerCase() !== 'food');
+                          const foodSizes = productSizes.filter(s => !s.name.toLowerCase().includes('bulk') && s.product_type?.toLowerCase() === 'food');
+                          const drinkTypeSizes = productSizes.filter(s => !s.name.toLowerCase().includes('bulk') && s.product_type?.toLowerCase() !== 'food');
                           const foodSizeIds = foodSizes.map(s => s.id);
                           const hasFoodIngredients = recipe.recipe_ingredients?.some(ri => foodSizeIds.includes(ri.size_id)) || false;
                           return hasFoodIngredients ? foodSizes : drinkTypeSizes;
@@ -597,7 +597,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes
                           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                             <div className="flex items-center gap-2">
                               <span className="font-semibold" style={{ color: colors.brown }}>
-                                {size.name} ({size.size_oz}oz)
+                                {size.name}
                               </span>
                               {isBulkRecipe && (
                                 <button
@@ -614,9 +614,9 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes
                               <span style={{ color: colors.brownLight }}>
                                 Cost: <span className="font-mono font-bold" style={{ color: hasItems ? colors.green : colors.brownLight }}>{hasItems ? formatCurrency(calculatedCost) : '-'}</span>
                               </span>
-                              {isBulkRecipe && hasItems && size.size_oz > 0 && (
+                              {isBulkRecipe && hasItems && size.size_value > 0 && (
                                 <span style={{ color: colors.brownLight }}>
-                                  Cost/oz: <span className="font-mono font-bold" style={{ color: colors.gold }}>{formatCurrency(calculatedCost / size.size_oz)}</span>
+                                  Cost/unit: <span className="font-mono font-bold" style={{ color: colors.gold }}>{formatCurrency(calculatedCost / size.size_value)}</span>
                                 </span>
                               )}
                             </div>

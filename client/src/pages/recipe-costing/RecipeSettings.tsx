@@ -4,7 +4,7 @@ import { formatCurrency, calculateCostPerUsageUnit } from './utils';
 import type {
   Ingredient,
   Recipe,
-  DrinkSize,
+  ProductSize,
   BaseTemplate,
   OverheadSettings,
   RecipeSizeBase,
@@ -17,13 +17,13 @@ interface RecipeSettingsProps {
   onUpdateOverhead: (updates: Partial<OverheadSettings>) => Promise<void>;
   ingredients: Ingredient[];
   recipes: Recipe[];
-  drinkSizes: DrinkSize[];
+  productSizes: ProductSize[];
   baseTemplates: BaseTemplate[];
   recipeSizeBases: RecipeSizeBase[];
   recipePricing: RecipeSizePricing[];
 }
 
-export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipes, drinkSizes, baseTemplates, recipeSizeBases, recipePricing }: RecipeSettingsProps) => {
+export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipes, productSizes, baseTemplates, recipeSizeBases, recipePricing }: RecipeSettingsProps) => {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     cost_per_minute: overhead?.cost_per_minute || 2.26,
@@ -240,7 +240,7 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
                 const overheadCost = (overhead?.cost_per_minute || 0) * recipeMinutes;
                 const category = recipe.category_name || '';
 
-                drinkSizes.forEach(size => {
+                productSizes.forEach(size => {
                   const sizeBase = recipeSizeBases.find(rsb => rsb.recipe_id === recipe.id && rsb.size_id === size.id);
                   const baseTemplate = sizeBase ? baseTemplates.find(bt => bt.id === sizeBase.base_template_id) :
                     (recipe.base_template_id ? baseTemplates.find(bt => bt.id === recipe.base_template_id) : null);
