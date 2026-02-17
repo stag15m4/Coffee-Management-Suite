@@ -5,9 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 // These must be raw hex, NOT the CSS-var-based `colors` from @/lib/colors,
 // because ThemeProvider sets these as CSS custom-property values.
 const RAW = {
-  gold: '#2563EB',         // Clean blue — universal SaaS primary
-  goldLight: '#EFF6FF',    // Very light blue tint
-  goldDark: '#1D4ED8',     // Darker blue for hover/active
+  gold: '#16A34A',         // Money-green — universal SaaS primary
+  goldLight: '#F0FDF4',    // Very light green tint
+  goldDark: '#15803D',     // Darker green for hover/active
   brown: '#111827',        // Near-black (gray-900) for text
   brownLight: '#6B7280',   // Mid gray (gray-500) for secondary text
   cream: '#F9FAFB',        // Cool gray-50 for surfaces
@@ -98,6 +98,24 @@ function darken(hex: string, amount = 0.1): string {
     g * (1 - amount),
     b * (1 - amount),
   );
+}
+
+/**
+ * Convert a hex color to an HSL string suitable for CSS custom properties
+ * that use the `hsl(var(--name) / alpha)` pattern (space-separated, no commas).
+ */
+function hexToHsl(hex: string): string {
+  const [r, g, b] = hexToRgb(hex).map(c => c / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return `0 0% ${Math.round(l * 100)}%`;
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
 // ---------------------------------------------------------------------------
@@ -232,6 +250,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     for (const [key, cssVar] of Object.entries(CSS_VAR_MAP)) {
       root.setProperty(cssVar, resolvedColors[key as keyof ThemeColors]);
     }
+    // Sync shadcn card border with the themed accent-dark color
+    root.setProperty('--card-border', hexToHsl(resolvedColors.accentDark));
   }, [resolvedColors]);
 
   const value = useMemo<ThemeContextType>(

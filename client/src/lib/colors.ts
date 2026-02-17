@@ -8,9 +8,9 @@
  */
 export const colors = {
   // Core brand — driven by vertical theme
-  gold: 'var(--color-primary, #2563EB)',
-  goldLight: 'var(--color-primary-light, #EFF6FF)',
-  goldDark: 'var(--color-primary-dark, #1D4ED8)',
+  gold: 'var(--color-primary, #16A34A)',
+  goldLight: 'var(--color-primary-light, #F0FDF4)',
+  goldDark: 'var(--color-primary-dark, #15803D)',
 
   // Text — driven by vertical secondary
   brown: 'var(--color-secondary, #111827)',

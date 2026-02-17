@@ -19,6 +19,11 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const displayName = meta.companyName || tenant?.name || 'Dashboard';
 
+  // Update browser tab title when tenant changes
+  useEffect(() => {
+    document.title = `${displayName} — Management Suite`;
+  }, [displayName]);
+
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);

@@ -14,6 +14,7 @@ import {
 } from '@/hooks/use-time-clock';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import {
   Clock,
   Coffee,
@@ -199,9 +200,9 @@ export function MyDashboardCard() {
   if (!user || !profile) return null;
 
   return (
-    <div
-      className="rounded-xl border shadow-sm overflow-hidden mb-6"
-      style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+    <Card
+      className="overflow-hidden mb-6"
+      style={{ backgroundColor: colors.white }}
       data-spotlight="my-dashboard-card"
     >
       {/* Header */}
@@ -467,6 +468,6 @@ export function MyDashboardCard() {
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
