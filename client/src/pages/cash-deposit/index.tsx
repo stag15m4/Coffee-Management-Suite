@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase-queries';
+import { supabase, queryKeys } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ export default function CashDeposit() {
   const { profile, tenant, branding, primaryTenant } = useAuth();
   const { toast } = useToast();
   const { confirm, ConfirmDialog } = useConfirmDialog();
+  const queryClient = useQueryClient();
 
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
@@ -284,6 +286,7 @@ export default function CashDeposit() {
       const savedDate = formData.drawer_date;
       resetForm(savedDate);
       loadEntries();
+      queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity });
     } catch (error: any) {
       toast({
         title: 'Error saving entry',
@@ -320,9 +323,10 @@ export default function CashDeposit() {
       showDeleteUndoToast({
         itemName: `Entry for ${formatDate(entry.drawer_date)}`,
         undo: { type: 'reinsert', table: 'cash_activity', data: { ...entry } },
-        onReload: loadEntries,
+        onReload: () => { loadEntries(); queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity }); },
       });
       loadEntries();
+      queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity });
     } catch (error: any) {
       toast({
         title: 'Error deleting entry',
@@ -359,6 +363,7 @@ export default function CashDeposit() {
 
       if (error) throw error;
       loadEntries();
+      queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity });
     } catch (error: any) {
       toast({
         title: 'Error updating exclusion',
@@ -522,6 +527,7 @@ export default function CashDeposit() {
 
       toast({ title: `Imported ${parsedEntries.length} entries` });
       loadEntries();
+      queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity });
     } catch (error: any) {
       toast({
         title: 'Import error',
@@ -570,6 +576,7 @@ export default function CashDeposit() {
     } else {
       toast({ title: `Archived all ${year} entries` });
       loadEntries();
+      queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity });
     }
   };
 
@@ -590,6 +597,7 @@ export default function CashDeposit() {
     } else {
       toast({ title: `Restored all ${year} entries` });
       loadEntries();
+      queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity });
     }
   };
 

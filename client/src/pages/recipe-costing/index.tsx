@@ -79,7 +79,7 @@ type SettingsSection = 'overhead' | 'bases' | 'vendors' | 'settings';
 
 const SETTINGS_SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: 'overhead', label: 'Overhead Calculator' },
-  { id: 'bases', label: 'Base Templates' },
+  { id: 'bases', label: 'Recipe Bases' },
   { id: 'vendors', label: 'Vendors' },
   { id: 'settings', label: 'Settings & Export' },
 ];
@@ -775,6 +775,12 @@ export default function RecipeCostingPage() {
             onDeleteRecipe={handleDeleteRecipe}
             onAddBulkSize={handleAddBulkSize}
             onDeleteBulkSize={handleDeleteBulkSize}
+            onAddTemplate={handleAddBaseTemplate}
+            onAddTemplateIngredient={handleAddTemplateIngredient}
+            onDeleteTemplateIngredient={handleDeleteTemplateIngredient}
+            onDeleteTemplate={handleDeleteBaseTemplate}
+            onAddDrinkSize={handleAddDrinkSize}
+            onRemoveTemplateSize={handleRemoveTemplateSize}
           />
         )}
         {activeTab === 'vendors' && (

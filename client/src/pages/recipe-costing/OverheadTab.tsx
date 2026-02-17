@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Check, X, Pencil, Trash2 } from 'lucide-react';
+import { Check, X, Pencil, Trash2, Info } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { colors } from '@/lib/colors';
 import { formatCurrency } from './utils';
@@ -25,6 +25,7 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
   const [laborFrequency, setLaborFrequency] = useState<'weekly' | 'bi-weekly' | 'monthly' | 'bi-monthly'>('bi-weekly');
   const [sortColumn, setSortColumn] = useState<'name' | 'amount' | 'frequency' | 'monthly'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showRevenueInfo, setShowRevenueInfo] = useState(false);
 
   const operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
   const hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
@@ -154,6 +155,66 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
 
   return (
     <div className="space-y-6">
+      {/* Revenue vs Overhead Comparison */}
+      {overheadItems.length > 0 && (
+        <div className="rounded-xl shadow-md overflow-hidden" style={{ backgroundColor: colors.white }} data-spotlight="revenue-chart">
+          <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: colors.brown }}>
+            <h3 className="font-bold text-white">Daily Revenue vs Overhead</h3>
+            <button
+              onClick={() => setShowRevenueInfo(!showRevenueInfo)}
+              className="p-1 rounded-full transition-opacity"
+              style={{ opacity: showRevenueInfo ? 1 : 0.7 }}
+              aria-label="How are these numbers calculated?"
+            >
+              <Info className="w-4 h-4 text-white" />
+            </button>
+          </div>
+          {showRevenueInfo && (
+            <div className="px-4 py-3 text-sm border-b" style={{ backgroundColor: colors.cream, borderColor: colors.creamDark, color: colors.brown }}>
+              <p className="font-semibold mb-2">How these numbers are calculated:</p>
+              <ul className="space-y-1.5" style={{ color: colors.brownLight }}>
+                <li><strong style={{ color: colors.brown }}>Avg Daily Revenue</strong> — The average of your daily gross revenue from your cash deposit logs ({cashDayCount} {cashDayCount === 1 ? 'day' : 'days'} recorded). Days you've excluded from the average are not counted.</li>
+                <li><strong style={{ color: colors.brown }}>Daily Overhead</strong> — The total of all overhead items below, converted to a daily amount based on your {operatingDays}-day operating week.</li>
+                <li><strong style={{ color: colors.brown }}>Daily Margin</strong> — Revenue minus overhead. Green means you're covering your costs; red means overhead exceeds revenue.</li>
+                <li><strong style={{ color: colors.brown }}>Overhead %</strong> — What percentage of your daily revenue goes to overhead. Lower is better.</li>
+              </ul>
+            </div>
+          )}
+          <div className="p-4">
+            {cashDayCount === 0 ? (
+              <p className="text-sm text-center py-2" style={{ color: colors.brownLight }}>
+                Log cash deposits to see how your daily revenue compares to overhead costs.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Avg Daily Revenue</div>
+                  <div className="text-xl font-bold" style={{ color: colors.brown }}>{formatCurrency(avgDailyRevenue)}</div>
+                  <div className="text-xs" style={{ color: colors.brownLight }}>from {cashDayCount} days</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Daily Overhead</div>
+                  <div className="text-xl font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.daily)}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Daily Margin</div>
+                  <div className="text-xl font-bold" style={{ color: avgDailyRevenue - totals.daily >= 0 ? '#22c55e' : '#ef4444' }}>
+                    {formatCurrency(avgDailyRevenue - totals.daily)}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Overhead %</div>
+                  <div className="text-xl font-bold" style={{ color: avgDailyRevenue > 0 && (totals.daily / avgDailyRevenue) <= 0.5 ? '#22c55e' : colors.gold }}>
+                    {avgDailyRevenue > 0 ? `${((totals.daily / avgDailyRevenue) * 100).toFixed(1)}%` : '\u2014'}
+                  </div>
+                  <div className="text-xs" style={{ color: colors.brownLight }}>of revenue</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Overhead Calculator */}
       <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -443,47 +504,6 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
           </table>
         </div>
       </div>
-
-      {/* Revenue vs Overhead Comparison */}
-      {overheadItems.length > 0 && (
-        <div className="rounded-xl shadow-md overflow-hidden" style={{ backgroundColor: colors.white }} data-spotlight="revenue-chart">
-          <div className="px-4 py-3" style={{ backgroundColor: colors.brown }}>
-            <h3 className="font-bold text-white">Daily Revenue vs Overhead</h3>
-          </div>
-          <div className="p-4">
-            {cashDayCount === 0 ? (
-              <p className="text-sm text-center py-2" style={{ color: colors.brownLight }}>
-                Log cash deposits to see how your daily revenue compares to overhead costs.
-              </p>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Avg Daily Revenue</div>
-                  <div className="text-xl font-bold" style={{ color: colors.brown }}>{formatCurrency(avgDailyRevenue)}</div>
-                  <div className="text-xs" style={{ color: colors.brownLight }}>from {cashDayCount} days</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Daily Overhead</div>
-                  <div className="text-xl font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.daily)}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Daily Margin</div>
-                  <div className="text-xl font-bold" style={{ color: avgDailyRevenue - totals.daily >= 0 ? '#22c55e' : '#ef4444' }}>
-                    {formatCurrency(avgDailyRevenue - totals.daily)}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Overhead %</div>
-                  <div className="text-xl font-bold" style={{ color: avgDailyRevenue > 0 && (totals.daily / avgDailyRevenue) <= 0.5 ? '#22c55e' : colors.gold }}>
-                    {avgDailyRevenue > 0 ? `${((totals.daily / avgDailyRevenue) * 100).toFixed(1)}%` : '\u2014'}
-                  </div>
-                  <div className="text-xs" style={{ color: colors.brownLight }}>of revenue</div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Payroll Modal */}
       {showPayrollModal && (

@@ -85,24 +85,24 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAdd
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-4 justify-between">
-        <h3 className="font-bold text-lg" style={{ color: colors.brown }}>Base Templates (Disposables)</h3>
+        <h3 className="font-bold text-lg" style={{ color: colors.brown }}>Recipe Bases</h3>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
           className="px-4 py-2 font-semibold rounded-lg transition-all hover:opacity-90"
           style={{ backgroundColor: colors.gold, color: colors.white }}
           data-testid="button-add-template"
         >
-          + New Base Template
+          + New Recipe Base
         </button>
       </div>
 
       {showAddForm && (
         <div className="rounded-xl p-4 shadow-md" style={{ backgroundColor: colors.white }}>
-          <h3 className="font-bold mb-3" style={{ color: colors.brown }}>New Base Template</h3>
+          <h3 className="font-bold mb-3" style={{ color: colors.brown }}>New Recipe Base</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <input
               type="text"
-              placeholder="Template Name (e.g., Base Recipe)"
+              placeholder="Name (e.g., Hot Cup, Bagel)"
               value={newTemplate.name}
               onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
               className="px-3 py-2 rounded-lg border-0 outline-none"
@@ -537,9 +537,9 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, drinkSizes, onAdd
         {baseTemplates.length === 0 && (
           <div className="text-center py-10">
             <Layers className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
-            <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>No base templates yet</h3>
+            <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>No recipe bases yet</h3>
             <p className="text-sm" style={{ color: colors.brownLight }}>
-              Create base templates to define shared ingredient foundations across your recipes.
+              Create recipe bases to define shared starting ingredients (cups, lids, bulk food items) across your recipes.
             </p>
           </div>
         )}

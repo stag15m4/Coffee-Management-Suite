@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Trash2, Pencil, Copy, BookOpen } from 'lucide-react';
+import { Trash2, Pencil, Copy, BookOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { BaseTemplatesTab } from './BaseTemplatesTab';
 import { colors } from '@/lib/colors';
 import { formatCurrency, calculateCostPerUsageUnit } from './utils';
 import type {
@@ -32,9 +33,16 @@ interface RecipesTabProps {
   onDeleteRecipe: (recipeId: string) => Promise<void>;
   onAddBulkSize: (name: string, oz: number) => Promise<boolean>;
   onDeleteBulkSize: (sizeId: string) => Promise<void>;
+  // Recipe Bases (base template) operations
+  onAddTemplate: (template: { name: string; drink_type: string; description?: string }) => Promise<void>;
+  onAddTemplateIngredient: (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => Promise<void>;
+  onDeleteTemplateIngredient: (id: string) => Promise<void>;
+  onDeleteTemplate: (id: string) => Promise<void>;
+  onAddDrinkSize: (size: { name: string; size_oz: number; drink_type: string }) => Promise<string>;
+  onRemoveTemplateSize: (templateId: string, sizeId: string) => Promise<void>;
 }
 
-export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase, onDuplicateRecipe, onDeleteRecipe, onAddBulkSize, onDeleteBulkSize }: RecipesTabProps) => {
+export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase, onDuplicateRecipe, onDeleteRecipe, onAddBulkSize, onDeleteBulkSize, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient, onDeleteTemplate, onAddDrinkSize, onRemoveTemplateSize }: RecipesTabProps) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -49,6 +57,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes
   const [addingIngredient, setAddingIngredient] = useState<{ recipeId: string; sizeId: string } | null>(null);
   const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity: '1', unit: '' });
   const [showAddBulkSize, setShowAddBulkSize] = useState(false);
+  const [showRecipeBases, setShowRecipeBases] = useState(false);
   const [newBulkSize, setNewBulkSize] = useState({ name: '', oz: '' });
 
   const getIngredientCostPerUnit = (ing: Ingredient): number => {
@@ -225,6 +234,46 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, drinkSizes
 
   return (
     <div className="space-y-4">
+      {/* Collapsible Recipe Bases section */}
+      <div className="rounded-xl shadow-md overflow-hidden" style={{ backgroundColor: colors.white }}>
+        <button
+          onClick={() => setShowRecipeBases(!showRecipeBases)}
+          className="w-full px-4 py-3 flex items-center justify-between"
+          style={{ backgroundColor: colors.creamDark }}
+          data-testid="button-toggle-recipe-bases"
+        >
+          <div className="flex items-center gap-2">
+            {showRecipeBases ? (
+              <ChevronDown className="w-4 h-4" style={{ color: colors.gold }} />
+            ) : (
+              <ChevronRight className="w-4 h-4" style={{ color: colors.gold }} />
+            )}
+            <span className="font-bold" style={{ color: colors.brown }}>Recipe Bases</span>
+            <span className="text-sm" style={{ color: colors.brownLight }}>
+              ({baseTemplates.length})
+            </span>
+          </div>
+          <span className="text-xs" style={{ color: colors.brownLight }}>
+            {showRecipeBases ? 'Collapse' : 'Manage drink & food bases'}
+          </span>
+        </button>
+        {showRecipeBases && (
+          <div className="p-4">
+            <BaseTemplatesTab
+              baseTemplates={baseTemplates}
+              ingredients={ingredients}
+              drinkSizes={drinkSizes}
+              onAddTemplate={onAddTemplate}
+              onAddTemplateIngredient={onAddTemplateIngredient}
+              onDeleteTemplateIngredient={onDeleteTemplateIngredient}
+              onDeleteTemplate={onDeleteTemplate}
+              onAddDrinkSize={onAddDrinkSize}
+              onRemoveTemplateSize={onRemoveTemplateSize}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-wrap items-center gap-4 justify-between">
         <div className="flex items-center gap-2">
           <span className="font-medium" style={{ color: colors.brown }}>Category:</span>
