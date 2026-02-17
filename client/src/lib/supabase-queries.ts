@@ -111,7 +111,12 @@ export function useProductSizes() {
       if (tenant?.id) query = query.eq('tenant_id', tenant.id);
       const { data, error } = await query.order('display_order');
       if (error) throw error;
-      return data || [];
+      // Map DB column names (size_value, product_type) to the DrinkSize interface (size_oz, drink_type)
+      return (data || []).map((s: any) => ({
+        ...s,
+        size_oz: s.size_value ?? s.size_oz ?? 0,
+        drink_type: s.product_type ?? s.drink_type ?? '',
+      }));
     },
     staleTime: 5 * 60 * 1000,
   });

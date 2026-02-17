@@ -512,7 +512,7 @@ export default function RecipeCostingPage() {
 
     const { data, error } = await supabase
       .from('product_sizes')
-      .insert({ name: size.name, size_value: size.size_value, display_order: nextOrder, product_type: size.product_type, tenant_id: profile?.tenant_id })
+      .insert({ name: size.name, size_value: size.size_oz, display_order: nextOrder, product_type: size.drink_type, tenant_id: profile?.tenant_id })
       .select('id')
       .single();
 
