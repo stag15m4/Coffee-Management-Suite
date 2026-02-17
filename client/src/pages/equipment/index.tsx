@@ -889,6 +889,7 @@ export default function EquipmentMaintenance() {
               equipment={equipment}
               tasks={tasks}
               categories={categories}
+              displayName={displayName}
               editingEquipment={editingEquipment}
               setEditingEquipment={setEditingEquipment}
               isUploadingEditPhoto={isUploadingEditPhoto}

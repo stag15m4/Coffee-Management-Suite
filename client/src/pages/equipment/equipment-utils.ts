@@ -253,7 +253,7 @@ export function exportEquipmentListCSV(equipmentList: Equipment[]): void {
 
 // ── Equipment list PDF/print export (for accountant) ─────────────
 
-export function exportEquipmentListPDF(equipmentList: Equipment[]): void {
+export function exportEquipmentListPDF(equipmentList: Equipment[], businessName?: string): void {
   const sorted = [...equipmentList].sort(
     (a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name),
   );
@@ -409,6 +409,7 @@ export function exportEquipmentListPDF(equipmentList: Equipment[]): void {
 
       <div class="page">
         <div class="header">
+          ${businessName ? `<h2 style="margin: 0 0 5px 0; font-size: 18px; color: #6B5344; font-weight: normal;">${esc(businessName)}</h2>` : ''}
           <h1>Equipment List</h1>
           <p>Exported: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
           <p>${sorted.length} items</p>

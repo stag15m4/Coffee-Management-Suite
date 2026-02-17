@@ -38,6 +38,7 @@ interface EquipmentListProps {
   equipment: Equipment[];
   tasks: MaintenanceTask[];
   categories: string[];
+  displayName?: string;
   editingEquipment: Equipment | null;
   setEditingEquipment: (eq: Equipment | null | ((prev: Equipment | null) => Equipment | null)) => void;
   isUploadingEditPhoto: boolean;
@@ -55,6 +56,7 @@ export function EquipmentList({
   equipment,
   tasks,
   categories,
+  displayName,
   editingEquipment,
   setEditingEquipment,
   isUploadingEditPhoto,
@@ -78,7 +80,7 @@ export function EquipmentList({
             <>
               <Button
                 variant="outline"
-                onClick={() => exportEquipmentListPDF(equipment)}
+                onClick={() => exportEquipmentListPDF(equipment, displayName)}
                 style={{ borderColor: colors.gold, color: colors.brown }}
                 data-testid="button-print-equipment-list"
               >
