@@ -380,6 +380,9 @@ export function exportEquipmentListPDF(equipmentList: Equipment[]): void {
         .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center; }
         .summary-item { font-size: 14px; color: #6B5344; }
         .summary-item strong { display: block; font-size: 20px; color: #4A3728; margin-bottom: 5px; }
+        tr { break-inside: avoid; }
+        .category-row { break-after: avoid; }
+        .summary-box { break-inside: avoid; }
         @media print {
           body { print-color-adjust: exact; -webkit-print-color-adjust: exact; padding: 0; }
           .page { border: none; box-shadow: none; margin-bottom: 0; }
