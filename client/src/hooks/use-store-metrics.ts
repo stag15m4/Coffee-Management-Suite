@@ -37,6 +37,7 @@ const ALL_MODULES: ModuleId[] = [
   'bulk-ordering',
   'equipment-maintenance',
   'admin-tasks',
+  'document-library',
 ];
 
 async function fetchEnabledModules(tenantId: string): Promise<ModuleId[]> {

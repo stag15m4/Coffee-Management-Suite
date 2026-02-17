@@ -38,6 +38,7 @@ import Reporting from "@/pages/reporting";
 import AdminRoleSettings from "@/pages/admin-role-settings";
 import StoreProfile from "@/pages/store-profile";
 import AdminIntegrations from "@/pages/admin-integrations";
+import DocumentLibrary from "@/pages/document-library";
 import Kiosk from "@/pages/kiosk";
 
 function HomePage() {
@@ -135,6 +136,11 @@ function Router() {
       <Route path="/reporting">
         <ProtectedRoute module="reporting">
           <AppLayout><Reporting /></AppLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/document-library">
+        <ProtectedRoute module="document-library">
+          <AppLayout><DocumentLibrary /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/billing">

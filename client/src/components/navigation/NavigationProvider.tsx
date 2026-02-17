@@ -20,6 +20,7 @@ import {
   Shield,
   MoreHorizontal,
   Plug,
+  FileText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -135,6 +136,13 @@ const MODULE_NAV_CONFIG: Record<ModuleId, ModuleNavConfig> = {
     labelKey: '',
     staticLabel: 'Reporting',
   },
+  'document-library': {
+    id: 'document-library',
+    route: '/document-library',
+    icon: FileText,
+    labelKey: '',
+    staticLabel: 'Documents',
+  },
 };
 
 /**
@@ -150,6 +158,7 @@ const MOBILE_MODULE_PRIORITY: ModuleId[] = [
   'admin-tasks',
   'bulk-ordering',
   'reporting',
+  'document-library',
 ];
 
 // ---------------------------------------------------------------------------

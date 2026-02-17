@@ -27,6 +27,7 @@ import {
   Search,
   BarChart3,
   Gift,
+  FileText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -82,6 +83,7 @@ const MODULE_NAV: Record<ModuleId, NavItem> = {
     ],
   },
   'reporting': { href: '/reporting', label: 'Reporting', icon: BarChart3 },
+  'document-library': { href: '/document-library', label: 'Documents', icon: FileText },
 };
 
 interface NavCategory {
@@ -95,6 +97,7 @@ const NAV_CATEGORIES: NavCategory[] = [
   { label: 'Scheduling', modules: ['calendar-workforce', 'admin-tasks'] },
   { label: 'Maintenance', modules: ['equipment-maintenance'] },
   { label: 'Analytics', modules: ['reporting'] },
+  { label: 'Resources', modules: ['document-library'] },
 ];
 
 const ALL_MODULE_IDS: ModuleId[] = [
@@ -106,6 +109,7 @@ const ALL_MODULE_IDS: ModuleId[] = [
   'admin-tasks',
   'calendar-workforce',
   'reporting',
+  'document-library',
 ];
 
 export function Sidebar() {

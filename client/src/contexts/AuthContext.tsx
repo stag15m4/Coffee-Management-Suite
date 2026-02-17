@@ -48,7 +48,7 @@ export interface Tenant {
   starting_drawer_default?: number | null;
 }
 
-export type ModuleId = 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering' | 'equipment-maintenance' | 'admin-tasks' | 'calendar-workforce' | 'reporting';
+export type ModuleId = 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering' | 'equipment-maintenance' | 'admin-tasks' | 'calendar-workforce' | 'reporting' | 'document-library';
 
 interface AuthContextType {
   user: User | null;
@@ -401,6 +401,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         'equipment-maintenance',
         'admin-tasks',
         'calendar-workforce',
+        'document-library',
       ];
 
       setUser(mockUser);
@@ -702,6 +703,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       'admin-tasks': 'manager',              // Managers and Owners
       'calendar-workforce': 'employee',      // All team members
       'reporting': 'lead',                    // Leads, Managers, Owners
+      'document-library': 'employee',          // All team members
     };
 
     return hasRole(moduleAccess[module]);
