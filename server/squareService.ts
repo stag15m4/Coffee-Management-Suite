@@ -92,7 +92,7 @@ export class SquareService {
   // OAuth
   // -------------------------------------------------------------------------
 
-  async exchangeCodeForTokens(code: string): Promise<{
+  async exchangeCodeForTokens(code: string, redirectUri: string): Promise<{
     accessToken: string;
     refreshToken: string;
     expiresAt: Date;
@@ -104,6 +104,7 @@ export class SquareService {
       clientSecret: getSquareAppSecret(),
       code,
       grantType: 'authorization_code',
+      redirectUri,
     });
 
     if (!result.accessToken || !result.refreshToken || !result.merchantId) {

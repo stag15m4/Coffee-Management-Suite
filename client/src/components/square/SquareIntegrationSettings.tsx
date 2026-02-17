@@ -117,32 +117,23 @@ export default function SquareIntegrationSettings() {
     init();
   }, [fetchStatus, fetchMappings]);
 
-  // Handle OAuth callback (code in URL params)
+  // Handle OAuth callback result (server-side redirect sets query params)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const state = params.get('state');
+    const connected = params.get('square_connected');
+    const error = params.get('square_error');
 
-    if (code && state) {
+    if (connected || error) {
       // Clear the URL params
       window.history.replaceState({}, '', window.location.pathname);
 
-      (async () => {
-        try {
-          const result = await apiFetch('/api/square/callback', {
-            method: 'POST',
-            body: JSON.stringify({ code }),
-          });
-          if (result.locations) {
-            setLocations(result.locations);
-          }
-          toast({ title: 'Square connected successfully' });
-          await fetchStatus();
-          await fetchMappings();
-        } catch (err: any) {
-          toast({ title: 'Failed to connect Square', description: err.message, variant: 'destructive' });
-        }
-      })();
+      if (connected) {
+        toast({ title: 'Square connected successfully' });
+        fetchStatus();
+        fetchMappings();
+      } else if (error) {
+        toast({ title: 'Failed to connect Square', description: error, variant: 'destructive' });
+      }
     }
   }, [toast, fetchStatus, fetchMappings]);
 

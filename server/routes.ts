@@ -504,7 +504,8 @@ export async function registerRoutes(
       // Use X-Forwarded headers (set by Codespace proxy / reverse proxies) to build the real URL
       const proto = req.get('x-forwarded-proto') || req.protocol;
       const host = req.get('x-forwarded-host') || req.get('host');
-      const redirectUri = `${proto}://${host}/admin/integrations`;
+      // Redirect to server-side callback handler (not the SPA) for instant code exchange
+      const redirectUri = `${proto}://${host}/api/square/oauth/callback`;
       const url = getSquareOAuthUrl(auth.tenantId, redirectUri);
       res.json({ url });
     } catch (error: any) {
@@ -512,31 +513,34 @@ export async function registerRoutes(
     }
   });
 
-  app.post('/api/square/callback', async (req, res) => {
+  // Server-side OAuth callback — Square redirects here with ?code=...&state=tenantId
+  // This exchanges the code instantly (no SPA load delay) then redirects to the frontend.
+  app.get('/api/square/oauth/callback', async (req, res) => {
+    const { code, state: tenantId } = req.query;
+    const frontendUrl = '/admin/integrations';
+
+    if (!code || !tenantId) {
+      return res.redirect(`${frontendUrl}?square_error=${encodeURIComponent('Missing authorization code or state')}`);
+    }
+
     try {
-      const auth = await verifySquareAdmin(req, res);
-      if (!auth) return;
-
-      const { code } = req.body;
-      if (!code) {
-        return res.status(400).json({ error: 'Missing authorization code' });
-      }
-
-      const tokens = await squareService.exchangeCodeForTokens(code);
+      // Reconstruct the redirect URI that was used in the authorize request (must match exactly)
+      const proto = req.get('x-forwarded-proto') || req.protocol;
+      const host = req.get('x-forwarded-host') || req.get('host');
+      const redirectUri = `${proto}://${host}/api/square/oauth/callback`;
+      const tokens = await squareService.exchangeCodeForTokens(code as string, redirectUri);
       await squareService.saveTenantSquareTokens(
-        auth.tenantId,
+        tenantId as string,
         tokens.merchantId,
         tokens.accessToken,
         tokens.refreshToken,
         tokens.expiresAt
       );
 
-      // Fetch locations so admin can pick one
-      const locations = await squareService.listLocations(auth.tenantId);
-
-      res.json({ success: true, locations });
+      res.redirect(`${frontendUrl}?square_connected=true`);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('[square] OAuth callback error:', error.message);
+      res.redirect(`${frontendUrl}?square_error=${encodeURIComponent(error.message)}`);
     }
   });
 

@@ -71,8 +71,7 @@ export function WhatsNew() {
 
       if (data?.changelog_last_seen !== CHANGELOG_VERSION) {
         setHasNewUpdates(true);
-        // Auto-open the sheet after a brief delay so the page loads first
-        setTimeout(() => setOpen(true), 1500);
+        // Badge shows in sidebar; user can open manually
       }
     };
 
