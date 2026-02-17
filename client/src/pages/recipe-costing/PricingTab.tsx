@@ -494,19 +494,42 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, ov
               </tr>
             </thead>
             <tbody>
-              {drinkRecipesWithDefaults.map((recipe, idx) => (
-                <tr
-                  key={recipe.id}
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? colors.white : colors.cream,
-                    borderBottom: `1px solid ${colors.creamDark}`,
-                  }}
-                  data-testid={`row-pricing-${recipe.name}`}
-                >
-                  <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>
-                    <div>{recipe.name}</div>
-                    <div className="text-xs" style={{ color: colors.brownLight }}>{recipe.category_name}</div>
-                  </td>
+              {[...drinkRecipesWithDefaults]
+                .sort((a, b) => {
+                  const categoryOrder = ['Drinks', 'Food Items', 'Grab-N-Go', 'House-Made'];
+                  const aOrder = categoryOrder.indexOf(a.category_name || '');
+                  const bOrder = categoryOrder.indexOf(b.category_name || '');
+                  const aPriority = aOrder >= 0 ? aOrder : categoryOrder.length;
+                  const bPriority = bOrder >= 0 ? bOrder : categoryOrder.length;
+                  if (aPriority !== bPriority) return aPriority - bPriority;
+                  return a.name.localeCompare(b.name);
+                })
+                .map((recipe, idx, sorted) => {
+                  const prevCategory = idx > 0 ? sorted[idx - 1].category_name : null;
+                  const showCategoryHeader = recipe.category_name !== prevCategory;
+                  return (
+                    <Fragment key={recipe.id}>
+                      {showCategoryHeader && (
+                        <tr style={{ backgroundColor: colors.creamDark }}>
+                          <td
+                            colSpan={1 + standardDrinkSizes.length * 4}
+                            className="px-4 py-2 text-xs font-bold uppercase tracking-wider"
+                            style={{ color: colors.brown }}
+                          >
+                            {recipe.category_name || 'Uncategorized'}
+                          </td>
+                        </tr>
+                      )}
+                      <tr
+                        style={{
+                          backgroundColor: idx % 2 === 0 ? colors.white : colors.cream,
+                          borderBottom: `1px solid ${colors.creamDark}`,
+                        }}
+                        data-testid={`row-pricing-${recipe.name}`}
+                      >
+                        <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>
+                          <div>{recipe.name}</div>
+                        </td>
                   {standardDrinkSizes.map(size => {
                     const hasItems = hasIngredientsForSize(recipe, size.id);
                     if (!hasItems) {
@@ -579,8 +602,10 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, ov
                       </Fragment>
                     );
                   })}
-                </tr>
-              ))}
+                      </tr>
+                    </Fragment>
+                  );
+                })}
             </tbody>
           </table>
         </div>
@@ -620,19 +645,42 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, ov
                     </td>
                   </tr>
                 ) : (
-                  foodRecipes.map((recipe, idx) => (
-                    <tr
-                      key={recipe.id}
-                      style={{
-                        backgroundColor: idx % 2 === 0 ? colors.white : colors.cream,
-                        borderBottom: `1px solid ${colors.creamDark}`,
-                      }}
-                      data-testid={`row-pricing-food-${recipe.name}`}
-                    >
-                      <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>
-                        <div>{recipe.name}</div>
-                        <div className="text-xs" style={{ color: colors.brownLight }}>{recipe.category_name}</div>
-                      </td>
+                  [...foodRecipes]
+                    .sort((a, b) => {
+                      const categoryOrder = ['Food Items', 'Grab-N-Go'];
+                      const aOrder = categoryOrder.indexOf(a.category_name || '');
+                      const bOrder = categoryOrder.indexOf(b.category_name || '');
+                      const aPriority = aOrder >= 0 ? aOrder : categoryOrder.length;
+                      const bPriority = bOrder >= 0 ? bOrder : categoryOrder.length;
+                      if (aPriority !== bPriority) return aPriority - bPriority;
+                      return a.name.localeCompare(b.name);
+                    })
+                    .map((recipe, idx, sorted) => {
+                      const prevCategory = idx > 0 ? sorted[idx - 1].category_name : null;
+                      const showCategoryHeader = recipe.category_name !== prevCategory;
+                      return (
+                        <Fragment key={recipe.id}>
+                          {showCategoryHeader && (
+                            <tr style={{ backgroundColor: colors.creamDark }}>
+                              <td
+                                colSpan={1 + foodSizes.length * 4}
+                                className="px-4 py-2 text-xs font-bold uppercase tracking-wider"
+                                style={{ color: colors.brown }}
+                              >
+                                {recipe.category_name || 'Uncategorized'}
+                              </td>
+                            </tr>
+                          )}
+                          <tr
+                            style={{
+                              backgroundColor: idx % 2 === 0 ? colors.white : colors.cream,
+                              borderBottom: `1px solid ${colors.creamDark}`,
+                            }}
+                            data-testid={`row-pricing-food-${recipe.name}`}
+                          >
+                            <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>
+                              <div>{recipe.name}</div>
+                            </td>
                       {foodSizes.map(size => {
                         const hasItems = hasIngredientsForSize(recipe, size.id);
                         if (!hasItems) {
@@ -705,8 +753,10 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, drinkSizes, ov
                           </Fragment>
                         );
                       })}
-                    </tr>
-                  ))
+                          </tr>
+                        </Fragment>
+                      );
+                    })
                 )}
               </tbody>
             </table>
