@@ -268,7 +268,7 @@ export function exportEquipmentListPDF(equipmentList: Equipment[]): void {
 
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-  const buildRow = (eq: Equipment) => {
+  const buildCard = (eq: Equipment) => {
     const wStatus = getWarrantyStatus(eq);
     const wExpiration = getWarrantyExpirationDate(eq);
     const inService = eq.in_service_date ? parseLocalDate(eq.in_service_date).toLocaleDateString() : '—';
@@ -291,25 +291,25 @@ export function exportEquipmentListPDF(equipmentList: Equipment[]): void {
     const warrantyNotesLine = eq.warranty_notes ? `<div class="detail-line" style="font-style:italic;">${esc(eq.warranty_notes)}</div>` : '';
 
     return `
-      <tr>
-        <td class="name-cell">
+      <div class="eq-card">
+        <div class="eq-name">
           <strong>${esc(eq.name)}</strong>
           ${modelSerial}${vehicleInfo}${notesLine}${warrantyNotesLine}
-        </td>
-        <td>${inService}</td>
-        <td>${purchased}</td>
-        <td>${warrantyCell}</td>
-      </tr>
+        </div>
+        <div class="eq-fields">
+          <span>In Service: ${inService}</span>
+          <span>Purchased: ${purchased}</span>
+          <span>Warranty: ${warrantyCell}</span>
+        </div>
+      </div>
     `;
   };
 
-  let tableContent = '';
+  let content = '';
   Array.from(grouped.entries()).forEach(([category, items]) => {
-    tableContent += `
-      <tr class="category-row">
-        <td colspan="4">${esc(category)} (${items.length})</td>
-      </tr>
-      ${items.map(buildRow).join('')}
+    content += `
+      <div class="category-header">${esc(category)} (${items.length})</div>
+      ${items.map(buildCard).join('')}
     `;
   });
 
@@ -347,18 +347,31 @@ export function exportEquipmentListPDF(equipmentList: Equipment[]): void {
         .header { text-align: center; margin-bottom: 20px; }
         .header h1 { margin: 0; font-size: 24px; color: #4A3728; }
         .header p { margin: 5px 0; font-size: 14px; color: #6B5344; }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th { background-color: #C9A227; color: #4A3728; padding: 10px 8px; text-align: left; font-weight: bold; font-size: 13px; }
-        td { padding: 8px; border-bottom: 1px solid #E8E0CC; font-size: 13px; vertical-align: top; }
-        .category-row td {
+        .category-header {
           background-color: #F5F0E1;
           font-weight: bold;
           font-size: 14px;
           color: #4A3728;
           padding: 10px 8px;
           border-bottom: 2px solid #C9A227;
+          margin-top: 18px;
         }
-        .name-cell { min-width: 200px; }
+        .category-header:first-child { margin-top: 0; }
+        .eq-card {
+          padding: 10px 8px;
+          border-bottom: 1px solid #E8E0CC;
+          page-break-inside: avoid;
+          break-inside: avoid;
+          -webkit-column-break-inside: avoid;
+        }
+        .eq-name { font-size: 13px; }
+        .eq-fields {
+          display: flex;
+          gap: 20px;
+          margin-top: 4px;
+          font-size: 12px;
+          color: #6B5344;
+        }
         .detail-line { font-size: 11px; color: #6B5344; margin-top: 2px; }
         .warranty-covered {
           background: #22c55e; color: white;
@@ -375,14 +388,13 @@ export function exportEquipmentListPDF(equipmentList: Equipment[]): void {
           padding: 20px;
           border-radius: 8px;
           margin-top: 20px;
+          page-break-inside: avoid;
+          break-inside: avoid;
         }
         .summary-box h2 { margin: 0 0 15px 0; font-size: 18px; color: #C9A227; }
         .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center; }
         .summary-item { font-size: 14px; color: #6B5344; }
         .summary-item strong { display: block; font-size: 20px; color: #4A3728; margin-bottom: 5px; }
-        tr { break-inside: avoid; }
-        .category-row { break-after: avoid; }
-        .summary-box { break-inside: avoid; }
         @media print {
           body { print-color-adjust: exact; -webkit-print-color-adjust: exact; padding: 0; }
           .page { border: none; box-shadow: none; margin-bottom: 0; }
@@ -402,19 +414,7 @@ export function exportEquipmentListPDF(equipmentList: Equipment[]): void {
           <p>${sorted.length} items</p>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Equipment</th>
-              <th>In Service</th>
-              <th>Purchased</th>
-              <th>Warranty</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${tableContent}
-          </tbody>
-        </table>
+        ${content}
 
         <div class="summary-box">
           <h2>Summary</h2>
