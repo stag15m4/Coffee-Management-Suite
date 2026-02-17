@@ -165,7 +165,9 @@ export default function EquipmentMaintenance() {
       editingEquipment.warranty_duration_months !== orig.warranty_duration_months ||
       editingEquipment.warranty_notes !== orig.warranty_notes ||
       editingEquipment.photo_url !== orig.photo_url ||
-      editingEquipment.in_service_date !== orig.in_service_date
+      editingEquipment.in_service_date !== orig.in_service_date ||
+      editingEquipment.model !== orig.model ||
+      editingEquipment.serial_number !== orig.serial_number
     );
   }, [editingEquipment]);
 
@@ -195,6 +197,8 @@ export default function EquipmentMaintenance() {
   const [newEquipmentLicenseState, setNewEquipmentLicenseState] = useState('');
   const [newEquipmentLicensePlate, setNewEquipmentLicensePlate] = useState('');
   const [newEquipmentVin, setNewEquipmentVin] = useState('');
+  const [newEquipmentModel, setNewEquipmentModel] = useState('');
+  const [newEquipmentSerialNumber, setNewEquipmentSerialNumber] = useState('');
   const [isUploadingNewPhoto, setIsUploadingNewPhoto] = useState(false);
   const [isUploadingEditPhoto, setIsUploadingEditPhoto] = useState(false);
 
@@ -325,6 +329,8 @@ export default function EquipmentMaintenance() {
         license_state: isVehicle(newEquipmentCategory) && newEquipmentLicenseState ? newEquipmentLicenseState : undefined,
         license_plate: isVehicle(newEquipmentCategory) && newEquipmentLicensePlate ? newEquipmentLicensePlate : undefined,
         vin: isVehicle(newEquipmentCategory) && newEquipmentVin ? newEquipmentVin : undefined,
+        model: !isVehicle(newEquipmentCategory) && newEquipmentModel.trim() ? newEquipmentModel.trim() : undefined,
+        serial_number: !isVehicle(newEquipmentCategory) && newEquipmentSerialNumber.trim() ? newEquipmentSerialNumber.trim() : undefined,
       }));
 
       setNewEquipmentName('');
@@ -339,6 +345,8 @@ export default function EquipmentMaintenance() {
       setNewEquipmentLicenseState('');
       setNewEquipmentLicensePlate('');
       setNewEquipmentVin('');
+      setNewEquipmentModel('');
+      setNewEquipmentSerialNumber('');
       setShowAddEquipment(false);
       toast({ title: 'Equipment added successfully' });
     } catch (error: any) {
@@ -381,6 +389,8 @@ export default function EquipmentMaintenance() {
           license_state: isVehicle(editingEquipment.category) ? editingEquipment.license_state : null,
           license_plate: isVehicle(editingEquipment.category) ? editingEquipment.license_plate : null,
           vin: isVehicle(editingEquipment.category) ? editingEquipment.vin : null,
+          model: !isVehicle(editingEquipment.category) ? editingEquipment.model : null,
+          serial_number: !isVehicle(editingEquipment.category) ? editingEquipment.serial_number : null,
         }
       }));
 
@@ -863,6 +873,10 @@ export default function EquipmentMaintenance() {
                 setNewEquipmentLicensePlate={setNewEquipmentLicensePlate}
                 newEquipmentVin={newEquipmentVin}
                 setNewEquipmentVin={setNewEquipmentVin}
+                newEquipmentModel={newEquipmentModel}
+                setNewEquipmentModel={setNewEquipmentModel}
+                newEquipmentSerialNumber={newEquipmentSerialNumber}
+                setNewEquipmentSerialNumber={setNewEquipmentSerialNumber}
                 isUploadingNewPhoto={isUploadingNewPhoto}
                 handleEquipmentPhotoUpload={handleEquipmentPhotoUpload}
                 handleAddEquipment={handleAddEquipment}

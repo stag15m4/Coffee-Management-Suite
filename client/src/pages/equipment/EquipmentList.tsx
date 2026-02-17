@@ -13,6 +13,7 @@ import {
   Plus,
   Settings,
   Download,
+  Printer,
   Trash2,
   Edit2,
   Check,
@@ -29,6 +30,8 @@ import {
   formatWarrantyInfo,
   parseLocalDate,
   exportEquipmentRecords,
+  exportEquipmentListCSV,
+  exportEquipmentListPDF,
 } from './equipment-utils';
 
 interface EquipmentListProps {
@@ -70,14 +73,41 @@ export function EquipmentList({
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="font-semibold" style={{ color: colors.brown }}>Equipment List</h2>
-        <Button
-          onClick={() => setShowAddEquipment(true)}
-          style={{ backgroundColor: colors.gold, color: colors.white }}
-          data-testid="button-add-equipment"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Equipment
-        </Button>
+        <div className="flex gap-2">
+          {equipment.length > 0 && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => exportEquipmentListPDF(equipment)}
+                style={{ borderColor: colors.gold, color: colors.brown }}
+                data-testid="button-print-equipment-list"
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  exportEquipmentListCSV(equipment);
+                  toast({ title: 'Equipment list exported' });
+                }}
+                style={{ borderColor: colors.gold, color: colors.brown }}
+                data-testid="button-export-equipment-list"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                CSV
+              </Button>
+            </>
+          )}
+          <Button
+            onClick={() => setShowAddEquipment(true)}
+            style={{ backgroundColor: colors.gold, color: colors.white }}
+            data-testid="button-add-equipment"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Equipment
+          </Button>
+        </div>
       </div>
 
       {equipment.length === 0 ? (
@@ -107,6 +137,30 @@ export function EquipmentList({
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       data-testid="input-edit-equipment-name"
                     />
+                    {!isVehicle(editingEquipment.category) && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label style={{ color: colors.brown }}>Model</Label>
+                          <Input
+                            value={editingEquipment.model || ''}
+                            onChange={e => setEditingEquipment({ ...editingEquipment, model: e.target.value || null })}
+                            placeholder="e.g., Mazzer Mini"
+                            style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                            data-testid="input-edit-equipment-model"
+                          />
+                        </div>
+                        <div>
+                          <Label style={{ color: colors.brown }}>Serial Number</Label>
+                          <Input
+                            value={editingEquipment.serial_number || ''}
+                            onChange={e => setEditingEquipment({ ...editingEquipment, serial_number: e.target.value || null })}
+                            placeholder="e.g., SN-12345678"
+                            style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                            data-testid="input-edit-equipment-serial-number"
+                          />
+                        </div>
+                      </div>
+                    )}
                     <PhotoCapture
                       currentPhotoUrl={editingEquipment.photo_url}
                       onPhotoSelected={async (file) => handleEquipmentPhotoUpload(file, 'edit')}
@@ -329,6 +383,12 @@ export function EquipmentList({
                           </Badge>
                         )}
                       </div>
+                      {!isVehicle(item.category) && (item.model || item.serial_number) && (
+                        <div className="mt-1 text-xs space-x-3" style={{ color: colors.brownLight }}>
+                          {item.model && <span>Model: {item.model}</span>}
+                          {item.serial_number && <span>S/N: {item.serial_number}</span>}
+                        </div>
+                      )}
                       {item.notes && (
                         <p className="text-sm mt-2" style={{ color: colors.brownLight }}>{item.notes}</p>
                       )}

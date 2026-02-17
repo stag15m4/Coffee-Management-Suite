@@ -194,6 +194,256 @@ export function downloadICalFile(task: MaintenanceTask, equipmentName: string): 
   URL.revokeObjectURL(url);
 }
 
+// ── Equipment list CSV export (for accountant) ──────────────────
+
+export function exportEquipmentListCSV(equipmentList: Equipment[]): void {
+  const headers = [
+    'Name',
+    'Category',
+    'Model',
+    'Serial Number',
+    'In Service Date',
+    'Purchase Date',
+    'Warranty (months)',
+    'Warranty Expiration',
+    'Warranty Status',
+    'Warranty Notes',
+    'Notes',
+    'License Plate',
+    'VIN',
+    'Date Added',
+  ];
+
+  const rows = [...equipmentList]
+    .sort((a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name))
+    .map((eq) => {
+      const wStatus = getWarrantyStatus(eq);
+      const wExpiration = getWarrantyExpirationDate(eq);
+      return [
+        eq.name,
+        eq.category || '',
+        eq.model || '',
+        eq.serial_number || '',
+        eq.in_service_date ? parseLocalDate(eq.in_service_date).toLocaleDateString() : '',
+        eq.purchase_date ? parseLocalDate(eq.purchase_date).toLocaleDateString() : '',
+        eq.warranty_duration_months != null ? String(eq.warranty_duration_months) : '',
+        wExpiration ? wExpiration.toLocaleDateString() : '',
+        wStatus === 'covered' ? 'Active' : wStatus === 'expired' ? 'Expired' : '',
+        eq.warranty_notes || '',
+        eq.notes || '',
+        eq.license_plate ? `${eq.license_state ? eq.license_state + ' ' : ''}${eq.license_plate}` : '',
+        eq.vin || '',
+        new Date(eq.created_at).toLocaleDateString(),
+      ];
+    });
+
+  const escape = (val: string) => `"${val.replace(/"/g, '""')}"`;
+  const csv = [headers.join(','), ...rows.map((r) => r.map(escape).join(','))].join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `equipment-list-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+// ── Equipment list PDF/print export (for accountant) ─────────────
+
+export function exportEquipmentListPDF(equipmentList: Equipment[]): void {
+  const sorted = [...equipmentList].sort(
+    (a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name),
+  );
+
+  // Group by category
+  const grouped = new Map<string, Equipment[]>();
+  for (const eq of sorted) {
+    const cat = eq.category || 'Uncategorized';
+    if (!grouped.has(cat)) grouped.set(cat, []);
+    grouped.get(cat)!.push(eq);
+  }
+
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const buildRow = (eq: Equipment) => {
+    const wStatus = getWarrantyStatus(eq);
+    const wExpiration = getWarrantyExpirationDate(eq);
+    const inService = eq.in_service_date ? parseLocalDate(eq.in_service_date).toLocaleDateString() : '—';
+    const purchased = eq.purchase_date ? parseLocalDate(eq.purchase_date).toLocaleDateString() : '—';
+    const warrantyCell =
+      wStatus === 'covered'
+        ? `<span class="warranty-covered">Active</span> (exp ${wExpiration!.toLocaleDateString()})`
+        : wStatus === 'expired'
+          ? `<span class="warranty-expired">Expired</span> ${wExpiration ? wExpiration.toLocaleDateString() : ''}`
+          : '—';
+    const vehicleInfo =
+      isVehicle(eq.category) && (eq.license_plate || eq.vin)
+        ? `<div class="detail-line">${eq.license_plate ? `Plate: ${eq.license_state ? eq.license_state + ' ' : ''}${esc(eq.license_plate)}` : ''}${eq.license_plate && eq.vin ? ' &nbsp;|&nbsp; ' : ''}${eq.vin ? `VIN: ${esc(eq.vin)}` : ''}</div>`
+        : '';
+    const modelSerial =
+      !isVehicle(eq.category) && (eq.model || eq.serial_number)
+        ? `<div class="detail-line">${eq.model ? `Model: ${esc(eq.model)}` : ''}${eq.model && eq.serial_number ? ' &nbsp;|&nbsp; ' : ''}${eq.serial_number ? `S/N: ${esc(eq.serial_number)}` : ''}</div>`
+        : '';
+    const notesLine = eq.notes ? `<div class="detail-line">${esc(eq.notes)}</div>` : '';
+    const warrantyNotesLine = eq.warranty_notes ? `<div class="detail-line" style="font-style:italic;">${esc(eq.warranty_notes)}</div>` : '';
+
+    return `
+      <tr>
+        <td class="name-cell">
+          <strong>${esc(eq.name)}</strong>
+          ${modelSerial}${vehicleInfo}${notesLine}${warrantyNotesLine}
+        </td>
+        <td>${inService}</td>
+        <td>${purchased}</td>
+        <td>${warrantyCell}</td>
+      </tr>
+    `;
+  };
+
+  let tableContent = '';
+  Array.from(grouped.entries()).forEach(([category, items]) => {
+    tableContent += `
+      <tr class="category-row">
+        <td colspan="4">${esc(category)} (${items.length})</td>
+      </tr>
+      ${items.map(buildRow).join('')}
+    `;
+  });
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Equipment List</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; color: #4A3728; max-width: 900px; margin: 0 auto; }
+        .back-button {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          background-color: #C9A227;
+          color: #4A3728;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          margin-bottom: 20px;
+          cursor: pointer;
+          border: none;
+          font-size: 14px;
+        }
+        .back-button:hover { background-color: #b8911f; }
+        @media print { .back-button, .no-print { display: none !important; } }
+        .page {
+          border: 1px solid #C9A227;
+          border-radius: 8px;
+          padding: 25px;
+          background: #FFFDF7;
+          margin-bottom: 30px;
+        }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 24px; color: #4A3728; }
+        .header p { margin: 5px 0; font-size: 14px; color: #6B5344; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th { background-color: #C9A227; color: #4A3728; padding: 10px 8px; text-align: left; font-weight: bold; font-size: 13px; }
+        td { padding: 8px; border-bottom: 1px solid #E8E0CC; font-size: 13px; vertical-align: top; }
+        .category-row td {
+          background-color: #F5F0E1;
+          font-weight: bold;
+          font-size: 14px;
+          color: #4A3728;
+          padding: 10px 8px;
+          border-bottom: 2px solid #C9A227;
+        }
+        .name-cell { min-width: 200px; }
+        .detail-line { font-size: 11px; color: #6B5344; margin-top: 2px; }
+        .warranty-covered {
+          background: #22c55e; color: white;
+          padding: 1px 6px; border-radius: 3px;
+          font-size: 11px; font-weight: bold;
+        }
+        .warranty-expired {
+          background: #ef4444; color: white;
+          padding: 1px 6px; border-radius: 3px;
+          font-size: 11px;
+        }
+        .summary-box {
+          background: #F5F0E1;
+          padding: 20px;
+          border-radius: 8px;
+          margin-top: 20px;
+        }
+        .summary-box h2 { margin: 0 0 15px 0; font-size: 18px; color: #C9A227; }
+        .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center; }
+        .summary-item { font-size: 14px; color: #6B5344; }
+        .summary-item strong { display: block; font-size: 20px; color: #4A3728; margin-bottom: 5px; }
+        @media print {
+          body { print-color-adjust: exact; -webkit-print-color-adjust: exact; padding: 0; }
+          .page { border: none; box-shadow: none; margin-bottom: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="no-print" style="margin-bottom: 20px;">
+        <button class="back-button" onclick="window.close()">Close & Return to App</button>
+        <button class="back-button" onclick="window.print()" style="margin-left: 10px;">Print / Save as PDF</button>
+      </div>
+
+      <div class="page">
+        <div class="header">
+          <h1>Equipment List</h1>
+          <p>Exported: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+          <p>${sorted.length} items</p>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Equipment</th>
+              <th>In Service</th>
+              <th>Purchased</th>
+              <th>Warranty</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableContent}
+          </tbody>
+        </table>
+
+        <div class="summary-box">
+          <h2>Summary</h2>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <strong>${sorted.length}</strong>
+              Total Equipment
+            </div>
+            <div class="summary-item">
+              <strong>${sorted.filter((eq) => getWarrantyStatus(eq) === 'covered').length}</strong>
+              Under Warranty
+            </div>
+            <div class="summary-item">
+              <strong>${sorted.filter((eq) => getWarrantyStatus(eq) === 'expired').length}</strong>
+              Warranty Expired
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Please allow pop-ups to view the equipment list.');
+    return;
+  }
+  printWindow.document.write(htmlContent);
+  printWindow.document.close();
+}
+
 // ── Equipment record export ──────────────────────────────────────
 
 export async function exportEquipmentRecords(
@@ -356,6 +606,16 @@ export async function exportEquipmentRecords(
           ${equipment.category ? `
           <span class="info-label">Category:</span>
           <span class="info-value">${equipment.category}</span>
+          ` : ''}
+
+          ${!isVehicle(equipment.category) && equipment.model ? `
+          <span class="info-label">Model:</span>
+          <span class="info-value">${equipment.model}</span>
+          ` : ''}
+
+          ${!isVehicle(equipment.category) && equipment.serial_number ? `
+          <span class="info-label">Serial Number:</span>
+          <span class="info-value">${equipment.serial_number}</span>
           ` : ''}
 
           ${equipment.notes ? `

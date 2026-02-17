@@ -35,6 +35,10 @@ interface EquipmentFormProps {
   setNewEquipmentLicensePlate: (v: string) => void;
   newEquipmentVin: string;
   setNewEquipmentVin: (v: string) => void;
+  newEquipmentModel: string;
+  setNewEquipmentModel: (v: string) => void;
+  newEquipmentSerialNumber: string;
+  setNewEquipmentSerialNumber: (v: string) => void;
   isUploadingNewPhoto: boolean;
   handleEquipmentPhotoUpload: (file: File, mode: 'new' | 'edit') => Promise<void>;
   handleAddEquipment: () => Promise<void>;
@@ -68,6 +72,10 @@ export function EquipmentForm({
   setNewEquipmentLicensePlate,
   newEquipmentVin,
   setNewEquipmentVin,
+  newEquipmentModel,
+  setNewEquipmentModel,
+  newEquipmentSerialNumber,
+  setNewEquipmentSerialNumber,
   isUploadingNewPhoto,
   handleEquipmentPhotoUpload,
   handleAddEquipment,
@@ -90,6 +98,30 @@ export function EquipmentForm({
             data-testid="input-equipment-name"
           />
         </div>
+        {!isVehicle(newEquipmentCategory) && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label style={{ color: colors.brown }}>Model</Label>
+              <Input
+                value={newEquipmentModel}
+                onChange={e => setNewEquipmentModel(e.target.value)}
+                placeholder="e.g., Mazzer Mini"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                data-testid="input-equipment-model"
+              />
+            </div>
+            <div>
+              <Label style={{ color: colors.brown }}>Serial Number</Label>
+              <Input
+                value={newEquipmentSerialNumber}
+                onChange={e => setNewEquipmentSerialNumber(e.target.value)}
+                placeholder="e.g., SN-12345678"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                data-testid="input-equipment-serial-number"
+              />
+            </div>
+          </div>
+        )}
         <PhotoCapture
           currentPhotoUrl={newEquipmentPhotoUrl || null}
           onPhotoSelected={async (file) => handleEquipmentPhotoUpload(file, 'new')}
@@ -277,6 +309,8 @@ export function EquipmentForm({
               setNewEquipmentLicenseState('');
               setNewEquipmentLicensePlate('');
               setNewEquipmentVin('');
+              setNewEquipmentModel('');
+              setNewEquipmentSerialNumber('');
             }}
             style={{ borderColor: colors.creamDark, color: colors.brown }}
             data-testid="button-cancel-equipment"

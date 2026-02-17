@@ -519,6 +519,8 @@ export interface Equipment {
   license_state: string | null;
   license_plate: string | null;
   vin: string | null;
+  model: string | null;
+  serial_number: string | null;
 }
 
 export interface MaintenanceTask {
@@ -642,6 +644,8 @@ export function useAddEquipment() {
       license_state?: string;
       license_plate?: string;
       vin?: string;
+      model?: string;
+      serial_number?: string;
     }) => {
       const { data, error } = await supabase
         .from('equipment')
