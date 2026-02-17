@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +25,7 @@ import {
   Check,
   RotateCcw,
   ChevronDown,
+  Camera,
 } from 'lucide-react';
 import type { MaintenanceTask, Equipment } from '@/lib/supabase-queries';
 import {
@@ -54,6 +56,7 @@ interface MaintenanceDueProps {
   openEditTask: (task: MaintenanceTask) => void;
   handleDeleteTask: (id: string) => Promise<void>;
   profileFullName: string | undefined;
+  onUploadTaskPhoto: (taskId: string, file: File) => Promise<void>;
 }
 
 export function MaintenanceDue({
@@ -74,7 +77,10 @@ export function MaintenanceDue({
   openEditTask,
   handleDeleteTask,
   profileFullName,
+  onUploadTaskPhoto,
 }: MaintenanceDueProps) {
+  const [uploadingTaskId, setUploadingTaskId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   if (tasks.length === 0) {
     return (
       <Card style={{ backgroundColor: colors.white, borderColor: colors.gold }}>
@@ -163,11 +169,26 @@ export function MaintenanceDue({
                         style={{ backgroundColor: statusColor }}
                       />
                       {(task.image_url || task.equipment?.photo_url) && (
-                        <div
-                          className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0"
-                          style={{ border: `2px solid ${colors.creamDark}` }}
-                        >
-                          <img src={(task.image_url || task.equipment?.photo_url)!} alt={task.name} className="w-full h-full object-cover" />
+                        <div className="flex items-center flex-shrink-0">
+                          {task.equipment?.photo_url && (
+                            <div
+                              className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0"
+                              style={{ border: `2px solid ${colors.creamDark}` }}
+                            >
+                              <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                          {task.image_url && (
+                            <div
+                              className={`w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 ${task.equipment?.photo_url ? '-ml-3 relative' : ''}`}
+                              style={{
+                                border: `2px solid ${colors.gold}`,
+                                zIndex: 1,
+                              }}
+                            >
+                              <img src={task.image_url} alt={task.name} className="w-full h-full object-cover" />
+                            </div>
+                          )}
                         </div>
                       )}
                       <div className="min-w-0">
@@ -205,15 +226,74 @@ export function MaintenanceDue({
                   {isExpanded && (
                     <div className="px-4 pb-4 pt-0 border-t" style={{ borderColor: colors.creamDark, backgroundColor: colors.cream }}>
                       <div className="pt-3 space-y-3">
-                        {(task.image_url || task.equipment?.photo_url) && (
-                          <div
-                            className="w-64 h-64 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                            style={{ border: `2px solid ${colors.creamDark}` }}
-                            onClick={(e) => { e.stopPropagation(); setLightboxUrl((task.image_url || task.equipment?.photo_url)!); }}
-                          >
-                            <img src={(task.image_url || task.equipment?.photo_url)!} alt={task.name} className="w-full h-full object-cover" />
-                          </div>
-                        )}
+                        <div className="flex gap-4 flex-wrap">
+                          {task.equipment?.photo_url && (
+                            <div>
+                              <p className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Equipment</p>
+                              <div
+                                className="w-48 h-48 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                                style={{ border: `2px solid ${colors.creamDark}` }}
+                                onClick={(e) => { e.stopPropagation(); setLightboxUrl(task.equipment!.photo_url!); }}
+                              >
+                                <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
+                              </div>
+                            </div>
+                          )}
+                          {task.image_url ? (
+                            <div>
+                              <p className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Task Photo</p>
+                              <div
+                                className="w-48 h-48 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                                style={{ border: `2px solid ${colors.gold}` }}
+                                onClick={(e) => { e.stopPropagation(); setLightboxUrl(task.image_url!); }}
+                              >
+                                <img src={task.image_url} alt={task.name} className="w-full h-full object-cover" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <p className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Task Photo</p>
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  setUploadingTaskId(task.id);
+                                  try {
+                                    await onUploadTaskPhoto(task.id, file);
+                                  } finally {
+                                    setUploadingTaskId(null);
+                                    if (fileInputRef.current) fileInputRef.current.value = '';
+                                  }
+                                }}
+                              />
+                              <button
+                                className="w-48 h-48 rounded-lg flex flex-col items-center justify-center gap-2 transition-colors hover:opacity-80"
+                                style={{
+                                  border: `2px dashed ${colors.creamDark}`,
+                                  backgroundColor: colors.white,
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  fileInputRef.current?.click();
+                                }}
+                                disabled={uploadingTaskId === task.id}
+                              >
+                                {uploadingTaskId === task.id ? (
+                                  <p className="text-sm" style={{ color: colors.brownLight }}>Uploading...</p>
+                                ) : (
+                                  <>
+                                    <Camera className="w-8 h-8" style={{ color: colors.brownLight }} />
+                                    <p className="text-sm font-medium" style={{ color: colors.brownLight }}>Add Task Photo</p>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
+                        </div>
                         {task.description && (
                           <p className="text-sm" style={{ color: colors.brownLight }}>{task.description}</p>
                         )}

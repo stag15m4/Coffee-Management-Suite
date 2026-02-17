@@ -266,6 +266,24 @@ export default function EquipmentMaintenance() {
     }
   };
 
+  const handleInlineTaskPhotoUpload = async (taskId: string, file: File) => {
+    try {
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `${profile?.tenant_id}/tasks/${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('equipment-photos')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from('equipment-photos')
+        .getPublicUrl(fileName);
+      await updateTaskMutation.mutateAsync({ id: taskId, updates: { image_url: publicUrl } });
+      toast({ title: 'Task photo uploaded' });
+    } catch (error: any) {
+      toast({ title: 'Photo upload failed', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const [completionNotes, setCompletionNotes] = useState('');
   const [completionUsage, setCompletionUsage] = useState('');
   const [completionCost, setCompletionCost] = useState('');
@@ -810,6 +828,7 @@ export default function EquipmentMaintenance() {
               openEditTask={openEditTask}
               handleDeleteTask={handleDeleteTask}
               profileFullName={profile?.full_name || undefined}
+              onUploadTaskPhoto={handleInlineTaskPhotoUpload}
             />
 
             {/* Add Task form */}
