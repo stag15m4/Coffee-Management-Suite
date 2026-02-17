@@ -11,7 +11,7 @@ export const queryKeys = {
   ingredients: ['ingredients'] as const,
   productCategories: ['product-categories'] as const,
   baseTemplates: ['base-templates'] as const,
-  drinkSizes: ['drink-sizes'] as const,
+  productSizes: ['product-sizes'] as const,
   recipes: ['recipes'] as const,
   products: ['products'] as const,
   overhead: ['overhead'] as const,
@@ -102,10 +102,10 @@ export function useBaseTemplates() {
   });
 }
 
-export function useDrinkSizes() {
+export function useProductSizes() {
   const { tenant } = useAuth();
   return useQuery({
-    queryKey: [...queryKeys.drinkSizes, tenant?.id],
+    queryKey: [...queryKeys.productSizes, tenant?.id],
     queryFn: async () => {
       let query = supabase.from('product_sizes').select('*');
       if (tenant?.id) query = query.eq('tenant_id', tenant.id);

@@ -52,11 +52,12 @@ export interface Recipe {
   recipe_ingredients?: RecipeIngredient[];
 }
 
-export interface DrinkSize {
+export interface ProductSize {
   id: string;
   name: string;
-  size_oz: number;
-  drink_type: string;
+  size_value: number;
+  product_type: string;
+  size_unit?: string;
   display_order: number;
 }
 
@@ -77,7 +78,7 @@ export interface BaseTemplateIngredient {
   quantity: number;
   unit?: string;
   ingredient?: Ingredient;
-  size?: DrinkSize;
+  size?: ProductSize;
 }
 
 export interface RecipeIngredient {
@@ -89,7 +90,7 @@ export interface RecipeIngredient {
   quantity: number;
   unit?: string;
   ingredient?: Ingredient;
-  size?: DrinkSize;
+  size?: ProductSize;
 }
 
 export interface OverheadSettings {
