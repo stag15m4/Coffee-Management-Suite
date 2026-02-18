@@ -15,6 +15,7 @@ export const formatPercent = (value: number | string) => {
 
 export const pluralizeType = (type: string) => {
   if (type === 'Supply') return 'Supplies';
+  if (type === 'Merchandise') return 'Merchandise';
   return type + 's';
 };
 

@@ -22,7 +22,7 @@ export interface Ingredient {
   updated_at?: string;
 }
 
-export const INGREDIENT_TYPES = ['FOH Ingredient', 'BOH Ingredient', 'Disposable', 'Supply'] as const;
+export const INGREDIENT_TYPES = ['FOH Ingredient', 'BOH Ingredient', 'Disposable', 'Supply', 'Merchandise'] as const;
 
 export interface Product {
   id: string;
