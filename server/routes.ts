@@ -1583,8 +1583,9 @@ export async function registerRoutes(
         return res.status(403).json({ error: 'Lead role or higher required' });
       }
 
-      // Fetch + parse iCal feed
-      const events = await ical.async.fromURL(sub.url);
+      // Fetch + parse iCal feed (webcal:// → https://)
+      const feedUrl = (sub.url as string).replace(/^webcal:\/\//i, 'https://');
+      const events = await ical.async.fromURL(feedUrl);
       let syncCount = 0;
 
       for (const [, event] of Object.entries(events)) {

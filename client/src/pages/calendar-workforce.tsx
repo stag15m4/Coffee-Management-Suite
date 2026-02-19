@@ -1529,7 +1529,7 @@ export default function CalendarWorkforce() {
   const tabs: { key: TabType; label: string; icon: typeof CalendarDays; show: boolean }[] = [
     { key: 'schedule', label: 'Schedule', icon: CalendarDays, show: true },
     { key: 'time-off', label: 'Time Off', icon: Plane, show: true },
-    { key: 'time-clock', label: 'Time Clock', icon: Clock, show: !isExempt },
+    { key: 'time-clock', label: 'Time Clock', icon: Clock, show: !isExempt || isManager },
   ];
 
   return (
@@ -1539,7 +1539,7 @@ export default function CalendarWorkforce() {
         <div className="flex items-center gap-3">
           <CalendarDays className="w-6 h-6" style={{ color: colors.gold }} />
           <div>
-            <h1 className="text-xl font-bold" style={{ color: colors.brown }}>Calendar & Workforce</h1>
+            <h1 className="text-xl font-bold" style={{ color: colors.brown }}>Personnel</h1>
             <p className="text-sm" style={{ color: colors.brownLight }}>
               {tenant.parent_tenant_id ? tenant.name : (branding?.company_name || tenant.name)}
             </p>
@@ -1581,7 +1581,7 @@ export default function CalendarWorkforce() {
             currentUserId={user?.id ?? ''}
           />
         )}
-        {activeTab === 'time-clock' && !isExempt && (
+        {activeTab === 'time-clock' && (!isExempt || isManager) && (
           <TimeClockTab
             tenantId={tenantId}
             canApproveEdits={canApproveTimeEdits}
@@ -1590,6 +1590,7 @@ export default function CalendarWorkforce() {
             canExport={canExportPayroll}
             currentUserId={user?.id ?? ''}
             employees={employees}
+            isExempt={isExempt}
           />
         )}
       </main>

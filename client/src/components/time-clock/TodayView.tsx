@@ -1,12 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useTodayShifts, type Shift } from '@/hooks/use-shifts';
-import { useTimeClockEntries, type TimeClockEntry } from '@/hooks/use-time-clock';
+import { useTimeClockEntries, useActiveClockedIn, type TimeClockEntry } from '@/hooks/use-time-clock';
 import type { UnifiedEmployee } from '@/hooks/use-all-employees';
 import { ClockInOutCard } from './ClockInOutCard';
 import { EditRequestsList } from './EditRequestsList';
+import { ManagerClockOutDialog } from './ManagerClockOutDialog';
 import { CalendarDays, Users, AlertTriangle } from 'lucide-react';
 import { colors } from '@/lib/colors';
 
@@ -53,6 +54,7 @@ interface TodayRow {
   breakHours: number;
   isLateClockOut: boolean;
   hasSquareEntries: boolean;
+  entries: TimeClockEntry[];
 }
 
 interface TodayViewProps {
@@ -61,12 +63,16 @@ interface TodayViewProps {
   canViewAll: boolean;
   currentUserId: string;
   employees: UnifiedEmployee[];
+  hideClockCard?: boolean;
 }
 
-export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, employees }: TodayViewProps) {
+export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, employees, hideClockCard }: TodayViewProps) {
+  const [clockOutEntry, setClockOutEntry] = useState<{ entry: TimeClockEntry; name: string } | null>(null);
   const today = new Date().toISOString().split('T')[0];
   const { data: todayShifts, isLoading: loadingShifts } = useTodayShifts(tenantId || undefined);
   const { data: todayEntries, isLoading: loadingEntries } = useTimeClockEntries(today, today);
+  // Also fetch all currently-active (clocked-in) entries regardless of date
+  const { data: activeClockedIn, isLoading: loadingActive } = useActiveClockedIn(canViewAll ? tenantId : undefined);
 
   const rows = useMemo<TodayRow[]>(() => {
     // Build a map of employee_id -> shifts
@@ -79,22 +85,37 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
       shiftsByEmployee.set(empId, existing);
     }
 
-    // Build a map of employee_id -> entries
+    // Build a map of employee_id -> entries (merge today's entries + active from other days)
     const entriesByEmployee = new Map<string, TimeClockEntry[]>();
+    const seenEntryIds = new Set<string>();
+
     for (const e of (todayEntries ?? [])) {
+      seenEntryIds.add(e.id);
       const existing = entriesByEmployee.get(e.employee_id) || [];
       existing.push(e);
       entriesByEmployee.set(e.employee_id, existing);
     }
 
-    // Get all unique employee IDs that either have a shift or entry today
-    const allEmployeeIds = new Set<string>();
-    shiftsByEmployee.forEach((_, id) => allEmployeeIds.add(id));
-    entriesByEmployee.forEach((_, id) => allEmployeeIds.add(id));
+    // Merge in active clock entries from previous days (still clocked in)
+    for (const e of (activeClockedIn ?? [])) {
+      if (seenEntryIds.has(e.id)) continue; // already in today's entries
+      const existing = entriesByEmployee.get(e.employee_id) || [];
+      existing.push(e);
+      entriesByEmployee.set(e.employee_id, existing);
+    }
 
-    // If not manager, only show current user
-    if (!canViewAll) {
-      allEmployeeIds.clear();
+    // Build the set of employee IDs to display
+    const allEmployeeIds = new Set<string>();
+
+    if (canViewAll) {
+      // Show ALL team members so manager sees full roster
+      for (const emp of employees) {
+        if (emp.user_profile_id) allEmployeeIds.add(emp.user_profile_id);
+      }
+      // Also include anyone with shifts or entries (in case they're not in the employee list)
+      shiftsByEmployee.forEach((_, id) => allEmployeeIds.add(id));
+      entriesByEmployee.forEach((_, id) => allEmployeeIds.add(id));
+    } else {
       allEmployeeIds.add(currentUserId);
     }
 
@@ -170,29 +191,33 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
         breakHours,
         isLateClockOut,
         hasSquareEntries,
+        entries: empEntries,
       });
     }
 
-    // Sort: scheduled first, then by name
+    // Sort: clocked-in first, then scheduled, then by name
     result.sort((a, b) => {
+      const aActive = a.clockIn && !a.clockOut ? 1 : 0;
+      const bActive = b.clockIn && !b.clockOut ? 1 : 0;
+      if (aActive !== bActive) return bActive - aActive;
       if (a.schedule && !b.schedule) return -1;
       if (!a.schedule && b.schedule) return 1;
       return a.name.localeCompare(b.name);
     });
 
     return result;
-  }, [todayShifts, todayEntries, employees, canViewAll, currentUserId]);
+  }, [todayShifts, todayEntries, activeClockedIn, employees, canViewAll, currentUserId]);
 
   const scheduledCount = rows.filter((r) => r.schedule).length;
-  const attendanceCount = rows.filter((r) => r.clockIn).length;
+  const clockedInCount = rows.filter((r) => r.clockIn && !r.clockOut).length;
   const lateClockOutCount = rows.filter((r) => r.isLateClockOut).length;
 
-  const isLoading = loadingShifts || loadingEntries;
+  const isLoading = loadingShifts || loadingEntries || loadingActive;
 
   return (
     <div className="space-y-4">
       {/* Clock In/Out for current user */}
-      <ClockInOutCard />
+      {!hideClockCard && <ClockInOutCard />}
 
       {/* Summary cards */}
       {canViewAll && (
@@ -205,8 +230,8 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
           </Card>
           <Card style={{ backgroundColor: colors.white }}>
             <CardContent className="pt-4 pb-4 text-center">
-              <p className="text-2xl font-bold" style={{ color: colors.brown }}>{attendanceCount}</p>
-              <p className="text-xs" style={{ color: colors.brownLight }}>Total attendance</p>
+              <p className="text-2xl font-bold" style={{ color: colors.brown }}>{clockedInCount}</p>
+              <p className="text-xs" style={{ color: colors.brownLight }}>Clocked In</p>
             </CardContent>
           </Card>
           <Card style={{ backgroundColor: colors.white }}>
@@ -228,7 +253,7 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
               <CoffeeLoader text="Loading today's data..." />
             ) : rows.length === 0 ? (
               <p className="text-sm py-4 text-center" style={{ color: colors.brownLight }}>
-                No scheduled shifts or clock entries for today.
+                No team members found.
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -272,13 +297,22 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
                         </td>
                         <td className="py-2 px-2" style={{ color: colors.brown }}>
                           {row.clockOut ? formatTimestamp(row.clockOut) : row.clockIn ? (
-                            row.isLateClockOut ? (
-                              <Badge style={{ backgroundColor: colors.red, color: '#fff' }} className="gap-1 text-xs">
-                                <AlertTriangle className="w-3 h-3" /> Late
-                              </Badge>
-                            ) : (
-                              <Badge style={{ backgroundColor: colors.green, color: '#fff' }} className="text-xs">Active</Badge>
-                            )
+                            (() => {
+                              const activeEntry = row.entries.find(e => !e.clock_out);
+                              const badge = row.isLateClockOut ? (
+                                <Badge style={{ backgroundColor: colors.red, color: '#fff' }} className="gap-1 text-xs">
+                                  <AlertTriangle className="w-3 h-3" /> Late
+                                </Badge>
+                              ) : (
+                                <Badge style={{ backgroundColor: colors.green, color: '#fff' }} className="text-xs">Active</Badge>
+                              );
+                              return canViewAll && activeEntry ? (
+                                <button onClick={() => setClockOutEntry({ entry: activeEntry, name: row.name })}
+                                  className="cursor-pointer">
+                                  {badge}
+                                </button>
+                              ) : badge;
+                            })()
                           ) : '--'}
                         </td>
                         <td className="text-right py-2 px-2 font-medium" style={{ color: colors.brown }}>
@@ -299,6 +333,15 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
 
       {/* Edit requests */}
       <EditRequestsList canApprove={canApprove} currentUserId={currentUserId} />
+
+      {/* Manager clock-out dialog */}
+      {clockOutEntry && (
+        <ManagerClockOutDialog
+          entry={clockOutEntry.entry}
+          employeeName={clockOutEntry.name}
+          onClose={() => setClockOutEntry(null)}
+        />
+      )}
     </div>
   );
 }

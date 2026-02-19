@@ -53,7 +53,7 @@ const MODULES: CommandRoute[] = [
   { label: 'Coffee Orders', href: '/coffee-order', icon: Coffee, module: 'bulk-ordering', keywords: ['order', 'bulk', 'wholesale'] },
   { label: 'Equipment', href: '/equipment-maintenance', icon: Wrench, module: 'equipment-maintenance', keywords: ['maintenance', 'repair', 'machine'] },
   { label: 'Tasks', href: '/admin-tasks', icon: CheckSquare, module: 'admin-tasks', keywords: ['todo', 'checklist', 'assign'] },
-  { label: 'Calendar', href: '/calendar-workforce', icon: CalendarDays, module: 'calendar-workforce', keywords: ['schedule', 'shifts', 'time off', 'clock'] },
+  { label: 'Personnel', href: '/calendar-workforce', icon: CalendarDays, module: 'calendar-workforce', keywords: ['schedule', 'shifts', 'time off', 'clock', 'personnel', 'calendar'] },
   { label: 'Reporting', href: '/reporting', icon: BarChart3, module: 'reporting', keywords: ['reports', 'analytics', 'statistics', 'revenue', 'charts'] },
 ];
 

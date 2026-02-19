@@ -121,7 +121,7 @@ const MODULE_NAV_CONFIG: Record<ModuleId, ModuleNavConfig> = {
     route: '/calendar-workforce',
     icon: CalendarDays,
     labelKey: '',
-    staticLabel: 'Calendar',
+    staticLabel: 'Personnel',
     tabs: [
       { id: 'schedule', label: 'Schedule' },
       { id: 'time-off', label: 'Time Off' },

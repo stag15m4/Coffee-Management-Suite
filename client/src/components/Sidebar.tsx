@@ -73,7 +73,7 @@ const MODULE_NAV: Record<ModuleId, NavItem> = {
   'admin-tasks': { href: '/admin-tasks', label: 'Tasks', icon: ListTodo },
   'calendar-workforce': {
     href: '/calendar-workforce',
-    label: 'Calendar',
+    label: 'Personnel',
     icon: CalendarDays,
     tabs: [
       { key: 'schedule', label: 'Schedule' },

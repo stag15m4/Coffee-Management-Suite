@@ -11,7 +11,7 @@ const MODULE_INFO: Record<ModuleId, { name: string; shortName: string; icon: Luc
   'bulk-ordering': { name: 'Coffee Orders', shortName: 'Orders', icon: Coffee, href: '/coffee-order' },
   'equipment-maintenance': { name: 'Equipment Maintenance', shortName: 'Equipment', icon: Wrench, href: '/equipment-maintenance' },
   'admin-tasks': { name: 'Admin Tasks', shortName: 'Tasks', icon: ListTodo, href: '/admin-tasks' },
-  'calendar-workforce': { name: 'Calendar & Workforce', shortName: 'Calendar', icon: CalendarDays, href: '/calendar-workforce' },
+  'calendar-workforce': { name: 'Personnel', shortName: 'Personnel', icon: CalendarDays, href: '/calendar-workforce' },
   'reporting': { name: 'Reporting', shortName: 'Reports', icon: BarChart3, href: '/reporting' },
   'document-library': { name: 'Document Library', shortName: 'Documents', icon: FileText, href: '/document-library' },
 };
