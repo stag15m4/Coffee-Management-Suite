@@ -3,17 +3,20 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { usePayPeriod } from '@/hooks/use-pay-period';
 import { usePayPeriodTimeClockEntries, type TimeClockEntry } from '@/hooks/use-time-clock';
 import { useShifts, type Shift } from '@/hooks/use-shifts';
 import { useTimesheetApprovals } from '@/hooks/use-timesheet-approvals';
 import type { UnifiedEmployee } from '@/hooks/use-all-employees';
+import { useToast } from '@/hooks/use-toast';
 import { PayPeriodNav } from './PayPeriodNav';
 import { TimesheetGrid } from './TimesheetGrid';
 import { EmployeeTimesheetView } from './EmployeeTimesheetView';
 import { JobInsights } from './JobInsights';
-import { Download, Search, Filter } from 'lucide-react';
+import { exportGustoCsv } from './gusto-export';
+import { Download, Search, Filter, ChevronDown, FileSpreadsheet } from 'lucide-react';
 import { colors } from '@/lib/colors';
 
 function calcHours(clockIn: string, clockOut: string | null): number {
@@ -41,10 +44,25 @@ export function TimesheetsView({ tenantId, canApprove, canExport, currentUserId,
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
+  const [gustoExporting, setGustoExporting] = useState(false);
+  const { toast } = useToast();
 
   const { data: entries = [], isLoading: loadingEntries } = usePayPeriodTimeClockEntries(period.start, period.end);
   const { data: shifts = [], isLoading: loadingShifts } = useShifts(period.start, period.end);
   const { data: approvals = [] } = useTimesheetApprovals(period.start, period.end);
+
+  const handleGustoExport = useCallback(async () => {
+    if (!entries.length) return;
+    setGustoExporting(true);
+    try {
+      await exportGustoCsv({ tenantId, entries, employees, approvals, weeks, period });
+      toast({ title: 'Gusto CSV exported' });
+    } catch (err: any) {
+      toast({ title: 'Export failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setGustoExporting(false);
+    }
+  }, [tenantId, entries, employees, approvals, weeks, period, toast]);
 
   const handleExport = useCallback(() => {
     if (!entries.length) return;
@@ -130,10 +148,26 @@ export function TimesheetsView({ tenantId, canApprove, canExport, currentUserId,
               </Select>
 
               {canExport && (
-                <Button size="sm" onClick={handleExport} disabled={!entries.length}
-                  style={{ backgroundColor: colors.gold, color: colors.white }}>
-                  <Download className="w-4 h-4 mr-1" /> Export
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" disabled={!entries.length || gustoExporting}
+                      style={{ backgroundColor: colors.gold, color: colors.white }}>
+                      <Download className="w-4 h-4 mr-1" />
+                      {gustoExporting ? 'Exporting...' : 'Export'}
+                      <ChevronDown className="w-3 h-3 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleExport}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleGustoExport}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      Export for Gusto
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
           </div>
