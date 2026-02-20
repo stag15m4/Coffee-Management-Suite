@@ -8,7 +8,7 @@ import { HeroSection } from './HeroSection';
 import { ModuleShowcase } from './ModuleShowcase';
 import { PricingSection } from './PricingSection';
 import { FooterSection } from './FooterSection';
-import logoPath from '@assets/Erwin-Mills-Logo_1767709452739.png';
+const logoPath = '/logo.png';
 
 // ---------------------------------------------------------------------------
 // Static features grid (generic across all verticals)
