@@ -235,7 +235,7 @@ export default function Login() {
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
               
-              <div className="text-center">
+              <div className="text-center space-y-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -247,6 +247,14 @@ export default function Login() {
                   data-testid="button-forgot-password"
                 >
                   Forgot your password?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLocation('/signup')}
+                  className="text-sm underline hover:no-underline block w-full"
+                  style={{ color: colors.brownLight }}
+                >
+                  Have a beta code? Sign up
                 </button>
               </div>
             </form>

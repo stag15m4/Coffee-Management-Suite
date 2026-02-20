@@ -17,6 +17,7 @@ import { AppResumeIndicator } from "@/components/AppResumeIndicator";
 import { CoffeeLoader } from "@/components/CoffeeLoader";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
+import Signup from "@/pages/signup";
 import Dashboard from "@/pages/dashboard";
 import RecipeCostingPage from "@/pages/recipe-costing";
 import CashDeposit from "@/pages/cash-deposit";
@@ -66,6 +67,7 @@ function Router() {
     <Switch>
       <Route path="/kiosk" component={Kiosk} />
       <Route path="/login" component={Login} />
+      <Route path="/signup/:code?" component={Signup} />
       <Route path="/platform-admin" component={PlatformAdmin} />
       <Route path="/reseller-management" component={ResellerManagement} />
       <Route path="/admin/users">

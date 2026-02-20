@@ -1190,7 +1190,7 @@ export async function registerRoutes(
       const emailResult = await sendBetaInviteEmail({
         recipientEmail: email,
         licenseCode: code,
-        signupUrl: `${baseUrl}/login`,
+        signupUrl: `${baseUrl}/signup/${code}`,
       });
 
       if (!emailResult.success) {
@@ -1218,6 +1218,122 @@ export async function registerRoutes(
       res.json(result.rows);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =====================================================
+  // BETA SIGNUP (Public — license code is the auth gate)
+  // =====================================================
+
+  app.post('/api/beta-signup', async (req, res) => {
+    try {
+      const { code, email, password, fullName, businessName } = req.body;
+      if (!code || !email || !password || !fullName || !businessName) {
+        return res.status(400).json({ error: 'All fields are required' });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
+
+      // 1. Validate license code
+      const cleanCode = code.toUpperCase().replace(/-/g, '');
+      const licenseResult = await db.execute(sql`
+        SELECT lc.*, r.name as reseller_name
+        FROM license_codes lc
+        JOIN resellers r ON lc.reseller_id = r.id
+        WHERE REPLACE(lc.code, '-', '') = ${cleanCode}
+        AND lc.redeemed_at IS NULL
+        AND (lc.expires_at IS NULL OR lc.expires_at > NOW())
+        AND r.is_active = true
+      `);
+
+      if (!licenseResult.rows.length) {
+        return res.status(400).json({ error: 'Invalid or expired license code' });
+      }
+
+      const license = licenseResult.rows[0] as any;
+
+      // 2. Create tenant
+      let slug = businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      let tenantResult;
+      try {
+        tenantResult = await db.execute(sql`
+          INSERT INTO tenants (name, slug, subscription_plan, subscription_status)
+          VALUES (${businessName}, ${slug}, ${license.subscription_plan}, 'active')
+          RETURNING id, name, slug
+        `);
+      } catch (slugError: any) {
+        // Slug conflict — append random suffix
+        if (slugError.message?.includes('unique') || slugError.code === '23505') {
+          slug = `${slug}-${Math.random().toString(36).substring(2, 6)}`;
+          tenantResult = await db.execute(sql`
+            INSERT INTO tenants (name, slug, subscription_plan, subscription_status)
+            VALUES (${businessName}, ${slug}, ${license.subscription_plan}, 'active')
+            RETURNING id, name, slug
+          `);
+        } else {
+          throw slugError;
+        }
+      }
+      const tenant = tenantResult.rows[0] as { id: string; name: string; slug: string };
+
+      // 3. Create tenant branding with default coffee theme
+      await db.execute(sql`
+        INSERT INTO tenant_branding (tenant_id, primary_color, secondary_color, accent_color, background_color, company_name)
+        VALUES (${tenant.id}::uuid, '#C4A052', '#3D2B1F', '#8B7355', '#F5F0E1', ${businessName})
+      `);
+
+      // 4. Create Supabase auth user via admin API
+      const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
+      const { data: newUserData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName },
+      });
+
+      if (createError || !newUserData?.user) {
+        // Clean up tenant on failure
+        await db.execute(sql`DELETE FROM tenant_branding WHERE tenant_id = ${tenant.id}::uuid`);
+        await db.execute(sql`DELETE FROM tenants WHERE id = ${tenant.id}::uuid`);
+        const msg = createError?.message || 'Failed to create user account';
+        const friendlyMsg = msg.includes('already been registered')
+          ? 'An account with this email already exists. Please sign in instead.'
+          : msg;
+        return res.status(400).json({ error: friendlyMsg });
+      }
+
+      const userId = newUserData.user.id;
+
+      // 5. Create user_profiles row
+      await db.execute(sql`
+        INSERT INTO user_profiles (id, tenant_id, email, full_name, role, is_active)
+        VALUES (${userId}::uuid, ${tenant.id}::uuid, ${email}, ${fullName}, 'owner', true)
+      `);
+
+      // 6. Enable all modules for beta plan
+      const allModules = await db.execute(sql`SELECT id FROM modules`);
+      for (const mod of allModules.rows) {
+        await db.execute(sql`
+          INSERT INTO tenant_module_subscriptions (tenant_id, module_id)
+          VALUES (${tenant.id}::uuid, ${(mod as any).id})
+        `);
+      }
+
+      // 7. Redeem license code
+      await db.execute(sql`
+        SELECT redeem_license_code(${license.code}, ${tenant.id}::uuid) as license_id
+      `);
+
+      res.status(201).json({
+        success: true,
+        tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug },
+        user: { id: userId, email },
+      });
+    } catch (error: any) {
+      console.error('Beta signup error:', error);
+      res.status(500).json({ error: error.message || 'Signup failed' });
     }
   });
 
