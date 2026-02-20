@@ -26,6 +26,11 @@ import {
   ExternalLink,
   LayoutDashboard,
   Layers,
+  FlaskConical,
+  BarChart3,
+  Send,
+  Mail,
+  Clock,
 } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import {
@@ -156,6 +161,16 @@ export default function PlatformAdmin() {
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [removingAdminId, setRemovingAdminId] = useState<string | null>(null);
 
+  // Beta invite state
+  const [betaInvites, setBetaInvites] = useState<any[]>([]);
+  const [showBetaInviteDialog, setShowBetaInviteDialog] = useState(false);
+  const [betaInviteEmail, setBetaInviteEmail] = useState('');
+  const [sendingBetaInvite, setSendingBetaInvite] = useState(false);
+
+  // Usage analytics state
+  const [moduleUsage, setModuleUsage] = useState<any[]>([]);
+  const [analyticsDays, setAnalyticsDays] = useState(30);
+
   // Tenant IDs where this admin has a user profile
   const [myTenantIds, setMyTenantIds] = useState<Set<string>>(new Set());
 
@@ -171,6 +186,8 @@ export default function PlatformAdmin() {
       loadSubscriptionData();
       loadAdmins();
       loadMyTenants();
+      loadBetaInvites();
+      loadModuleUsage(analyticsDays);
     }
   }, [isPlatformAdmin]);
 
@@ -222,6 +239,62 @@ export default function PlatformAdmin() {
       }
     } catch (error) {
       console.error('Error loading admins:', error);
+    }
+  };
+
+  const loadBetaInvites = async () => {
+    try {
+      const res = await fetch('/api/beta-invites', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setBetaInvites(data);
+      }
+    } catch (error) {
+      console.error('Error loading beta invites:', error);
+    }
+  };
+
+  const loadModuleUsage = async (days: number) => {
+    try {
+      const res = await fetch(`/api/analytics/module-usage?days=${days}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setModuleUsage(data.modules || []);
+      }
+    } catch (error) {
+      console.error('Error loading module usage:', error);
+    }
+  };
+
+  const handleSendBetaInvite = async () => {
+    if (!betaInviteEmail) {
+      toast({ title: 'Email is required', variant: 'destructive' });
+      return;
+    }
+
+    setSendingBetaInvite(true);
+    try {
+      const res = await fetch('/api/beta-invite', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ email: betaInviteEmail }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast({ title: 'Error sending invite', description: data.error, variant: 'destructive' });
+        return;
+      }
+
+      toast({ title: 'Beta invite sent!', description: `Invite sent to ${betaInviteEmail}` });
+      setShowBetaInviteDialog(false);
+      setBetaInviteEmail('');
+      loadBetaInvites();
+    } catch (error: any) {
+      toast({ title: 'Error sending invite', description: error.message, variant: 'destructive' });
+    } finally {
+      setSendingBetaInvite(false);
     }
   };
 
@@ -991,6 +1064,96 @@ export default function PlatformAdmin() {
           )}
         </div>
 
+        {/* Beta Invites Section */}
+        <div className="flex items-center justify-between mb-6 mt-12">
+          <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: colors.brown }}>
+            <FlaskConical className="w-6 h-6" style={{ color: colors.gold }} />
+            Beta Invites
+          </h2>
+          <Dialog open={showBetaInviteDialog} onOpenChange={setShowBetaInviteDialog}>
+            <DialogTrigger asChild>
+              <Button style={{ backgroundColor: colors.gold, color: colors.white }}>
+                <Send className="w-4 h-4 mr-2" />
+                Send Invite
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Send Beta Invite</DialogTitle>
+                <DialogDescription style={{ color: colors.brownLight }}>
+                  Send a beta access code to a new tester via email.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                <div>
+                  <Label style={{ color: colors.brown }} htmlFor="beta-email">Email Address</Label>
+                  <Input
+                    id="beta-email"
+                    type="email"
+                    value={betaInviteEmail}
+                    onChange={(e) => setBetaInviteEmail(e.target.value)}
+                    placeholder="tester@example.com"
+                    style={{ backgroundColor: colors.inputBg }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendBetaInvite()}
+                  />
+                </div>
+                <Button
+                  onClick={handleSendBetaInvite}
+                  disabled={sendingBetaInvite}
+                  className="w-full"
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
+                >
+                  {sendingBetaInvite ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail className="w-4 h-4 mr-2" />}
+                  Send Beta Invite
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <div className="space-y-3 mb-8">
+          {betaInvites.length > 0 ? betaInvites.map((invite: any) => (
+            <Card key={invite.id} style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
+                      <Mail className="w-5 h-5" style={{ color: colors.gold }} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>{invite.invited_email || 'No email'}</h3>
+                      <p className="text-xs font-mono" style={{ color: colors.brownLight }}>{invite.code}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <Badge style={invite.tenant_name
+                        ? { backgroundColor: colors.green, color: '#fff' }
+                        : { backgroundColor: '#dbeafe', color: '#2563eb' }
+                      }>
+                        {invite.tenant_name ? 'Redeemed' : 'Pending'}
+                      </Badge>
+                      {invite.tenant_name && (
+                        <p className="text-xs mt-1" style={{ color: colors.brownLight }}>{invite.tenant_name}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs" style={{ color: colors.brownLight }}>
+                      <Clock className="w-3 h-3" />
+                      {new Date(invite.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )) : (
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
+                No beta invites sent yet. Click "Send Invite" to invite a beta tester.
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
         {/* Module Rollout Section */}
         <div className="flex items-center justify-between mb-6 mt-12">
           <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: colors.brown }}>
@@ -1044,6 +1207,68 @@ export default function PlatformAdmin() {
             <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
               <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
                 Loading modules...
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Usage Analytics Section */}
+        <div className="flex items-center justify-between mb-6 mt-12">
+          <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: colors.brown }}>
+            <BarChart3 className="w-6 h-6" style={{ color: colors.gold }} />
+            Usage Analytics
+          </h2>
+          <div className="flex items-center gap-2">
+            {[7, 30].map((d) => (
+              <Button
+                key={d}
+                variant={analyticsDays === d ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setAnalyticsDays(d);
+                  loadModuleUsage(d);
+                }}
+                style={analyticsDays === d
+                  ? { backgroundColor: colors.gold, color: colors.white }
+                  : { borderColor: colors.creamDark, color: colors.brown }
+                }
+              >
+                {d}d
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3 mb-8">
+          {moduleUsage.length > 0 ? (
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              <CardContent className="py-4">
+                <div className="grid grid-cols-4 gap-4 mb-3 px-2">
+                  <span className="text-xs font-semibold uppercase" style={{ color: colors.brownLight }}>Module</span>
+                  <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>Visits</span>
+                  <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>Users</span>
+                  <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>Tenants</span>
+                </div>
+                {moduleUsage.map((m: any) => {
+                  const mod = modules.find((mod) => mod.id === m.module_id);
+                  return (
+                    <div key={m.module_id} className="grid grid-cols-4 gap-4 py-2 px-2 rounded-lg hover:bg-opacity-50" style={{ backgroundColor: colors.cream }}>
+                      <div>
+                        <p className="font-medium text-sm" style={{ color: colors.brown }}>{mod?.name || m.module_id}</p>
+                        <p className="text-xs" style={{ color: colors.brownLight }}>{m.module_id}</p>
+                      </div>
+                      <p className="text-center font-semibold" style={{ color: colors.brown }}>{m.visit_count}</p>
+                      <p className="text-center font-semibold" style={{ color: colors.brown }}>{m.unique_users}</p>
+                      <p className="text-center font-semibold" style={{ color: colors.brown }}>{m.tenant_count}</p>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
+                No module usage data for the last {analyticsDays} days.
               </CardContent>
             </Card>
           )}

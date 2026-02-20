@@ -2,6 +2,7 @@ import { useAuth, UserRole, ModuleId } from '@/contexts/AuthContext';
 import { Redirect } from 'wouter';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
+import { useModuleTracking } from '@/hooks/use-module-tracking';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,6 +12,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, requiredRole, module }: ProtectedRouteProps) {
   const { user, profile, isPlatformAdmin, adminViewingTenant, loading, hasRole, canAccessModule, signOut, retryProfileFetch } = useAuth();
+  useModuleTracking(module);
   const [profileTimeout, setProfileTimeout] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const autoRetryCountRef = useRef(0);

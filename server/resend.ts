@@ -96,6 +96,77 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
   }
 }
 
+// Beta Invite Email
+export interface BetaInviteEmailData {
+  recipientEmail: string;
+  licenseCode: string;
+  signupUrl: string;
+}
+
+export async function sendBetaInviteEmail(data: BetaInviteEmailData): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { client, fromEmail } = getResendClient();
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #C9A227; padding: 20px; text-align: center;">
+          <h1 style="color: white; margin: 0;">Coffee Management Suite</h1>
+          <p style="color: #FFF8E1; margin: 8px 0 0 0; font-size: 14px;">Beta Tester Invitation</p>
+        </div>
+
+        <div style="padding: 24px; background-color: #f9f9f9;">
+          <h2 style="color: #4A3728; margin-top: 0;">You're Invited to Beta Test!</h2>
+          <p style="color: #333; line-height: 1.6;">
+            You've been selected to beta test the Coffee Management Suite — a platform
+            for managing recipes, tips, cash deposits, scheduling, and more for your coffee shop.
+          </p>
+
+          <div style="background-color: white; padding: 20px; border-radius: 8px; border: 2px solid #C9A227; text-align: center; margin: 24px 0;">
+            <p style="color: #6B5344; margin: 0 0 8px 0; font-size: 13px;">Your Beta Access Code</p>
+            <p style="color: #4A3728; font-size: 28px; font-weight: bold; letter-spacing: 3px; margin: 0;">
+              ${data.licenseCode}
+            </p>
+          </div>
+
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${data.signupUrl}" style="display: inline-block; background-color: #C9A227; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+              Get Started
+            </a>
+          </div>
+
+          <p style="color: #666; font-size: 13px; line-height: 1.5;">
+            Click the button above to sign up, then enter your beta code during setup.
+            This code expires in 90 days. As a beta tester, you'll have full access
+            to all features and we'd love your feedback!
+          </p>
+        </div>
+
+        <div style="background-color: #4A3728; padding: 12px; text-align: center;">
+          <p style="color: #C9A227; margin: 0; font-size: 12px;">
+            Coffee Management Suite - Erwin Mills
+          </p>
+        </div>
+      </div>
+    `;
+
+    const result = await client.emails.send({
+      from: fromEmail,
+      to: data.recipientEmail,
+      subject: "You're invited to beta test Coffee Management Suite!",
+      html,
+    });
+
+    if (result.error) {
+      return { success: false, error: result.error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending beta invite email:', error);
+    return { success: false, error: error.message || 'Failed to send email' };
+  }
+}
+
 // Feedback Email Data Interface
 export interface FeedbackEmailData {
   feedbackType: 'bug' | 'suggestion' | 'general';

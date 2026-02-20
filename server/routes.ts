@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { sendOrderEmail, sendFeedbackEmail, type OrderEmailData, type FeedbackEmailData } from "./resend";
+import { sendOrderEmail, sendFeedbackEmail, sendBetaInviteEmail, type OrderEmailData, type FeedbackEmailData } from "./resend";
 import { registerObjectStorageRoutes } from "./objectStorageRoutes";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
@@ -1145,6 +1145,116 @@ export async function registerRoutes(
       }
       
       res.status(204).end();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =====================================================
+  // BETA INVITE ROUTES (Platform Admin Only)
+  // =====================================================
+
+  app.post('/api/beta-invite', requirePlatformAdmin, async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: 'Email is required' });
+
+      // Find or create "Platform Direct" reseller for beta invites
+      let resellerResult = await db.execute(sql`
+        SELECT id FROM resellers WHERE name = 'Platform Direct' LIMIT 1
+      `);
+      let resellerId: string;
+      if (resellerResult.rows.length === 0) {
+        const created = await db.execute(sql`
+          INSERT INTO resellers (name, contact_email, contact_name, seats_total, notes)
+          VALUES ('Platform Direct', 'admin@coffeemanagementsuite.com', 'Platform', 9999, 'System reseller for direct beta invites')
+          RETURNING id
+        `);
+        resellerId = (created.rows[0] as any).id;
+      } else {
+        resellerId = (resellerResult.rows[0] as any).id;
+      }
+
+      // Generate license code
+      const codeResult = await db.execute(sql`SELECT generate_license_code() as code`);
+      const code = (codeResult.rows[0] as any).code;
+
+      // Insert license code
+      await db.execute(sql`
+        INSERT INTO license_codes (code, reseller_id, subscription_plan, invited_email, expires_at)
+        VALUES (${code}, ${resellerId}, 'beta', ${email}, NOW() + INTERVAL '90 days')
+      `);
+
+      // Send invite email
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const emailResult = await sendBetaInviteEmail({
+        recipientEmail: email,
+        licenseCode: code,
+        signupUrl: `${baseUrl}/login`,
+      });
+
+      if (!emailResult.success) {
+        // Code was created but email failed — still return success with warning
+        return res.json({ success: true, code, email, emailSent: false, emailError: emailResult.error });
+      }
+
+      res.json({ success: true, code, email, emailSent: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/beta-invites', requirePlatformAdmin, async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT lc.id, lc.code, lc.invited_email, lc.subscription_plan,
+               lc.redeemed_at, lc.expires_at, lc.created_at,
+               t.name as tenant_name
+        FROM license_codes lc
+        LEFT JOIN tenants t ON lc.tenant_id = t.id
+        WHERE lc.subscription_plan = 'beta'
+        ORDER BY lc.created_at DESC
+      `);
+      res.json(result.rows);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =====================================================
+  // ANALYTICS ROUTES (Platform Admin Only)
+  // =====================================================
+
+  app.get('/api/analytics/module-usage', requirePlatformAdmin, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 30;
+
+      const modules = await db.execute(sql`
+        SELECT
+          details->>'module_id' as module_id,
+          COUNT(DISTINCT user_id) as unique_users,
+          COUNT(*) as visit_count,
+          COUNT(DISTINCT tenant_id) as tenant_count
+        FROM tenant_activity_log
+        WHERE action = 'module_visit'
+          AND created_at >= NOW() - make_interval(days => ${days})
+        GROUP BY details->>'module_id'
+        ORDER BY visit_count DESC
+      `);
+
+      const trend = await db.execute(sql`
+        SELECT
+          DATE(created_at) as date,
+          COUNT(DISTINCT user_id) as active_users,
+          COUNT(*) as visits
+        FROM tenant_activity_log
+        WHERE action = 'module_visit'
+          AND created_at >= NOW() - make_interval(days => ${days})
+        GROUP BY DATE(created_at)
+        ORDER BY date
+      `);
+
+      res.json({ modules: modules.rows, trend: trend.rows });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
