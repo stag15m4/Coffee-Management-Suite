@@ -7,27 +7,30 @@ const lastVisitMap = new Map<string, number>();
 
 export function useModuleTracking(moduleId: string | undefined) {
   const { user, tenant } = useAuth();
-  const loggedRef = useRef(false);
+  const userId = user?.id;
+  const tenantId = tenant?.id;
+  const hasFired = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    loggedRef.current = false;
-  }, [moduleId]);
+    if (!moduleId || !userId || !tenantId) return;
+    // Only fire once per moduleId value
+    if (hasFired.current === moduleId) return;
 
-  useEffect(() => {
-    if (!moduleId || !user?.id || !tenant?.id || loggedRef.current) return;
-
-    const key = `${tenant.id}:${moduleId}`;
+    const key = `${tenantId}:${moduleId}`;
     const lastVisit = lastVisitMap.get(key) || 0;
-    if (Date.now() - lastVisit < DEBOUNCE_MS) return;
+    if (Date.now() - lastVisit < DEBOUNCE_MS) {
+      hasFired.current = moduleId;
+      return;
+    }
 
-    loggedRef.current = true;
+    hasFired.current = moduleId;
     lastVisitMap.set(key, Date.now());
 
     supabase.from('tenant_activity_log').insert({
-      tenant_id: tenant.id,
-      user_id: user.id,
+      tenant_id: tenantId,
+      user_id: userId,
       action: 'module_visit',
       details: { module_id: moduleId },
-    }).then(() => {});
-  }, [moduleId, user?.id, tenant?.id]);
+    }).then(() => {}).catch(() => {});
+  }, [moduleId, userId, tenantId]);
 }
