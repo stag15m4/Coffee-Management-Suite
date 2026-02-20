@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo } from 'react';
 import { useAuth, type ModuleId, type UserRole } from '@/contexts/AuthContext';
 import { useTerm } from '@/hooks/use-term';
+import { useModuleRollout } from '@/hooks/use-module-rollout';
 import {
   LayoutDashboard,
   Calculator,
@@ -182,6 +183,7 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
   } = useAuth();
 
   const { termPlural } = useTerm();
+  const { getRolloutBadge } = useModuleRollout();
 
   const navigation = useMemo<NavigationContextType>(() => {
     // ----- Helper: resolve the display label for a module -----
@@ -202,6 +204,7 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
         module: moduleId,
         isAccessible: accessible,
         tabs: config.tabs,
+        badge: getRolloutBadge(moduleId),
       };
     }
 
@@ -354,6 +357,7 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
     adminViewingTenant,
     profile,
     termPlural,
+    getRolloutBadge,
   ]);
 
   return (

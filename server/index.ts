@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -5,6 +6,13 @@ import { createServer } from "http";
 import { WebhookHandlers } from "./webhookHandlers";
 import { SquareWebhookHandlers } from "./squareWebhookHandlers";
 import { startSquareSyncScheduler } from "./squareSync";
+
+Sentry.init({
+  dsn: "https://b14b169f90533206522a69681bf32f66@o4510919684653056.ingest.us.sentry.io/4510919715454976",
+  environment: process.env.NODE_ENV || "development",
+  enabled: process.env.NODE_ENV === "production",
+  tracesSampleRate: 0.2,
+});
 
 const app = express();
 const httpServer = createServer(app);
@@ -133,6 +141,8 @@ app.use((req, res, next) => {
 
 (async () => {
   await registerRoutes(httpServer, app);
+
+  Sentry.setupExpressErrorHandler(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

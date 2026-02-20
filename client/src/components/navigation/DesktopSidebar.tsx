@@ -375,7 +375,10 @@ function SidebarLink({
         {badge && (
           <span
             className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}
+            style={{
+              backgroundColor: badge === 'Beta' ? '#3b82f6' : badge === 'Internal' ? '#6b7280' : 'var(--color-primary)',
+              color: 'white',
+            }}
           >
             {badge}
           </span>
