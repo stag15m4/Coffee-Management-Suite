@@ -47,7 +47,8 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
 const PLAN_LABELS: Record<string, string> = {
   free: 'Free Trial',
   alacarte: 'À La Carte',
-  test_eval: 'Test & Eval',
+  beta: 'Beta',
+  test_eval: 'Beta',
   premium: 'Premium Suite',
   basic: 'À La Carte',
   standard: 'À La Carte',
@@ -372,7 +373,7 @@ export default function Billing() {
   const trialDaysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
   const trialProgress = trialEndsAt ? Math.max(0, Math.min(100, ((14 - trialDaysLeft) / 14) * 100)) : 0;
   const subStatus = billingDetails?.subscription?.status || billingDetails?.stripe_subscription_status;
-  const isPremium = plan === 'premium' || plan === 'test_eval';
+  const isPremium = plan === 'premium' || plan === 'beta';
   const premiumProducts = products.filter(p => p.metadata?.plan_id === 'premium');
   const alacarteProducts = products.filter(p => p.metadata?.plan_id === 'alacarte');
 

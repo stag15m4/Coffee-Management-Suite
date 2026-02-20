@@ -25,6 +25,7 @@ import {
   UserPlus,
   ExternalLink,
   LayoutDashboard,
+  Layers,
 } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import {
@@ -95,6 +96,7 @@ interface Module {
   description: string;
   monthly_price: number;
   is_premium_only: boolean;
+  rollout_status: 'internal' | 'beta' | 'ga';
 }
 
 interface ModuleSubscription {
@@ -279,6 +281,20 @@ export default function PlatformAdmin() {
     }
   };
 
+  const updateModuleRollout = async (moduleId: string, status: 'internal' | 'beta' | 'ga') => {
+    const { error } = await supabase
+      .from('modules')
+      .update({ rollout_status: status })
+      .eq('id', moduleId);
+
+    if (error) {
+      toast({ title: 'Error updating module rollout', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: `${moduleId} set to ${status.toUpperCase()}` });
+      setModules(prev => prev.map(m => m.id === moduleId ? { ...m, rollout_status: status } : m));
+    }
+  };
+
   const openSubscriptionDialog = async (tenant: TenantWithStats) => {
     setSelectedTenant(tenant);
     setEditTenantName(tenant.name);
@@ -381,7 +397,7 @@ export default function PlatformAdmin() {
 
   const calculateMonthlyTotal = (): number => {
     if (selectedPlan === 'premium') return 99.99;
-    if (selectedPlan === 'test_eval') return 0;
+    if (selectedPlan === 'beta') return 0;
     if (selectedPlan === 'free') return 0;
     return selectedModules.reduce((total, moduleId) => {
       const module = modules.find(m => m.id === moduleId);
@@ -426,12 +442,12 @@ export default function PlatformAdmin() {
         .delete()
         .eq('tenant_id', selectedTenant.id);
 
-      // For premium and test_eval plans, enable ALL modules
+      // For premium and beta plans, enable ALL modules
       // For alacarte, enable only selected modules
       let modulesToInsert: string[] = [];
-      
-      if (selectedPlan === 'premium' || selectedPlan === 'test_eval') {
-        // Enable all modules for premium and test_eval plans
+
+      if (selectedPlan === 'premium' || selectedPlan === 'beta') {
+        // Enable all modules for premium and beta plans
         modulesToInsert = modules.map(m => m.id);
       } else if (selectedPlan === 'alacarte' && selectedModules.length > 0) {
         modulesToInsert = selectedModules;
@@ -975,6 +991,64 @@ export default function PlatformAdmin() {
           )}
         </div>
 
+        {/* Module Rollout Section */}
+        <div className="flex items-center justify-between mb-6 mt-12">
+          <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: colors.brown }}>
+            <Layers className="w-6 h-6" style={{ color: colors.gold }} />
+            Module Rollout
+          </h2>
+        </div>
+
+        <div className="space-y-3 mb-8">
+          {modules.map((module) => {
+            const statusColors = {
+              internal: { bg: colors.creamDark, text: colors.brown, label: 'Internal' },
+              beta: { bg: '#dbeafe', text: '#2563eb', label: 'Beta' },
+              ga: { bg: '#dcfce7', text: '#16a34a', label: 'GA' },
+            };
+            const status = statusColors[module.rollout_status] || statusColors.ga;
+
+            return (
+              <Card key={module.id} style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <h3 className="font-semibold" style={{ color: colors.brown }}>{module.name}</h3>
+                        <p className="text-xs" style={{ color: colors.brownLight }}>{module.id}</p>
+                      </div>
+                      <Badge style={{ backgroundColor: status.bg, color: status.text }}>
+                        {status.label}
+                      </Badge>
+                    </div>
+                    <Select
+                      value={module.rollout_status}
+                      onValueChange={(value) => updateModuleRollout(module.id, value as 'internal' | 'beta' | 'ga')}
+                    >
+                      <SelectTrigger className="w-[140px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="internal">Internal</SelectItem>
+                        <SelectItem value="beta">Beta</SelectItem>
+                        <SelectItem value="ga">GA</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+
+          {modules.length === 0 && (
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
+                Loading modules...
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
         {/* Unified Tenant Management Dialog */}
         <Dialog open={showSubscriptionDialog} onOpenChange={setShowSubscriptionDialog}>
           <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
@@ -1107,22 +1181,22 @@ export default function PlatformAdmin() {
                 />
               </div>
 
-              {/* Test & Eval Option (Internal/Unpublished) */}
+              {/* Beta Plan Option */}
               <div
                 className="p-4 rounded-xl border-2 cursor-pointer transition-colors"
                 style={{
-                  borderColor: selectedPlan === 'test_eval' ? '#3b82f6' : colors.creamDark,
-                  backgroundColor: selectedPlan === 'test_eval' ? '#eff6ff' : colors.white,
+                  borderColor: selectedPlan === 'beta' ? '#3b82f6' : colors.creamDark,
+                  backgroundColor: selectedPlan === 'beta' ? '#eff6ff' : colors.white,
                 }}
-                onClick={() => setSelectedPlan(selectedPlan === 'test_eval' ? 'alacarte' : 'test_eval')}
-                data-testid="toggle-test-eval"
+                onClick={() => setSelectedPlan(selectedPlan === 'beta' ? 'alacarte' : 'beta')}
+                data-testid="toggle-beta"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-lg" style={{ color: colors.brown }}>Test & Eval</p>
-                    <p className="text-sm" style={{ color: colors.brownLight }}>Full access for testing and evaluation</p>
+                    <p className="font-semibold text-lg" style={{ color: colors.brown }}>Beta</p>
+                    <p className="text-sm" style={{ color: colors.brownLight }}>Full access for beta testing</p>
                     <Badge variant="outline" style={{ borderColor: '#3b82f6', color: '#2563eb' }} className="text-xs mt-1">
-                      Internal Only
+                      Beta Plan
                     </Badge>
                   </div>
                   <div className="text-right">
@@ -1131,10 +1205,10 @@ export default function PlatformAdmin() {
                   </div>
                 </div>
                 <Switch
-                  checked={selectedPlan === 'test_eval'}
-                  onCheckedChange={(checked) => setSelectedPlan(checked ? 'test_eval' : 'alacarte')}
+                  checked={selectedPlan === 'beta'}
+                  onCheckedChange={(checked) => setSelectedPlan(checked ? 'beta' : 'alacarte')}
                   className="mt-3"
-                  data-testid="switch-test-eval"
+                  data-testid="switch-beta"
                 />
               </div>
 
@@ -1160,7 +1234,7 @@ export default function PlatformAdmin() {
               )}
 
               {/* À La Carte Modules */}
-              {selectedPlan !== 'premium' && selectedPlan !== 'test_eval' && selectedPlan !== 'free' && (
+              {selectedPlan !== 'premium' && selectedPlan !== 'beta' && selectedPlan !== 'free' && (
                 <div>
                   <Label className="mb-3 block" style={{ color: colors.brown }}>À La Carte Modules</Label>
                   <div className="space-y-3">
@@ -1204,7 +1278,7 @@ export default function PlatformAdmin() {
               )}
 
               {/* Premium/Test & Eval modules preview */}
-              {(selectedPlan === 'premium' || selectedPlan === 'test_eval') && (
+              {(selectedPlan === 'premium' || selectedPlan === 'beta') && (
                 <div>
                   <Label className="mb-3 block" style={{ color: colors.brown }}>Included Modules</Label>
                   <div className="space-y-2">

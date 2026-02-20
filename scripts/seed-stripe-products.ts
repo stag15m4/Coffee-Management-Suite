@@ -45,26 +45,26 @@ async function createProducts() {
   console.log('  Monthly price:', premiumMonthlyPrice.id, '$99.99/mo');
   console.log('  Annual price:', premiumAnnualPrice.id, '$999.99/yr');
 
-  const testEvalProduct = await stripe.products.create({
-    name: 'Test & Eval',
-    description: 'Full-featured access for testing and evaluation. All modules included. Up to 3 locations.',
+  const betaProduct = await stripe.products.create({
+    name: 'Beta',
+    description: 'Full access for beta testing. All modules included. Up to 3 locations.',
     metadata: {
-      plan_id: 'test_eval',
+      plan_id: 'beta',
       max_locations: '3',
       modules: 'recipe-costing,tip-payout,cash-deposit,bulk-ordering,equipment-maintenance,admin-tasks'
     }
   });
 
-  const testEvalPrice = await stripe.prices.create({
-    product: testEvalProduct.id,
+  const betaPrice = await stripe.prices.create({
+    product: betaProduct.id,
     unit_amount: 4999,
     currency: 'usd',
     recurring: { interval: 'month' },
     metadata: { billing_period: 'monthly' }
   });
 
-  console.log('Created Test & Eval product:', testEvalProduct.id);
-  console.log('  Monthly price:', testEvalPrice.id, '$49.99/mo');
+  console.log('Created Beta product:', betaProduct.id);
+  console.log('  Monthly price:', betaPrice.id, '$49.99/mo');
 
   // Recipe Cost Manager - $19.99/mo
   const recipeCostProduct = await stripe.products.create({
