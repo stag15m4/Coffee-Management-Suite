@@ -187,14 +187,16 @@ export default function Billing() {
   const fetchData = useCallback(async () => {
     if (!tenant) return;
     try {
+      const { getAuthHeaders } = await import('@/lib/api-helpers');
+      const authHeaders = await getAuthHeaders();
       const [billingRes, modulesRes, productsRes, referralRes] = await Promise.all([
         fetch(`/api/stripe/billing-details/${tenant.id}`, {
-          headers: { 'x-user-id': user?.id || '' },
+          headers: authHeaders,
         }),
         fetch('/api/billing/modules'),
         fetch('/api/stripe/products'),
         fetch(`/api/referral-codes/mine/${tenant.id}`, {
-          headers: { 'x-user-id': user?.id || '' },
+          headers: authHeaders,
         }),
       ]);
 
@@ -288,9 +290,10 @@ export default function Billing() {
     if (!tenant) return;
     setReferralLoading(true);
     try {
+      const { getAuthHeaders } = await import('@/lib/api-helpers');
       const response = await fetch('/api/referral-codes/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id || '' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({ tenantId: tenant.id }),
       });
       const data = await response.json();
@@ -315,9 +318,10 @@ export default function Billing() {
     if (!licenseCode.trim()) return;
     setLicenseLoading(true);
     try {
+      const { getAuthHeaders: getLicenseHeaders } = await import('@/lib/api-helpers');
       const response = await fetch('/api/license-codes/redeem', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id || '' },
+        headers: await getLicenseHeaders(),
         body: JSON.stringify({ code: licenseCode.trim() }),
       });
       const data = await response.json();
@@ -339,9 +343,10 @@ export default function Billing() {
     if (!referralRedeemCode.trim() || !tenant) return;
     setReferralRedeemLoading(true);
     try {
+      const { getAuthHeaders: getRedeemHeaders } = await import('@/lib/api-helpers');
       const response = await fetch('/api/referral-codes/redeem', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id || '' },
+        headers: await getRedeemHeaders(),
         body: JSON.stringify({ code: referralRedeemCode.trim(), tenantId: tenant.id }),
       });
       const data = await response.json();

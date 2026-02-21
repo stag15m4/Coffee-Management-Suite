@@ -188,12 +188,10 @@ export function useSyncICal() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (subscriptionId: string) => {
+      const { getAuthHeaders } = await import('@/lib/api-helpers');
       const res = await fetch('/api/calendar/sync-ical', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user?.id ?? '',
-        },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({ subscriptionId }),
       });
       if (!res.ok) {

@@ -229,16 +229,16 @@ export default function PlatformAdmin() {
     }
   };
 
-  const getAuthHeaders = () => ({
-    'Content-Type': 'application/json',
-    'x-user-id': user?.id || '',
-  });
+  const getAuthHeaders = async () => {
+    const { getAuthHeaders: getHeaders } = await import('@/lib/api-helpers');
+    return getHeaders();
+  };
 
   const loadAdmins = async () => {
     setAdminsLoading(true);
     setAdminsError(null);
     try {
-      const res = await fetch('/api/platform-admins', { headers: getAuthHeaders() });
+      const res = await fetch('/api/platform-admins', { headers: await getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setAdmins(data);
@@ -259,7 +259,7 @@ export default function PlatformAdmin() {
     setBetaInvitesLoading(true);
     setBetaInvitesError(null);
     try {
-      const res = await fetch('/api/beta-invites', { headers: getAuthHeaders() });
+      const res = await fetch('/api/beta-invites', { headers: await getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setBetaInvites(data);
@@ -278,7 +278,7 @@ export default function PlatformAdmin() {
 
   const loadModuleUsage = async (days: number) => {
     try {
-      const res = await fetch(`/api/analytics/module-usage?days=${days}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/analytics/module-usage?days=${days}`, { headers: await getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setModuleUsage(data.modules || []);
@@ -298,7 +298,7 @@ export default function PlatformAdmin() {
     try {
       const res = await fetch('/api/beta-invite', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
         body: JSON.stringify({ email: betaInviteEmail }),
       });
 
@@ -330,7 +330,7 @@ export default function PlatformAdmin() {
     try {
       const res = await fetch('/api/platform-admins', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
         body: JSON.stringify({ email: newAdminEmail, full_name: newAdminName || null }),
       });
 
@@ -358,7 +358,7 @@ export default function PlatformAdmin() {
     try {
       const res = await fetch(`/api/platform-admins/${adminId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
       });
 
       if (!res.ok) {
@@ -452,7 +452,7 @@ export default function PlatformAdmin() {
 
       const res = await fetch('/api/verticals', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           slug,
           productName,
@@ -649,7 +649,7 @@ export default function PlatformAdmin() {
     try {
       const res = await fetch('/api/tenants', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           name: newTenantName,
           slug: newTenantSlug,

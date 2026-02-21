@@ -55,12 +55,12 @@ interface SquareMapping {
 }
 
 async function apiFetch(path: string, options?: RequestInit) {
-  const { data: { session } } = await (await import('@/lib/supabase-queries')).supabase.auth.getSession();
+  const { getAuthHeaders } = await import('@/lib/api-helpers');
+  const authHeaders = await getAuthHeaders();
   const res = await fetch(path, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
-      'x-user-id': session?.user?.id || '',
+      ...authHeaders,
       ...(options?.headers || {}),
     },
   });

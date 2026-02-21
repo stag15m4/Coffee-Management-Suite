@@ -148,16 +148,16 @@ export default function ResellerManagement() {
     }
   }, [authLoading, isPlatformAdmin]);
 
-  const getAuthHeaders = () => ({
-    'Content-Type': 'application/json',
-    'x-user-id': user?.id || '',
-  });
+  const getAuthHeaders = async () => {
+    const { getAuthHeaders: getHeaders } = await import('@/lib/api-helpers');
+    return getHeaders();
+  };
 
   const loadResellers = async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/resellers', {
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
       });
       if (response.ok) {
         const data = await response.json();
@@ -177,7 +177,7 @@ export default function ResellerManagement() {
 
   const loadAllVerticals = async () => {
     try {
-      const response = await fetch('/api/verticals', { headers: getAuthHeaders() });
+      const response = await fetch('/api/verticals', { headers: await getAuthHeaders() });
       if (response.ok) {
         setAllVerticals(await response.json());
       }
@@ -190,7 +190,7 @@ export default function ResellerManagement() {
     try {
       setLoading(true);
       const [resellerRes] = await Promise.all([
-        fetch(`/api/resellers/${id}`, { headers: getAuthHeaders() }),
+        fetch(`/api/resellers/${id}`, { headers: await getAuthHeaders() }),
         loadAllVerticals(),
       ]);
       if (resellerRes.ok) {
@@ -213,7 +213,7 @@ export default function ResellerManagement() {
       setProcessing(true);
       const response = await fetch('/api/resellers', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
         body: JSON.stringify(resellerForm),
       });
 
@@ -244,7 +244,7 @@ export default function ResellerManagement() {
       setProcessing(true);
       const response = await fetch(`/api/resellers/${selectedReseller.id}`, {
         method: 'PUT',
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
         body: JSON.stringify(resellerForm),
       });
 
@@ -278,7 +278,7 @@ export default function ResellerManagement() {
     try {
       const response = await fetch(`/api/resellers/${id}`, { 
         method: 'DELETE',
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
       });
       if (response.ok) {
         if (view === 'detail') {
@@ -304,7 +304,7 @@ export default function ResellerManagement() {
       setProcessing(true);
       const response = await fetch(`/api/resellers/${selectedReseller.id}/generate-codes`, {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           count: generateForm.count,
           subscriptionPlan: generateForm.subscriptionPlan,
@@ -341,7 +341,7 @@ export default function ResellerManagement() {
     try {
       const response = await fetch(`/api/license-codes/${id}`, { 
         method: 'DELETE',
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
       });
       if (response.ok) {
         toast({ title: 'Success', description: 'License code deleted' });
