@@ -155,6 +155,8 @@ export default function PlatformAdmin() {
 
   // Platform admin management state
   const [admins, setAdmins] = useState<PlatformAdminRecord[]>([]);
+  const [adminsLoading, setAdminsLoading] = useState(true);
+  const [adminsError, setAdminsError] = useState<string | null>(null);
   const [showAddAdminDialog, setShowAddAdminDialog] = useState(false);
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [newAdminName, setNewAdminName] = useState('');
@@ -163,6 +165,8 @@ export default function PlatformAdmin() {
 
   // Beta invite state
   const [betaInvites, setBetaInvites] = useState<any[]>([]);
+  const [betaInvitesLoading, setBetaInvitesLoading] = useState(true);
+  const [betaInvitesError, setBetaInvitesError] = useState<string | null>(null);
   const [showBetaInviteDialog, setShowBetaInviteDialog] = useState(false);
   const [betaInviteEmail, setBetaInviteEmail] = useState('');
   const [sendingBetaInvite, setSendingBetaInvite] = useState(false);
@@ -231,26 +235,44 @@ export default function PlatformAdmin() {
   });
 
   const loadAdmins = async () => {
+    setAdminsLoading(true);
+    setAdminsError(null);
     try {
       const res = await fetch('/api/platform-admins', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setAdmins(data);
+      } else {
+        const errBody = await res.text();
+        console.error(`Error loading admins: ${res.status} ${res.statusText}`, errBody);
+        setAdminsError(`API returned ${res.status}: ${errBody}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading admins:', error);
+      setAdminsError(error.message);
+    } finally {
+      setAdminsLoading(false);
     }
   };
 
   const loadBetaInvites = async () => {
+    setBetaInvitesLoading(true);
+    setBetaInvitesError(null);
     try {
       const res = await fetch('/api/beta-invites', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setBetaInvites(data);
+      } else {
+        const errBody = await res.text();
+        console.error(`Error loading beta invites: ${res.status} ${res.statusText}`, errBody);
+        setBetaInvitesError(`API returned ${res.status}: ${errBody}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading beta invites:', error);
+      setBetaInvitesError(error.message);
+    } finally {
+      setBetaInvitesLoading(false);
     }
   };
 
@@ -1055,10 +1077,35 @@ export default function PlatformAdmin() {
             </Card>
           ))}
 
-          {admins.length === 0 && (
+          {adminsLoading && admins.length === 0 && (
             <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
               <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
+                <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
                 Loading platform admins...
+              </CardContent>
+            </Card>
+          )}
+          {adminsError && (
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.red }}>
+              <CardContent className="py-6 text-center">
+                <p className="font-medium mb-1" style={{ color: colors.red }}>Failed to load platform admins</p>
+                <p className="text-xs" style={{ color: colors.brownLight }}>{adminsError}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={loadAdmins}
+                  style={{ borderColor: colors.gold, color: colors.gold }}
+                >
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+          {!adminsLoading && !adminsError && admins.length === 0 && (
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
+                No platform admins found.
               </CardContent>
             </Card>
           )}
@@ -1112,7 +1159,7 @@ export default function PlatformAdmin() {
         </div>
 
         <div className="space-y-3 mb-8">
-          {betaInvites.length > 0 ? betaInvites.map((invite: any) => (
+          {betaInvites.map((invite: any) => (
             <Card key={invite.id} style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
               <CardContent className="py-4">
                 <div className="flex items-center justify-between">
@@ -1145,7 +1192,33 @@ export default function PlatformAdmin() {
                 </div>
               </CardContent>
             </Card>
-          )) : (
+          ))}
+          {betaInvitesLoading && betaInvites.length === 0 && (
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
+                <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
+                Loading beta invites...
+              </CardContent>
+            </Card>
+          )}
+          {betaInvitesError && (
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.red }}>
+              <CardContent className="py-6 text-center">
+                <p className="font-medium mb-1" style={{ color: colors.red }}>Failed to load beta invites</p>
+                <p className="text-xs" style={{ color: colors.brownLight }}>{betaInvitesError}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={loadBetaInvites}
+                  style={{ borderColor: colors.gold, color: colors.gold }}
+                >
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+          {!betaInvitesLoading && !betaInvitesError && betaInvites.length === 0 && (
             <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
               <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
                 No beta invites sent yet. Click "Send Invite" to invite a beta tester.

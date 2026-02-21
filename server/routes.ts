@@ -11,15 +11,19 @@ import ical from "node-ical";
 
 // Helper to verify platform admin status
 async function verifyPlatformAdmin(userId: string | undefined): Promise<boolean> {
-  if (!userId) return false;
+  if (!userId) {
+    console.error('[platform-admin] No userId provided');
+    return false;
+  }
   try {
     const result = await db.execute(sql`
-      SELECT 1 FROM platform_admins 
+      SELECT 1 FROM platform_admins
       WHERE id = ${userId}::uuid AND is_active = true
       LIMIT 1
     `);
     return result.rows.length > 0;
-  } catch (error) {
+  } catch (error: any) {
+    console.error('[platform-admin] DB verification failed:', error.message);
     return false;
   }
 }
