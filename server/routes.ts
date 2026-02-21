@@ -1223,8 +1223,8 @@ export async function registerRoutes(
         VALUES (${code}, ${resellerId}, 'beta', ${email}, NOW() + INTERVAL '90 days')
       `);
 
-      // Send invite email
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      // Send invite email — use APP_URL in production so links aren't localhost
+      const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
       const emailResult = await sendBetaInviteEmail({
         recipientEmail: email,
         licenseCode: code,

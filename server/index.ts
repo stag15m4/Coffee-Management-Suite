@@ -15,6 +15,7 @@ Sentry.init({
 });
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (Railway/reverse proxy) for correct req.protocol
 const httpServer = createServer(app);
 
 declare module "http" {
