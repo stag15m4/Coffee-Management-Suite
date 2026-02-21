@@ -320,6 +320,25 @@ export default function PlatformAdmin() {
     }
   };
 
+  const handleDeleteBetaInvite = async (id: string, email: string) => {
+    if (!confirm(`Delete beta invite for ${email}?`)) return;
+    try {
+      const res = await fetch(`/api/beta-invite/${id}`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast({ title: 'Error deleting invite', description: data.error, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Invite deleted' });
+      loadBetaInvites();
+    } catch (error: any) {
+      toast({ title: 'Error deleting invite', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const handleAddAdmin = async () => {
     if (!newAdminEmail) {
       toast({ title: 'Email is required', variant: 'destructive' });
@@ -1188,6 +1207,15 @@ export default function PlatformAdmin() {
                       <Clock className="w-3 h-3" />
                       {new Date(invite.created_at).toLocaleDateString()}
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteBetaInvite(invite.id, invite.invited_email)}
+                      className="h-8 w-8 p-0"
+                      style={{ color: colors.brownLight }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               </CardContent>

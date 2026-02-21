@@ -1259,6 +1259,18 @@ export async function registerRoutes(
     }
   });
 
+  app.delete('/api/beta-invite/:id', requirePlatformAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.execute(sql`
+        DELETE FROM license_codes WHERE id = ${id}::uuid AND subscription_plan = 'beta'
+      `);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // =====================================================
   // BETA SIGNUP (Public — license code is the auth gate)
   // =====================================================
