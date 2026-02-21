@@ -746,7 +746,7 @@ export default function EquipmentMaintenance() {
   const isLoading = (loadingEquipment && !equipmentHasError) || (loadingTasks && !tasksHasError);
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
+    <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor: colors.cream }}>
       <header className="px-4 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3 flex-wrap">
           <div>

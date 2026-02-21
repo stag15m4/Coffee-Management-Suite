@@ -73,7 +73,7 @@ export function EquipmentList({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-2 flex-wrap">
         <h2 className="font-semibold" style={{ color: colors.brown }}>Equipment List</h2>
         <div className="flex gap-2">
           {equipment.length > 0 && (
@@ -84,8 +84,8 @@ export function EquipmentList({
                 style={{ borderColor: colors.gold, color: colors.brown }}
                 data-testid="button-print-equipment-list"
               >
-                <Printer className="w-4 h-4 mr-2" />
-                Print
+                <Printer className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Print</span>
               </Button>
               <Button
                 variant="outline"
@@ -96,8 +96,8 @@ export function EquipmentList({
                 style={{ borderColor: colors.gold, color: colors.brown }}
                 data-testid="button-export-equipment-list"
               >
-                <Download className="w-4 h-4 mr-2" />
-                CSV
+                <Download className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">CSV</span>
               </Button>
             </>
           )}
