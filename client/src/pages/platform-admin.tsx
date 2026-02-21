@@ -694,7 +694,7 @@ export default function PlatformAdmin() {
             <Settings className="w-8 h-8" style={{ color: colors.gold }} />
             <div>
               <h1 className="text-xl font-bold" style={{ color: colors.brown }} data-testid="text-platform-admin-title">Platform Admin</h1>
-              <p className="text-sm" style={{ color: colors.brownLight }}>{platformAdmin?.email}</p>
+              <p className="text-sm hidden sm:block" style={{ color: colors.brownLight }}>{platformAdmin?.email}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -703,8 +703,8 @@ export default function PlatformAdmin() {
               style={{ backgroundColor: colors.gold, color: colors.white }}
               data-testid="button-my-dashboard"
             >
-              <LayoutDashboard className="w-4 h-4 mr-2" />
-              My Dashboard
+              <LayoutDashboard className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">My Dashboard</span>
             </Button>
             <Button
               variant="outline"
@@ -712,8 +712,8 @@ export default function PlatformAdmin() {
               style={{ borderColor: colors.creamDark, color: colors.brown }}
               data-testid="button-reseller-management"
             >
-              <Key className="w-4 h-4 mr-2" />
-              Wholesale Partners
+              <Key className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Wholesale Partners</span>
             </Button>
             <Button
               variant="outline"
@@ -721,8 +721,8 @@ export default function PlatformAdmin() {
               style={{ borderColor: colors.creamDark, color: colors.brown }}
               data-testid="button-logout"
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
+              <LogOut className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>
