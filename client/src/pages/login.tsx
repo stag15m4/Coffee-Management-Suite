@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -69,6 +69,11 @@ export default function Login() {
       setIsResetting(false);
     }
   };
+
+  useLayoutEffect(() => {
+    document.title = 'CMS - Login';
+    return () => { document.title = 'Coffee Management Suite'; };
+  }, []);
 
   useEffect(() => {
     const handleLocationSetup = async () => {
