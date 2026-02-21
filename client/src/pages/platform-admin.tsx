@@ -875,7 +875,7 @@ export default function PlatformAdmin() {
               data-testid={`card-tenant-${tenant.id}`}
             >
               <CardContent className="py-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
                       <Building2 className="w-6 h-6" style={{ color: colors.gold }} />
@@ -885,13 +885,13 @@ export default function PlatformAdmin() {
                       <p className="text-sm" style={{ color: colors.brownLight }}>{tenant.slug}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
+                  <div className="flex items-center justify-between sm:justify-end gap-3">
+                    <div className="text-left sm:text-right">
                       <p className="text-sm" style={{ color: colors.brownLight }}>{tenant.user_count} users</p>
                       <p className="text-xs mt-0.5" style={{ color: getActivityColor(tenant.last_login_at ?? null) }}>
                         Last active: {formatRelativeTime(tenant.last_login_at ?? null)}
                       </p>
-                      <div className="flex gap-2 mt-1">
+                      <div className="flex flex-wrap gap-1.5 mt-1">
                         <Badge
                           style={tenant.is_active
                             ? { backgroundColor: colors.green, color: '#fff' }
