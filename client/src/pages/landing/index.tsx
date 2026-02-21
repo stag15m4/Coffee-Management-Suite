@@ -1,7 +1,7 @@
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ChevronRight, Building2, Users, Shield, BarChart3 } from 'lucide-react';
+import { ChevronRight, Building2, Users, Shield, BarChart3, Lock, Eye, RefreshCw } from 'lucide-react';
 import { useVertical } from '@/contexts/VerticalContext';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { HeroSection } from './HeroSection';
@@ -27,8 +27,8 @@ const PLATFORM_FEATURES = [
   },
   {
     icon: Shield,
-    title: 'Secure & Reliable',
-    description: 'Enterprise-grade security with encrypted data and automatic backups.',
+    title: 'Secure by Default',
+    description: 'Your data is encrypted, access is verified on every request, and each business is fully isolated.',
   },
   {
     icon: BarChart3,
@@ -162,6 +162,65 @@ export default function Landing() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Security Trust Section */}
+      <section
+        className="py-12 md:py-16 border-t border-b"
+        style={{ backgroundColor: 'var(--color-accent)', borderColor: 'var(--color-accent-dark)' }}
+      >
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ background: gradient }}
+            >
+              <Shield className="w-7 h-7 text-white" />
+            </div>
+            <h2
+              className="text-2xl md:text-3xl font-bold mb-3"
+              style={{ color: 'var(--color-secondary)' }}
+            >
+              Your Data, Protected
+            </h2>
+            <p
+              className="text-base max-w-2xl mx-auto"
+              style={{ color: 'var(--color-secondary-light)' }}
+            >
+              We take security seriously so you can focus on running your business.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-6">
+            <div className="text-center">
+              <Lock className="w-8 h-8 mx-auto mb-3" style={{ color: 'var(--color-primary)' }} />
+              <h3 className="font-semibold mb-1.5" style={{ color: 'var(--color-secondary)' }}>
+                Encrypted Connections
+              </h3>
+              <p className="text-sm" style={{ color: 'var(--color-secondary-light)' }}>
+                All data is transmitted over secure, encrypted connections. Your information is never sent in plain text.
+              </p>
+            </div>
+            <div className="text-center">
+              <Eye className="w-8 h-8 mx-auto mb-3" style={{ color: 'var(--color-primary)' }} />
+              <h3 className="font-semibold mb-1.5" style={{ color: 'var(--color-secondary)' }}>
+                Strict Access Controls
+              </h3>
+              <p className="text-sm" style={{ color: 'var(--color-secondary-light)' }}>
+                Every request is authenticated and authorized. Each business can only access its own data — no exceptions.
+              </p>
+            </div>
+            <div className="text-center">
+              <RefreshCw className="w-8 h-8 mx-auto mb-3" style={{ color: 'var(--color-primary)' }} />
+              <h3 className="font-semibold mb-1.5" style={{ color: 'var(--color-secondary)' }}>
+                Reliable Infrastructure
+              </h3>
+              <p className="text-sm" style={{ color: 'var(--color-secondary-light)' }}>
+                Hosted on trusted cloud infrastructure with automatic backups, so your data is safe and always available.
+              </p>
+            </div>
           </div>
         </div>
       </section>
