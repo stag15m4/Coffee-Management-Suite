@@ -11,33 +11,42 @@ import ical from "node-ical";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 // Extract user ID from request: tries Authorization Bearer JWT first, falls back to x-user-id header
-async function getUserIdFromRequest(req: Request): Promise<string | null> {
+async function getUserIdFromRequest(req: Request): Promise<{ userId: string | null; debug: string }> {
+  const debugParts: string[] = [];
+
   // Try Authorization Bearer token (Supabase JWT)
   const authHeader = req.headers['authorization'];
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
+    debugParts.push(`Bearer token present (${token.length} chars)`);
     try {
       const supabaseAdmin = getSupabaseAdmin();
       const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
       if (!error && user?.id) {
-        return user.id;
+        return { userId: user.id, debug: 'JWT verified' };
       }
-      console.error('[auth] JWT verification failed:', error?.message);
+      debugParts.push(`JWT verify failed: ${error?.message || 'no user returned'}`);
     } catch (err: any) {
-      console.error('[auth] JWT verification error:', err.message);
+      debugParts.push(`JWT error: ${err.message}`);
     }
+  } else {
+    debugParts.push(authHeader ? `Auth header present but not Bearer: ${authHeader.slice(0, 20)}` : 'No Authorization header');
   }
+
   // Fallback to x-user-id header (for local dev / backward compatibility)
   const xUserId = req.headers['x-user-id'] as string;
-  if (xUserId) return xUserId;
-  return null;
+  if (xUserId) {
+    debugParts.push('Fell back to x-user-id');
+    return { userId: xUserId, debug: debugParts.join(' | ') };
+  }
+  debugParts.push('No x-user-id header either');
+  return { userId: null, debug: debugParts.join(' | ') };
 }
 
 // Helper to verify platform admin status
-async function verifyPlatformAdmin(userId: string | undefined): Promise<boolean> {
+async function verifyPlatformAdmin(userId: string | undefined): Promise<{ isAdmin: boolean; debug: string }> {
   if (!userId) {
-    console.error('[platform-admin] No userId provided');
-    return false;
+    return { isAdmin: false, debug: 'No userId provided' };
   }
   try {
     const result = await db.execute(sql`
@@ -45,19 +54,19 @@ async function verifyPlatformAdmin(userId: string | undefined): Promise<boolean>
       WHERE id = ${userId}::uuid AND is_active = true
       LIMIT 1
     `);
-    return result.rows.length > 0;
+    return { isAdmin: result.rows.length > 0, debug: result.rows.length > 0 ? 'Admin verified' : `userId ${userId} not found in platform_admins` };
   } catch (error: any) {
-    console.error('[platform-admin] DB verification failed:', error.message);
-    return false;
+    return { isAdmin: false, debug: `DB error: ${error.message}` };
   }
 }
 
 // Middleware to require platform admin
 const requirePlatformAdmin = async (req: Request, res: Response, next: NextFunction) => {
-  const userId = await getUserIdFromRequest(req);
-  const isAdmin = await verifyPlatformAdmin(userId ?? undefined);
+  const { userId, debug: authDebug } = await getUserIdFromRequest(req);
+  const { isAdmin, debug: adminDebug } = await verifyPlatformAdmin(userId ?? undefined);
   if (!isAdmin) {
-    return res.status(403).json({ error: 'Platform admin access required' });
+    console.error(`[platform-admin] Access denied: ${authDebug} | ${adminDebug}`);
+    return res.status(403).json({ error: 'Platform admin access required', debug: `${authDebug} | ${adminDebug}` });
   }
   (req as any).userId = userId;
   next();
@@ -444,7 +453,7 @@ export async function registerRoutes(
 
   app.get('/api/stripe/billing-details/:tenantId', async (req, res) => {
     try {
-      const userId = await getUserIdFromRequest(req);
+      const { userId } = await getUserIdFromRequest(req);
       if (!userId) {
         return res.status(401).json({ error: 'Authentication required' });
       }
@@ -507,7 +516,7 @@ export async function registerRoutes(
 
   // Helper: verify user is owner/manager of the given tenant
   async function verifySquareAdmin(req: Request, res: Response): Promise<{ userId: string; tenantId: string } | null> {
-    const userId = await getUserIdFromRequest(req);
+    const { userId } = await getUserIdFromRequest(req);
     if (!userId) {
       res.status(401).json({ error: 'Authentication required' });
       return null;
@@ -744,7 +753,7 @@ export async function registerRoutes(
   // Generate a referral code for the tenant
   app.post('/api/referral-codes/generate', async (req, res) => {
     try {
-      const userId = await getUserIdFromRequest(req);
+      const { userId } = await getUserIdFromRequest(req);
       if (!userId) {
         return res.status(401).json({ error: 'Authentication required' });
       }
@@ -794,7 +803,7 @@ export async function registerRoutes(
   // Get the tenant's referral code + stats
   app.get('/api/referral-codes/mine/:tenantId', async (req, res) => {
     try {
-      const userId = await getUserIdFromRequest(req);
+      const { userId } = await getUserIdFromRequest(req);
       if (!userId) {
         return res.status(401).json({ error: 'Authentication required' });
       }
@@ -837,7 +846,7 @@ export async function registerRoutes(
   // Redeem a referral code
   app.post('/api/referral-codes/redeem', async (req, res) => {
     try {
-      const userId = await getUserIdFromRequest(req);
+      const { userId } = await getUserIdFromRequest(req);
       if (!userId) {
         return res.status(401).json({ error: 'Authentication required' });
       }
@@ -1100,7 +1109,7 @@ export async function registerRoutes(
   app.post('/api/license-codes/redeem', async (req, res) => {
     try {
       const { code } = req.body;
-      const userId = await getUserIdFromRequest(req);
+      const { userId } = await getUserIdFromRequest(req);
 
       // Require authentication
       if (!userId) {
@@ -1813,7 +1822,7 @@ export async function registerRoutes(
 
   // ── iCal Sync ───────────────────────────────────────────────
   app.post('/api/calendar/sync-ical', async (req: Request, res: Response) => {
-    const userId = await getUserIdFromRequest(req);
+    const { userId } = await getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Auth required' });
 
     const { subscriptionId } = req.body;
