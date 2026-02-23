@@ -103,7 +103,6 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
 
   const diff = (entry.actual_deposit || 0) - (entry.calculated_deposit || 0);
   const netCash = (entry.actual_deposit || 0) - (entry.pay_in || 0);
-  const drawerAdj = drawerDefault - (entry.starting_drawer || drawerDefault);
 
   const displayDate = new Date(entry.drawer_date + 'T00:00:00').toLocaleDateString('en-US', {
     weekday: 'long',
@@ -112,17 +111,18 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
     year: 'numeric',
   });
 
-  const diffColor = Math.abs(diff) < 0.01 ? '#22c55e' : diff > 0 ? '#eab308' : '#ef4444';
+  // High-contrast colors for print readability
+  const diffColor = Math.abs(diff) < 0.01 ? '#15803d' : diff > 0 ? '#b45309' : '#dc2626';
 
   const fmt = (v: number) => formatCurrency(v);
 
+  // Match the exact categories from the deposit input form
   const adjustmentRows = [
     { label: 'Tip Pool', value: entry.tip_pool || 0 },
-    ...(ownerTipsEnabled ? [{ label: 'Owner Tips', value: entry.owner_tips || 0 }] : []),
+    { label: 'Cash Refund', value: entry.cash_refund || 0 },
     { label: 'Pay In', value: entry.pay_in || 0 },
     { label: 'Pay Out', value: entry.pay_out || 0 },
-    { label: 'Cash Refund', value: entry.cash_refund || 0 },
-    ...(drawerAdj !== 0 ? [{ label: 'Drawer Adjustment', value: drawerAdj }] : []),
+    ...(ownerTipsEnabled ? [{ label: 'Owner Tips', value: entry.owner_tips || 0 }] : []),
   ].filter(r => r.value !== 0);
 
   return `<!DOCTYPE html>
