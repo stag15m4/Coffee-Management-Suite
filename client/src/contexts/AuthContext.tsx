@@ -482,6 +482,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .eq('id', session.user.id)
               .then(() => {});
           }
+
+          if (event === 'PASSWORD_RECOVERY') {
+            window.location.href = '/reset-password';
+          }
         } else {
           setProfile(null);
           setPlatformAdmin(null);

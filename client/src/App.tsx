@@ -41,6 +41,7 @@ import StoreProfile from "@/pages/store-profile";
 import AdminIntegrations from "@/pages/admin-integrations";
 import DocumentLibrary from "@/pages/document-library";
 import Kiosk from "@/pages/kiosk";
+import ResetPassword from "@/pages/reset-password";
 
 function HomePage() {
   const { user, loading } = useAuth();
@@ -68,6 +69,7 @@ function Router() {
       <Route path="/kiosk" component={Kiosk} />
       <Route path="/login" component={Login} />
       <Route path="/signup/:code?" component={Signup} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/platform-admin" component={PlatformAdmin} />
       <Route path="/reseller-management" component={ResellerManagement} />
       <Route path="/admin/users">
