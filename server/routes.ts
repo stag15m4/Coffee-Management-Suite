@@ -2345,6 +2345,288 @@ export async function registerRoutes(
     }
   });
 
+  // Location Clone Endpoint
+  // POST /api/locations/clone
+  // Copies recipes/ingredients, overhead settings, and/or equipment+tasks from one child location to another
+  app.post('/api/locations/clone', async (req, res) => {
+    try {
+      // 1. Auth
+      const { userId } = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      // 2. Parse body
+      const { sourceTenantId, targetTenantId, options } = req.body;
+      if (!sourceTenantId || !targetTenantId) {
+        return res.status(400).json({ error: 'sourceTenantId and targetTenantId are required' });
+      }
+
+      const cloneOptions = {
+        recipes: options?.recipes !== false,
+        overhead: options?.overhead !== false,
+        equipment: options?.equipment !== false,
+      };
+
+      // 3. Verify user is an owner
+      const profileResult = await db.execute(sql`
+        SELECT tenant_id, role FROM user_profiles WHERE id = ${userId}::uuid LIMIT 1
+      `);
+      const profile = profileResult.rows[0] as any;
+      if (!profile) {
+        return res.status(403).json({ error: 'User profile not found' });
+      }
+      if (profile.role !== 'owner') {
+        return res.status(403).json({ error: 'Only owners can clone location data' });
+      }
+
+      // 4. Verify source and target are children of the user's tenant
+      const sourceResult = await db.execute(sql`
+        SELECT id, parent_tenant_id FROM tenants WHERE id = ${sourceTenantId}::uuid LIMIT 1
+      `);
+      const targetResult = await db.execute(sql`
+        SELECT id, parent_tenant_id FROM tenants WHERE id = ${targetTenantId}::uuid LIMIT 1
+      `);
+      const source = sourceResult.rows[0] as any;
+      const target = targetResult.rows[0] as any;
+
+      if (!source || !target) {
+        return res.status(404).json({ error: 'Source or target location not found' });
+      }
+      const userTenantId = profile.tenant_id;
+      if (source.parent_tenant_id !== userTenantId || target.parent_tenant_id !== userTenantId) {
+        return res.status(403).json({ error: 'Not authorized to clone between these locations' });
+      }
+
+      // 5. Execute clone using service role admin client (bypasses RLS)
+      const admin = getSupabaseAdmin();
+      const counts = { recipes: 0, ingredients: 0, overhead: 0, equipment: 0, maintenanceTasks: 0 };
+
+      // --- Clone Overhead Settings ---
+      if (cloneOptions.overhead) {
+        const { data: overheadItems, error: overheadReadErr } = await admin
+          .from('overhead_settings')
+          .select('*')
+          .eq('tenant_id', sourceTenantId);
+        if (overheadReadErr) throw new Error(`Reading overhead failed: ${overheadReadErr.message}`);
+
+        if (overheadItems && overheadItems.length > 0) {
+          const inserts = overheadItems.map(({ id: _id, tenant_id: _tid, ...rest }) => ({
+            ...rest,
+            id: crypto.randomUUID(),
+            tenant_id: targetTenantId,
+          }));
+          const { error } = await admin.from('overhead_settings').insert(inserts);
+          if (error) throw new Error(`Overhead clone failed: ${error.message}`);
+          counts.overhead = inserts.length;
+        }
+      }
+
+      // --- Clone Recipes & Ingredients ---
+      if (cloneOptions.recipes) {
+        // 1. ingredient_categories
+        const { data: ingCats } = await admin
+          .from('ingredient_categories').select('*').eq('tenant_id', sourceTenantId);
+        const ingCatMap = new Map<string, string>();
+        if (ingCats && ingCats.length > 0) {
+          const inserts = ingCats.map(({ id, tenant_id: _tid, ...rest }) => {
+            const newId = crypto.randomUUID();
+            ingCatMap.set(id, newId);
+            return { ...rest, id: newId, tenant_id: targetTenantId };
+          });
+          const { error } = await admin.from('ingredient_categories').insert(inserts);
+          if (error) throw new Error(`Ingredient categories clone failed: ${error.message}`);
+        }
+
+        // 2. ingredients
+        const { data: ingredients } = await admin
+          .from('ingredients').select('*').eq('tenant_id', sourceTenantId);
+        const ingredientMap = new Map<string, string>();
+        if (ingredients && ingredients.length > 0) {
+          const inserts = ingredients.map(({ id, tenant_id: _tid, category_id, ...rest }) => {
+            const newId = crypto.randomUUID();
+            ingredientMap.set(id, newId);
+            return {
+              ...rest,
+              id: newId,
+              tenant_id: targetTenantId,
+              category_id: category_id ? (ingCatMap.get(category_id) ?? null) : null,
+            };
+          });
+          const { error } = await admin.from('ingredients').insert(inserts);
+          if (error) throw new Error(`Ingredients clone failed: ${error.message}`);
+          counts.ingredients = inserts.length;
+        }
+
+        // 3. product_categories
+        const { data: prodCats } = await admin
+          .from('product_categories').select('*').eq('tenant_id', sourceTenantId);
+        const prodCatMap = new Map<string, string>();
+        if (prodCats && prodCats.length > 0) {
+          const inserts = prodCats.map(({ id, tenant_id: _tid, ...rest }) => {
+            const newId = crypto.randomUUID();
+            prodCatMap.set(id, newId);
+            return { ...rest, id: newId, tenant_id: targetTenantId };
+          });
+          const { error } = await admin.from('product_categories').insert(inserts);
+          if (error) throw new Error(`Product categories clone failed: ${error.message}`);
+        }
+
+        // 4. product_sizes
+        const { data: sizes } = await admin
+          .from('product_sizes').select('*').eq('tenant_id', sourceTenantId);
+        const sizeMap = new Map<string, string>();
+        if (sizes && sizes.length > 0) {
+          const inserts = sizes.map(({ id, tenant_id: _tid, ...rest }) => {
+            const newId = crypto.randomUUID();
+            sizeMap.set(id, newId);
+            return { ...rest, id: newId, tenant_id: targetTenantId };
+          });
+          const { error } = await admin.from('product_sizes').insert(inserts);
+          if (error) throw new Error(`Product sizes clone failed: ${error.message}`);
+        }
+
+        // 5. base_templates
+        const { data: templates } = await admin
+          .from('base_templates').select('*').eq('tenant_id', sourceTenantId);
+        const templateMap = new Map<string, string>();
+        if (templates && templates.length > 0) {
+          const inserts = templates.map(({ id, tenant_id: _tid, ...rest }) => {
+            const newId = crypto.randomUUID();
+            templateMap.set(id, newId);
+            return { ...rest, id: newId, tenant_id: targetTenantId };
+          });
+          const { error } = await admin.from('base_templates').insert(inserts);
+          if (error) throw new Error(`Base templates clone failed: ${error.message}`);
+        }
+
+        // 6. base_template_ingredients
+        if (templates && templates.length > 0) {
+          const { data: bti } = await admin
+            .from('base_template_ingredients')
+            .select('*')
+            .in('base_template_id', templates.map((t: any) => t.id));
+          if (bti && bti.length > 0) {
+            const inserts = bti.map(({ id: _id, base_template_id, ingredient_id, ...rest }: any) => ({
+              ...rest,
+              id: crypto.randomUUID(),
+              base_template_id: templateMap.get(base_template_id) ?? base_template_id,
+              ingredient_id: ingredientMap.get(ingredient_id) ?? ingredient_id,
+            }));
+            const { error } = await admin.from('base_template_ingredients').insert(inserts);
+            if (error) throw new Error(`Base template ingredients clone failed: ${error.message}`);
+          }
+        }
+
+        // 7. recipes
+        const { data: recipes } = await admin
+          .from('recipes').select('*').eq('tenant_id', sourceTenantId);
+        const recipeMap = new Map<string, string>();
+        if (recipes && recipes.length > 0) {
+          const inserts = recipes.map(({ id, tenant_id: _tid, base_template_id, category_id, ...rest }: any) => {
+            const newId = crypto.randomUUID();
+            recipeMap.set(id, newId);
+            return {
+              ...rest,
+              id: newId,
+              tenant_id: targetTenantId,
+              base_template_id: base_template_id ? (templateMap.get(base_template_id) ?? null) : null,
+              category_id: category_id ? (prodCatMap.get(category_id) ?? null) : null,
+            };
+          });
+          const { error } = await admin.from('recipes').insert(inserts);
+          if (error) throw new Error(`Recipes clone failed: ${error.message}`);
+          counts.recipes = inserts.length;
+
+          const sourceRecipeIds = recipes.map((r: any) => r.id);
+
+          // 8. recipe_ingredients
+          const { data: recipeIngredients } = await admin
+            .from('recipe_ingredients').select('*').in('recipe_id', sourceRecipeIds);
+          if (recipeIngredients && recipeIngredients.length > 0) {
+            const inserts = recipeIngredients.map(({ id: _id, recipe_id, ingredient_id, syrup_recipe_id, size_id, ...rest }: any) => ({
+              ...rest,
+              id: crypto.randomUUID(),
+              recipe_id: recipeMap.get(recipe_id) ?? recipe_id,
+              ingredient_id: ingredient_id ? (ingredientMap.get(ingredient_id) ?? ingredient_id) : null,
+              syrup_recipe_id: syrup_recipe_id ? (recipeMap.get(syrup_recipe_id) ?? syrup_recipe_id) : null,
+              size_id: size_id ? (sizeMap.get(size_id) ?? size_id) : null,
+            }));
+            const { error } = await admin.from('recipe_ingredients').insert(inserts);
+            if (error) throw new Error(`Recipe ingredients clone failed: ${error.message}`);
+          }
+
+          // 9. recipe_size_bases
+          const { data: rsb } = await admin
+            .from('recipe_size_bases').select('*').in('recipe_id', sourceRecipeIds);
+          if (rsb && rsb.length > 0) {
+            const inserts = rsb.map(({ id, recipe_id, size_id, base_template_id, ...rest }: any) => ({
+              ...rest,
+              ...(id ? { id: crypto.randomUUID() } : {}),
+              recipe_id: recipeMap.get(recipe_id) ?? recipe_id,
+              size_id: size_id ? (sizeMap.get(size_id) ?? size_id) : null,
+              base_template_id: base_template_id ? (templateMap.get(base_template_id) ?? base_template_id) : null,
+            }));
+            const { error } = await admin.from('recipe_size_bases').insert(inserts);
+            if (error) throw new Error(`Recipe size bases clone failed: ${error.message}`);
+          }
+
+          // 10. recipe_size_pricing
+          const { data: rsp } = await admin
+            .from('recipe_size_pricing').select('*').in('recipe_id', sourceRecipeIds);
+          if (rsp && rsp.length > 0) {
+            const inserts = rsp.map(({ id: _id, recipe_id, size_id, ...rest }: any) => ({
+              ...rest,
+              id: crypto.randomUUID(),
+              recipe_id: recipeMap.get(recipe_id) ?? recipe_id,
+              size_id: size_id ? (sizeMap.get(size_id) ?? size_id) : null,
+            }));
+            const { error } = await admin.from('recipe_size_pricing').insert(inserts);
+            if (error) throw new Error(`Recipe size pricing clone failed: ${error.message}`);
+          }
+        }
+      }
+
+      // --- Clone Equipment & Maintenance Tasks ---
+      if (cloneOptions.equipment) {
+        const { data: equipmentItems } = await admin
+          .from('equipment').select('*').eq('tenant_id', sourceTenantId);
+        const equipmentMap = new Map<string, string>();
+        if (equipmentItems && equipmentItems.length > 0) {
+          const inserts = equipmentItems.map(({ id, tenant_id: _tid, ...rest }: any) => {
+            const newId = crypto.randomUUID();
+            equipmentMap.set(id, newId);
+            return { ...rest, id: newId, tenant_id: targetTenantId };
+          });
+          const { error } = await admin.from('equipment').insert(inserts);
+          if (error) throw new Error(`Equipment clone failed: ${error.message}`);
+          counts.equipment = inserts.length;
+
+          const { data: tasks } = await admin
+            .from('maintenance_tasks')
+            .select('*')
+            .in('equipment_id', equipmentItems.map((e: any) => e.id));
+          if (tasks && tasks.length > 0) {
+            const taskInserts = tasks.map(({ id: _id, tenant_id: _tid, equipment_id, ...rest }: any) => ({
+              ...rest,
+              id: crypto.randomUUID(),
+              tenant_id: targetTenantId,
+              equipment_id: equipmentMap.get(equipment_id) ?? equipment_id,
+            }));
+            const { error: taskError } = await admin.from('maintenance_tasks').insert(taskInserts);
+            if (taskError) throw new Error(`Maintenance tasks clone failed: ${taskError.message}`);
+            counts.maintenanceTasks = taskInserts.length;
+          }
+        }
+      }
+
+      res.json({ success: true, counts });
+    } catch (err: any) {
+      console.error('[location-clone] Error:', err);
+      res.status(500).json({ error: err.message || 'Clone failed' });
+    }
+  });
+
   return httpServer;
 }
 

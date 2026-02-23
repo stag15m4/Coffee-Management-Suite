@@ -27,14 +27,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { 
-  ArrowLeft, 
-  Building2, 
-  Plus, 
-  Edit2, 
-  Trash2, 
+import {
+  ArrowLeft,
+  Building2,
+  Plus,
+  Edit2,
+  Trash2,
   Users,
-  MapPin
+  MapPin,
+  Copy
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';
@@ -74,6 +75,11 @@ export default function AdminLocations() {
     slug: '',
     starting_drawer_default: '200.00'
   });
+
+  const [cloneEnabled, setCloneEnabled] = useState(false);
+  const [cloneSourceId, setCloneSourceId] = useState('');
+  const [cloneOptions, setCloneOptions] = useState({ recipes: true, overhead: true, equipment: true });
+  const [cloneLoading, setCloneLoading] = useState(false);
 
   const companyName = branding?.company_name || tenant?.name || 'Organization';
 
@@ -175,7 +181,7 @@ export default function AdminLocations() {
         toast({ title: 'Location updated successfully' });
       } else {
         // Create new location
-        const { error } = await supabase
+        const { data: newLocation, error } = await supabase
           .from('tenants')
           .insert({
             name: formData.name.trim(),
@@ -183,15 +189,63 @@ export default function AdminLocations() {
             starting_drawer_default: parseFloat(formData.starting_drawer_default) || 200,
             parent_tenant_id: tenant.id,
             is_active: true
-          });
+          })
+          .select()
+          .single();
 
         if (error) throw error;
-        toast({ title: 'Location created successfully' });
+
+        // Clone data from source location if requested
+        if (cloneEnabled && cloneSourceId && newLocation?.id) {
+          setCloneLoading(true);
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const response = await fetch('/api/locations/clone', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.access_token}`,
+              },
+              body: JSON.stringify({
+                sourceTenantId: cloneSourceId,
+                targetTenantId: newLocation.id,
+                options: cloneOptions,
+              }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Clone failed');
+
+            const { counts } = result;
+            const summary = [
+              counts.recipes > 0 && `${counts.recipes} recipes`,
+              counts.ingredients > 0 && `${counts.ingredients} ingredients`,
+              counts.overhead > 0 && `${counts.overhead} overhead items`,
+              counts.equipment > 0 && `${counts.equipment} equipment`,
+              counts.maintenanceTasks > 0 && `${counts.maintenanceTasks} maintenance tasks`,
+            ].filter(Boolean).join(', ');
+
+            toast({ title: 'Location created & data copied', description: summary || 'No data found to copy.' });
+          } catch (cloneErr: any) {
+            console.error('Clone error:', cloneErr);
+            toast({
+              title: 'Location created, but data copy failed',
+              description: cloneErr.message,
+              variant: 'destructive',
+            });
+          } finally {
+            setCloneLoading(false);
+          }
+        } else {
+          toast({ title: 'Location created successfully' });
+        }
       }
 
       setShowAddDialog(false);
       setEditingLocation(null);
       setFormData({ name: '', slug: '', starting_drawer_default: '200.00' });
+      setCloneEnabled(false);
+      setCloneSourceId('');
+      setCloneOptions({ recipes: true, overhead: true, equipment: true });
       loadData();
     } catch (error: any) {
       console.error('Error saving location:', error);
@@ -527,15 +581,73 @@ export default function AdminLocations() {
               </p>
             </div>
 
+            {/* Clone from existing location (only shown when adding a new location) */}
+            {!editingLocation && locations.length > 0 && (
+              <div className="space-y-3 pt-2 border-t" style={{ borderColor: colors.creamDark }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Copy className="w-4 h-4" style={{ color: colors.gold }} />
+                    <Label style={{ color: colors.brown }}>Copy settings from existing location</Label>
+                  </div>
+                  <Switch
+                    checked={cloneEnabled}
+                    onCheckedChange={setCloneEnabled}
+                    data-testid="switch-clone-enabled"
+                  />
+                </div>
+
+                {cloneEnabled && (
+                  <div className="space-y-3 pl-2">
+                    <div className="space-y-1">
+                      <Label style={{ color: colors.brown, fontSize: '0.8rem' }}>Copy from</Label>
+                      <select
+                        value={cloneSourceId}
+                        onChange={(e) => setCloneSourceId(e.target.value)}
+                        className="w-full rounded-md border px-3 py-2 text-sm"
+                        style={{ backgroundColor: colors.cream, borderColor: colors.gold, color: colors.brown }}
+                        data-testid="select-clone-source"
+                      >
+                        <option value="">Select a location...</option>
+                        {locations.map((loc) => (
+                          <option key={loc.id} value={loc.id}>{loc.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label style={{ color: colors.brown, fontSize: '0.8rem' }}>What to copy</Label>
+                      {[
+                        { key: 'recipes' as const, label: 'Recipes & Ingredients' },
+                        { key: 'overhead' as const, label: 'Overhead Settings' },
+                        { key: 'equipment' as const, label: 'Equipment & Maintenance Tasks' },
+                      ].map(({ key, label }) => (
+                        <label key={key} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={cloneOptions[key]}
+                            onChange={(e) => setCloneOptions(prev => ({ ...prev, [key]: e.target.checked }))}
+                            className="rounded"
+                            style={{ accentColor: colors.gold }}
+                            data-testid={`checkbox-clone-${key}`}
+                          />
+                          <span className="text-sm" style={{ color: colors.brown }}>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-3 pt-4">
               <Button
                 onClick={handleSave}
-                disabled={saving || !formData.name.trim() || !formData.slug.trim()}
+                disabled={saving || cloneLoading || !formData.name.trim() || !formData.slug.trim() || (cloneEnabled && !cloneSourceId)}
                 className="flex-1"
                 style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-save-location"
               >
-                {saving ? 'Saving...' : editingLocation ? 'Update' : 'Create Location'}
+                {cloneLoading ? 'Copying data...' : saving ? 'Saving...' : editingLocation ? 'Update' : 'Create Location'}
               </Button>
               <Button
                 variant="outline"
@@ -543,6 +655,9 @@ export default function AdminLocations() {
                   setShowAddDialog(false);
                   setEditingLocation(null);
                   setFormData({ name: '', slug: '', starting_drawer_default: '200.00' });
+                  setCloneEnabled(false);
+                  setCloneSourceId('');
+                  setCloneOptions({ recipes: true, overhead: true, equipment: true });
                 }}
                 style={{ borderColor: colors.creamDark, color: colors.brown }}
                 data-testid="button-cancel"
