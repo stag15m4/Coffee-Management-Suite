@@ -2,21 +2,42 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+// Track last touch to differentiate touch-focus (tap) from keyboard-focus (tab).
+let lastTouchTime = 0;
+if (typeof document !== 'undefined') {
+  document.addEventListener('touchstart', () => { lastTouchTime = Date.now(); }, { passive: true, capture: true });
+}
+
 const Textarea = React.forwardRef<
   HTMLTextAreaElement,
   React.ComponentProps<"textarea">
 >(({ className, onFocus, ...props }, ref) => {
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement>) => {
-    // Select all text on focus — tab selects all; click naturally overrides with cursor placement
-    e.target.select();
+    const isTouchTriggered = Date.now() - lastTouchTime < 500;
 
-    // iOS scroll jump prevention
-    const scrollY = window.scrollY;
-    const restore = () => window.scrollTo(0, scrollY);
-    requestAnimationFrame(restore);
-    setTimeout(restore, 50);
-    setTimeout(restore, 100);
-    setTimeout(restore, 150);
+    // Select all on keyboard (tab) focus only
+    if (!isTouchTriggered) {
+      e.target.select();
+    }
+
+    // iOS Safari scroll-jump prevention:
+    // Only restore scroll when the element is already visible on screen.
+    if (isTouchTriggered) {
+      const scrollY = window.scrollY;
+      const rect = e.target.getBoundingClientRect();
+      const vpHeight = window.visualViewport?.height ?? window.innerHeight;
+
+      if (rect.top >= 0 && rect.bottom <= vpHeight) {
+        const restore = () => {
+          if (Math.abs(window.scrollY - scrollY) > 1) {
+            window.scrollTo(0, scrollY);
+          }
+        };
+        requestAnimationFrame(restore);
+        setTimeout(restore, 100);
+        setTimeout(restore, 300);
+      }
+    }
 
     onFocus?.(e);
   };
