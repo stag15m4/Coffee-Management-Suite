@@ -2705,7 +2705,9 @@ const sendOrderEmailSchema = z.object({
     name: z.string(),
     size: z.string(),
     quantity: z.number(),
-    price: z.number()
+    price: z.number(),
+    retailLabels: z.number().optional(),
+    category: z.string().optional(),
   })),
   totalUnits: z.number(),
   totalCost: z.number(),

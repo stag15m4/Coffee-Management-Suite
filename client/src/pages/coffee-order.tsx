@@ -40,6 +40,7 @@ interface OrderHistoryItem {
   id: string;
   order_date: string;
   items: Record<string, number>;
+  retail_labels?: Record<string, number> | null;
   units: number;
   total_cost: number | null;
   notes?: string;
@@ -60,6 +61,7 @@ export default function CoffeeOrder() {
   const [showHistory, setShowHistory] = useState(false);
   const [showProductManagement, setShowProductManagement] = useState(false);
   const [orderItems, setOrderItems] = useState<Record<string, number>>({});
+  const [retailLabels, setRetailLabels] = useState<Record<string, number>>({});
   const [orderHistory, setOrderHistory] = useState<OrderHistoryItem[]>([]);
   const [orderNotes, setOrderNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -322,6 +324,38 @@ export default function CoffeeOrder() {
     });
   };
 
+  const setRetailLabelCount = (productId: string, value: string) => {
+    const count = Math.max(0, parseInt(value) || 0);
+    const maxQty = orderItems[productId] || 0;
+    const clamped = Math.min(count, maxQty);
+    setRetailLabels(prev => {
+      if (clamped === 0) {
+        const { [productId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [productId]: clamped };
+    });
+  };
+
+  // Auto-clamp retail labels when quantity decreases or item is removed
+  useEffect(() => {
+    setRetailLabels(prev => {
+      const updated = { ...prev };
+      let changed = false;
+      for (const [productId, labelCount] of Object.entries(updated)) {
+        const qty = orderItems[productId] || 0;
+        if (qty === 0) {
+          delete updated[productId];
+          changed = true;
+        } else if (labelCount > qty) {
+          updated[productId] = qty;
+          changed = true;
+        }
+      }
+      return changed ? updated : prev;
+    });
+  }, [orderItems]);
+
   const calculateTotalCost = () => {
     let total = 0;
     for (const [id, qty] of Object.entries(orderItems)) {
@@ -338,8 +372,18 @@ export default function CoffeeOrder() {
   const totalItems = Object.keys(orderItems).length;
   const totalCost = calculateTotalCost();
 
+  const totalRetailLabels5lb = Object.entries(retailLabels).reduce((sum, [id, count]) => {
+    return sum + (orderItems[id] ? count : 0);
+  }, 0);
+  const total12ozUnits = Object.entries(orderItems).reduce((sum, [id, qty]) => {
+    const product = products.find(p => p.id === id);
+    return sum + (normalizeCategory(product?.category || '') === '12oz' ? qty : 0);
+  }, 0);
+  const totalRetailLabelsAll = totalRetailLabels5lb + total12ozUnits;
+
   const clearOrder = () => {
     setOrderItems({});
+    setRetailLabels({});
     setOrderNotes('');
     toast({ title: 'Order cleared' });
   };
@@ -349,11 +393,14 @@ export default function CoffeeOrder() {
     
     setSaving(true);
     try {
+      const retailLabelsToSave = Object.keys(retailLabels).length > 0 ? retailLabels : null;
+
       const { error } = await supabase
         .from('coffee_order_history')
         .insert({
           tenant_id: tenant.id,
           items: orderItems,
+          retail_labels: retailLabelsToSave,
           units: totalUnits,
           total_cost: totalCost,
           notes: orderNotes || null,
@@ -391,11 +438,15 @@ export default function CoffeeOrder() {
         .filter(([_, qty]) => qty > 0)
         .map(([productId, qty]) => {
           const product = products.find(p => p.id === productId);
+          const productCategory = normalizeCategory(product?.category || '');
+          const is12oz = productCategory === '12oz';
           return {
             name: product?.name || 'Unknown',
             size: product?.size || '',
             quantity: qty,
-            price: product?.default_price || 0
+            price: product?.default_price || 0,
+            retailLabels: is12oz ? qty : (retailLabels[productId] || 0),
+            category: productCategory,
           };
         });
 
@@ -437,8 +488,9 @@ export default function CoffeeOrder() {
     }
   };
 
-  const loadOrder = (items: Record<string, number>) => {
+  const loadOrder = (items: Record<string, number>, retail_labels?: Record<string, number> | null) => {
     setOrderItems(items);
+    setRetailLabels(retail_labels || {});
     setShowHistory(false);
     toast({ title: 'Previous order loaded' });
   };
@@ -451,15 +503,25 @@ export default function CoffeeOrder() {
       return;
     }
 
-    let csv = 'Date,Units,Total Cost,Items\n';
+    let csv = 'Date,Units,Total Cost,Items,Retail Labels\n';
     orderHistory.forEach(order => {
       const date = new Date(order.order_date).toLocaleDateString('en-US');
       const cost = order.total_cost ? order.total_cost.toFixed(2) : '0.00';
+      const orderRetailLabels = order.retail_labels || {};
       const items = Object.entries(order.items).map(([id, qty]) => {
         const product = products.find(p => p.id === id);
         return product ? `${product.name} ${product.size} x${qty}` : `Unknown x${qty}`;
       }).filter(Boolean).join('; ');
-      csv += `"${date}",${order.units},$${cost},"${items}"\n`;
+      const labels = Object.entries(order.items).map(([id, qty]) => {
+        const product = products.find(p => p.id === id);
+        const productCategory = normalizeCategory(product?.category || '');
+        const retailCount = productCategory === '12oz' ? qty : (orderRetailLabels[id] || 0);
+        if (retailCount > 0) {
+          return `${product?.name || 'Unknown'}: ${retailCount} retail`;
+        }
+        return null;
+      }).filter(Boolean).join('; ');
+      csv += `"${date}",${order.units},$${cost},"${items}","${labels || 'none'}"\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -566,28 +628,37 @@ export default function CoffeeOrder() {
     let grandTotalCost = 0;
     
     // Calculate product totals across all orders
-    const productTotals: Record<string, { name: string; size: string; qty: number; totalCost: number; unitPrice: number }> = {};
-    
+    const productTotals: Record<string, { name: string; size: string; qty: number; totalCost: number; unitPrice: number; retailLabels: number; category: string }> = {};
+
     orderHistory.forEach(order => {
       grandTotalUnits += order.units || 0;
       grandTotalCost += order.total_cost || 0;
-      
+      const orderRetailLabels = order.retail_labels || {};
+
       Object.entries(order.items).forEach(([id, qty]) => {
         const product = products.find(p => p.id === id);
         const unitPrice = product?.default_price || 0;
         const lineTotal = unitPrice * (qty as number);
-        
+        const productCategory = normalizeCategory(product?.category || '');
+
         if (!productTotals[id]) {
           productTotals[id] = {
             name: product?.name || 'Unknown',
             size: product?.size || '',
             qty: 0,
             totalCost: 0,
-            unitPrice: unitPrice
+            unitPrice: unitPrice,
+            retailLabels: 0,
+            category: productCategory,
           };
         }
         productTotals[id].qty += qty as number;
         productTotals[id].totalCost += lineTotal;
+        if (productCategory === '12oz') {
+          productTotals[id].retailLabels += qty as number;
+        } else {
+          productTotals[id].retailLabels += (orderRetailLabels[id] || 0);
+        }
       });
     });
 
@@ -729,7 +800,7 @@ export default function CoffeeOrder() {
           <div class="section-title">Product Breakdown (All Orders)</div>
           <table>
             <thead>
-              <tr><th>Product</th><th>Size</th><th>Total Qty</th><th>Unit Price</th><th>Total Cost</th></tr>
+              <tr><th>Product</th><th>Size</th><th>Total Qty</th><th>Retail Labels</th><th>Unit Price</th><th>Total Cost</th></tr>
             </thead>
             <tbody>
               ${Object.values(productTotals)
@@ -739,6 +810,7 @@ export default function CoffeeOrder() {
                     <td>${p.name}</td>
                     <td>${p.size}</td>
                     <td>${p.qty}</td>
+                    <td>${p.retailLabels > 0 ? (p.category === '12oz' ? `${p.retailLabels} (all)` : p.retailLabels) : '-'}</td>
                     <td>${p.unitPrice > 0 ? formatCurrency(p.unitPrice) : '-'}</td>
                     <td>${p.totalCost > 0 ? formatCurrency(p.totalCost) : '-'}</td>
                   </tr>
@@ -746,6 +818,7 @@ export default function CoffeeOrder() {
               <tr class="total-row">
                 <td colspan="2">GRAND TOTAL</td>
                 <td>${grandTotalUnits}</td>
+                <td></td>
                 <td></td>
                 <td>${formatCurrency(grandTotalCost)}</td>
               </tr>
@@ -774,18 +847,24 @@ export default function CoffeeOrder() {
             
             <table>
               <thead>
-                <tr><th>Product</th><th>Size</th><th>Qty</th><th>Unit Price</th><th>Line Total</th></tr>
+                <tr><th>Product</th><th>Size</th><th>Qty</th><th>Retail Labels</th><th>Unit Price</th><th>Line Total</th></tr>
               </thead>
               <tbody>
                 ${Object.entries(order.items).map(([id, qty]) => {
                   const product = products.find(p => p.id === id);
                   const unitPrice = product?.default_price || 0;
                   const lineTotal = unitPrice * (qty as number);
+                  const productCategory = normalizeCategory(product?.category || '');
+                  const orderRetailLabels = order.retail_labels || {};
+                  const retailCount = productCategory === '12oz'
+                    ? qty as number
+                    : (orderRetailLabels[id] || 0);
                   return `
                     <tr>
                       <td>${product?.name || 'Unknown Product'}</td>
                       <td>${product?.size || '-'}</td>
                       <td>${qty}</td>
+                      <td>${retailCount > 0 ? (productCategory === '12oz' ? `${retailCount} (all)` : retailCount) : '-'}</td>
                       <td>${unitPrice > 0 ? formatCurrency(unitPrice) : '-'}</td>
                       <td>${lineTotal > 0 ? formatCurrency(lineTotal) : '-'}</td>
                     </tr>
@@ -794,6 +873,7 @@ export default function CoffeeOrder() {
                 <tr class="total-row">
                   <td colspan="2">ORDER TOTAL</td>
                   <td>${order.units}</td>
+                  <td></td>
                   <td></td>
                   <td>${order.total_cost ? formatCurrency(order.total_cost) : '-'}</td>
                 </tr>
@@ -1112,10 +1192,13 @@ export default function CoffeeOrder() {
                       </div>
                       <div className="text-sm" style={{ color: colors.brownLight }}>
                         {order.units} units{order.total_cost ? ` - ${formatCurrency(order.total_cost)}` : ''}
+                        {order.retail_labels && Object.keys(order.retail_labels).length > 0 && (
+                          <span className="ml-1" style={{ color: localColors.teal }}> (retail labels)</span>
+                        )}
                       </div>
                     </div>
                     <button
-                      onClick={() => loadOrder(order.items)}
+                      onClick={() => loadOrder(order.items, order.retail_labels)}
                       className="px-4 py-2 rounded-md text-sm font-semibold"
                       style={{ backgroundColor: colors.gold, color: colors.white }}
                       data-testid={`button-load-order-${order.id}`}
@@ -1158,46 +1241,95 @@ export default function CoffeeOrder() {
                   <div className="space-y-3">
                     {productsByCategory[category].map((product: CoffeeProduct) => {
                       const qty = orderItems[product.id] || 0;
+                      const is5lb = normalizeCategory(product.category) === '5lb';
+                      const retailCount = retailLabels[product.id] || 0;
                       return (
-                        <div 
-                          key={product.id} 
-                          className="flex justify-between items-center px-4 py-3 rounded-lg transition-all"
-                          style={{ 
-                            backgroundColor: qty > 0 ? '#F5E6C8' : colors.inputBg,
-                            border: qty > 0 ? `2px solid ${colors.gold}` : `1px solid ${colors.creamDark}`
-                          }}
-                        >
-                          <span className="font-medium" style={{ color: colors.brown }}>
-                            {product.name} <span className="font-normal" style={{ color: colors.brownLight }}>{product.size}</span>
-                            <span className="ml-2 text-xs" style={{ color: colors.gold }}>{formatCurrency(product.default_price)}</span>
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => updateQty(product.id, -1)}
-                              className="w-8 h-8 rounded-md flex items-center justify-center text-lg font-semibold"
-                              style={{ backgroundColor: colors.creamDark, color: colors.brownLight }}
-                              data-testid={`button-minus-${product.sku}`}
-                            >
-                              -
-                            </button>
-                            <input
-                              type="number"
-                              value={qty || ''}
-                              placeholder="0"
-                              onChange={(e) => setQty(product.id, e.target.value)}
-                              className="w-12 h-8 text-center text-sm font-medium rounded-md"
-                              style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
-                              data-testid={`input-qty-${product.sku}`}
-                            />
-                            <button
-                              onClick={() => updateQty(product.id, 1)}
-                              className="w-8 h-8 rounded-md flex items-center justify-center text-lg font-semibold"
-                              style={{ backgroundColor: colors.gold, color: colors.white }}
-                              data-testid={`button-plus-${product.sku}`}
-                            >
-                              +
-                            </button>
+                        <div key={product.id}>
+                          <div
+                            className="flex justify-between items-center px-4 py-3 transition-all"
+                            style={{
+                              backgroundColor: qty > 0 ? '#F5E6C8' : colors.inputBg,
+                              border: qty > 0 ? `2px solid ${colors.gold}` : `1px solid ${colors.creamDark}`,
+                              borderRadius: (is5lb && qty > 0) ? '8px 8px 0 0' : '8px',
+                            }}
+                          >
+                            <span className="font-medium" style={{ color: colors.brown }}>
+                              {product.name} <span className="font-normal" style={{ color: colors.brownLight }}>{product.size}</span>
+                              <span className="ml-2 text-xs" style={{ color: colors.gold }}>{formatCurrency(product.default_price)}</span>
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => updateQty(product.id, -1)}
+                                className="w-8 h-8 rounded-md flex items-center justify-center text-lg font-semibold"
+                                style={{ backgroundColor: colors.creamDark, color: colors.brownLight }}
+                                data-testid={`button-minus-${product.sku}`}
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                value={qty || ''}
+                                placeholder="0"
+                                onChange={(e) => setQty(product.id, e.target.value)}
+                                className="w-12 h-8 text-center text-sm font-medium rounded-md"
+                                style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                                data-testid={`input-qty-${product.sku}`}
+                              />
+                              <button
+                                onClick={() => updateQty(product.id, 1)}
+                                className="w-8 h-8 rounded-md flex items-center justify-center text-lg font-semibold"
+                                style={{ backgroundColor: colors.gold, color: colors.white }}
+                                data-testid={`button-plus-${product.sku}`}
+                              >
+                                +
+                              </button>
+                            </div>
                           </div>
+                          {is5lb && qty > 0 && (
+                            <div
+                              className="flex justify-between items-center px-4 py-2"
+                              style={{
+                                backgroundColor: '#F5E6C8',
+                                borderLeft: `2px solid ${colors.gold}`,
+                                borderRight: `2px solid ${colors.gold}`,
+                                borderBottom: `2px solid ${colors.gold}`,
+                                borderRadius: '0 0 8px 8px',
+                              }}
+                            >
+                              <span className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                                Retail Labels
+                                <span className="ml-1 font-normal">
+                                  ({qty - retailCount} generic)
+                                </span>
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => setRetailLabelCount(product.id, String(Math.max(0, retailCount - 1)))}
+                                  className="w-6 h-6 rounded flex items-center justify-center text-sm font-semibold"
+                                  style={{ backgroundColor: colors.creamDark, color: colors.brownLight }}
+                                >
+                                  -
+                                </button>
+                                <input
+                                  type="number"
+                                  value={retailCount || ''}
+                                  placeholder="0"
+                                  min={0}
+                                  max={qty}
+                                  onChange={(e) => setRetailLabelCount(product.id, e.target.value)}
+                                  className="w-10 h-6 text-center text-xs font-medium rounded"
+                                  style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+                                />
+                                <button
+                                  onClick={() => setRetailLabelCount(product.id, String(Math.min(qty, retailCount + 1)))}
+                                  className="w-6 h-6 rounded flex items-center justify-center text-sm font-semibold"
+                                  style={{ backgroundColor: localColors.teal, color: colors.white }}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1228,6 +1360,19 @@ export default function CoffeeOrder() {
                   <span style={{ color: colors.brownLight }}>Total Cost:</span>
                   <span className="font-semibold text-lg" style={{ color: colors.brown }}>{formatCurrency(totalCost)}</span>
                 </div>
+                {totalRetailLabelsAll > 0 && (
+                  <div className="flex justify-between mt-2 pt-2" style={{ borderTop: `1px solid ${colors.creamDark}` }}>
+                    <span style={{ color: colors.brownLight }}>Retail Labels:</span>
+                    <span className="font-semibold" style={{ color: colors.brown }}>
+                      {totalRetailLabelsAll}
+                      {totalRetailLabels5lb > 0 && total12ozUnits > 0 && (
+                        <span className="text-xs font-normal ml-1" style={{ color: colors.brownLight }}>
+                          ({totalRetailLabels5lb} from 5lb + {total12ozUnits} from 12oz)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <button

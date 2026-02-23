@@ -18,7 +18,7 @@ export interface OrderEmailData {
   vendorEmail: string;
   ccEmail?: string;
   vendorName: string;
-  orderItems: { name: string; size: string; quantity: number; price: number }[];
+  orderItems: { name: string; size: string; quantity: number; price: number; retailLabels?: number; category?: string }[];
   totalUnits: number;
   totalCost: number;
   notes?: string;
@@ -29,13 +29,24 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
   try {
     const { client, fromEmail } = getResendClient();
 
+    const hasRetailLabels = data.orderItems.some(item => (item.retailLabels && item.retailLabels > 0));
+    const totalRetailLabels = data.orderItems.reduce((sum, item) => sum + (item.retailLabels || 0), 0);
+
     const itemsHtml = data.orderItems
-      .map(item => `<tr>
-        <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.size}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">$${(item.price * item.quantity).toFixed(2)}</td>
-      </tr>`)
+      .map(item => {
+        const retailDisplay = item.category === '12oz'
+          ? `${item.quantity} (all)`
+          : (item.retailLabels && item.retailLabels > 0
+            ? `${item.retailLabels} of ${item.quantity}`
+            : '0');
+        return `<tr>
+          <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.size}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+          ${hasRetailLabels ? `<td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${retailDisplay}</td>` : ''}
+          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">$${(item.price * item.quantity).toFixed(2)}</td>
+        </tr>`;
+      })
       .join('');
 
     const html = `
@@ -49,6 +60,7 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
               <th style="padding: 10px; text-align: left;">Product</th>
               <th style="padding: 10px; text-align: left;">Size</th>
               <th style="padding: 10px; text-align: center;">Qty</th>
+              ${hasRetailLabels ? '<th style="padding: 10px; text-align: center;">Retail Labels</th>' : ''}
               <th style="padding: 10px; text-align: right;">Subtotal</th>
             </tr>
           </thead>
@@ -59,6 +71,7 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
             <tr style="font-weight: bold; background-color: #f5f5f5;">
               <td colspan="2" style="padding: 10px;">Total</td>
               <td style="padding: 10px; text-align: center;">${data.totalUnits} units</td>
+              ${hasRetailLabels ? `<td style="padding: 10px; text-align: center;">${totalRetailLabels}</td>` : ''}
               <td style="padding: 10px; text-align: right;">$${data.totalCost.toFixed(2)}</td>
             </tr>
           </tfoot>
