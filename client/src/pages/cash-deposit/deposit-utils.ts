@@ -116,15 +116,6 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
 
   const fmt = (v: number) => formatCurrency(v);
 
-  // Match the exact categories from the deposit input form
-  const adjustmentRows = [
-    { label: 'Tip Pool', value: entry.tip_pool || 0 },
-    { label: 'Cash Refund', value: entry.cash_refund || 0 },
-    { label: 'Pay In', value: entry.pay_in || 0 },
-    { label: 'Pay Out', value: entry.pay_out || 0 },
-    ...(ownerTipsEnabled ? [{ label: 'Owner Tips', value: entry.owner_tips || 0 }] : []),
-  ].filter(r => r.value !== 0);
-
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -177,75 +168,47 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
       font-weight: 600;
       margin-top: 8px;
     }
-    .summary-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-      margin: 20px 0;
-    }
-    .summary-card {
-      background: #F5F0E6;
-      border-radius: 6px;
-      padding: 12px;
-      text-align: center;
-    }
-    .summary-card .label {
-      font-size: 11px;
-      color: #6B5344;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .summary-card .value {
-      font-size: 20px;
-      font-weight: bold;
-      color: #4A3728;
-      margin-top: 4px;
-    }
-    .summary-card.gold .value {
-      color: #C9A227;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-    }
-    th {
-      background-color: #4A3728;
-      color: #FFFFFF;
-      padding: 10px 12px;
-      text-align: left;
-      font-weight: bold;
+    .section-label {
       font-size: 13px;
-    }
-    td {
-      padding: 9px 12px;
-      border-bottom: 1px solid #E5DDD0;
-      font-size: 13px;
-    }
-    td.amount {
-      text-align: right;
-      font-family: 'Courier New', monospace;
-      font-size: 14px;
-    }
-    .total-row {
-      background-color: #C9A227;
-      font-weight: bold;
-    }
-    .total-row td {
-      border-bottom: none;
-      padding: 10px 12px;
-      color: #4A3728;
-    }
-    .section-title {
-      font-size: 14px;
       font-weight: bold;
       color: #4A3728;
-      margin: 20px 0 8px 0;
+      margin: 18px 0 8px 0;
       padding-bottom: 4px;
       border-bottom: 2px solid #C9A227;
     }
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .field {
+      background: #F5F0E6;
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .field .label {
+      font-size: 11px;
+      color: #6B5344;
+      margin-bottom: 4px;
+    }
+    .field .value {
+      font-size: 15px;
+      font-weight: 600;
+      color: #4A3728;
+      font-family: 'Courier New', monospace;
+    }
+    .field.highlight {
+      background: #C9A227;
+    }
+    .field.highlight .label {
+      color: #FFFDF7;
+    }
+    .field.highlight .value {
+      color: #FFFFFF;
+    }
     .notes-section {
-      margin-top: 20px;
+      margin-top: 18px;
       padding: 15px;
       background: #F5F0E6;
       border-radius: 6px;
@@ -263,10 +226,10 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
       color: #4A3728;
     }
     .followup-section {
-      margin-top: 20px;
+      margin-top: 18px;
     }
     .followup-section .label {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: bold;
       color: #4A3728;
       margin-bottom: 10px;
@@ -274,11 +237,11 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
       border-bottom: 2px solid #C9A227;
     }
     .write-lines {
-      margin-top: 10px;
+      margin-top: 8px;
     }
     .write-lines .line {
       border-bottom: 1px solid #E5DDD0;
-      height: 32px;
+      height: 30px;
     }
     .button-row {
       display: flex;
@@ -326,86 +289,85 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
       ${entry.flagged ? '<div class="flag-badge">&#9873; Flagged for Follow-up</div>' : ''}
     </div>
 
-    <!-- Key Figures -->
-    <div class="summary-grid">
-      <div class="summary-card">
+    <!-- Primary Fields: Date, Gross Revenue, Starting Drawer, Cash Sales -->
+    <div class="field-grid">
+      <div class="field">
+        <div class="label">Date</div>
+        <div class="value" style="font-family:Arial,sans-serif; font-size:13px;">${displayDate.split(',').slice(0,2).join(',')}</div>
+      </div>
+      <div class="field">
         <div class="label">Gross Revenue</div>
         <div class="value">${fmt(entry.gross_revenue || 0)}</div>
       </div>
-      <div class="summary-card">
+      <div class="field">
+        <div class="label">Starting Drawer</div>
+        <div class="value">${fmt(entry.starting_drawer || drawerDefault)}</div>
+      </div>
+      <div class="field">
+        <div class="label">Cash Sales</div>
+        <div class="value">${fmt(entry.cash_sales || 0)}</div>
+      </div>
+    </div>
+
+    <!-- Adjustments -->
+    <div class="section-label">Adjustments</div>
+    <div class="field-grid">
+      <div class="field">
+        <div class="label">Tip Pool</div>
+        <div class="value">${fmt(entry.tip_pool || 0)}</div>
+      </div>
+      <div class="field">
+        <div class="label">Cash Refund</div>
+        <div class="value">${fmt(entry.cash_refund || 0)}</div>
+      </div>
+      <div class="field">
+        <div class="label">Pay In</div>
+        <div class="value">${fmt(entry.pay_in || 0)}</div>
+      </div>
+      <div class="field">
+        <div class="label">Pay Out</div>
+        <div class="value">${fmt(entry.pay_out || 0)}</div>
+      </div>
+      ${ownerTipsEnabled ? `
+      <div class="field">
+        <div class="label">Owner Tips</div>
+        <div class="value">${fmt(entry.owner_tips || 0)}</div>
+      </div>
+      ` : ''}
+    </div>
+
+    <!-- Calculated Fields: Actual Deposit, Calculated Deposit, Difference, Net Cash -->
+    <div class="section-label">Deposit</div>
+    <div class="field-grid">
+      <div class="field">
         <div class="label">Actual Deposit</div>
         <div class="value">${fmt(entry.actual_deposit || 0)}</div>
       </div>
-      <div class="summary-card gold">
+      <div class="field">
+        <div class="label">Calculated Deposit</div>
+        <div class="value" style="color:#6B5344">${fmt(entry.calculated_deposit || 0)}</div>
+      </div>
+      <div class="field">
+        <div class="label">Difference</div>
+        <div class="value" style="color:${diffColor}">${diff >= 0 ? '+' : ''}${fmt(diff)}</div>
+      </div>
+      <div class="field highlight">
         <div class="label">Net Cash</div>
         <div class="value">${fmt(netCash)}</div>
       </div>
     </div>
 
-    <!-- Detailed Breakdown -->
-    <div class="section-title">Cash Breakdown</div>
-    <table>
-      <thead>
-        <tr>
-          <th>Item</th>
-          <th style="text-align:right">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Starting Drawer</td>
-          <td class="amount">${fmt(entry.starting_drawer || drawerDefault)}</td>
-        </tr>
-        <tr>
-          <td>Cash Sales</td>
-          <td class="amount">${fmt(entry.cash_sales || 0)}</td>
-        </tr>
-        ${adjustmentRows.map((r, i) => `
-        <tr style="background:${i % 2 === 0 ? '#F5F0E6' : '#FFFDF7'}">
-          <td>${r.label}</td>
-          <td class="amount">${r.value > 0 ? '+' : ''}${fmt(r.value)}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-
-    <!-- Deposit Comparison -->
-    <div class="section-title">Deposit Comparison</div>
-    <table>
-      <thead>
-        <tr>
-          <th>Description</th>
-          <th style="text-align:right">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Calculated Deposit</td>
-          <td class="amount">${fmt(entry.calculated_deposit || 0)}</td>
-        </tr>
-        <tr>
-          <td>Actual Deposit</td>
-          <td class="amount">${fmt(entry.actual_deposit || 0)}</td>
-        </tr>
-        <tr class="total-row">
-          <td>Difference</td>
-          <td class="amount" style="color:${diffColor}">${diff >= 0 ? '+' : ''}${fmt(diff)}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    ${entry.notes ? `
-    <!-- Existing Notes -->
-    <div class="notes-section">
+    <!-- Notes -->
+    <div class="notes-section" style="margin-top:18px">
       <div class="label">Notes</div>
-      <div class="content">${entry.notes.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+      <div class="content">${entry.notes ? entry.notes.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '<span style="color:#6B5344; font-style:italic">No notes</span>'}</div>
     </div>
-    ` : ''}
 
     <!-- Handwritten Follow-up Area -->
     <div class="followup-section">
       <div class="label">Follow-up Notes</div>
       <div class="write-lines">
-        ${Array(10).fill(0).map(() => '<div class="line"></div>').join('')}
+        ${Array(8).fill(0).map(() => '<div class="line"></div>').join('')}
       </div>
     </div>
   </div>
