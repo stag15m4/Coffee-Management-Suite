@@ -19,6 +19,7 @@ import {
   formatDate,
   formatDateDisplay,
   getDefaultFormData,
+  exportCashDepositDayPdf,
 } from './deposit-utils';
 import { DepositForm } from './DepositForm';
 import { DepositHistory } from './DepositHistory';
@@ -371,6 +372,18 @@ export default function CashDeposit() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleExportPdf = (entry: CashEntry) => {
+    const companyName = branding?.company_name || tenant?.name || 'Cash Deposit Report';
+    const locationName = isChildLocation ? displayName : undefined;
+    exportCashDepositDayPdf({
+      companyName,
+      locationName,
+      entry,
+      ownerTipsEnabled: ownerTipsEnabled && ownerTipsLoaded,
+      drawerDefault,
+    });
   };
 
   const exportToCSV = () => {
@@ -755,6 +768,7 @@ export default function CashDeposit() {
           onDelete={handleDelete}
           onToggleFlag={handleToggleFlag}
           onToggleExcluded={handleToggleExcluded}
+          onExportPdf={handleExportPdf}
         />
       </div>
       {ConfirmDialog}

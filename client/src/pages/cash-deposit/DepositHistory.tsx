@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Pencil, Trash2, Flag, Receipt } from 'lucide-react';
+import { Pencil, Trash2, Flag, Receipt, Printer } from 'lucide-react';
 import { colors } from '@/lib/colors';
 import { type CashEntry, formatCurrency, formatDate, formatWeekRange, groupEntriesByWeek } from './deposit-utils';
 
@@ -9,6 +9,7 @@ interface DepositHistoryProps {
   onDelete: (entry: CashEntry) => void;
   onToggleFlag: (entry: CashEntry) => void;
   onToggleExcluded: (entry: CashEntry) => void;
+  onExportPdf: (entry: CashEntry) => void;
 }
 
 export function DepositHistory({
@@ -17,6 +18,7 @@ export function DepositHistory({
   onDelete,
   onToggleFlag,
   onToggleExcluded,
+  onExportPdf,
 }: DepositHistoryProps) {
   const entriesByWeek = groupEntriesByWeek(entries);
   const sortedWeeks = Object.keys(entriesByWeek).sort((a, b) => b.localeCompare(a));
@@ -133,6 +135,15 @@ export function DepositHistory({
                                   data-testid={`button-exclude-action-${entry.id}`}
                                 >
                                   <Flag className="h-4 w-4" style={{ color: entry.excluded_from_average ? '#f59e0b' : colors.creamDark }} />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => onExportPdf(entry)}
+                                  title="Print / Save as PDF"
+                                  data-testid={`button-pdf-${entry.id}`}
+                                >
+                                  <Printer className="h-4 w-4" style={{ color: colors.brownLight }} />
                                 </Button>
                                 <Button
                                   size="icon"
