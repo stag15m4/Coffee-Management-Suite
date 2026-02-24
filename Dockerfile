@@ -22,4 +22,4 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 
 ENV NODE_ENV=production
-CMD ["node", "dist/index.cjs"]
+CMD ["node", "--require", "./dist/instrument.cjs", "dist/index.cjs"]

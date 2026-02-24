@@ -12,7 +12,6 @@ const allowlist = [
   "date-fns",
   "drizzle-orm",
   "drizzle-zod",
-  "express",
   "express-rate-limit",
   "express-session",
   "jsonwebtoken",
@@ -46,6 +45,20 @@ async function buildAll() {
     ...Object.keys(pkg.devDependencies || {}),
   ];
   const externals = allDeps.filter((dep) => !allowlist.includes(dep));
+
+  await esbuild({
+    entryPoints: ["server/instrument.ts"],
+    platform: "node",
+    bundle: true,
+    format: "cjs",
+    outfile: "dist/instrument.cjs",
+    define: {
+      "process.env.NODE_ENV": '"production"',
+    },
+    minify: true,
+    external: externals,
+    logLevel: "info",
+  });
 
   await esbuild({
     entryPoints: ["server/index.ts"],
