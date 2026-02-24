@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Plus, Pencil, Trash2, Truck, Phone, Mail, FileText } from 'lucide-react';
+import { Check, Plus, Pencil, Trash2, Truck, Phone, Mail, FileText, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';
 import { formatCurrency } from './utils';
@@ -25,6 +25,7 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
   const [editingVendor, setEditingVendor] = useState<RecipeVendor | null>(null);
   const [vendorForm, setVendorForm] = useState({ name: '', phone: '', email: '', notes: '' });
   const [expandedProfile, setExpandedProfile] = useState<string | null>(null);
+  const [productSort, setProductSort] = useState<'asc' | 'desc' | null>(null);
 
   const resetVendorForm = () => {
     setVendorForm({ name: '', phone: '', email: '', notes: '' });
@@ -338,7 +339,16 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: `2px solid ${colors.creamDark}` }}>
-                    <th className="py-2 px-2 text-left font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Product</th>
+                    <th className="py-2 px-2 text-left font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>
+                      <button
+                        className="flex items-center gap-1 hover:opacity-80"
+                        style={{ color: colors.brownLight }}
+                        onClick={() => setProductSort(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')}
+                      >
+                        Product
+                        {productSort === 'asc' ? <ArrowUp className="w-3 h-3" /> : productSort === 'desc' ? <ArrowDown className="w-3 h-3" /> : <ArrowUpDown className="w-3 h-3 opacity-40" />}
+                      </button>
+                    </th>
                     <th className="py-2 px-2 text-left font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Category</th>
                     <th className="py-2 px-2 text-right font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Cost</th>
                     <th className="py-2 px-2 text-right font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Quantity</th>
@@ -346,7 +356,11 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
                   </tr>
                 </thead>
                 <tbody>
-                  {vendor.ingredients.map(ing => (
+                  {[...vendor.ingredients].sort((a, b) => {
+                    if (!productSort) return 0;
+                    const cmp = a.name.localeCompare(b.name);
+                    return productSort === 'asc' ? cmp : -cmp;
+                  }).map(ing => (
                     <tr
                       key={ing.id}
                       style={{ borderBottom: `1px solid ${colors.cream}` }}
