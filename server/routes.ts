@@ -1362,18 +1362,39 @@ export async function registerRoutes(
         VALUES (${userId}::uuid, ${tenant.id}::uuid, ${email}, ${fullName}, 'owner', true)
       `);
 
-      // 6. Enable all modules for beta plan
-      const allModules = await db.execute(sql`SELECT id FROM modules`);
-      for (const mod of allModules.rows) {
+      // 6. Enable modules that match the plan's rollout phase
+      // Only add modules whose rollout_status is 'ga' or matches the plan tier
+      // (e.g., beta plan gets 'ga' + 'beta' modules; internal modules are admin-only)
+      const planModules = await db.execute(sql`
+        SELECT m.id FROM modules m
+        INNER JOIN subscription_plan_modules spm ON spm.module_id = m.id AND spm.plan_id = ${license.subscription_plan}
+        WHERE m.rollout_status = 'ga'
+           OR (m.rollout_status = 'beta' AND ${license.subscription_plan} IN ('beta', 'premium'))
+      `);
+      for (const mod of planModules.rows) {
         await db.execute(sql`
           INSERT INTO tenant_module_subscriptions (tenant_id, module_id)
           VALUES (${tenant.id}::uuid, ${(mod as any).id})
+          ON CONFLICT DO NOTHING
         `);
       }
 
       // 7. Redeem license code
+      // Note: The redeem_license_code() DB function has a WHERE clause bug that fails
+      // to match codes stored with dashes. We handle redemption inline instead.
       await db.execute(sql`
-        SELECT redeem_license_code(${license.code}, ${tenant.id}::uuid) as license_id
+        UPDATE license_codes
+        SET redeemed_at = NOW(), tenant_id = ${tenant.id}::uuid
+        WHERE id = ${license.id}::uuid AND redeemed_at IS NULL
+      `);
+      await db.execute(sql`
+        UPDATE tenants
+        SET reseller_id = ${license.reseller_id}::uuid, license_code_id = ${license.id}::uuid
+        WHERE id = ${tenant.id}::uuid
+      `);
+      await db.execute(sql`
+        UPDATE resellers SET seats_used = seats_used + 1
+        WHERE id = ${license.reseller_id}::uuid
       `);
 
       res.status(201).json({
