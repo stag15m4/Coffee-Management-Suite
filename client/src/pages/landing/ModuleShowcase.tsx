@@ -254,7 +254,7 @@ export function ModuleShowcase({ modules = DEFAULT_MODULES, gradient }: ModuleSh
                     setSelectedModule(null);
                     setLocation('/login');
                   }}
-                  style={{ background: gradient, color: '#000', border: 'none' }}
+                  style={{ background: gradient, color: '#fff', border: 'none' }}
                   data-testid="button-modal-start"
                 >
                   Start Free Trial

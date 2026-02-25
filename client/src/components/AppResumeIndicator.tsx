@@ -28,7 +28,7 @@ export function AppResumeIndicator() {
     <div
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 text-sm text-white"
       style={{
-        backgroundColor: '#C9A227',
+        backgroundColor: 'var(--color-primary, #334155)',
         animation: 'slideDown 0.3s ease-out'
       }}
       role="status"

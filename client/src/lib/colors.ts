@@ -8,19 +8,19 @@
  */
 export const colors = {
   // Core brand — driven by vertical theme
-  gold: 'var(--color-primary, #16A34A)',
-  goldLight: 'var(--color-primary-light, #F0FDF4)',
-  goldDark: 'var(--color-primary-dark, #15803D)',
+  gold: 'var(--color-primary, #334155)',
+  goldLight: 'var(--color-primary-light, #F1F5F9)',
+  goldDark: 'var(--color-primary-dark, #1E293B)',
 
   // Text — driven by vertical secondary
-  brown: 'var(--color-secondary, #111827)',
-  brownLight: 'var(--color-secondary-light, #6B7280)',
+  brown: 'var(--color-secondary, #0F172A)',
+  brownLight: 'var(--color-secondary-light, #64748B)',
 
   // Surfaces / backgrounds — driven by vertical accent
-  cream: 'var(--color-accent, #F9FAFB)',
-  creamDark: 'var(--color-accent-dark, #E5E7EB)',
+  cream: 'var(--color-accent, #F1F5F9)',
+  creamDark: 'var(--color-accent-dark, #CBD5E1)',
   white: 'var(--color-background, #FFFFFF)',
-  inputBg: 'var(--color-input-bg, #F9FAFB)',
+  inputBg: 'var(--color-input-bg, #F8FAFC)',
 
   // Semantic / status — not themed
   green: '#22c55e',

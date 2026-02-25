@@ -43,7 +43,7 @@ export function PricingSection({ gradient }: PricingSectionProps) {
           >
             <div
               className="absolute top-0 right-0 px-3 py-1 text-sm font-semibold"
-              style={{ background: gradient, color: '#000' }}
+              style={{ background: gradient, color: '#fff' }}
             >
               Best Value
             </div>
@@ -80,7 +80,7 @@ export function PricingSection({ gradient }: PricingSectionProps) {
                 className="w-full font-semibold mt-auto"
                 size="lg"
                 onClick={() => setLocation('/login')}
-                style={{ background: gradient, color: '#000', border: 'none' }}
+                style={{ background: gradient, color: '#fff', border: 'none' }}
                 data-testid="button-premium-start"
               >
                 Start Free Trial
@@ -127,7 +127,7 @@ export function PricingSection({ gradient }: PricingSectionProps) {
                 className="w-full font-semibold mt-auto"
                 size="lg"
                 onClick={() => setLocation('/login')}
-                style={{ background: gradient, color: '#000', border: 'none' }}
+                style={{ background: gradient, color: '#fff', border: 'none' }}
                 data-testid="button-alacarte-start"
               >
                 Get Started

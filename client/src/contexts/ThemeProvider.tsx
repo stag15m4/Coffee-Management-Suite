@@ -5,15 +5,15 @@ import { useAuth } from '@/contexts/AuthContext';
 // These must be raw hex, NOT the CSS-var-based `colors` from @/lib/colors,
 // because ThemeProvider sets these as CSS custom-property values.
 const RAW = {
-  gold: '#C9A227',         // Gold — Coffee Management Suite primary
-  goldLight: '#FDF8EC',    // Very light gold tint
-  goldDark: '#A07C1A',     // Darker gold for hover/active
-  brown: '#1A0F00',        // Deep coffee brown for text
-  brownLight: '#6B5744',   // Mid brown for secondary text
-  cream: '#FAF6F0',        // Warm cream for surfaces
-  creamDark: '#E8DDD0',    // Darker cream for borders
+  gold: '#334155',         // Slate-700 — neutral primary for buttons/accents
+  goldLight: '#F1F5F9',    // Slate-100 — very light
+  goldDark: '#1E293B',     // Slate-800 — darker for hover/active
+  brown: '#0F172A',        // Slate-900 — near-black for text
+  brownLight: '#64748B',   // Slate-500 — secondary text
+  cream: '#F1F5F9',        // Slate-100 — light surfaces
+  creamDark: '#CBD5E1',    // Slate-300 — borders
   white: '#FFFFFF',
-  inputBg: '#FAF6F0',
+  inputBg: '#F8FAFC',      // Slate-50 — subtle input background
 };
 
 // ---------------------------------------------------------------------------

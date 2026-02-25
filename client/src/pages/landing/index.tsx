@@ -67,7 +67,7 @@ export default function Landing() {
   const ctaText = landingContent.ctaText || DEFAULT_LANDING.ctaText;
   const badgeText = DEFAULT_LANDING.badgeText;
 
-  const productName = vertical?.productName || meta.companyName || 'Management Suite';
+  const productName = vertical?.productName || meta.companyName || 'Coffee Management Suite';
   const displayName = vertical?.displayName || 'Coffee Shop';
   const gradient = buildGradient(themeColors.primary);
 
@@ -98,7 +98,7 @@ export default function Landing() {
               <Button
                 className="font-semibold"
                 onClick={() => setLocation('/login')}
-                style={{ background: gradient, color: '#000', border: 'none' }}
+                style={{ background: gradient, color: '#fff', border: 'none' }}
                 data-testid="button-get-started"
               >
                 Get Started

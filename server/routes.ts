@@ -1331,7 +1331,7 @@ export async function registerRoutes(
       // 3. Create tenant branding with default coffee theme
       await db.execute(sql`
         INSERT INTO tenant_branding (tenant_id, primary_color, secondary_color, accent_color, background_color, company_name)
-        VALUES (${tenant.id}::uuid, '#C4A052', '#3D2B1F', '#8B7355', '#F5F0E1', ${businessName})
+        VALUES (${tenant.id}::uuid, '#334155', '#0F172A', '#F1F5F9', '#FFFFFF', ${businessName})
       `);
 
       // 4. Create Supabase auth user via admin API
@@ -1631,7 +1631,7 @@ export async function registerRoutes(
       // 2. Create tenant branding
       await db.execute(sql`
         INSERT INTO tenant_branding (tenant_id, primary_color, secondary_color, accent_color, background_color, company_name)
-        VALUES (${tenant.id}::uuid, '#C4A052', '#3D2B1F', '#8B7355', '#F5F0E1', ${name})
+        VALUES (${tenant.id}::uuid, '#334155', '#0F172A', '#F1F5F9', '#FFFFFF', ${name})
       `);
 
       // 3. Find or create user via Supabase admin API

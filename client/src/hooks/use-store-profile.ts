@@ -88,11 +88,11 @@ export function getActivityColor(dateStr: string | null): string {
 
 export function getRoleBadgeColor(role: string): string {
   switch (role) {
-    case 'owner': return '#C9A227';
-    case 'manager': return '#8B4513';
-    case 'lead': return '#CD853F';
-    case 'employee': return '#6B5344';
-    default: return '#4A3728';
+    case 'owner': return '#334155';
+    case 'manager': return '#475569';
+    case 'lead': return '#64748B';
+    case 'employee': return '#94A3B8';
+    default: return '#334155';
   }
 }
 
