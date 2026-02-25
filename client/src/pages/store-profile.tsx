@@ -15,6 +15,7 @@ import {
   Calendar,
   CalendarDays,
   Mail,
+  MapPin,
   Pencil,
   Check,
   X,
@@ -24,6 +25,7 @@ import {
   useStoreOperatingHours,
   useUpsertOperatingHours,
   useUpdateDrawerDefault,
+  useUpdateLocationAddress,
   getDayName,
   formatTime,
   calculateTenure,
@@ -32,6 +34,7 @@ import {
   getRoleBadgeColor,
   type StoreTeamMember,
   type OperatingHoursEntry,
+  type LocationAddress,
 } from '@/hooks/use-store-profile';
 import { useTodayShifts, type Shift } from '@/hooks/use-shifts';
 import { colors } from '@/lib/colors';
@@ -66,6 +69,7 @@ export default function StoreProfile() {
 
   const [selectedMember, setSelectedMember] = useState<StoreTeamMember | null>(null);
   const [editingHours, setEditingHours] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(false);
   const [editingDrawer, setEditingDrawer] = useState(false);
 
   if (!storeId || !storeTenant) {
@@ -223,6 +227,15 @@ export default function StoreProfile() {
           canEdit={canEdit}
           editing={editingHours}
           onEditToggle={() => setEditingHours(!editingHours)}
+        />
+
+        {/* Location & Address */}
+        <LocationAddressCard
+          storeId={storeId}
+          tenant={storeTenant}
+          canEdit={canEdit}
+          editing={editingLocation}
+          onEditToggle={() => setEditingLocation(!editingLocation)}
         />
 
         {/* Starting Drawer */}
@@ -597,6 +610,272 @@ function DrawerDefaultCard({
         <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
           Recommended amount to start the cash drawer with each shift
         </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// --- Location & Address Card ---
+
+function LocationAddressCard({
+  storeId,
+  tenant,
+  canEdit,
+  editing,
+  onEditToggle,
+}: {
+  storeId: string;
+  tenant: any;
+  canEdit: boolean;
+  editing: boolean;
+  onEditToggle: () => void;
+}) {
+  const { toast } = useToast();
+  const updateMutation = useUpdateLocationAddress();
+
+  const [form, setForm] = useState<LocationAddress>({
+    address_line1: null,
+    address_line2: null,
+    city: null,
+    state: null,
+    zip_code: null,
+    latitude: null,
+    longitude: null,
+    geofence_radius_meters: null,
+  });
+
+  useEffect(() => {
+    if (editing) {
+      setForm({
+        address_line1: tenant.address_line1 || '',
+        address_line2: tenant.address_line2 || '',
+        city: tenant.city || '',
+        state: tenant.state || '',
+        zip_code: tenant.zip_code || '',
+        latitude: tenant.latitude ?? null,
+        longitude: tenant.longitude ?? null,
+        geofence_radius_meters: tenant.geofence_radius_meters ?? 100,
+      });
+    }
+  }, [editing, tenant]);
+
+  const handleSave = async () => {
+    try {
+      await updateMutation.mutateAsync({
+        tenantId: storeId,
+        address_line1: form.address_line1 || null,
+        address_line2: form.address_line2 || null,
+        city: form.city || null,
+        state: form.state || null,
+        zip_code: form.zip_code || null,
+        latitude: form.latitude,
+        longitude: form.longitude,
+        geofence_radius_meters: form.geofence_radius_meters,
+      });
+      toast({ title: 'Location address saved' });
+      onEditToggle();
+    } catch {
+      toast({ title: 'Failed to save address', variant: 'destructive' });
+    }
+  };
+
+  const update = (field: keyof LocationAddress, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      [field]: field === 'latitude' || field === 'longitude'
+        ? (value === '' ? null : parseFloat(value))
+        : field === 'geofence_radius_meters'
+          ? (value === '' ? null : parseInt(value, 10))
+          : value,
+    }));
+  };
+
+  const hasAddress = tenant.address_line1 || tenant.city;
+  const hasCoords = tenant.latitude != null && tenant.longitude != null;
+
+  const formattedAddress = [
+    tenant.address_line1,
+    tenant.address_line2,
+    [tenant.city, tenant.state].filter(Boolean).join(', '),
+    tenant.zip_code,
+  ].filter(Boolean).join('\n');
+
+  return (
+    <Card style={{ backgroundColor: colors.white }}>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+            <MapPin className="w-5 h-5" style={{ color: colors.gold }} />
+            Location & Address
+          </CardTitle>
+          {canEdit && !editing && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEditToggle}
+              style={{ color: colors.brownLight }}
+            >
+              <Pencil className="w-4 h-4 mr-1" />
+              Edit
+            </Button>
+          )}
+          {editing && (
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onEditToggle}
+                style={{ color: colors.brownLight }}
+              >
+                <X className="w-4 h-4 mr-1" />
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSave}
+                disabled={updateMutation.isPending}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
+              >
+                <Check className="w-4 h-4 mr-1" />
+                Save
+              </Button>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {editing ? (
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Address Line 1</label>
+              <Input
+                value={form.address_line1 || ''}
+                onChange={(e) => update('address_line1', e.target.value)}
+                placeholder="123 Main Street"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Address Line 2</label>
+              <Input
+                value={form.address_line2 || ''}
+                onChange={(e) => update('address_line2', e.target.value)}
+                placeholder="Suite 100"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-xs font-medium" style={{ color: colors.brownLight }}>City</label>
+                <Input
+                  value={form.city || ''}
+                  onChange={(e) => update('city', e.target.value)}
+                  placeholder="City"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium" style={{ color: colors.brownLight }}>State</label>
+                <Input
+                  value={form.state || ''}
+                  onChange={(e) => update('state', e.target.value)}
+                  placeholder="CA"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Zip Code</label>
+                <Input
+                  value={form.zip_code || ''}
+                  onChange={(e) => update('zip_code', e.target.value)}
+                  placeholder="90210"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 border-t" style={{ borderColor: colors.cream }}>
+              <p className="text-xs font-medium mb-2" style={{ color: colors.brownLight }}>
+                GPS Coordinates (for mobile clock-in geofencing)
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Latitude</label>
+                  <Input
+                    type="number"
+                    step="0.00000001"
+                    value={form.latitude ?? ''}
+                    onChange={(e) => update('latitude', e.target.value)}
+                    placeholder="34.05223420"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Longitude</label>
+                  <Input
+                    type="number"
+                    step="0.00000001"
+                    value={form.longitude ?? ''}
+                    onChange={(e) => update('longitude', e.target.value)}
+                    placeholder="-118.24368490"
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  />
+                </div>
+              </div>
+              <p className="text-xs mt-1" style={{ color: colors.creamDark }}>
+                Tip: Search your address on Google Maps, right-click the pin, and copy the coordinates.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                Geofence Radius (meters)
+              </label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min="25"
+                  max="1000"
+                  step="25"
+                  value={form.geofence_radius_meters ?? 100}
+                  onChange={(e) => update('geofence_radius_meters', e.target.value)}
+                  className="w-28"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                />
+                <span className="text-sm" style={{ color: colors.brownLight }}>
+                  {form.geofence_radius_meters != null
+                    ? `~${Math.round((form.geofence_radius_meters) * 3.28084)} ft`
+                    : ''}
+                </span>
+              </div>
+              <p className="text-xs mt-1" style={{ color: colors.creamDark }}>
+                Employees must be within this distance to clock in from the mobile app.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {hasAddress ? (
+              <p className="text-sm whitespace-pre-line" style={{ color: colors.brown }}>
+                {formattedAddress}
+              </p>
+            ) : (
+              <p className="text-sm" style={{ color: colors.brownLight }}>
+                No address set{canEdit ? ' — tap Edit to add your location' : ''}
+              </p>
+            )}
+            {hasCoords && (
+              <div className="flex items-center gap-4 pt-1">
+                <span className="text-xs" style={{ color: colors.brownLight }}>
+                  GPS: {Number(tenant.latitude).toFixed(6)}, {Number(tenant.longitude).toFixed(6)}
+                </span>
+                <span className="text-xs" style={{ color: colors.brownLight }}>
+                  Geofence: {tenant.geofence_radius_meters ?? 100}m
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -249,6 +249,36 @@ export function useUpsertOperatingHours() {
   });
 }
 
+export interface LocationAddress {
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  geofence_radius_meters: number | null;
+}
+
+export function useUpdateLocationAddress() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ tenantId, ...fields }: LocationAddress & { tenantId: string }) => {
+      const { data, error } = await supabase
+        .from('tenants')
+        .update({ ...fields, updated_at: new Date().toISOString() })
+        .eq('id', tenantId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['store-metrics'] });
+    },
+  });
+}
+
 export function useUpdateDrawerDefault() {
   const queryClient = useQueryClient();
   return useMutation({
