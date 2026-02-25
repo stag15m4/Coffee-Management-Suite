@@ -5,6 +5,7 @@ import { Settings } from 'lucide-react';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStoreOperatingHours, computeHoursFromStoreProfile } from '@/hooks/use-store-profile';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { IngredientsTab } from './IngredientsTab';
@@ -124,6 +125,7 @@ export default function RecipeCostingPage() {
   const { data: pricingData = [], isLoading: loadingPricing, isError: errorPricing } = useRecipePricing();
   const { data: recipeSizeBases = [], isLoading: loadingRecipeSizeBases, isError: errorRecipeSizeBases } = useRecipeSizeBases();
   const { data: cashActivity = [] } = useCashActivityRevenue();
+  const { data: storeHours } = useStoreOperatingHours(tenant?.id);
   const { data: recipeVendors = [] } = useRecipeVendors();
   const addVendorMutation = useAddRecipeVendor();
   const updateVendorMutation = useUpdateRecipeVendor();
@@ -143,9 +145,23 @@ export default function RecipeCostingPage() {
   // Computed values
   // ---------------------------------------------------------------------------
 
+  const autoHours = useMemo(
+    () => computeHoursFromStoreProfile(storeHours || []),
+    [storeHours],
+  );
+
   const calculatedCostPerMinute = useMemo(() => {
-    const operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
-    const hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
+    let operatingDays: number;
+    let hoursPerDay: number;
+
+    if (overhead?.use_store_hours && storeHours && storeHours.length > 0) {
+      operatingDays = Math.max(1, autoHours.daysPerWeek);
+      hoursPerDay = Math.max(1, autoHours.avgHoursPerDay);
+    } else {
+      operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
+      hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
+    }
+
     const weeksPerMonth = 4.33;
     const daysPerMonth = operatingDays * weeksPerMonth;
     const minutesPerMonth = hoursPerDay * 60 * daysPerMonth;
@@ -165,7 +181,7 @@ export default function RecipeCostingPage() {
     }, 0);
 
     return minutesPerMonth > 0 ? monthlyTotal / minutesPerMonth : 0;
-  }, [overhead?.operating_days_per_week, overhead?.hours_open_per_day, overheadItems]);
+  }, [overhead?.operating_days_per_week, overhead?.hours_open_per_day, overhead?.use_store_hours, autoHours, storeHours, overheadItems]);
 
   const enhancedOverhead = useMemo(() => {
     if (!overhead) return overhead;
@@ -867,6 +883,8 @@ export default function RecipeCostingPage() {
             baseTemplates={baseTemplates}
             recipeSizeBases={recipeSizeBases}
             recipePricing={pricingData}
+            autoHours={autoHours}
+            hasStoreHours={!!storeHours && storeHours.length > 0}
           />
         )}
       </main>
@@ -941,6 +959,8 @@ export default function RecipeCostingPage() {
                 baseTemplates={baseTemplates}
                 recipeSizeBases={recipeSizeBases}
                 recipePricing={pricingData}
+                autoHours={autoHours}
+                hasStoreHours={!!storeHours && storeHours.length > 0}
               />
             )}
           </div>

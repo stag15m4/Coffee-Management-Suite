@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/lib/colors';
 import { formatCurrency, calculateCostPerUsageUnit } from './utils';
+import { Switch } from '@/components/ui/switch';
 import type {
   Ingredient,
   Recipe,
@@ -21,9 +23,12 @@ interface RecipeSettingsProps {
   baseTemplates: BaseTemplate[];
   recipeSizeBases: RecipeSizeBase[];
   recipePricing: RecipeSizePricing[];
+  autoHours: { daysPerWeek: number; avgHoursPerDay: number };
+  hasStoreHours: boolean;
 }
 
-export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipes, productSizes, baseTemplates, recipeSizeBases, recipePricing }: RecipeSettingsProps) => {
+export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipes, productSizes, baseTemplates, recipeSizeBases, recipePricing, autoHours, hasStoreHours }: RecipeSettingsProps) => {
+  const { tenant } = useAuth();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     cost_per_minute: overhead?.cost_per_minute || 2.26,
@@ -33,8 +38,25 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
     hours_open_per_day: overhead?.hours_open_per_day || 8,
   });
 
+  const useStoreHours = overhead?.use_store_hours ?? false;
+  const displayDays = useStoreHours ? autoHours.daysPerWeek : (overhead?.operating_days_per_week || 7);
+  const displayHours = useStoreHours ? autoHours.avgHoursPerDay : (overhead?.hours_open_per_day || 8);
+
   const costPerMinute = overhead?.cost_per_minute || 0;
   const overheadPerDrink = costPerMinute * (overhead?.minutes_per_drink || 1);
+
+  const handleToggleAutoHours = async (checked: boolean) => {
+    if (checked && !hasStoreHours) return;
+    // When switching from auto to manual, pre-fill with the auto values
+    if (!checked && useStoreHours) {
+      setForm((f) => ({
+        ...f,
+        operating_days_per_week: autoHours.daysPerWeek,
+        hours_open_per_day: autoHours.avgHoursPerDay,
+      }));
+    }
+    await onUpdateOverhead({ use_store_hours: checked });
+  };
 
   const handleSave = async () => {
     await onUpdateOverhead(form);
@@ -46,6 +68,35 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
       {/* Overhead Settings */}
       <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
         <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>Overhead Settings</h3>
+
+        {/* Auto-calculate toggle */}
+        <div
+          className="flex items-center justify-between rounded-lg px-4 py-3 mb-4"
+          style={{ backgroundColor: colors.cream, border: `1px solid ${colors.creamDark}` }}
+        >
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium" style={{ color: colors.brown }}>
+              Auto-calculate from store profile
+            </div>
+            <div className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+              {hasStoreHours
+                ? 'Uses your store operating hours to derive days/week and hours/day'
+                : (
+                  <>
+                    Set your{' '}
+                    <a href={`/store/${tenant?.id || ''}`} className="underline" style={{ color: colors.gold }}>store hours</a>
+                    {' '}to enable auto-calculation
+                  </>
+                )
+              }
+            </div>
+          </div>
+          <Switch
+            checked={useStoreHours}
+            onCheckedChange={handleToggleAutoHours}
+            disabled={!hasStoreHours}
+          />
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
@@ -79,7 +130,16 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
             <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
               Operating Days Per Week
             </label>
-            {editing ? (
+            {useStoreHours ? (
+              <div>
+                <div className="text-2xl font-bold" style={{ color: colors.brown }}>
+                  {displayDays} days
+                </div>
+                <div className="text-xs" style={{ color: colors.brownLight }}>
+                  From store profile
+                </div>
+              </div>
+            ) : editing ? (
               <input
                 type="number"
                 min="1"
@@ -93,7 +153,7 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
               />
             ) : (
               <div className="text-2xl font-bold" style={{ color: colors.brown }}>
-                {overhead?.operating_days_per_week || 7} days
+                {displayDays} days
               </div>
             )}
           </div>
@@ -102,7 +162,16 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
             <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
               Hours Open Per Day
             </label>
-            {editing ? (
+            {useStoreHours ? (
+              <div>
+                <div className="text-2xl font-bold" style={{ color: colors.brown }}>
+                  {displayHours} hours
+                </div>
+                <div className="text-xs" style={{ color: colors.brownLight }}>
+                  Average from store profile
+                </div>
+              </div>
+            ) : editing ? (
               <input
                 type="number"
                 step="0.5"
@@ -117,7 +186,7 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
               />
             ) : (
               <div className="text-2xl font-bold" style={{ color: colors.brown }}>
-                {overhead?.hours_open_per_day || 8} hours
+                {displayHours} hours
               </div>
             )}
           </div>

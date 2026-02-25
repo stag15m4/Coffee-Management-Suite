@@ -96,6 +96,33 @@ export function getRoleBadgeColor(role: string): string {
   }
 }
 
+/**
+ * Derive operating days/week and average hours/day from store operating hours.
+ * Used by recipe costing to auto-populate overhead settings.
+ */
+export function computeHoursFromStoreProfile(hours: OperatingHoursEntry[]): {
+  daysPerWeek: number;
+  avgHoursPerDay: number;
+} {
+  const openDays = hours.filter((h) => !h.is_closed && h.open_time && h.close_time);
+
+  if (openDays.length === 0) return { daysPerWeek: 7, avgHoursPerDay: 8 };
+
+  const totalHours = openDays.reduce((sum, day) => {
+    const [oh, om] = (day.open_time || '0:0').split(':').map(Number);
+    const [ch, cm] = (day.close_time || '0:0').split(':').map(Number);
+    return sum + (ch + cm / 60) - (oh + om / 60);
+  }, 0);
+
+  // Round average to nearest 0.5
+  const avgHoursPerDay = Math.round((totalHours / openDays.length) * 2) / 2;
+
+  return {
+    daysPerWeek: openDays.length,
+    avgHoursPerDay: avgHoursPerDay || 8,
+  };
+}
+
 // --- Query hooks ---
 
 export function useStoreTeamMembers(tenantId?: string) {

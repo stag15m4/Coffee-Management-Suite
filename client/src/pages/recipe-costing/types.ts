@@ -101,6 +101,7 @@ export interface OverheadSettings {
   operating_days_per_week?: number;
   hours_open_per_day?: number;
   owner_tips_enabled?: boolean;
+  use_store_hours?: boolean;
 }
 
 export interface OverheadItem {
