@@ -41,10 +41,10 @@ export const SETUP_STEPS: SetupStepDef[] = [
   },
   {
     id: 'hours',
-    title: 'Set your business hours',
+    title: 'Set your store profile',
     description:
-      'Operating hours help calculate overhead costs per drink accurately.',
-    href: '/recipe-costing?tab=overhead',
+      'Add your address, phone number, and operating hours so your team and reports have the right info.',
+    href: '/store/:tenantId',
     icon: 'Clock',
     phase: 1,
   },

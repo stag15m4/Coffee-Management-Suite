@@ -129,10 +129,11 @@ export function WelcomeDialog() {
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
           <p
-            className="text-xs text-center mt-3"
+            className="text-xs text-center mt-3 leading-relaxed"
             style={{ color: colors.brownLight }}
           >
-            You can skip any step or come back to this later
+            You can skip any step or come back later — the setup checklist
+            lives on your dashboard until you're done.
           </p>
         </div>
       </DialogContent>

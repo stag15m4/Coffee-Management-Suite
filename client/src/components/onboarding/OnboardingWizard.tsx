@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useLocation } from 'wouter';
+import { useAuth } from '@/contexts/AuthContext';
 import { useSetupProgress, SETUP_PHASES, SETUP_STEPS } from '@/hooks/use-setup-progress';
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
 };
 
 export function OnboardingWizard() {
+  const { tenant } = useAuth();
   const {
     setupProgress,
     isLoading,
@@ -50,6 +52,10 @@ export function OnboardingWizard() {
   } = useSetupProgress();
 
   const [, navigate] = useLocation();
+
+  // Resolve dynamic hrefs (e.g., /store/:tenantId)
+  const resolveHref = (href: string) =>
+    href.replace(':tenantId', tenant?.id || '');
 
   // Track which phase is being viewed
   const storedPhase = setupProgress?.currentPhase ?? 1;
@@ -81,7 +87,7 @@ export function OnboardingWizard() {
       completedCount={completedCount}
       markStepComplete={markStepComplete}
       dismissWizard={dismissWizard}
-      navigate={navigate}
+      navigate={(href: string) => navigate(resolveHref(href))}
       loadStarterData={loadStarterData}
       loadingTemplates={loadingTemplates}
       hasVerticalTemplates={hasVerticalTemplates}
