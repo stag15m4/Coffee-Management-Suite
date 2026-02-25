@@ -63,17 +63,20 @@ export function OnboardingWizard() {
 
   // Only show for owners
   if (!isOwner) return null;
-  // Hide if dismissed, all done + celebration seen, or still loading
+  // Hide if explicitly dismissed via X button, or still loading
   if (isLoading || !setupProgress) return null;
   if (setupProgress.dismissed) return null;
 
-  // Show celebration if all done and haven't seen it
+  // Show celebration if all done and haven't seen it yet
   const showCelebration = allDone && !setupProgress.celebrationSeen;
-  // Hide completely if all done AND celebration was seen
-  if (allDone && setupProgress.celebrationSeen) return null;
 
   if (showCelebration) {
-    return <CelebrationCard onDismiss={() => updateProgress({ celebrationSeen: true, dismissed: true })} />;
+    return <CelebrationCard onDismiss={() => updateProgress({ celebrationSeen: true })} />;
+  }
+
+  // After celebration is seen and all done, show a compact completed state
+  if (allDone && setupProgress.celebrationSeen) {
+    return <CompletedCard onDismiss={dismissWizard} />;
   }
 
   return (
@@ -400,6 +403,36 @@ function CelebrationCard({ onDismiss }: { onDismiss: () => void }) {
           50% { transform: translateY(-8px) scale(1.2); }
         }
       `}</style>
+    </div>
+  );
+}
+
+// ---------- Completed Card (compact, stays visible until dismissed) ----------
+
+function CompletedCard({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div
+      className="rounded-xl border shadow-sm overflow-hidden mb-6"
+      style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+    >
+      <div className="px-5 py-3 flex items-center gap-3">
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+          style={{ backgroundColor: colors.goldLight }}
+        >
+          <Check className="w-4 h-4" style={{ color: colors.gold }} />
+        </div>
+        <span className="flex-1 text-sm font-medium" style={{ color: colors.brown }}>
+          Setup complete — you're all set!
+        </span>
+        <button
+          onClick={onDismiss}
+          className="p-1 rounded hover:bg-black/5 transition-colors"
+          aria-label="Dismiss"
+        >
+          <X className="w-4 h-4 opacity-40" />
+        </button>
+      </div>
     </div>
   );
 }
