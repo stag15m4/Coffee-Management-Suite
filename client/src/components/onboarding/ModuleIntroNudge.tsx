@@ -1,4 +1,5 @@
 import { useSetupProgress } from '@/hooks/use-setup-progress';
+import { useEmployeeOnboarding } from '@/hooks/use-employee-onboarding';
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -13,13 +14,30 @@ export function ModuleIntroNudge({
   icon,
   message,
 }: ModuleIntroNudgeProps) {
-  const { setupProgress, isLoading, isOwner, markModuleIntroduced } = useSetupProgress();
+  // Owner path: tenant-level setup_progress
+  const ownerData = useSetupProgress();
+  // Non-owner path: per-user onboarding_progress
+  const employeeData = useEmployeeOnboarding();
 
-  // Only show for owners who haven't seen this module intro yet
-  if (!isOwner || isLoading || !setupProgress) return null;
-  if (setupProgress.modulesIntroduced?.includes(moduleId)) return null;
+  const isOwner = ownerData.isOwner;
 
-  const handleDismiss = () => markModuleIntroduced(moduleId);
+  if (isOwner) {
+    // Owner: use tenant-level tracking (existing behavior)
+    if (ownerData.isLoading || !ownerData.setupProgress) return null;
+    if (ownerData.setupProgress.modulesIntroduced?.includes(moduleId)) return null;
+  } else {
+    // Non-owner: use per-user tracking
+    if (employeeData.isLoading) return null;
+    if (employeeData.onboardingProgress?.modulesIntroduced?.includes(moduleId)) return null;
+  }
+
+  const handleDismiss = () => {
+    if (isOwner) {
+      ownerData.markModuleIntroduced(moduleId);
+    } else {
+      employeeData.markModuleIntroduced(moduleId);
+    }
+  };
 
   return (
     <div

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { LogIn, LogOut, Coffee, Clock, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { EmployeeWelcomeCard } from '@/components/onboarding/EmployeeWelcomeCard';
 import { useActiveClockEntry, useClockIn, useClockOut, useStartBreak, useEndBreak, useTimeClockEntries } from '@/hooks/use-time-clock';
 import type { TimeClockEntry } from '@/hooks/use-time-clock';
 import { useShifts } from '@/hooks/use-shifts';
@@ -205,6 +206,9 @@ export default function EmployeeDashboard() {
             {tenant?.name} &bull; {weekHours}h this week
           </p>
         </div>
+
+        {/* Employee Welcome (first login only) */}
+        <EmployeeWelcomeCard />
 
         {/* Hero Clock Button */}
         <div className="flex flex-col items-center gap-3">
