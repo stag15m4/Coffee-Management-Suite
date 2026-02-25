@@ -22,7 +22,7 @@ ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '
 -- =========================
 
 INSERT INTO subscription_plans (id, name, description, monthly_price, annual_price, max_modules, max_users, max_locations, display_order, is_active, features) VALUES
-  ('starter', 'Starter', 'Free forever — 1 location, 1 module, up to 3 users. 14-day full access trial.', 0, 0, 1, 3, 1, 1, '["1 module of your choice", "1 location", "Up to 3 users", "14-day full access trial"]'::jsonb),
+  ('starter', 'Starter', 'Free forever — 1 location, 1 module, up to 3 users. 14-day full access trial.', 0, 0, 1, 3, 1, 1, true, '["1 module of your choice", "1 location", "Up to 3 users", "14-day full access trial"]'::jsonb),
   ('essential', 'Essential', 'Pick up to 3 modules per location. Unlimited users.', 49.00, 39.00, 3, NULL, NULL, 3, true, '["Up to 3 modules", "Per-location pricing", "Unlimited users", "Email support"]'::jsonb),
   ('professional', 'Professional', 'All modules, unlimited users, custom branding. Per location.', 99.00, 79.00, NULL, NULL, NULL, 4, true, '["All 6 modules included", "Per-location pricing", "Unlimited users", "Custom branding", "Priority support"]'::jsonb)
 ON CONFLICT (id) DO UPDATE SET
@@ -225,7 +225,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 UPDATE tenants SET is_grandfathered = true
 WHERE subscription_plan IN ('premium', 'alacarte')
-  AND stripe_subscription_id IS NOT NULL;
+  AND subscription_status = 'active';
 
 -- =========================
 -- VERIFICATION
