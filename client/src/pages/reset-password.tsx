@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { supabase } from '@/lib/supabase-queries';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,41 @@ export default function ResetPassword() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionFailed, setSessionFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout>;
+
+    // Listen for auth state changes (token exchange from URL hash)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
+        setSessionReady(true);
+      }
+    });
+
+    // Also check if there's already a session (e.g., user is logged in)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!cancelled && session) {
+        setSessionReady(true);
+      }
+    });
+
+    // If no session after 5 seconds, show error
+    timeout = setTimeout(() => {
+      if (!cancelled) {
+        setSessionFailed(true);
+      }
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +75,67 @@ export default function ResetPassword() {
       setIsSubmitting(false);
     }
   };
+
+  // Show loading while waiting for session from the email link
+  if (!sessionReady && !sessionFailed) {
+    return (
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.cream }}>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }}>
+            <CardHeader className="text-center">
+              <img
+                src="/logo.png"
+                alt="Coffee Management Suite"
+                className="mx-auto w-20 h-20 object-contain mb-4"
+              />
+              <CardTitle className="text-2xl" style={{ color: colors.brown }}>
+                Setting Up Your Account
+              </CardTitle>
+              <CardDescription style={{ color: colors.brownLight }}>
+                <Loader2 className="w-5 h-5 animate-spin inline-block mr-2" />
+                Verifying your link...
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Show error if session couldn't be established
+  if (sessionFailed && !sessionReady) {
+    return (
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.cream }}>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }}>
+            <CardHeader className="text-center">
+              <img
+                src="/logo.png"
+                alt="Coffee Management Suite"
+                className="mx-auto w-20 h-20 object-contain mb-4"
+              />
+              <CardTitle className="text-2xl" style={{ color: colors.brown }}>
+                Link Expired or Invalid
+              </CardTitle>
+              <CardDescription style={{ color: colors.brownLight }}>
+                This password link may have expired or already been used. Please ask your manager to send a new invitation, or use "Forgot Password" on the login page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <Button
+                onClick={() => setLocation('/login')}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
+              >
+                Go to Login
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.cream }}>

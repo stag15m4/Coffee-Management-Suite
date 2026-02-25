@@ -1812,7 +1812,7 @@ export async function registerRoutes(
 
   app.post('/api/users/invite', async (req, res) => {
     try {
-      const { email, fullName, role, tenantId, requestingUserId } = req.body;
+      const { email, fullName, role, tenantId, requestingUserId, redirectTo } = req.body;
 
       if (!email || !tenantId || !requestingUserId) {
         return res.status(400).json({ error: 'Email, tenantId, and requestingUserId are required' });
@@ -1833,9 +1833,13 @@ export async function registerRoutes(
       let isNewUser = false;
 
       // Try to invite the user (creates auth user + sends Supabase invite email)
-      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      const inviteOptions: any = {
         data: { full_name: fullName || email.split('@')[0] },
-      });
+      };
+      if (redirectTo) {
+        inviteOptions.redirectTo = redirectTo;
+      }
+      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, inviteOptions);
 
       if (inviteData?.user) {
         userId = inviteData.user.id;
@@ -1856,7 +1860,11 @@ export async function registerRoutes(
         if (supabaseUrl && supabaseKey) {
           const { createClient } = await import('@supabase/supabase-js');
           const anonClient = createClient(supabaseUrl, supabaseKey);
-          const { error: resetError } = await anonClient.auth.resetPasswordForEmail(email);
+          const resetOptions: any = {};
+          if (redirectTo) {
+            resetOptions.redirectTo = redirectTo;
+          }
+          const { error: resetError } = await anonClient.auth.resetPasswordForEmail(email, resetOptions);
           if (resetError) {
             console.warn('Password reset email failed:', resetError.message);
           }

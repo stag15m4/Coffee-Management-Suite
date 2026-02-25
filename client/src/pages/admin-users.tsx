@@ -265,6 +265,7 @@ export default function AdminUsers() {
           role: newRole,
           tenantId: profile.tenant_id,
           requestingUserId: user.id,
+          redirectTo: `${window.location.origin}/reset-password`,
         }),
       });
 
