@@ -125,7 +125,7 @@ export function useSetupProgress() {
     queryKey: ['tenant-setup-auto', tenant?.id],
     queryFn: async () => {
       if (!tenant?.id) return {} as Record<string, boolean>;
-      const [profiles, assignments, ingredients, sizes, recipes, tenantRow, overheadItems] =
+      const [profiles, assignments, ingredients, sizes, recipes, tenantRow, overheadItems, storeHours] =
         await Promise.all([
           supabase
             .from('user_profiles')
@@ -157,10 +157,14 @@ export function useSetupProgress() {
             .from('overhead_items')
             .select('id', { count: 'exact', head: true })
             .eq('tenant_id', tenant.id),
+          supabase
+            .from('store_operating_hours')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenant.id),
         ]);
       return {
         team: (profiles.count ?? 0) + (assignments.count ?? 0) > 1,
-        hours: false, // manual — no reliable auto-detect
+        hours: (storeHours.count ?? 0) > 0,
         ingredients: (ingredients.count ?? 0) > 0,
         sizes: (sizes.count ?? 0) > 0,
         recipe: (recipes.count ?? 0) > 0,
