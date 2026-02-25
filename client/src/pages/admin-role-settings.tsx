@@ -75,8 +75,10 @@ export default function AdminRoleSettings() {
         return next;
       });
       toast({ title: 'Role settings saved' });
-    } catch {
-      toast({ title: 'Error', description: 'Failed to save settings.', variant: 'destructive' });
+    } catch (err: any) {
+      console.error('Failed to save role settings:', err);
+      const message = err?.message || 'Failed to save settings.';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
     }
   };
 

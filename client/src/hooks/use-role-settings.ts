@@ -101,10 +101,12 @@ export function useUpdateRoleSetting() {
         .from('tenant_role_settings')
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
-        .select()
-        .single();
+        .select();
       if (error) throw error;
-      return data as TenantRoleSetting;
+      if (!data || data.length === 0) {
+        throw new Error('No rows updated — you may not have permission to edit role settings.');
+      }
+      return data[0] as TenantRoleSetting;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['role-settings'] });
