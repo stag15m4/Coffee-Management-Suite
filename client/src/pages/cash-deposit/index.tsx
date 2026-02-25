@@ -12,6 +12,8 @@ import ExcelJS from 'exceljs';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 import { colors } from '@/lib/colors';
+import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
+import { DollarSign } from 'lucide-react';
 import {
   type CashEntry,
   type FormData,
@@ -628,6 +630,14 @@ export default function CashDeposit() {
           )}
         </div>
       </header>
+
+      <div className="max-w-5xl mx-auto px-4 md:px-6">
+        <ModuleIntroNudge
+          moduleId="cash-deposit"
+          icon={<DollarSign className="w-5 h-5" />}
+          message="Log daily cash drawer counts here. We'll track discrepancies and trends so you can spot issues early. Start by setting your starting drawer amount."
+        />
+      </div>
 
       <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4">
 

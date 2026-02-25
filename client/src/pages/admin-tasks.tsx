@@ -48,6 +48,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { colors } from '@/lib/colors';
+import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
 
 interface TaskCategory {
   id: string;
@@ -698,7 +699,15 @@ export default function AdminTasks() {
           </div>
         </div>
       </header>
-      
+
+      <div className="max-w-7xl mx-auto px-4">
+        <ModuleIntroNudge
+          moduleId="admin-tasks"
+          icon={<ListTodo className="w-5 h-5" />}
+          message="Create and assign recurring tasks for your team. Track completion, set due dates, and keep daily operations running smoothly."
+        />
+      </div>
+
       <main className="flex-1 p-4 max-w-7xl mx-auto w-full space-y-4">
         {(overdueTasks.length > 0 || dueSoonTasks.length > 0) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

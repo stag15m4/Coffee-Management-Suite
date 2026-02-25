@@ -74,6 +74,7 @@ import {
 } from '@/hooks/use-calendar-events';
 
 import { colors } from '@/lib/colors';
+import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
 
 const EMPLOYEE_COLORS = [
   '#C9A227', '#8B4513', '#CD853F', '#6B5344', '#4A3728',
@@ -510,6 +511,11 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
   return (
     <div className="space-y-4">
+      <ModuleIntroNudge
+        moduleId="calendar-workforce"
+        icon={<CalendarDays className="w-5 h-5" />}
+        message="Manage shifts, time-off requests, and your team's schedule. Employees can clock in/out and view their upcoming shifts."
+      />
       {/* Navigation + view toggle */}
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">

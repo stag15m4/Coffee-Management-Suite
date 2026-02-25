@@ -28,6 +28,7 @@ import { Wrench, Settings, X } from 'lucide-react';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 import { colors } from '@/lib/colors';
+import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
 
 import { getTaskStatus, isVehicle, type TaskStatus } from './equipment-utils';
 import { MaintenanceDue } from './MaintenanceDue';
@@ -779,6 +780,14 @@ export default function EquipmentMaintenance() {
           </div>
         </div>
       </header>
+
+      <div className="max-w-4xl mx-auto px-4">
+        <ModuleIntroNudge
+          moduleId="equipment-maintenance"
+          icon={<Wrench className="w-5 h-5" />}
+          message="Track your equipment, schedule preventive maintenance, and log repairs. Staying on top of maintenance saves money and prevents downtime."
+        />
+      </div>
 
       <main className="max-w-4xl mx-auto p-4 space-y-4">
         <div className="flex gap-2 flex-wrap">

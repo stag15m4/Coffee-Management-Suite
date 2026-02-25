@@ -20,6 +20,7 @@ import { PayoutSummary } from '@/components/tip-payout/PayoutSummary';
 import { HistoricalExport } from '@/components/tip-payout/HistoricalExport';
 import { TimeclockImportDialog } from '@/components/tip-payout/TimeclockImportDialog';
 import { colors } from '@/lib/colors';
+import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
 
 export default function TipPayout() {
   const { tenant, branding, primaryTenant } = useAuth();
@@ -676,6 +677,14 @@ export default function TipPayout() {
           if (open) loadAllEmployees();
         }}
       />
+
+      <div className="max-w-4xl mx-auto px-4 pt-4">
+        <ModuleIntroNudge
+          moduleId="tip-payout"
+          icon={<Users className="w-5 h-5" />}
+          message="Calculate fair tip splits based on hours worked. Enter daily tips, verify hours, and generate payout summaries for your team."
+        />
+      </div>
 
       <main className="max-w-4xl mx-auto p-4 space-y-4">
         <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>

@@ -42,6 +42,7 @@ import {
   useDeleteRecipeVendor,
 } from '@/lib/supabase-queries';
 import { colors } from '@/lib/colors';
+import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
 import { calculateCostPerUsageUnit } from './utils';
 import type {
   Ingredient,
@@ -748,6 +749,14 @@ export default function RecipeCostingPage() {
           </button>
         </div>
       </header>
+
+      <div className="max-w-7xl mx-auto px-6">
+        <ModuleIntroNudge
+          moduleId="recipe-costing"
+          icon={<Settings className="w-5 h-5" />}
+          message="This is your Menu Cost Manager — track ingredient costs, build recipes, and see your true profit margins. Start by adding ingredients, then create your first recipe."
+        />
+      </div>
 
       <div className="px-6">
         <div className="max-w-7xl mx-auto">
