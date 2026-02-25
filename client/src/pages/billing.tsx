@@ -46,6 +46,9 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
 
 const PLAN_LABELS: Record<string, string> = {
   free: 'Free Trial',
+  starter: 'Starter',
+  essential: 'Essential',
+  professional: 'Professional',
   alacarte: 'À La Carte',
   beta: 'Beta',
   test_eval: 'Beta',
@@ -378,15 +381,22 @@ export default function Billing() {
   const trialDaysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
   const trialProgress = trialEndsAt ? Math.max(0, Math.min(100, ((14 - trialDaysLeft) / 14) * 100)) : 0;
   const subStatus = billingDetails?.subscription?.status || billingDetails?.stripe_subscription_status;
-  const isPremium = plan === 'premium' || plan === 'beta';
+  const isPremium = plan === 'premium' || plan === 'beta' || plan === 'professional';
+  const isEssential = plan === 'essential';
+  const isStarter = plan === 'starter';
+  const professionalProducts = products.filter(p => p.metadata?.plan_id === 'professional');
+  const essentialProducts = products.filter(p => p.metadata?.plan_id === 'essential');
   const premiumProducts = products.filter(p => p.metadata?.plan_id === 'premium');
   const alacarteProducts = products.filter(p => p.metadata?.plan_id === 'alacarte');
 
   // Pricing protection: count individually paid modules
-  // Trial users have 0 paid modules; premium users won't see buttons
+  // Trial users have 0 paid modules; premium/professional users won't see buttons
   const paidModuleCount = isTrial ? 0 : enabledModules.length;
-  const premiumPriceId = premiumProducts[0]?.prices[0]?.id;
-  const PREMIUM_THRESHOLD = 5; // At 5× $19.99 = $99.95, premium ($99.99) is better value
+  const professionalPriceId = professionalProducts[0]?.prices[0]?.id || premiumProducts[0]?.prices[0]?.id;
+  const essentialPriceId = essentialProducts[0]?.prices[0]?.id;
+  // At 2 modules × $29 = $58, Essential ($49) is better; at 4 × $29 = $116, Professional ($99) is better
+  const ESSENTIAL_THRESHOLD = 2;
+  const PROFESSIONAL_THRESHOLD = 4;
 
   const getStatusBadge = () => {
     if (billingDetails?.subscription?.cancel_at_period_end) {
@@ -522,14 +532,13 @@ export default function Billing() {
               </div>
             )}
 
-            {/* Upgrade prompt for trial/no plan */}
-            {(isTrial || !billingDetails?.subscription) && isOwner && (
+            {/* Upgrade prompt for trial/no plan/starter */}
+            {(isTrial || isStarter || !billingDetails?.subscription) && isOwner && (
               <div className="space-y-2">
                 <Button
                   onClick={() => {
-                    const premiumPrice = premiumProducts[0]?.prices[0];
-                    if (premiumPrice) {
-                      handleCheckout(premiumPrice.id);
+                    if (professionalPriceId) {
+                      handleCheckout(professionalPriceId);
                     } else {
                       toast({ title: 'Payment not available', description: 'Stripe is not configured yet. Contact support to subscribe.', variant: 'destructive' });
                     }
@@ -538,10 +547,10 @@ export default function Billing() {
                   className="w-full"
                   style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
-                  Get All 6 Modules — $99.99/mo
+                  Upgrade to Professional — $99/mo per location
                 </Button>
                 <p className="text-xs text-center" style={{ color: colors.brownLight }}>
-                  or pick individual modules below — $19.99/mo each
+                  or try Essential at $49/mo · A La Carte from $29/mo per module
                 </p>
               </div>
             )}
@@ -551,12 +560,17 @@ export default function Billing() {
               <div className="flex items-center gap-2 mb-1">
                 <Package className="h-4 w-4" style={{ color: colors.gold }} />
                 <p className="text-sm font-semibold" style={{ color: colors.brown }}>
-                  {isPremium ? 'All modules included in your plan' : 'Modules'}
+                  {isPremium ? 'All modules included in your plan' :
+                   isEssential ? `Modules (${enabledModules.length}/3 selected)` :
+                   isStarter ? `Modules (${enabledModules.length}/1 selected)` :
+                   'Modules'}
                 </p>
               </div>
               {!isPremium && (
                 <p className="text-xs mb-3" style={{ color: colors.brownLight }}>
-                  Your subscribed modules and available add-ons
+                  {isEssential ? 'Pick up to 3 modules — upgrade to Professional for all 6' :
+                   isStarter ? 'Your Starter plan includes 1 module — upgrade for more' :
+                   'Your subscribed modules and available add-ons'}
                 </p>
               )}
               <div className="grid gap-3 sm:grid-cols-2">
@@ -564,7 +578,8 @@ export default function Billing() {
                   const isActive = enabledModules.includes(mod.id as ModuleId);
                   const Icon = MODULE_ICONS[mod.id] || Package;
                   const price = parseFloat(mod.monthly_price);
-                  const wouldExceedPremium = paidModuleCount + 1 >= PREMIUM_THRESHOLD;
+                  const wouldExceedProfessional = paidModuleCount + 1 >= PROFESSIONAL_THRESHOLD;
+                  const wouldExceedEssential = paidModuleCount + 1 >= ESSENTIAL_THRESHOLD;
 
                   return (
                     <div
@@ -615,13 +630,13 @@ export default function Billing() {
                           <span className="text-xs" style={{ color: colors.gold }}>
                             Included in {planLabel}
                           </span>
-                        ) : isOwner && wouldExceedPremium ? (
+                        ) : isOwner && !isActive && wouldExceedProfessional ? (
                           <Button
                             size="sm"
                             className="h-7 text-xs px-3"
                             onClick={() => {
-                              if (premiumPriceId) {
-                                handleCheckout(premiumPriceId);
+                              if (professionalPriceId) {
+                                handleCheckout(professionalPriceId);
                               } else {
                                 toast({ title: 'Payment not available', description: 'Stripe is not configured yet. Contact support to subscribe.', variant: 'destructive' });
                               }
@@ -629,9 +644,27 @@ export default function Billing() {
                             disabled={checkoutLoading !== null}
                             style={{ backgroundColor: colors.gold, color: colors.white }}
                           >
-                            Get All Modules — $99.99/mo
+                            Get All Modules — $99/mo
                           </Button>
-                        ) : isOwner ? (
+                        ) : isOwner && !isActive && wouldExceedEssential ? (
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs px-3"
+                            onClick={() => {
+                              if (essentialPriceId) {
+                                handleCheckout(essentialPriceId);
+                              } else if (professionalPriceId) {
+                                handleCheckout(professionalPriceId);
+                              } else {
+                                toast({ title: 'Payment not available', description: 'Stripe is not configured yet. Contact support to subscribe.', variant: 'destructive' });
+                              }
+                            }}
+                            disabled={checkoutLoading !== null}
+                            style={{ backgroundColor: colors.gold, color: colors.white }}
+                          >
+                            Try Essential — $49/mo
+                          </Button>
+                        ) : isOwner && !isActive ? (
                           <Button
                             size="sm"
                             className="h-7 text-xs px-3"
@@ -649,11 +682,15 @@ export default function Billing() {
                             disabled={checkoutLoading !== null}
                             style={{ backgroundColor: colors.gold, color: colors.white }}
                           >
-                            Add Module — ${price.toFixed(2)}/mo
+                            Add Module — ${price.toFixed(0)}/mo
                           </Button>
                         ) : (
                           <span className="text-xs font-medium" style={{ color: colors.brownLight }}>
-                            ${price.toFixed(2)}/mo{isTrial && isActive ? ' after trial' : ''}
+                            {isActive ? (
+                              <>{isTrial ? `$${price.toFixed(0)}/mo after trial` : 'Active'}</>
+                            ) : (
+                              <>${price.toFixed(0)}/mo</>
+                            )}
                           </span>
                         )}
                       </div>
@@ -915,82 +952,150 @@ export default function Billing() {
 
           {showPlans && (
             <div className="space-y-6 mt-3">
-              {/* Premium plans */}
-              {premiumProducts.length > 0 && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {premiumProducts.map((product) => {
-                    const isCurrentPlan = plan === 'premium';
-                    return (
-                      <Card
-                        key={product.id}
-                        className="relative"
-                        style={{
-                          backgroundColor: colors.white,
-                          borderColor: isCurrentPlan ? colors.green : colors.gold,
-                          borderWidth: 2,
-                        }}
+              {/* Plan tiers */}
+              <div className="grid gap-4 md:grid-cols-3">
+                {/* Starter */}
+                <Card
+                  className="relative"
+                  style={{
+                    backgroundColor: colors.white,
+                    borderColor: plan === 'starter' || plan === 'free' ? colors.green : colors.creamDark,
+                    borderWidth: 2,
+                  }}
+                >
+                  {(plan === 'starter' || plan === 'free') && (
+                    <Badge className="absolute -top-2 right-4" style={{ backgroundColor: colors.green, color: 'white' }}>
+                      Current
+                    </Badge>
+                  )}
+                  <CardHeader className="pb-2">
+                    <CardTitle style={{ color: colors.brown }}>Starter</CardTitle>
+                    <p className="text-sm" style={{ color: colors.brownLight }}>
+                      Get started for free
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="mb-4">
+                      <span className="text-2xl font-bold" style={{ color: colors.brown }}>Free</span>
+                      <span className="text-sm ml-1" style={{ color: colors.brownLight }}>forever</span>
+                    </div>
+                    <ul className="space-y-2">
+                      {['1 module of choice', '1 location', 'Up to 3 users', '14-day full trial'].map(f => (
+                        <li key={f} className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
+                          <Check className="h-4 w-4 shrink-0" style={{ color: colors.green }} />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                {/* Essential */}
+                <Card
+                  className="relative"
+                  style={{
+                    backgroundColor: colors.white,
+                    borderColor: plan === 'essential' ? colors.green : colors.gold,
+                    borderWidth: 2,
+                  }}
+                >
+                  {plan === 'essential' && (
+                    <Badge className="absolute -top-2 right-4" style={{ backgroundColor: colors.green, color: 'white' }}>
+                      Current
+                    </Badge>
+                  )}
+                  <CardHeader className="pb-2">
+                    <CardTitle style={{ color: colors.brown }}>Essential</CardTitle>
+                    <p className="text-sm" style={{ color: colors.brownLight }}>
+                      Pick the modules you need
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="mb-4">
+                      <span className="text-2xl font-bold" style={{ color: colors.brown }}>$49</span>
+                      <span className="text-sm ml-1" style={{ color: colors.brownLight }}>/mo per location</span>
+                      <p className="text-xs mt-1" style={{ color: colors.gold }}>$39/mo billed annually</p>
+                    </div>
+                    <ul className="space-y-2">
+                      {['Up to 3 modules', 'Unlimited users', 'Per-location pricing', 'Email support'].map(f => (
+                        <li key={f} className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
+                          <Check className="h-4 w-4 shrink-0" style={{ color: colors.green }} />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    {plan !== 'essential' && plan !== 'professional' && plan !== 'premium' && isOwner && essentialPriceId && (
+                      <Button
+                        className="w-full mt-4"
+                        onClick={() => handleCheckout(essentialPriceId)}
+                        disabled={checkoutLoading !== null}
+                        style={{ backgroundColor: colors.gold, color: colors.white }}
                       >
-                        {isCurrentPlan && (
-                          <Badge className="absolute -top-2 right-4" style={{ backgroundColor: colors.green, color: 'white' }}>
-                            Current Plan
-                          </Badge>
-                        )}
-                        {!isCurrentPlan && (
-                          <Badge className="absolute -top-2 right-4" style={{ backgroundColor: colors.gold, color: colors.white }}>
-                            Best Value
-                          </Badge>
-                        )}
-                        <CardHeader className="pb-2">
-                          <CardTitle style={{ color: colors.brown }}>{product.name}</CardTitle>
-                          <p className="text-sm" style={{ color: colors.brownLight }}>
-                            {product.description}
-                          </p>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            {product.prices.map((price) => (
-                              <div key={price.id} className="flex items-center justify-between">
-                                <div>
-                                  <span className="text-2xl font-bold" style={{ color: colors.brown }}>
-                                    {formatPrice(price.unit_amount, price.currency)}
-                                  </span>
-                                  <span className="text-sm" style={{ color: colors.brownLight }}>
-                                    /{price.recurring?.interval || 'one-time'}
-                                  </span>
-                                </div>
-                                {!isCurrentPlan && isOwner && (
-                                  <Button
-                                    onClick={() => handleCheckout(price.id)}
-                                    disabled={checkoutLoading === price.id}
-                                    style={{ backgroundColor: colors.gold, color: colors.white }}
-                                  >
-                                    {checkoutLoading === price.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Subscribe
-                                  </Button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                          <ul className="mt-4 space-y-2">
-                            <li className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
-                              <Check className="h-4 w-4 shrink-0" style={{ color: colors.green }} />
-                              All 6 modules included
-                            </li>
-                            <li className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
-                              <Check className="h-4 w-4 shrink-0" style={{ color: colors.green }} />
-                              Up to {product.metadata?.max_locations || '5'} locations
-                            </li>
-                            <li className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
-                              <Check className="h-4 w-4 shrink-0" style={{ color: colors.green }} />
-                              Priority support
-                            </li>
-                          </ul>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
+                        {checkoutLoading === essentialPriceId && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Choose Essential
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Professional */}
+                <Card
+                  className="relative"
+                  style={{
+                    backgroundColor: colors.white,
+                    borderColor: isPremium ? colors.green : colors.gold,
+                    borderWidth: isPremium ? 2 : 3,
+                  }}
+                >
+                  {isPremium ? (
+                    <Badge className="absolute -top-2 right-4" style={{ backgroundColor: colors.green, color: 'white' }}>
+                      Current
+                    </Badge>
+                  ) : (
+                    <Badge className="absolute -top-2 right-4" style={{ backgroundColor: colors.gold, color: colors.white }}>
+                      Most Popular
+                    </Badge>
+                  )}
+                  <CardHeader className="pb-2">
+                    <CardTitle style={{ color: colors.brown }}>Professional</CardTitle>
+                    <p className="text-sm" style={{ color: colors.brownLight }}>
+                      Everything for your operation
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="mb-4">
+                      <span className="text-2xl font-bold" style={{ color: colors.brown }}>$99</span>
+                      <span className="text-sm ml-1" style={{ color: colors.brownLight }}>/mo per location</span>
+                      <p className="text-xs mt-1" style={{ color: colors.gold }}>$79/mo billed annually</p>
+                    </div>
+                    <ul className="space-y-2">
+                      {['All 6 modules included', 'Unlimited users', 'Per-location pricing', 'Custom branding', 'Priority support'].map(f => (
+                        <li key={f} className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
+                          <Check className="h-4 w-4 shrink-0" style={{ color: colors.green }} />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    {!isPremium && isOwner && professionalPriceId && (
+                      <Button
+                        className="w-full mt-4"
+                        onClick={() => handleCheckout(professionalPriceId)}
+                        disabled={checkoutLoading !== null}
+                        style={{ backgroundColor: colors.gold, color: colors.white }}
+                      >
+                        {checkoutLoading === professionalPriceId && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Choose Professional
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* A la carte note */}
+              <p className="text-sm text-center" style={{ color: colors.brownLight }}>
+                Need just 1–2 modules?{' '}
+                <span style={{ color: colors.gold, fontWeight: 600 }}>A La Carte from $29/mo per module per location.</span>
+              </p>
 
               {/* A la carte modules */}
               {alacarteProducts.length > 0 && (
@@ -998,7 +1103,7 @@ export default function Billing() {
                   <div>
                     <h4 className="text-sm font-semibold" style={{ color: colors.brown }}>Individual Modules</h4>
                     <p className="text-xs" style={{ color: colors.brownLight }}>
-                      Pick and choose modules at $19.99/month each
+                      Pick and choose modules at $29/month each per location
                     </p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

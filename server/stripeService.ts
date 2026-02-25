@@ -14,13 +14,14 @@ export class StripeService {
     priceId: string,
     successUrl: string,
     cancelUrl: string,
-    tenantId: string
+    tenantId: string,
+    quantity: number = 1
   ) {
     const stripe = await getUncachableStripeClient();
     return await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: priceId, quantity }],
       mode: 'subscription',
       success_url: successUrl,
       cancel_url: cancelUrl,

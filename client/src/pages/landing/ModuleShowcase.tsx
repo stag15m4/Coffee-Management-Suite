@@ -39,7 +39,7 @@ export const DEFAULT_MODULES: ModuleInfo[] = [
     title: 'Recipe Cost Manager',
     description: 'Track ingredients, create recipes, and calculate precise food costs to protect your margins.',
     icon: Calculator,
-    price: '$19.99/mo',
+    price: '$29/mo',
     features: [
       'Create and manage ingredient usage with real-time pricing',
       'Build recipes with automatic cost calculations',
@@ -55,7 +55,7 @@ export const DEFAULT_MODULES: ModuleInfo[] = [
     title: 'Tip Payout Calculator',
     description: 'Streamline tip distribution with automated calculations and detailed payout reports.',
     icon: DollarSign,
-    price: '$19.99/mo',
+    price: '$29/mo',
     features: [
       'Automatic tip pool calculations based on hours worked',
       'Handle credit card fee deductions automatically',
@@ -70,7 +70,7 @@ export const DEFAULT_MODULES: ModuleInfo[] = [
     title: 'Cash Deposit Record',
     description: 'Manage daily cash reconciliation and deposits with complete audit trails.',
     icon: PiggyBank,
-    price: '$19.99/mo',
+    price: '$29/mo',
     features: [
       'Daily cash drawer reconciliation',
       'Track deposits by date with running totals',
@@ -86,7 +86,7 @@ export const DEFAULT_MODULES: ModuleInfo[] = [
     title: 'Bulk Ordering',
     description: 'Handle wholesale orders efficiently with a vendor-direct email form.',
     icon: Coffee,
-    price: '$19.99/mo',
+    price: '$29/mo',
     features: [
       'Manage wholesale products from multiple suppliers',
       'Track product pricing and order history',
@@ -100,7 +100,7 @@ export const DEFAULT_MODULES: ModuleInfo[] = [
     title: 'Equipment Maintenance',
     description: 'Schedule and track equipment maintenance with reminders and history.',
     icon: Wrench,
-    price: '$19.99/mo',
+    price: '$29/mo',
     features: [
       'Catalog all equipment with specs',
       'Schedule preventive maintenance tasks',
@@ -115,7 +115,7 @@ export const DEFAULT_MODULES: ModuleInfo[] = [
     title: 'Administrative Tasks',
     description: 'Task management with delegation, recurring tasks, and team collaboration.',
     icon: ClipboardList,
-    price: '$19.99/mo',
+    price: '$29/mo',
     features: [
       'Create tasks with priorities and due dates',
       'Assign tasks to team members',
@@ -150,7 +150,7 @@ export function ModuleShowcase({ modules = DEFAULT_MODULES, gradient }: ModuleSh
               className="text-lg max-w-2xl mx-auto"
               style={{ color: 'var(--color-secondary-light)' }}
             >
-              Pick the tools you need, or get them all with Premium Suite.
+              Pick the tools you need, or get them all with Professional.
             </p>
           </div>
 

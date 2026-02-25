@@ -468,7 +468,7 @@ export async function registerRoutes(
       const tenantInfo = await db.execute(sql`
         SELECT subscription_plan, subscription_status, trial_ends_at,
                stripe_customer_id, stripe_subscription_id, stripe_subscription_status,
-               license_code_id
+               license_code_id, billable_locations, billing_interval, is_grandfathered
         FROM tenants WHERE id = ${tenantId}
       `);
       const tenantData = tenantInfo.rows[0] as any;
@@ -479,6 +479,9 @@ export async function registerRoutes(
         trial_ends_at: tenantData?.trial_ends_at || null,
         stripe_subscription_status: tenantData?.stripe_subscription_status || null,
         license_code_id: tenantData?.license_code_id || null,
+        billable_locations: tenantData?.billable_locations || 1,
+        billing_interval: tenantData?.billing_interval || 'monthly',
+        is_grandfathered: tenantData?.is_grandfathered || false,
         subscription: null,
         upcoming_invoice: null,
       };
@@ -904,6 +907,18 @@ export async function registerRoutes(
   // RESELLER & LICENSE CODE ROUTES (Platform Admin Only)
   // =====================================================
   
+  // Get reseller volume discount tiers
+  app.get('/api/reseller-volume-tiers', requirePlatformAdmin, async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT * FROM reseller_volume_tiers ORDER BY min_locations
+      `);
+      res.json(result.rows);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get all resellers (platform admin only)
   app.get('/api/resellers', requirePlatformAdmin, async (req, res) => {
     try {
@@ -965,14 +980,19 @@ export async function registerRoutes(
   // Create reseller (platform admin only)
   app.post('/api/resellers', requirePlatformAdmin, async (req, res) => {
     try {
-      const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, revenueSharePercent, notes } = req.body;
+      const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, revenueSharePercent, notes,
+              tier, discountPercent, minimumSeats, billingCycle, annualCommitment } = req.body;
 
       const result = await db.execute(sql`
-        INSERT INTO resellers (name, contact_email, contact_name, phone, company_address, seats_total, revenue_share_percent, notes)
-        VALUES (${name}, ${contactEmail}, ${contactName}, ${phone}, ${companyAddress}, ${seatsTotal || 0}, ${revenueSharePercent || 0}, ${notes})
+        INSERT INTO resellers (name, contact_email, contact_name, phone, company_address, seats_total,
+                               revenue_share_percent, notes, tier, discount_percent, minimum_seats,
+                               billing_cycle, annual_commitment, tier_updated_at)
+        VALUES (${name}, ${contactEmail}, ${contactName}, ${phone}, ${companyAddress}, ${seatsTotal || 0},
+                ${revenueSharePercent || 0}, ${notes}, ${tier || 'authorized'}, ${discountPercent || 20},
+                ${minimumSeats || 0}, ${billingCycle || 'monthly'}, ${annualCommitment || 0}, NOW())
         RETURNING *
       `);
-      
+
       res.status(201).json(result.rows[0]);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -982,7 +1002,8 @@ export async function registerRoutes(
   // Update reseller (platform admin only)
   app.put('/api/resellers/:id', requirePlatformAdmin, async (req, res) => {
     try {
-      const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, revenueSharePercent, notes, isActive } = req.body;
+      const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, revenueSharePercent, notes, isActive,
+              tier, discountPercent, minimumSeats, billingCycle, annualCommitment } = req.body;
 
       const result = await db.execute(sql`
         UPDATE resellers
@@ -995,15 +1016,21 @@ export async function registerRoutes(
             revenue_share_percent = ${revenueSharePercent || 0},
             notes = ${notes},
             is_active = ${isActive},
+            tier = ${tier || 'authorized'},
+            discount_percent = ${discountPercent || 20},
+            minimum_seats = ${minimumSeats || 0},
+            billing_cycle = ${billingCycle || 'monthly'},
+            annual_commitment = ${annualCommitment || 0},
+            tier_updated_at = NOW(),
             updated_at = NOW()
         WHERE id = ${req.params.id}
         RETURNING *
       `);
-      
+
       if (!result.rows.length) {
         return res.status(404).json({ error: 'Reseller not found' });
       }
-      
+
       res.json(result.rows[0]);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

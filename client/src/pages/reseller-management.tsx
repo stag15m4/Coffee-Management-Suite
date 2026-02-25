@@ -60,6 +60,11 @@ interface Reseller {
   notes: string | null;
   is_active: boolean;
   revenue_share_percent: number;
+  tier: 'authorized' | 'silver' | 'gold';
+  discount_percent: number;
+  minimum_seats: number;
+  billing_cycle: string;
+  annual_commitment: number;
   created_at: string;
   updated_at: string;
 }
@@ -124,13 +129,18 @@ export default function ResellerManagement() {
     companyAddress: '',
     seatsTotal: 0,
     revenueSharePercent: 0,
+    tier: 'authorized' as 'authorized' | 'silver' | 'gold',
+    discountPercent: 20,
+    minimumSeats: 0,
+    billingCycle: 'monthly',
+    annualCommitment: 0,
     notes: '',
     isActive: true,
   });
 
   const [generateForm, setGenerateForm] = useState({
     count: 1,
-    subscriptionPlan: 'premium',
+    subscriptionPlan: 'professional',
     expiresAt: '',
     verticalId: '',
   });
@@ -375,10 +385,17 @@ export default function ResellerManagement() {
       companyAddress: '',
       seatsTotal: 0,
       revenueSharePercent: 0,
+      tier: 'authorized',
+      discountPercent: 20,
+      minimumSeats: 0,
+      billingCycle: 'monthly',
+      annualCommitment: 0,
       notes: '',
       isActive: true,
     });
   };
+
+  const tierDefaults: Record<string, number> = { authorized: 20, silver: 30, gold: 40 };
 
   const openEditDialog = (reseller: Reseller) => {
     setResellerForm({
@@ -389,6 +406,11 @@ export default function ResellerManagement() {
       companyAddress: reseller.company_address || '',
       seatsTotal: reseller.seats_total,
       revenueSharePercent: reseller.revenue_share_percent || 0,
+      tier: reseller.tier || 'authorized',
+      discountPercent: reseller.discount_percent || 20,
+      minimumSeats: reseller.minimum_seats || 0,
+      billingCycle: reseller.billing_cycle || 'monthly',
+      annualCommitment: reseller.annual_commitment || 0,
       notes: reseller.notes || '',
       isActive: reseller.is_active,
     });
@@ -523,7 +545,27 @@ export default function ResellerManagement() {
           </>
         ) : selectedReseller && (
           <>
-            <div className="grid md:grid-cols-4 gap-6 mb-6">
+            <div className="grid md:grid-cols-5 gap-4 mb-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Tier</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Badge
+                    className="text-base px-3 py-1"
+                    style={{
+                      backgroundColor: selectedReseller.tier === 'gold' ? '#EAB308' :
+                        selectedReseller.tier === 'silver' ? '#9CA3AF' : colors.gold,
+                      color: 'white',
+                    }}
+                  >
+                    {(selectedReseller.tier || 'authorized').charAt(0).toUpperCase() + (selectedReseller.tier || 'authorized').slice(1)}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {selectedReseller.discount_percent || 20}% discount
+                  </p>
+                </CardContent>
+              </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Total Seats</CardTitle>
@@ -829,17 +871,79 @@ export default function ResellerManagement() {
               />
             </div>
             <div>
-              <Label htmlFor="revenueShare">Revenue Share %</Label>
-              <Input
-                id="revenueShare"
-                type="number"
-                min="0"
-                max="100"
-                step="0.5"
-                value={resellerForm.revenueSharePercent}
-                onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
-                data-testid="input-reseller-revenue-share"
-              />
+              <Label htmlFor="tier">Partner Tier</Label>
+              <Select
+                value={resellerForm.tier}
+                onValueChange={(value: 'authorized' | 'silver' | 'gold') => setResellerForm({
+                  ...resellerForm,
+                  tier: value,
+                  discountPercent: tierDefaults[value] || 20,
+                })}
+              >
+                <SelectTrigger data-testid="select-reseller-tier">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="authorized">Authorized (20% discount)</SelectItem>
+                  <SelectItem value="silver">Silver (30% discount)</SelectItem>
+                  <SelectItem value="gold">Gold (40% discount)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="discountPercent">Wholesale Discount %</Label>
+                <Input
+                  id="discountPercent"
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="1"
+                  value={resellerForm.discountPercent}
+                  onChange={(e) => setResellerForm({ ...resellerForm, discountPercent: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="minimumSeats">Minimum Seats</Label>
+                <Input
+                  id="minimumSeats"
+                  type="number"
+                  min="0"
+                  value={resellerForm.minimumSeats}
+                  onChange={(e) => setResellerForm({ ...resellerForm, minimumSeats: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="billingCycle">Billing Cycle</Label>
+                <Select
+                  value={resellerForm.billingCycle}
+                  onValueChange={(value) => setResellerForm({ ...resellerForm, billingCycle: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="revenueShare">Revenue Share %</Label>
+                <Input
+                  id="revenueShare"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  value={resellerForm.revenueSharePercent}
+                  onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
+                  data-testid="input-reseller-revenue-share"
+                />
+              </div>
             </div>
             <div>
               <Label htmlFor="notes">Notes</Label>
@@ -927,17 +1031,79 @@ export default function ResellerManagement() {
               />
             </div>
             <div>
-              <Label htmlFor="edit-revenueShare">Revenue Share %</Label>
-              <Input
-                id="edit-revenueShare"
-                type="number"
-                min="0"
-                max="100"
-                step="0.5"
-                value={resellerForm.revenueSharePercent}
-                onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
-                data-testid="input-edit-reseller-revenue-share"
-              />
+              <Label htmlFor="edit-tier">Partner Tier</Label>
+              <Select
+                value={resellerForm.tier}
+                onValueChange={(value: 'authorized' | 'silver' | 'gold') => setResellerForm({
+                  ...resellerForm,
+                  tier: value,
+                  discountPercent: tierDefaults[value] || 20,
+                })}
+              >
+                <SelectTrigger data-testid="select-edit-reseller-tier">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="authorized">Authorized (20% discount)</SelectItem>
+                  <SelectItem value="silver">Silver (30% discount)</SelectItem>
+                  <SelectItem value="gold">Gold (40% discount)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="edit-discountPercent">Wholesale Discount %</Label>
+                <Input
+                  id="edit-discountPercent"
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="1"
+                  value={resellerForm.discountPercent}
+                  onChange={(e) => setResellerForm({ ...resellerForm, discountPercent: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-minimumSeats">Minimum Seats</Label>
+                <Input
+                  id="edit-minimumSeats"
+                  type="number"
+                  min="0"
+                  value={resellerForm.minimumSeats}
+                  onChange={(e) => setResellerForm({ ...resellerForm, minimumSeats: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="edit-billingCycle">Billing Cycle</Label>
+                <Select
+                  value={resellerForm.billingCycle}
+                  onValueChange={(value) => setResellerForm({ ...resellerForm, billingCycle: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-revenueShare">Revenue Share %</Label>
+                <Input
+                  id="edit-revenueShare"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  value={resellerForm.revenueSharePercent}
+                  onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
+                  data-testid="input-edit-reseller-revenue-share"
+                />
+              </div>
             </div>
             <div>
               <Label htmlFor="edit-notes">Notes</Label>
@@ -997,8 +1163,10 @@ export default function ResellerManagement() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="premium">Premium Suite ($99.99/mo)</SelectItem>
-                  <SelectItem value="alacarte">À La Carte (Individual Modules)</SelectItem>
+                  <SelectItem value="professional">Professional ($99/mo per location)</SelectItem>
+                  <SelectItem value="essential">Essential ($49/mo per location)</SelectItem>
+                  <SelectItem value="alacarte">À La Carte ($29/mo per module)</SelectItem>
+                  <SelectItem value="premium">Premium Suite (Legacy)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -46,6 +46,9 @@ export interface Tenant {
   parent_tenant_id?: string | null;
   trial_ends_at?: string | null;
   starting_drawer_default?: number | null;
+  billable_locations?: number;
+  billing_interval?: string;
+  is_grandfathered?: boolean;
 }
 
 export type ModuleId = 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering' | 'equipment-maintenance' | 'admin-tasks' | 'calendar-workforce' | 'reporting' | 'document-library';

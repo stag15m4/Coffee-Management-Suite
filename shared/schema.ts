@@ -71,6 +71,12 @@ export const resellers = pgTable("resellers", {
   stripeCustomerId: text("stripe_customer_id"),
   notes: text("notes"),
   isActive: boolean("is_active").default(true),
+  tier: text("tier").default("authorized"),
+  discountPercent: numeric("discount_percent").default("20"),
+  minimumSeats: integer("minimum_seats").default(0),
+  billingCycle: text("billing_cycle").default("monthly"),
+  annualCommitment: integer("annual_commitment").default(0),
+  tierUpdatedAt: timestamp("tier_updated_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
