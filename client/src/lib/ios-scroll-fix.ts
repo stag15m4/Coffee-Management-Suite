@@ -38,25 +38,12 @@ function findScrollParent(el: HTMLElement): HTMLElement | null {
 }
 
 /**
- * Prevent iPadOS Safari from scrolling the nearest scroll container
- * when an already-visible input is focused.
- *
- * Temporarily sets overflow-y:hidden on the scroll container so
- * Safari's focus-scroll is a no-op. Restores after 2 animation frames.
+ * Briefly lock overflow-y on a scroll container so Safari's
+ * scroll-into-view is a no-op, then restore.
  */
-export function preventScrollJump(el: HTMLElement): void {
-  const sp = findScrollParent(el);
-  if (!sp) return;
-
-  // Only intervene if the element is visible within the scroll container.
-  const cr = sp.getBoundingClientRect();
-  const er = el.getBoundingClientRect();
-  if (er.top < cr.top || er.bottom > cr.bottom) return;
-
+function freezeScroll(sp: HTMLElement): void {
   const scrollTop = sp.scrollTop;
 
-  // Freeze: overflow-y hidden prevents any scroll attempt.
-  // On iPad Safari, scrollbars are overlay so this causes no layout shift.
   sp.style.overflowY = 'hidden';
 
   let restored = false;
@@ -67,7 +54,37 @@ export function preventScrollJump(el: HTMLElement): void {
     sp.scrollTop = scrollTop;
   };
 
-  // Unfreeze after Safari's focus-scroll has been absorbed.
   requestAnimationFrame(() => requestAnimationFrame(restore));
   setTimeout(restore, 200);
+}
+
+/**
+ * Prevent iPadOS Safari from scrolling the nearest scroll container
+ * when an already-visible input is focused or typed into.
+ *
+ * Safari triggers scroll-into-view not only on focus but also after
+ * React re-renders caused by keystrokes. We freeze on focus AND on
+ * every keydown while the element is focused.
+ */
+export function preventScrollJump(el: HTMLElement): void {
+  const sp = findScrollParent(el);
+  if (!sp) return;
+
+  // Only intervene if the element is visible within the scroll container.
+  const cr = sp.getBoundingClientRect();
+  const er = el.getBoundingClientRect();
+  if (er.top < cr.top || er.bottom > cr.bottom) return;
+
+  // Freeze for the initial focus event.
+  freezeScroll(sp);
+
+  // Also freeze on each keystroke so React re-renders don't cause jumps.
+  const onKeyDown = () => freezeScroll(sp);
+  el.addEventListener('keydown', onKeyDown);
+
+  const onBlur = () => {
+    el.removeEventListener('keydown', onKeyDown);
+    el.removeEventListener('blur', onBlur);
+  };
+  el.addEventListener('blur', onBlur);
 }
