@@ -10,14 +10,13 @@ const Textarea = React.forwardRef<
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement>) => {
     const isTouch = isTouchFocus();
 
+    // Prevent iPadOS Safari scroll jump on ANY focus — touch (virtual keyboard)
+    // AND trackpad/keyboard (Magic Keyboard).
+    preventScrollJump(e.target);
+
     // Select all on keyboard (tab) focus only
     if (!isTouch) {
       e.target.select();
-    }
-
-    // Prevent iOS Safari scroll jump on touch focus.
-    if (isTouch) {
-      preventScrollJump(e.target);
     }
 
     onFocus?.(e);

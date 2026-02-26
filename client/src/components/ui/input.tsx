@@ -8,6 +8,11 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
       const isTouch = isTouchFocus();
 
+      // Prevent iPadOS Safari scroll jump on ANY focus — touch (virtual keyboard)
+      // AND trackpad/keyboard (Magic Keyboard). Must run before select() so it
+      // captures scroll position before any side effects.
+      preventScrollJump(e.target);
+
       // Select all text on keyboard (tab) focus only.
       // Touch/click naturally places the cursor — calling select() on iOS
       // triggers unwanted auto-scroll that makes the page jump.
@@ -15,11 +20,6 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         e.target.select();
         // Some browsers clear selection on number inputs; re-select after a tick
         requestAnimationFrame(() => e.target.select());
-      }
-
-      // Prevent iOS Safari scroll jump on touch focus.
-      if (isTouch) {
-        preventScrollJump(e.target);
       }
 
       // Call any additional onFocus handler from the caller
