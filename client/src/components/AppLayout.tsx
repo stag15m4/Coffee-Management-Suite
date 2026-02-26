@@ -30,7 +30,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [location]);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       {/* Desktop sidebar — visible on lg+ */}
       <DesktopSidebar />
 
@@ -43,7 +43,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       </Sheet>
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile header — visible below lg */}
         <header
           className="lg:hidden flex items-center gap-3 px-4 py-3 border-b"
@@ -64,7 +64,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </span>
         </header>
 
-        <main className="flex-1 min-w-0 pb-16 lg:pb-0">
+        <main className="flex-1 min-w-0 pb-16 lg:pb-0 overflow-y-auto">
           {children}
         </main>
       </div>
