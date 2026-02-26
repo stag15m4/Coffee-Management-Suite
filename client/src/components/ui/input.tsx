@@ -1,13 +1,11 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { isTabFocus, preventScrollJump } from "@/lib/ios-scroll-fix"
+import { isTabFocus } from "@/lib/ios-scroll-fix"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, style, onFocus, ...props }, ref) => {
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-      preventScrollJump(e.target);
-
       if (isTabFocus()) {
         e.target.select();
         requestAnimationFrame(() => e.target.select());

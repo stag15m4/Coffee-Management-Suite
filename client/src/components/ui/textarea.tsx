@@ -1,15 +1,13 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { isTabFocus, preventScrollJump } from "@/lib/ios-scroll-fix"
+import { isTabFocus } from "@/lib/ios-scroll-fix"
 
 const Textarea = React.forwardRef<
   HTMLTextAreaElement,
   React.ComponentProps<"textarea">
 >(({ className, onFocus, ...props }, ref) => {
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement>) => {
-    preventScrollJump(e.target);
-
     if (isTabFocus()) {
       e.target.select();
     }

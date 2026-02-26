@@ -98,6 +98,23 @@
     @apply font-display font-semibold tracking-tight text-foreground;
   }
   
+  /* Safari focus-scroll prevention:
+     Safari skips scroll-into-view for elements at opacity 0.
+     This brief animation starts at 0 so Safari's focus-scroll is
+     absorbed, then immediately restores full opacity. scroll-margin
+     constrains any residual scroll that still occurs. */
+  @keyframes safariInputFocusFix {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  input:focus,
+  textarea:focus,
+  select:focus {
+    animation: safariInputFocusFix 0.01s;
+    scroll-margin-top: 6rem;
+    scroll-margin-bottom: 6rem;
+  }
+
   /* Hide placeholder text on focus — empty fields show only blinking cursor */
   input:focus::placeholder,
   textarea:focus::placeholder {
