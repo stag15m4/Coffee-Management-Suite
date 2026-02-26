@@ -97,12 +97,6 @@
     transition: opacity 0.15s ease;
   }
 
-  /* iOS Safari: when the browser scrolls to a focused input, leave breathing
-     room above/below so it doesn't slam against the viewport edge */
-  input, textarea, select {
-    scroll-margin-top: 6rem;
-    scroll-margin-bottom: 6rem;
-  }
 
   /* Modern table styles */
   .table-container {
