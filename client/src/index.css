@@ -79,8 +79,20 @@
   * {
     @apply border-border;
   }
+  /* Lock the viewport so Safari can't scroll the page on input focus.
+     Page content scrolls inside <main> (AppLayout) instead. */
+  html {
+    overflow: hidden;
+    height: 100%;
+  }
   body {
     @apply bg-background text-foreground font-body antialiased;
+    height: 100%;
+    overflow: hidden;
+  }
+  #root {
+    height: 100%;
+    overflow: hidden;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-display font-semibold tracking-tight text-foreground;

@@ -30,7 +30,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [location]);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       {/* Desktop sidebar — visible on lg+ */}
       <DesktopSidebar />
 

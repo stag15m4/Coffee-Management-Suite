@@ -184,7 +184,7 @@ export default function Login() {
 
   return (
     <div 
-      className="h-screen flex flex-col overflow-hidden"
+      className="h-full flex flex-col overflow-hidden"
       style={{ backgroundColor: colors.cream }}
     >
       <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">

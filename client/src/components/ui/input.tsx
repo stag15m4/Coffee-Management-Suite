@@ -1,25 +1,9 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { isTabFocus } from "@/lib/ios-scroll-fix"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, style, onFocus, ...props }, ref) => {
-    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-      // Select all text on Tab-key focus only — useful for quickly replacing
-      // a field value when tabbing through a form. Trackpad clicks and touch
-      // taps should place the cursor normally; calling select() on those can
-      // trigger Safari's scroll-to-selection behavior.
-      if (isTabFocus()) {
-        e.target.select();
-        // Some browsers clear selection on number inputs; re-select after a tick
-        requestAnimationFrame(() => e.target.select());
-      }
-
-      onFocus?.(e);
-    };
-
-    // h-9 to match icon buttons and default buttons.
+  ({ className, type, style, ...props }, ref) => {
     return (
       <input
         type={type}
@@ -30,7 +14,6 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         )}
         style={(type === "date" || type === "time") ? { WebkitAppearance: "none", ...style } : style}
         ref={ref}
-        onFocus={handleFocus}
         {...props}
       />
     )
