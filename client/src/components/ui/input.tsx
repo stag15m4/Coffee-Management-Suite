@@ -1,9 +1,21 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { isTabFocus, preventScrollJump } from "@/lib/ios-scroll-fix"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, style, ...props }, ref) => {
+  ({ className, type, style, onFocus, ...props }, ref) => {
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      preventScrollJump(e.target);
+
+      if (isTabFocus()) {
+        e.target.select();
+        requestAnimationFrame(() => e.target.select());
+      }
+
+      onFocus?.(e);
+    };
+
     return (
       <input
         type={type}
@@ -14,6 +26,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         )}
         style={(type === "date" || type === "time") ? { WebkitAppearance: "none", ...style } : style}
         ref={ref}
+        onFocus={handleFocus}
         {...props}
       />
     )
