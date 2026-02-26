@@ -1,8 +1,12 @@
 // iPadOS Safari scroll-jump prevention
 //
-// With the viewport locked (html/body overflow:hidden), Safari's focus-scroll
-// targets the nearest scrollable ancestor (<main> in AppLayout). We freeze
-// that container briefly during focus so the scroll attempt is absorbed.
+// Safari automatically scrolls the nearest scrollable ancestor when an input
+// is focused or when React re-renders while an input is focused. With the
+// viewport locked (html/body overflow:hidden), <main> is that ancestor.
+//
+// Strategy: attach a persistent scroll-event guard on focus that immediately
+// reverses any scroll not initiated by the user (wheel / touch). The guard
+// stays active for the entire focus duration and cleans up on blur.
 
 let lastTabTime = 0;
 
@@ -20,7 +24,8 @@ export function isTabFocus(): boolean {
 }
 
 /**
- * Find the nearest ancestor with overflow-y: auto or scroll.
+ * Find the nearest ancestor that is actually scrollable
+ * (has overflow-y auto/scroll AND content taller than its box).
  */
 function findScrollParent(el: HTMLElement): HTMLElement | null {
   let node: HTMLElement | null = el.parentElement;
@@ -38,33 +43,12 @@ function findScrollParent(el: HTMLElement): HTMLElement | null {
 }
 
 /**
- * Briefly lock overflow-y on a scroll container so Safari's
- * scroll-into-view is a no-op, then restore.
- */
-function freezeScroll(sp: HTMLElement): void {
-  const scrollTop = sp.scrollTop;
-
-  sp.style.overflowY = 'hidden';
-
-  let restored = false;
-  const restore = () => {
-    if (restored) return;
-    restored = true;
-    sp.style.overflowY = '';
-    sp.scrollTop = scrollTop;
-  };
-
-  requestAnimationFrame(() => requestAnimationFrame(restore));
-  setTimeout(restore, 200);
-}
-
-/**
  * Prevent iPadOS Safari from scrolling the nearest scroll container
  * when an already-visible input is focused or typed into.
  *
- * Safari triggers scroll-into-view not only on focus but also after
- * React re-renders caused by keystrokes. We freeze on focus AND on
- * every keydown while the element is focused.
+ * Attaches a scroll-event guard that persists for the entire focus
+ * duration. Any scroll that isn't preceded by a user gesture (wheel
+ * or touch) is immediately reversed. Cleans up on blur.
  */
 export function preventScrollJump(el: HTMLElement): void {
   const sp = findScrollParent(el);
@@ -75,16 +59,50 @@ export function preventScrollJump(el: HTMLElement): void {
   const er = el.getBoundingClientRect();
   if (er.top < cr.top || er.bottom > cr.bottom) return;
 
-  // Freeze for the initial focus event.
-  freezeScroll(sp);
+  let savedScrollTop = sp.scrollTop;
+  let userScrolling = false;
+  let wheelTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Also freeze on each keystroke so React re-renders don't cause jumps.
-  const onKeyDown = () => freezeScroll(sp);
-  el.addEventListener('keydown', onKeyDown);
+  // --- Detect user-initiated scrolls (trackpad wheel / touch) ---
 
-  const onBlur = () => {
-    el.removeEventListener('keydown', onKeyDown);
-    el.removeEventListener('blur', onBlur);
+  const onWheel = () => {
+    userScrolling = true;
+    if (wheelTimer) clearTimeout(wheelTimer);
+    wheelTimer = setTimeout(() => {
+      userScrolling = false;
+      savedScrollTop = sp.scrollTop;
+    }, 150);
   };
-  el.addEventListener('blur', onBlur);
+
+  const onTouchStart = () => { userScrolling = true; };
+  const onTouchEnd = () => {
+    setTimeout(() => {
+      userScrolling = false;
+      savedScrollTop = sp.scrollTop;
+    }, 100);
+  };
+
+  // --- Scroll guard: reverse any non-user scroll immediately ---
+
+  const onScroll = () => {
+    if (userScrolling) return;
+    sp.scrollTop = savedScrollTop;
+  };
+
+  sp.addEventListener('scroll', onScroll);
+  sp.addEventListener('wheel', onWheel, { passive: true });
+  sp.addEventListener('touchstart', onTouchStart, { passive: true });
+  sp.addEventListener('touchend', onTouchEnd, { passive: true });
+
+  // --- Clean up on blur ---
+
+  const cleanup = () => {
+    sp.removeEventListener('scroll', onScroll);
+    sp.removeEventListener('wheel', onWheel);
+    sp.removeEventListener('touchstart', onTouchStart);
+    sp.removeEventListener('touchend', onTouchEnd);
+    el.removeEventListener('blur', cleanup);
+    if (wheelTimer) clearTimeout(wheelTimer);
+  };
+  el.addEventListener('blur', cleanup);
 }
