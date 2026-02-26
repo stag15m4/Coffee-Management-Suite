@@ -1,12 +1,8 @@
 // iPadOS Safari scroll-jump prevention
 //
 // With the viewport locked (html/body overflow:hidden), Safari's focus-scroll
-// targets the nearest scrollable ancestor (<main> in AppLayout). For pages
-// where <main> has scroll content, Safari scrolls it when inputs are focused
-// even when they're already visible.
-//
-// This module freezes the scroll container's scrollTop during focus by
-// listening for scroll events and immediately restoring the position.
+// targets the nearest scrollable ancestor (<main> in AppLayout). We freeze
+// that container briefly during focus so the scroll attempt is absorbed.
 
 let lastTabTime = 0;
 
@@ -39,6 +35,9 @@ function findScrollParent(el: HTMLElement): HTMLElement | null {
 /**
  * Prevent iPadOS Safari from scrolling the nearest scroll container
  * when an already-visible input is focused.
+ *
+ * Temporarily sets overflow-y:hidden on the scroll container so
+ * Safari's focus-scroll is a no-op. Restores after 2 animation frames.
  */
 export function preventScrollJump(el: HTMLElement): void {
   const sp = findScrollParent(el);
@@ -50,31 +49,20 @@ export function preventScrollJump(el: HTMLElement): void {
   if (er.top < cr.top || er.bottom > cr.bottom) return;
 
   const scrollTop = sp.scrollTop;
-  let done = false;
 
+  // Freeze: overflow-y hidden prevents any scroll attempt.
+  // On iPad Safari, scrollbars are overlay so this causes no layout shift.
+  sp.style.overflowY = 'hidden';
+
+  let restored = false;
   const restore = () => {
-    if (done) return;
-    if (Math.abs(sp.scrollTop - scrollTop) > 1) {
-      sp.scrollTop = scrollTop;
-    }
+    if (restored) return;
+    restored = true;
+    sp.style.overflowY = '';
+    sp.scrollTop = scrollTop;
   };
 
-  // Catch any scroll the browser attempts on the container.
-  sp.addEventListener('scroll', restore);
-
-  // Fallback checks at known intervals.
-  requestAnimationFrame(restore);
-  setTimeout(restore, 0);
-  setTimeout(restore, 50);
-  setTimeout(restore, 100);
+  // Unfreeze after Safari's focus-scroll has been absorbed.
+  requestAnimationFrame(() => requestAnimationFrame(restore));
   setTimeout(restore, 200);
-  setTimeout(restore, 400);
-
-  const cleanup = () => {
-    done = true;
-    sp.removeEventListener('scroll', restore);
-  };
-
-  setTimeout(cleanup, 600);
-  el.addEventListener('blur', cleanup, { once: true });
 }
