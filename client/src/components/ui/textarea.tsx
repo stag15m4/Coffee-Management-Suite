@@ -1,21 +1,18 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { isTouchFocus, preventScrollJump } from "@/lib/ios-scroll-fix"
+import { isTabFocus, preventScrollJump } from "@/lib/ios-scroll-fix"
 
 const Textarea = React.forwardRef<
   HTMLTextAreaElement,
   React.ComponentProps<"textarea">
 >(({ className, onFocus, ...props }, ref) => {
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement>) => {
-    const isTouch = isTouchFocus();
-
-    // Prevent iPadOS Safari scroll jump on ANY focus — touch (virtual keyboard)
-    // AND trackpad/keyboard (Magic Keyboard).
+    // Prevent iPadOS Safari scroll jump on ANY focus.
     preventScrollJump(e.target);
 
-    // Select all on keyboard (tab) focus only
-    if (!isTouch) {
+    // Select all on Tab-key focus only
+    if (isTabFocus()) {
       e.target.select();
     }
 

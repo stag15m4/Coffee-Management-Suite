@@ -1,22 +1,20 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { isTouchFocus, preventScrollJump } from "@/lib/ios-scroll-fix"
+import { isTabFocus, preventScrollJump } from "@/lib/ios-scroll-fix"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, style, onFocus, ...props }, ref) => {
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-      const isTouch = isTouchFocus();
-
       // Prevent iPadOS Safari scroll jump on ANY focus — touch (virtual keyboard)
       // AND trackpad/keyboard (Magic Keyboard). Must run before select() so it
       // captures scroll position before any side effects.
       preventScrollJump(e.target);
 
-      // Select all text on keyboard (tab) focus only.
-      // Touch/click naturally places the cursor — calling select() on iOS
-      // triggers unwanted auto-scroll that makes the page jump.
-      if (!isTouch) {
+      // Select all text on Tab-key focus only. Trackpad clicks and touch taps
+      // should place the cursor normally — calling select() on those triggers
+      // Safari's scroll-to-selection behavior and causes the page to jump.
+      if (isTabFocus()) {
         e.target.select();
         // Some browsers clear selection on number inputs; re-select after a tick
         requestAnimationFrame(() => e.target.select());

@@ -1,23 +1,29 @@
-// iOS Safari scroll-jump prevention
+// iPadOS Safari scroll-jump prevention
 //
-// When a user taps an input on iOS Safari, the virtual keyboard appears and
-// the browser scrolls the page to keep the input visible — even when the
-// input is ALREADY visible. This creates a jarring "jump" effect.
+// Safari scrolls the page when focusing inputs, even when they're already
+// visible. This happens with both the virtual keyboard AND the Magic Keyboard
+// trackpad. The scroll-restore approach (capturing scrollY and restoring it
+// via timeouts) doesn't reliably work because Safari can re-scroll or shift
+// the visual viewport independently of window.scrollY.
 //
-// Strategy:
-//  1. Track touch events to distinguish tap-focus from keyboard (tab) focus.
-//  2. On tap-focus, capture the current scroll position.
-//  3. Listen for visualViewport resize (keyboard appearing) + timeout fallbacks.
-//  4. On each tick, check whether the input would still be visible at the
-//     original scroll position (accounting for the now-smaller viewport).
-//  5. If yes → restore scroll. If no → let the browser's scroll stand.
+// Strategy: temporarily set position:fixed on the <body> so there is nothing
+// for Safari to scroll. After two animation frames (enough for the browser to
+// process the focus and give up on scrolling), release the lock and restore
+// the original scroll position.
 
 let lastTouchTime = 0;
+let lastTabTime = 0;
+
 if (typeof document !== 'undefined') {
   document.addEventListener(
     'touchstart',
     () => { lastTouchTime = Date.now(); },
     { passive: true, capture: true },
+  );
+  document.addEventListener(
+    'keydown',
+    (e) => { if (e.key === 'Tab') lastTabTime = Date.now(); },
+    { capture: true },
   );
 }
 
@@ -26,12 +32,16 @@ export function isTouchFocus(): boolean {
   return Date.now() - lastTouchTime < 500;
 }
 
+/** Returns true when the most recent focus was initiated by pressing Tab. */
+export function isTabFocus(): boolean {
+  return Date.now() - lastTabTime < 200;
+}
+
 /**
- * Prevent iOS Safari from scrolling (jumping) when an already-visible input
- * is focused and the virtual keyboard appears.
+ * Prevent iPadOS Safari from scrolling when an already-visible input is
+ * focused. Works with both virtual keyboard and Magic Keyboard / trackpad.
  */
 export function preventScrollJump(el: HTMLElement): void {
-  const scrollY = window.scrollY;
   const rect = el.getBoundingClientRect();
   const vv = window.visualViewport;
   const vpHeight = vv?.height ?? window.innerHeight;
@@ -39,48 +49,28 @@ export function preventScrollJump(el: HTMLElement): void {
   // Only intervene if the element is currently visible on screen.
   if (rect.top < 0 || rect.bottom > vpHeight) return;
 
-  let done = false;
+  const scrollY = window.scrollY;
+  const body = document.body;
 
-  const restore = () => {
-    if (done) return;
+  // Freeze the page — with position:fixed the document can't scroll.
+  body.style.position = 'fixed';
+  body.style.top = `-${scrollY}px`;
+  body.style.left = '0';
+  body.style.right = '0';
 
-    // Would the element still be visible at the original scroll position,
-    // given the (possibly smaller) viewport after the keyboard appeared?
-    const newVpH = vv?.height ?? window.innerHeight;
-    const absTop = window.scrollY + el.getBoundingClientRect().top;
-    const topIfRestored = absTop - scrollY;
-    const bottomIfRestored = topIfRestored + el.offsetHeight;
-
-    if (topIfRestored >= 0 && bottomIfRestored <= newVpH) {
-      // Input fits above the keyboard → undo the jump.
-      if (Math.abs(window.scrollY - scrollY) > 1) {
-        window.scrollTo(0, scrollY);
-      }
-    } else {
-      // Input would be behind the keyboard — stop restoring.
-      done = true;
-    }
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    body.style.position = '';
+    body.style.top = '';
+    body.style.left = '';
+    body.style.right = '';
+    window.scrollTo(0, scrollY);
   };
 
-  // visualViewport "resize" fires when the keyboard appears/disappears.
-  const onResize = () => {
-    requestAnimationFrame(restore);
-    setTimeout(restore, 50);
-  };
-  if (vv) vv.addEventListener('resize', onResize);
-
-  // Timeout fallbacks covering the full iOS keyboard animation (~400 ms).
-  requestAnimationFrame(restore);
-  setTimeout(restore, 50);
-  setTimeout(restore, 150);
-  setTimeout(restore, 300);
-  setTimeout(restore, 500);
-
-  // Cleanup after 1 s or on blur — whichever comes first.
-  const cleanup = () => {
-    done = true;
-    if (vv) vv.removeEventListener('resize', onResize);
-  };
-  setTimeout(cleanup, 1000);
-  el.addEventListener('blur', cleanup, { once: true });
+  // Two rAF ticks lets the browser process the focus event and abandon
+  // its scroll attempt. The 150 ms timeout is a safety net.
+  requestAnimationFrame(() => requestAnimationFrame(release));
+  setTimeout(release, 150);
 }
