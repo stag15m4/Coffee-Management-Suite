@@ -4,9 +4,9 @@
 // is focused or when React re-renders while an input is focused. With the
 // viewport locked (html/body overflow:hidden), <main> is that ancestor.
 //
-// Strategy: attach a persistent scroll-event guard on focus that immediately
-// reverses any scroll not initiated by the user (wheel / touch). The guard
-// stays active for the entire focus duration and cleans up on blur.
+// Strategy: set overflow-y:hidden on the scroll container for the entire
+// focus duration so Safari literally cannot scroll it. User-initiated
+// scrolling (trackpad wheel) is handled manually via the wheel event.
 
 let lastTabTime = 0;
 
@@ -46,9 +46,10 @@ function findScrollParent(el: HTMLElement): HTMLElement | null {
  * Prevent iPadOS Safari from scrolling the nearest scroll container
  * when an already-visible input is focused or typed into.
  *
- * Attaches a scroll-event guard that persists for the entire focus
- * duration. Any scroll that isn't preceded by a user gesture (wheel
- * or touch) is immediately reversed. Cleans up on blur.
+ * Locks the scroll container (overflow-y:hidden) for the entire focus
+ * duration so Safari's scroll-into-view is impossible. Trackpad/mouse
+ * wheel scrolling is still supported via a manual wheel handler.
+ * Cleans up on blur.
  */
 export function preventScrollJump(el: HTMLElement): void {
   const sp = findScrollParent(el);
@@ -59,50 +60,22 @@ export function preventScrollJump(el: HTMLElement): void {
   const er = el.getBoundingClientRect();
   if (er.top < cr.top || er.bottom > cr.bottom) return;
 
-  let savedScrollTop = sp.scrollTop;
-  let userScrolling = false;
-  let wheelTimer: ReturnType<typeof setTimeout> | null = null;
+  // Lock: make the container non-scrollable so Safari can't touch it.
+  sp.style.overflowY = 'hidden';
 
-  // --- Detect user-initiated scrolls (trackpad wheel / touch) ---
-
-  const onWheel = () => {
-    userScrolling = true;
-    if (wheelTimer) clearTimeout(wheelTimer);
-    wheelTimer = setTimeout(() => {
-      userScrolling = false;
-      savedScrollTop = sp.scrollTop;
-    }, 150);
+  // Allow user-initiated scrolling via trackpad / mouse wheel.
+  // overflow:hidden prevents gesture scrolling, but programmatic
+  // scrollTop changes still work.
+  const onWheel = (e: WheelEvent) => {
+    sp.scrollTop += e.deltaY;
   };
-
-  const onTouchStart = () => { userScrolling = true; };
-  const onTouchEnd = () => {
-    setTimeout(() => {
-      userScrolling = false;
-      savedScrollTop = sp.scrollTop;
-    }, 100);
-  };
-
-  // --- Scroll guard: reverse any non-user scroll immediately ---
-
-  const onScroll = () => {
-    if (userScrolling) return;
-    sp.scrollTop = savedScrollTop;
-  };
-
-  sp.addEventListener('scroll', onScroll);
   sp.addEventListener('wheel', onWheel, { passive: true });
-  sp.addEventListener('touchstart', onTouchStart, { passive: true });
-  sp.addEventListener('touchend', onTouchEnd, { passive: true });
 
-  // --- Clean up on blur ---
-
+  // Restore on blur.
   const cleanup = () => {
-    sp.removeEventListener('scroll', onScroll);
+    sp.style.overflowY = '';
     sp.removeEventListener('wheel', onWheel);
-    sp.removeEventListener('touchstart', onTouchStart);
-    sp.removeEventListener('touchend', onTouchEnd);
     el.removeEventListener('blur', cleanup);
-    if (wheelTimer) clearTimeout(wheelTimer);
   };
   el.addEventListener('blur', cleanup);
 }
