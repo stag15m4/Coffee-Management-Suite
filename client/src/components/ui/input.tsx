@@ -3,7 +3,6 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 // Track Tab key to differentiate keyboard navigation from tap/click/trackpad focus.
-// select() on non-keyboard focus triggers Safari's scroll-into-view on iPad.
 let lastTabTime = 0;
 if (typeof document !== 'undefined') {
   document.addEventListener('keydown', (e) => {
@@ -14,22 +13,40 @@ if (typeof document !== 'undefined') {
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, style, onFocus, ...props }, ref) => {
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      const input = e.target;
       const isTabFocus = Date.now() - lastTabTime < 200;
 
       // Select all text on Tab focus only.
-      // Tap/click/trackpad naturally places the cursor — calling select()
-      // triggers unwanted auto-scroll on iPad Safari.
       if (isTabFocus) {
-        e.target.select();
-        requestAnimationFrame(() => e.target.select());
+        input.select();
+        requestAnimationFrame(() => input.select());
       }
 
-      // iPad Safari scroll-jump prevention:
-      // Save scroll position and restore it after Safari's focus-scroll.
-      // Only when the input is already visible on screen.
+      // iPad Safari scroll-jump guard:
+      // Capture window.scrollY on every keydown and restore it after the
+      // React re-render + Safari's scroll-into-view have fired. This
+      // catches jumps caused by React state updates from typing.
+      const onKeyDown = () => {
+        const scrollY = window.scrollY;
+        const restore = () => {
+          if (Math.abs(window.scrollY - scrollY) > 1) {
+            window.scrollTo(0, scrollY);
+          }
+        };
+        requestAnimationFrame(restore);
+        setTimeout(restore, 50);
+        setTimeout(restore, 150);
+      };
+
+      input.addEventListener('keydown', onKeyDown);
+      input.addEventListener('blur', () => {
+        input.removeEventListener('keydown', onKeyDown);
+      }, { once: true });
+
+      // Also restore on initial focus for tap/trackpad clicks.
       if (!isTabFocus) {
         const scrollY = window.scrollY;
-        const rect = e.target.getBoundingClientRect();
+        const rect = input.getBoundingClientRect();
         const vpHeight = window.visualViewport?.height ?? window.innerHeight;
 
         if (rect.top >= 0 && rect.bottom <= vpHeight) {

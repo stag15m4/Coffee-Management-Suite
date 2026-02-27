@@ -15,17 +15,34 @@ const Textarea = React.forwardRef<
   React.ComponentProps<"textarea">
 >(({ className, onFocus, ...props }, ref) => {
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+    const input = e.target;
     const isTabFocus = Date.now() - lastTabTime < 200;
 
-    // Select all on Tab focus only
     if (isTabFocus) {
-      e.target.select();
+      input.select();
     }
 
-    // iPad Safari scroll-jump prevention
+    // iPad Safari scroll-jump guard (same as Input)
+    const onKeyDown = () => {
+      const scrollY = window.scrollY;
+      const restore = () => {
+        if (Math.abs(window.scrollY - scrollY) > 1) {
+          window.scrollTo(0, scrollY);
+        }
+      };
+      requestAnimationFrame(restore);
+      setTimeout(restore, 50);
+      setTimeout(restore, 150);
+    };
+
+    input.addEventListener('keydown', onKeyDown);
+    input.addEventListener('blur', () => {
+      input.removeEventListener('keydown', onKeyDown);
+    }, { once: true });
+
     if (!isTabFocus) {
       const scrollY = window.scrollY;
-      const rect = e.target.getBoundingClientRect();
+      const rect = input.getBoundingClientRect();
       const vpHeight = window.visualViewport?.height ?? window.innerHeight;
 
       if (rect.top >= 0 && rect.bottom <= vpHeight) {
