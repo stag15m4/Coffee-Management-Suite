@@ -829,24 +829,23 @@ function LocationAddressCard({
 
             <div>
               <label className="text-xs font-medium" style={{ color: colors.brownLight }}>
-                Geofence Radius (meters)
+                Geofence Radius (yards)
               </label>
               <div className="flex items-center gap-3">
                 <Input
                   type="number"
                   min="25"
-                  max="1000"
+                  max="1100"
                   step="25"
-                  value={form.geofence_radius_meters ?? 100}
-                  onChange={(e) => update('geofence_radius_meters', e.target.value)}
+                  value={form.geofence_radius_meters != null ? Math.round(form.geofence_radius_meters * 1.09361) : 109}
+                  onChange={(e) => {
+                    const yards = e.target.value === '' ? '' : String(Math.round(parseFloat(e.target.value) / 1.09361));
+                    update('geofence_radius_meters', yards);
+                  }}
                   className="w-28"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                 />
-                <span className="text-sm" style={{ color: colors.brownLight }}>
-                  {form.geofence_radius_meters != null
-                    ? `~${Math.round((form.geofence_radius_meters) * 3.28084)} ft`
-                    : ''}
-                </span>
+                <span className="text-sm" style={{ color: colors.brownLight }}>yards</span>
               </div>
               <p className="text-xs mt-1" style={{ color: colors.creamDark }}>
                 Employees must be within this distance to clock in from the mobile app.
@@ -870,7 +869,7 @@ function LocationAddressCard({
                   GPS: {Number(tenant.latitude).toFixed(6)}, {Number(tenant.longitude).toFixed(6)}
                 </span>
                 <span className="text-xs" style={{ color: colors.brownLight }}>
-                  Geofence: {tenant.geofence_radius_meters ?? 100}m
+                  Geofence: {Math.round((tenant.geofence_radius_meters ?? 100) * 1.09361)} yds
                 </span>
               </div>
             )}

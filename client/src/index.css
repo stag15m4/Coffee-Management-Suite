@@ -79,38 +79,16 @@
   * {
     @apply border-border;
   }
-  /* Lock the viewport so Safari can't scroll the page on input focus.
-     Page content scrolls inside <main> (AppLayout) instead. */
-  html {
-    overflow: hidden;
-    height: 100%;
-  }
   body {
     @apply bg-background text-foreground font-body antialiased;
-    height: 100%;
-    overflow: hidden;
-  }
-  #root {
-    height: 100%;
-    overflow: hidden;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-display font-semibold tracking-tight text-foreground;
   }
-  
-  /* Safari focus-scroll prevention:
-     Safari skips scroll-into-view for elements at opacity 0.
-     This brief animation starts at 0 so Safari's focus-scroll is
-     absorbed, then immediately restores full opacity. scroll-margin
-     constrains any residual scroll that still occurs. */
-  @keyframes safariInputFocusFix {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  input:focus,
-  textarea:focus,
-  select:focus {
-    animation: safariInputFocusFix 0.01s;
+
+  /* iOS Safari: when the browser scrolls to a focused input, leave breathing
+     room above/below so it doesn't slam against the viewport edge */
+  input, textarea, select {
     scroll-margin-top: 6rem;
     scroll-margin-bottom: 6rem;
   }

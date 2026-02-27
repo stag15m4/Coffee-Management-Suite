@@ -183,11 +183,11 @@ export default function Login() {
   };
 
   return (
-    <div 
-      className="h-full flex flex-col overflow-hidden"
+    <div
+      className="min-h-screen flex flex-col"
       style={{ backgroundColor: colors.cream }}
     >
-      <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }}>
           <CardHeader className="text-center">
             <img 
