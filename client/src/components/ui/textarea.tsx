@@ -10,6 +10,30 @@ if (typeof document !== 'undefined') {
   }, { capture: true });
 }
 
+/** Same scroll guard as Input — see input.tsx for detailed comments. */
+function attachScrollGuard(input: HTMLElement): void {
+  const onKeyDown = () => {
+    const scrollY = window.scrollY;
+
+    const onScroll = () => {
+      if (Math.abs(window.scrollY - scrollY) > 1) {
+        window.scrollTo(0, scrollY);
+      }
+    };
+
+    window.addEventListener('scroll', onScroll);
+
+    const cleanup = () => window.removeEventListener('scroll', onScroll);
+    requestAnimationFrame(() => requestAnimationFrame(cleanup));
+    setTimeout(cleanup, 300);
+  };
+
+  input.addEventListener('keydown', onKeyDown);
+  input.addEventListener('blur', () => {
+    input.removeEventListener('keydown', onKeyDown);
+  }, { once: true });
+}
+
 const Textarea = React.forwardRef<
   HTMLTextAreaElement,
   React.ComponentProps<"textarea">
@@ -22,23 +46,7 @@ const Textarea = React.forwardRef<
       input.select();
     }
 
-    // iPad Safari scroll-jump guard (same as Input)
-    const onKeyDown = () => {
-      const scrollY = window.scrollY;
-      const restore = () => {
-        if (Math.abs(window.scrollY - scrollY) > 1) {
-          window.scrollTo(0, scrollY);
-        }
-      };
-      requestAnimationFrame(restore);
-      setTimeout(restore, 50);
-      setTimeout(restore, 150);
-    };
-
-    input.addEventListener('keydown', onKeyDown);
-    input.addEventListener('blur', () => {
-      input.removeEventListener('keydown', onKeyDown);
-    }, { once: true });
+    attachScrollGuard(input);
 
     if (!isTabFocus) {
       const scrollY = window.scrollY;
@@ -46,15 +54,15 @@ const Textarea = React.forwardRef<
       const vpHeight = window.visualViewport?.height ?? window.innerHeight;
 
       if (rect.top >= 0 && rect.bottom <= vpHeight) {
-        const restore = () => {
+        const onScroll = () => {
           if (Math.abs(window.scrollY - scrollY) > 1) {
             window.scrollTo(0, scrollY);
           }
         };
-        requestAnimationFrame(restore);
-        setTimeout(restore, 50);
-        setTimeout(restore, 100);
-        setTimeout(restore, 300);
+        window.addEventListener('scroll', onScroll);
+        const cleanup = () => window.removeEventListener('scroll', onScroll);
+        requestAnimationFrame(() => requestAnimationFrame(cleanup));
+        setTimeout(cleanup, 300);
       }
     }
 

@@ -10,6 +10,38 @@ if (typeof document !== 'undefined') {
   }, { capture: true });
 }
 
+/**
+ * On each keydown, snapshot window.scrollY and install a temporary
+ * scroll listener that snaps back instantly if Safari moves it.
+ * The scroll event fires synchronously with the scroll (before paint),
+ * so the user never sees the wrong position — unlike rAF/setTimeout
+ * which fire after the browser has already painted the jump.
+ */
+function attachScrollGuard(input: HTMLElement): void {
+  const onKeyDown = () => {
+    const scrollY = window.scrollY;
+
+    const onScroll = () => {
+      if (Math.abs(window.scrollY - scrollY) > 1) {
+        window.scrollTo(0, scrollY);
+      }
+    };
+
+    window.addEventListener('scroll', onScroll);
+
+    // Remove after the React re-render + Safari scroll window passes.
+    // Two rAFs covers one full render cycle; timeout is a safety net.
+    const cleanup = () => window.removeEventListener('scroll', onScroll);
+    requestAnimationFrame(() => requestAnimationFrame(cleanup));
+    setTimeout(cleanup, 300);
+  };
+
+  input.addEventListener('keydown', onKeyDown);
+  input.addEventListener('blur', () => {
+    input.removeEventListener('keydown', onKeyDown);
+  }, { once: true });
+}
+
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, style, onFocus, ...props }, ref) => {
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -22,43 +54,25 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         requestAnimationFrame(() => input.select());
       }
 
-      // iPad Safari scroll-jump guard:
-      // Capture window.scrollY on every keydown and restore it after the
-      // React re-render + Safari's scroll-into-view have fired. This
-      // catches jumps caused by React state updates from typing.
-      const onKeyDown = () => {
-        const scrollY = window.scrollY;
-        const restore = () => {
-          if (Math.abs(window.scrollY - scrollY) > 1) {
-            window.scrollTo(0, scrollY);
-          }
-        };
-        requestAnimationFrame(restore);
-        setTimeout(restore, 50);
-        setTimeout(restore, 150);
-      };
+      // Persistent scroll guard for all keystrokes while focused.
+      attachScrollGuard(input);
 
-      input.addEventListener('keydown', onKeyDown);
-      input.addEventListener('blur', () => {
-        input.removeEventListener('keydown', onKeyDown);
-      }, { once: true });
-
-      // Also restore on initial focus for tap/trackpad clicks.
+      // Also guard the initial focus event for tap/trackpad clicks.
       if (!isTabFocus) {
         const scrollY = window.scrollY;
         const rect = input.getBoundingClientRect();
         const vpHeight = window.visualViewport?.height ?? window.innerHeight;
 
         if (rect.top >= 0 && rect.bottom <= vpHeight) {
-          const restore = () => {
+          const onScroll = () => {
             if (Math.abs(window.scrollY - scrollY) > 1) {
               window.scrollTo(0, scrollY);
             }
           };
-          requestAnimationFrame(restore);
-          setTimeout(restore, 50);
-          setTimeout(restore, 100);
-          setTimeout(restore, 300);
+          window.addEventListener('scroll', onScroll);
+          const cleanup = () => window.removeEventListener('scroll', onScroll);
+          requestAnimationFrame(() => requestAnimationFrame(cleanup));
+          setTimeout(cleanup, 300);
         }
       }
 
