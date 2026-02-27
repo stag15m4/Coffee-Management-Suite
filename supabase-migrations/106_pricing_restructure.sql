@@ -58,7 +58,8 @@ UPDATE subscription_plans SET display_order = 12 WHERE id = 'alacarte';
 
 UPDATE modules SET monthly_price = 29.00 WHERE id IN (
   'recipe-costing', 'tip-payout', 'cash-deposit',
-  'bulk-ordering', 'equipment-maintenance', 'admin-tasks'
+  'bulk-ordering', 'equipment-maintenance', 'admin-tasks',
+  'calendar-workforce', 'document-library'
 );
 
 -- =========================

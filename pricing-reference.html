@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page {
+    size: letter;
+    margin: 0.6in 0.5in;
+  }
+  body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: #1a1a1a;
+    font-size: 10pt;
+    line-height: 1.4;
+  }
+  h1 {
+    text-align: center;
+    font-size: 20pt;
+    color: #78350f;
+    margin-bottom: 2pt;
+    letter-spacing: 0.5px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #92400e;
+    font-size: 9pt;
+    margin-bottom: 18pt;
+    font-style: italic;
+  }
+  h2 {
+    font-size: 13pt;
+    color: #78350f;
+    border-bottom: 2px solid #d97706;
+    padding-bottom: 3pt;
+    margin-top: 16pt;
+    margin-bottom: 8pt;
+  }
+  h3 {
+    font-size: 10.5pt;
+    color: #92400e;
+    margin-top: 10pt;
+    margin-bottom: 5pt;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10pt;
+    font-size: 9pt;
+  }
+  th {
+    background-color: #78350f;
+    color: white;
+    padding: 5pt 8pt;
+    text-align: left;
+    font-weight: 600;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  td {
+    padding: 5pt 8pt;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  tr:nth-child(even) td {
+    background-color: #fef3c7;
+  }
+  .highlight {
+    background-color: #fef9c3 !important;
+    font-weight: 600;
+  }
+  .badge {
+    display: inline-block;
+    background: #d97706;
+    color: white;
+    font-size: 7pt;
+    padding: 1pt 5pt;
+    border-radius: 3pt;
+    text-transform: uppercase;
+    font-weight: 700;
+    vertical-align: middle;
+    margin-left: 4pt;
+  }
+  .section-note {
+    font-size: 8.5pt;
+    color: #6b7280;
+    margin-top: 2pt;
+    margin-bottom: 8pt;
+    font-style: italic;
+  }
+  .two-col {
+    display: flex;
+    gap: 12pt;
+  }
+  .two-col > div {
+    flex: 1;
+  }
+  .page-break {
+    page-break-before: always;
+  }
+  .footer {
+    text-align: center;
+    font-size: 7.5pt;
+    color: #9ca3af;
+    margin-top: 20pt;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 6pt;
+  }
+  .money { font-weight: 600; color: #065f46; }
+  .free { font-weight: 600; color: #78350f; }
+</style>
+</head>
+<body>
+
+<h1>Coffee Management Suite</h1>
+<div class="subtitle">Pricing &amp; Discount Reference &mdash; February 2026</div>
+
+<!-- ============ B2C PLANS ============ -->
+<h2>B2C Subscription Plans <span style="font-size:9pt;font-weight:normal;color:#6b7280;">(per location)</span></h2>
+
+<table>
+  <tr>
+    <th>Plan</th>
+    <th>Monthly</th>
+    <th>Annual (20% off)</th>
+    <th>Modules</th>
+    <th>Users</th>
+    <th>Locations</th>
+  </tr>
+  <tr>
+    <td><strong>Starter</strong></td>
+    <td class="free">Free</td>
+    <td class="free">Free</td>
+    <td>1 of your choice</td>
+    <td>Up to 3</td>
+    <td>1</td>
+  </tr>
+  <tr class="highlight">
+    <td><strong>Essential</strong></td>
+    <td class="money">$49/mo</td>
+    <td class="money">$39/mo ($468/yr)</td>
+    <td>Up to 3</td>
+    <td>Unlimited</td>
+    <td>Per-location</td>
+  </tr>
+  <tr class="highlight">
+    <td><strong>Professional</strong> <span class="badge">Most Popular</span></td>
+    <td class="money">$99/mo</td>
+    <td class="money">$79/mo ($948/yr)</td>
+    <td>All 8 included</td>
+    <td>Unlimited</td>
+    <td>Per-location</td>
+  </tr>
+  <tr>
+    <td><strong>A La Carte</strong></td>
+    <td class="money">$29/mo per module</td>
+    <td>&mdash;</td>
+    <td>Pick any</td>
+    <td>Unlimited</td>
+    <td>Per-location</td>
+  </tr>
+</table>
+
+<p class="section-note">Starter includes a 14-day full-access trial. All paid plans are billed per location.</p>
+
+<!-- ============ MODULES ============ -->
+<h2>Modules</h2>
+<p class="section-note">A La Carte price: $29/mo each. All included in Professional.</p>
+
+<table>
+  <tr>
+    <th>Module</th>
+    <th>A La Carte</th>
+    <th>Starter (pick 1)</th>
+    <th>Essential (pick 3)</th>
+    <th>Professional</th>
+  </tr>
+  <tr><td>Recipe Cost Manager</td><td class="money">$29/mo</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td></tr>
+  <tr><td>Tip Payout Calculator</td><td class="money">$29/mo</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td></tr>
+  <tr><td>Cash Deposit Record</td><td class="money">$29/mo</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td></tr>
+  <tr><td>Bulk Coffee Ordering</td><td class="money">$29/mo</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td></tr>
+  <tr><td>Equipment Maintenance</td><td class="money">$29/mo</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td></tr>
+  <tr><td>Administrative Tasks</td><td class="money">$29/mo</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td></tr>
+  <tr><td>Calendar &amp; Workforce</td><td class="money">$29/mo</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td></tr>
+  <tr><td>Document Library</td><td class="money">$29/mo</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td></tr>
+</table>
+
+<!-- ============ UPGRADE MATH ============ -->
+<h3>Upgrade Thresholds</h3>
+<table>
+  <tr><th>Scenario</th><th>A La Carte Cost</th><th>Plan Cost</th><th>Recommendation</th></tr>
+  <tr><td>2+ modules</td><td class="money">$58/mo</td><td class="money">$49/mo</td><td><strong>Upgrade to Essential</strong> &mdash; save $9/mo</td></tr>
+  <tr><td>4+ modules</td><td class="money">$116/mo</td><td class="money">$99/mo</td><td><strong>Upgrade to Professional</strong> &mdash; save $17+/mo</td></tr>
+</table>
+
+<!-- ============ PAGE 2 ============ -->
+<div class="page-break"></div>
+
+<h1>Coffee Management Suite</h1>
+<div class="subtitle">B2B Reseller &amp; Volume Discounts &mdash; February 2026</div>
+
+<!-- ============ RESELLER TIERS ============ -->
+<h2>B2B Reseller Tiers</h2>
+<p class="section-note">Resellers purchase seats at wholesale and bill their own customers at retail (or any price they choose).</p>
+
+<table>
+  <tr>
+    <th>Tier</th>
+    <th>Wholesale Discount</th>
+    <th>Min Seats</th>
+    <th>Default Billing</th>
+  </tr>
+  <tr>
+    <td><strong>Authorized</strong></td>
+    <td class="money">20% off retail</td>
+    <td>0</td>
+    <td>Monthly</td>
+  </tr>
+  <tr>
+    <td><strong>Silver</strong></td>
+    <td class="money">30% off retail</td>
+    <td>Negotiable</td>
+    <td>Monthly</td>
+  </tr>
+  <tr>
+    <td><strong>Gold</strong></td>
+    <td class="money">40% off retail</td>
+    <td>Negotiable</td>
+    <td>Monthly or Annual</td>
+  </tr>
+</table>
+
+<!-- ============ RESELLER PRICING EXAMPLES ============ -->
+<h3>Reseller Margin Examples (Professional @ $99/mo)</h3>
+<table>
+  <tr>
+    <th>Tier</th>
+    <th>Reseller Pays</th>
+    <th>Sells At (suggested retail)</th>
+    <th>Margin Per Seat</th>
+  </tr>
+  <tr><td>Authorized (20%)</td><td class="money">$79.20</td><td>$99.00</td><td class="money">$19.80</td></tr>
+  <tr><td>Silver (30%)</td><td class="money">$69.30</td><td>$99.00</td><td class="money">$29.70</td></tr>
+  <tr><td>Gold (40%)</td><td class="money">$59.40</td><td>$99.00</td><td class="money">$39.60</td></tr>
+</table>
+
+<h3>Reseller Margin Examples (Essential @ $49/mo)</h3>
+<table>
+  <tr>
+    <th>Tier</th>
+    <th>Reseller Pays</th>
+    <th>Sells At (suggested retail)</th>
+    <th>Margin Per Seat</th>
+  </tr>
+  <tr><td>Authorized (20%)</td><td class="money">$39.20</td><td>$49.00</td><td class="money">$9.80</td></tr>
+  <tr><td>Silver (30%)</td><td class="money">$34.30</td><td>$49.00</td><td class="money">$14.70</td></tr>
+  <tr><td>Gold (40%)</td><td class="money">$29.40</td><td>$49.00</td><td class="money">$19.60</td></tr>
+</table>
+
+<!-- ============ VOLUME TIERS ============ -->
+<h2>Volume Discount Tiers</h2>
+<p class="section-note">Additional discounts based on total locations managed. Stackable with reseller tier discount.</p>
+
+<table>
+  <tr>
+    <th>Locations</th>
+    <th>Additional Discount</th>
+    <th>Label</th>
+  </tr>
+  <tr><td>5 &ndash; 9</td><td class="money">15%</td><td>Small Partner</td></tr>
+  <tr><td>10 &ndash; 24</td><td class="money">25%</td><td>Growing Partner</td></tr>
+  <tr><td>25 &ndash; 49</td><td class="money">30%</td><td>Enterprise Partner</td></tr>
+  <tr><td>50+</td><td class="money">35%</td><td>Strategic Partner</td></tr>
+</table>
+
+<!-- ============ LEGACY ============ -->
+<h2>Legacy Plans (Grandfathered)</h2>
+<table>
+  <tr><th>Plan</th><th>Price</th><th>Status</th></tr>
+  <tr><td>Premium Suite</td><td>$99.99/mo</td><td>Active subscribers grandfathered</td></tr>
+  <tr><td>Beta</td><td>Free</td><td>Retained for beta testers</td></tr>
+  <tr><td>Free Trial</td><td>Free</td><td>Original trial plan</td></tr>
+  <tr><td>A La Carte (old pricing)</td><td>Was $19.99/module</td><td>Updated to $29/module</td></tr>
+</table>
+
+<div class="footer">
+  Coffee Management Suite &mdash; Internal Pricing Reference &mdash; Confidential &mdash; February 2026
+</div>
+
+</body>
+</html>
