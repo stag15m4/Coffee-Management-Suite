@@ -2,15 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
 import { colors } from '@/lib/colors';
+import { MODULE_REGISTRY, getModuleIcon, getAllModuleIds, getModulesByCategory } from '@/lib/module-registry';
 import {
   LayoutDashboard,
-  Calculator,
-  DollarSign,
-  Receipt,
-  Coffee,
-  Wrench,
-  ListTodo,
-  CalendarDays,
   Building2,
   Users,
   Palette,
@@ -25,9 +19,7 @@ import {
   Sparkles,
   Settings,
   Search,
-  BarChart3,
   Gift,
-  FileText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -36,81 +28,30 @@ interface SubTab {
   label: string;
 }
 
-interface NavItem {
+interface SidebarNavItem {
   href: string;
   label: string;
   icon: LucideIcon;
   tabs?: SubTab[];
 }
 
-const MODULE_NAV: Record<ModuleId, NavItem> = {
-  'recipe-costing': {
-    href: '/recipe-costing',
-    label: 'Recipe Costing',
-    icon: Calculator,
-    tabs: [
-      { key: 'pricing', label: 'Pricing Matrix' },
-      { key: 'ingredients', label: 'Ingredients' },
-      { key: 'recipes', label: 'Recipes' },
-      { key: 'vendors', label: 'Vendors' },
-      { key: 'bases', label: 'Bases' },
-      { key: 'overhead', label: 'Overhead' },
-      { key: 'settings', label: 'Settings' },
-    ],
-  },
-  'tip-payout': { href: '/tip-payout', label: 'Tip Payout', icon: DollarSign },
-  'cash-deposit': { href: '/cash-deposit', label: 'Cash Deposit', icon: Receipt },
-  'bulk-ordering': { href: '/coffee-order', label: 'Coffee Orders', icon: Coffee },
-  'equipment-maintenance': {
-    href: '/equipment-maintenance',
-    label: 'Equipment',
-    icon: Wrench,
-    tabs: [
-      { key: 'dashboard', label: 'Dashboard' },
-      { key: 'equipment', label: 'Equipment' },
-    ],
-  },
-  'admin-tasks': { href: '/admin-tasks', label: 'Tasks', icon: ListTodo },
-  'calendar-workforce': {
-    href: '/calendar-workforce',
-    label: 'Personnel',
-    icon: CalendarDays,
-    tabs: [
-      { key: 'schedule', label: 'Schedule' },
-      { key: 'time-off', label: 'Time Off' },
-      { key: 'time-clock', label: 'Time Clock' },
-      { key: 'export', label: 'Export' },
-    ],
-  },
-  'reporting': { href: '/reporting', label: 'Reporting', icon: BarChart3 },
-  'document-library': { href: '/document-library', label: 'Documents', icon: FileText },
-};
-
-interface NavCategory {
-  label: string;
-  modules: ModuleId[];
+// Derive sidebar nav items from the registry
+function buildModuleNav(id: ModuleId): SidebarNavItem {
+  const def = MODULE_REGISTRY[id];
+  return {
+    href: def.route,
+    label: def.shortName,
+    icon: getModuleIcon(id),
+    tabs: def.tabs?.map(t => ({ key: t.id, label: t.label })),
+  };
 }
 
-const NAV_CATEGORIES: NavCategory[] = [
-  { label: 'Operations', modules: ['tip-payout', 'cash-deposit', 'bulk-ordering'] },
-  { label: 'Kitchen', modules: ['recipe-costing'] },
-  { label: 'Scheduling', modules: ['calendar-workforce', 'admin-tasks'] },
-  { label: 'Maintenance', modules: ['equipment-maintenance'] },
-  { label: 'Analytics', modules: ['reporting'] },
-  { label: 'Resources', modules: ['document-library'] },
-];
+const MODULE_NAV: Record<ModuleId, SidebarNavItem> = Object.fromEntries(
+  getAllModuleIds().map(id => [id, buildModuleNav(id)])
+) as Record<ModuleId, SidebarNavItem>;
 
-const ALL_MODULE_IDS: ModuleId[] = [
-  'recipe-costing',
-  'tip-payout',
-  'cash-deposit',
-  'bulk-ordering',
-  'equipment-maintenance',
-  'admin-tasks',
-  'calendar-workforce',
-  'reporting',
-  'document-library',
-];
+const NAV_CATEGORIES = getModulesByCategory();
+const ALL_MODULE_IDS = getAllModuleIds();
 
 export function Sidebar() {
   const [location] = useLocation();

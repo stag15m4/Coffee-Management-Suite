@@ -1,6 +1,7 @@
 import { useQueries } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-queries';
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
+import { getAllModuleIds } from '@/lib/module-registry';
 
 export interface ActionItem {
   id: string;
@@ -30,15 +31,7 @@ export interface StoreMetrics {
   };
 }
 
-const ALL_MODULES: ModuleId[] = [
-  'recipe-costing',
-  'tip-payout',
-  'cash-deposit',
-  'bulk-ordering',
-  'equipment-maintenance',
-  'admin-tasks',
-  'document-library',
-];
+const ALL_MODULES: ModuleId[] = getAllModuleIds();
 
 async function fetchEnabledModules(tenantId: string): Promise<ModuleId[]> {
   const { data, error } = await supabase.rpc('get_tenant_enabled_modules', {

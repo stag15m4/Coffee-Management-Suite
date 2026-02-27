@@ -10,22 +10,15 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
+import { MODULE_REGISTRY, getModuleIcon, getAllModuleIds } from '@/lib/module-registry';
 import {
   LayoutDashboard,
   Users,
   Calculator,
-  DollarSign,
-  Receipt,
-  Coffee,
-  Wrench,
-  CheckSquare,
-  CalendarDays,
   CreditCard,
   Building2,
   Palette,
-  MapPin,
   User,
-  BarChart3,
   Gift,
   Shield,
   type LucideIcon,
@@ -46,16 +39,16 @@ const PAGES: CommandRoute[] = [
   { label: 'Profile', href: '/user-profile', icon: User, keywords: ['account', 'settings', 'me'] },
 ];
 
-const MODULES: CommandRoute[] = [
-  { label: 'Recipe Costing', href: '/recipe-costing', icon: Calculator, module: 'recipe-costing', keywords: ['recipes', 'ingredients', 'pricing', 'overhead', 'vendors', 'bases'] },
-  { label: 'Tip Payout', href: '/tip-payout', icon: DollarSign, module: 'tip-payout', keywords: ['tips', 'gratuity'] },
-  { label: 'Cash Deposit', href: '/cash-deposit', icon: Receipt, module: 'cash-deposit', keywords: ['deposit', 'cash', 'register', 'drawer'] },
-  { label: 'Coffee Orders', href: '/coffee-order', icon: Coffee, module: 'bulk-ordering', keywords: ['order', 'bulk', 'wholesale'] },
-  { label: 'Equipment', href: '/equipment-maintenance', icon: Wrench, module: 'equipment-maintenance', keywords: ['maintenance', 'repair', 'machine'] },
-  { label: 'Tasks', href: '/admin-tasks', icon: CheckSquare, module: 'admin-tasks', keywords: ['todo', 'checklist', 'assign'] },
-  { label: 'Personnel', href: '/calendar-workforce', icon: CalendarDays, module: 'calendar-workforce', keywords: ['schedule', 'shifts', 'time off', 'clock', 'personnel', 'calendar'] },
-  { label: 'Reporting', href: '/reporting', icon: BarChart3, module: 'reporting', keywords: ['reports', 'analytics', 'statistics', 'revenue', 'charts'] },
-];
+const MODULES: CommandRoute[] = getAllModuleIds().map(id => {
+  const def = MODULE_REGISTRY[id];
+  return {
+    label: def.commandLabel,
+    href: def.route,
+    icon: getModuleIcon(id),
+    module: id,
+    keywords: def.commandKeywords,
+  };
+});
 
 const SETTINGS: CommandRoute[] = [
   { label: 'Locations', href: '/organization', icon: Building2, adminOnly: true, keywords: ['stores', 'organization'] },

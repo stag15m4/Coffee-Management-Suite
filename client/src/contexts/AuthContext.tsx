@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, us
 import { supabase } from '@/lib/supabase-queries';
 import type { User, Session } from '@supabase/supabase-js';
 import type { PermissionKey, TenantRoleSetting } from '@/hooks/use-role-settings';
+import { getAllModuleIds, MODULE_REGISTRY, type ModuleId } from '@/lib/module-registry';
 
 export type UserRole = 'owner' | 'manager' | 'lead' | 'employee';
 
@@ -51,7 +52,7 @@ export interface Tenant {
   is_grandfathered?: boolean;
 }
 
-export type ModuleId = 'recipe-costing' | 'tip-payout' | 'cash-deposit' | 'bulk-ordering' | 'equipment-maintenance' | 'admin-tasks' | 'calendar-workforce' | 'reporting' | 'document-library';
+export type { ModuleId } from '@/lib/module-registry';
 
 interface AuthContextType {
   user: User | null;
@@ -396,16 +397,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
 
       // Enable all modules in dev mode
-      const allModules: ModuleId[] = [
-        'recipe-costing',
-        'tip-payout',
-        'cash-deposit',
-        'bulk-ordering',
-        'equipment-maintenance',
-        'admin-tasks',
-        'calendar-workforce',
-        'document-library',
-      ];
+      const allModules = getAllModuleIds();
 
       setUser(mockUser);
       setProfile(mockProfile);
@@ -701,19 +693,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Then check if the user's role has access to this module type
-    const moduleAccess: Record<string, UserRole> = {
-      'recipe-costing': 'manager',           // Managers and Owners
-      'tip-payout': 'lead',                  // Leads, Managers, Owners
-      'cash-deposit': 'manager',             // Managers and Owners
-      'bulk-ordering': 'lead',               // Leads, Managers, Owners
-      'equipment-maintenance': 'employee',   // All team members
-      'admin-tasks': 'manager',              // Managers and Owners
-      'calendar-workforce': 'employee',      // All team members
-      'reporting': 'lead',                    // Leads, Managers, Owners
-      'document-library': 'employee',          // All team members
-    };
-
-    return hasRole(moduleAccess[module]);
+    const def = MODULE_REGISTRY[module as ModuleId];
+    return def ? hasRole(def.minRole) : false;
   };
 
   const hasPermission = useCallback((permission: PermissionKey): boolean => {

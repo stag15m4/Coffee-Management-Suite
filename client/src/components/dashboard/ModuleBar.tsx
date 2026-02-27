@@ -1,21 +1,11 @@
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
-import { Lock, Calculator, DollarSign, Receipt, Coffee, Wrench, ListTodo, CalendarDays, BarChart3, FileText, type LucideIcon } from 'lucide-react';
-import { ALL_MODULES } from '@/hooks/use-store-metrics';
+import { Lock } from 'lucide-react';
+import { MODULE_REGISTRY, getModuleIcon, getAllModuleIds } from '@/lib/module-registry';
 import { useModuleRollout } from '@/hooks/use-module-rollout';
 import { colors } from '@/lib/colors';
 
-const MODULE_INFO: Record<ModuleId, { name: string; shortName: string; icon: LucideIcon; href: string }> = {
-  'recipe-costing': { name: 'Recipe Costing', shortName: 'Recipes', icon: Calculator, href: '/recipe-costing' },
-  'tip-payout': { name: 'Tip Payout', shortName: 'Tips', icon: DollarSign, href: '/tip-payout' },
-  'cash-deposit': { name: 'Cash Deposit', shortName: 'Cash', icon: Receipt, href: '/cash-deposit' },
-  'bulk-ordering': { name: 'Coffee Orders', shortName: 'Orders', icon: Coffee, href: '/coffee-order' },
-  'equipment-maintenance': { name: 'Equipment Maintenance', shortName: 'Equipment', icon: Wrench, href: '/equipment-maintenance' },
-  'admin-tasks': { name: 'Admin Tasks', shortName: 'Tasks', icon: ListTodo, href: '/admin-tasks' },
-  'calendar-workforce': { name: 'Personnel', shortName: 'Personnel', icon: CalendarDays, href: '/calendar-workforce' },
-  'reporting': { name: 'Reporting', shortName: 'Reports', icon: BarChart3, href: '/reporting' },
-  'document-library': { name: 'Document Library', shortName: 'Documents', icon: FileText, href: '/document-library' },
-};
+const ALL_MODULES = getAllModuleIds();
 
 interface ModuleBarProps {
   enabledModules: ModuleId[];
@@ -32,8 +22,8 @@ export function ModuleBar({ enabledModules }: ModuleBarProps) {
       {enabledModules.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           {enabledModules.map((moduleId) => {
-            const info = MODULE_INFO[moduleId];
-            const Icon = info.icon;
+            const info = MODULE_REGISTRY[moduleId];
+            const Icon = getModuleIcon(moduleId);
             const hasAccess = canAccessModule(moduleId);
 
             if (!hasAccess) {
@@ -59,7 +49,7 @@ export function ModuleBar({ enabledModules }: ModuleBarProps) {
 
             const rolloutBadge = getRolloutBadge(moduleId);
             return (
-              <Link key={moduleId} href={info.href}>
+              <Link key={moduleId} href={info.route}>
                 <button className="w-full flex flex-col items-center gap-1.5 p-3 rounded-lg hover:bg-gray-50 transition-colors active:scale-95 relative">
                   <div
                     className="w-10 h-10 rounded-lg flex items-center justify-center"
@@ -92,7 +82,7 @@ export function ModuleBar({ enabledModules }: ModuleBarProps) {
       {disabledModules.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {disabledModules.map((moduleId) => {
-            const info = MODULE_INFO[moduleId];
+            const info = MODULE_REGISTRY[moduleId];
             return (
               <Link key={moduleId} href="/billing">
                 <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full opacity-60 hover:opacity-80 transition-opacity"

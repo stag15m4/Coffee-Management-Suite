@@ -11,16 +11,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Calculator,
-  DollarSign,
-  Coffee,
-  Wrench,
-  ClipboardList,
-  PiggyBank,
   Check,
   ChevronRight,
   type LucideIcon,
 } from 'lucide-react';
+import { getShowcaseModules, getModuleShowcaseIcon } from '@/lib/module-registry';
 
 export interface ModuleInfo {
   id: string;
@@ -32,99 +27,16 @@ export interface ModuleInfo {
   example: string;
 }
 
-// Default modules — coffee-centric but usable by any vertical
-export const DEFAULT_MODULES: ModuleInfo[] = [
-  {
-    id: 'recipe-costing',
-    title: 'Recipe Cost Manager',
-    description: 'Track ingredients, create recipes, and calculate precise food costs to protect your margins.',
-    icon: Calculator,
-    price: '$29/mo',
-    features: [
-      'Create and manage ingredient usage with real-time pricing',
-      'Build recipes with automatic cost calculations',
-      'Factor in Ops Costs on a per-item basis',
-      'Track food cost percentages and profit margins',
-      'Organize ingredients by category',
-      'Export recipe cards and cost breakdowns',
-    ],
-    example: 'Enter your recipe with ingredients and quantities. See instantly what it costs to make and your exact margin.',
-  },
-  {
-    id: 'tip-payout',
-    title: 'Tip Payout Calculator',
-    description: 'Streamline tip distribution with automated calculations and detailed payout reports.',
-    icon: DollarSign,
-    price: '$29/mo',
-    features: [
-      'Automatic tip pool calculations based on hours worked',
-      'Handle credit card fee deductions automatically',
-      'Track multiple tip periods (weekly, bi-weekly)',
-      'Generate detailed payout summaries',
-      'Export reports for payroll and W2 tracking',
-    ],
-    example: 'Enter weekly tips across your team. The system calculates each person\'s share based on their hours and shows exact payout amounts.',
-  },
-  {
-    id: 'cash-deposit',
-    title: 'Cash Deposit Record',
-    description: 'Manage daily cash reconciliation and deposits with complete audit trails.',
-    icon: PiggyBank,
-    price: '$29/mo',
-    features: [
-      'Daily cash drawer reconciliation',
-      'Track deposits by date with running totals',
-      'Auto-calculate expected vs actual cash',
-      'Flag discrepancies for review',
-      'Complete audit trail of all entries',
-      'Export deposit history to CSV',
-    ],
-    example: 'Staff counts the drawer at close, logs it, and any discrepancies are flagged. No spreadsheets necessary.',
-  },
-  {
-    id: 'bulk-ordering',
-    title: 'Bulk Ordering',
-    description: 'Handle wholesale orders efficiently with a vendor-direct email form.',
-    icon: Coffee,
-    price: '$29/mo',
-    features: [
-      'Manage wholesale products from multiple suppliers',
-      'Track product pricing and order history',
-      'Create and submit email-based orders directly',
-      'View order history and spending trends',
-    ],
-    example: 'Delegate ordering to your team lead. Track what\'s been ordered and what you\'ve spent this quarter.',
-  },
-  {
-    id: 'equipment-maintenance',
-    title: 'Equipment Maintenance',
-    description: 'Schedule and track equipment maintenance with reminders and history.',
-    icon: Wrench,
-    price: '$29/mo',
-    features: [
-      'Catalog all equipment with specs',
-      'Schedule preventive maintenance tasks',
-      'Log maintenance history and costs',
-      'Get reminders for upcoming service',
-      'Track warranty status and expiration dates',
-    ],
-    example: 'Set up your equipment once, get reminded automatically when maintenance is due, and log each service.',
-  },
-  {
-    id: 'admin-tasks',
-    title: 'Administrative Tasks',
-    description: 'Task management with delegation, recurring tasks, and team collaboration.',
-    icon: ClipboardList,
-    price: '$29/mo',
-    features: [
-      'Create tasks with priorities and due dates',
-      'Assign tasks to team members',
-      'Set up recurring tasks (daily, weekly, monthly)',
-      'Track completion and add comments',
-    ],
-    example: 'Create a recurring task for annual certifications. Track completion and add notes as needed.',
-  },
-];
+// Derive showcase modules from the registry (only modules with showcase data)
+export const DEFAULT_MODULES: ModuleInfo[] = getShowcaseModules().map(def => ({
+  id: def.id,
+  title: def.showcase!.title,
+  description: def.showcase!.description,
+  icon: getModuleShowcaseIcon(def.id),
+  price: def.showcase!.price,
+  features: def.showcase!.features,
+  example: def.showcase!.example,
+}));
 
 interface ModuleShowcaseProps {
   modules?: ModuleInfo[];

@@ -2,16 +2,9 @@ import { createContext, useContext, useMemo } from 'react';
 import { useAuth, type ModuleId, type UserRole } from '@/contexts/AuthContext';
 import { useTerm } from '@/hooks/use-term';
 import { useModuleRollout } from '@/hooks/use-module-rollout';
+import { MODULE_REGISTRY, getModuleIcon, getMobileModulePriority, type NavTab } from '@/lib/module-registry';
 import {
   LayoutDashboard,
-  Calculator,
-  DollarSign,
-  Receipt,
-  Coffee,
-  Wrench,
-  ListTodo,
-  CalendarDays,
-  BarChart3,
   Users,
   Palette,
   Building2,
@@ -21,7 +14,6 @@ import {
   Shield,
   MoreHorizontal,
   Plug,
-  FileText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -29,10 +21,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-export interface NavTab {
-  id: string;
-  label: string;
-}
+export type { NavTab };
 
 export interface NavItem {
   id: string;
@@ -54,113 +43,9 @@ export interface NavigationContextType {
   mobileTabItems: NavItem[];
 }
 
-// ---------------------------------------------------------------------------
-// Module nav config
-// ---------------------------------------------------------------------------
-
-interface ModuleNavConfig {
-  id: string;
-  route: string;
-  icon: LucideIcon;
-  labelKey: string;          // key for termPlural(), or empty if using a static label
-  staticLabel?: string;      // used when labelKey is not a term key
-  tabs?: NavTab[];
-}
-
-const MODULE_NAV_CONFIG: Record<ModuleId, ModuleNavConfig> = {
-  'recipe-costing': {
-    id: 'recipe-costing',
-    route: '/recipe-costing',
-    icon: Calculator,
-    labelKey: 'recipe',
-    tabs: [
-      { id: 'pricing', label: 'Pricing Matrix' },
-      { id: 'ingredients', label: 'Ingredients' },
-      { id: 'recipes', label: 'Recipes' },
-      { id: 'vendors', label: 'Vendors' },
-      { id: 'overhead', label: 'Overhead' },
-      { id: 'settings', label: 'Settings' },
-    ],
-  },
-  'tip-payout': {
-    id: 'tip-payout',
-    route: '/tip-payout',
-    icon: DollarSign,
-    labelKey: 'tipPayout',
-  },
-  'cash-deposit': {
-    id: 'cash-deposit',
-    route: '/cash-deposit',
-    icon: Receipt,
-    labelKey: 'deposit',
-  },
-  'bulk-ordering': {
-    id: 'bulk-ordering',
-    route: '/coffee-order',
-    icon: Coffee,
-    labelKey: '',
-    staticLabel: 'Bulk Ordering',
-  },
-  'equipment-maintenance': {
-    id: 'equipment-maintenance',
-    route: '/equipment-maintenance',
-    icon: Wrench,
-    labelKey: 'equipment',
-    tabs: [
-      { id: 'dashboard', label: 'Dashboard' },
-      { id: 'equipment', label: 'Equipment' },
-    ],
-  },
-  'admin-tasks': {
-    id: 'admin-tasks',
-    route: '/admin-tasks',
-    icon: ListTodo,
-    labelKey: 'task',
-  },
-  'calendar-workforce': {
-    id: 'calendar-workforce',
-    route: '/calendar-workforce',
-    icon: CalendarDays,
-    labelKey: '',
-    staticLabel: 'Personnel',
-    tabs: [
-      { id: 'schedule', label: 'Schedule' },
-      { id: 'time-off', label: 'Time Off' },
-      { id: 'time-clock', label: 'Time Clock' },
-      { id: 'export', label: 'Export' },
-    ],
-  },
-  'reporting': {
-    id: 'reporting',
-    route: '/reporting',
-    icon: BarChart3,
-    labelKey: '',
-    staticLabel: 'Reporting',
-  },
-  'document-library': {
-    id: 'document-library',
-    route: '/document-library',
-    icon: FileText,
-    labelKey: '',
-    staticLabel: 'Documents',
-  },
-};
-
-/**
- * Priority order for mobile tab bar module selection.
- * The first 3 accessible modules in this order fill slots 2-4 of the bottom tab bar.
- */
-const MOBILE_MODULE_PRIORITY: ModuleId[] = [
-  'recipe-costing',
-  'cash-deposit',
-  'tip-payout',
-  'equipment-maintenance',
-  'calendar-workforce',
-  'admin-tasks',
-  'bulk-ordering',
-  'reporting',
-  'document-library',
-];
+// Module nav config derived from registry
+const MODULE_NAV_CONFIG = MODULE_REGISTRY;
+const MOBILE_MODULE_PRIORITY = getMobileModulePriority();
 
 // ---------------------------------------------------------------------------
 // Context
@@ -187,7 +72,7 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
 
   const navigation = useMemo<NavigationContextType>(() => {
     // ----- Helper: resolve the display label for a module -----
-    function getModuleLabel(config: ModuleNavConfig): string {
+    function getModuleLabel(config: { labelKey: string; staticLabel?: string }): string {
       if (config.staticLabel) return config.staticLabel;
       return termPlural(config.labelKey);
     }
@@ -200,7 +85,7 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
         id: config.id,
         label: getModuleLabel(config),
         href: config.route,
-        icon: config.icon,
+        icon: getModuleIcon(moduleId),
         module: moduleId,
         isAccessible: accessible,
         tabs: config.tabs,

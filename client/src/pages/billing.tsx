@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
+import { getModuleIcon, getPublicModuleCount } from '@/lib/module-registry';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,15 +35,11 @@ import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { ModulePreviewContent } from '@/components/billing/ModulePreview';
 import { colors } from '@/lib/colors';
 
-const MODULE_ICONS: Record<string, LucideIcon> = {
-  'recipe-costing': Calculator,
-  'tip-payout': DollarSign,
-  'cash-deposit': Receipt,
-  'bulk-ordering': Coffee,
-  'equipment-maintenance': Wrench,
-  'admin-tasks': ListTodo,
-  'calendar-workforce': CalendarDays,
-};
+const MODULE_ICONS: Record<string, LucideIcon> = Object.fromEntries(
+  (['recipe-costing', 'tip-payout', 'cash-deposit', 'bulk-ordering', 'equipment-maintenance', 'admin-tasks', 'calendar-workforce', 'reporting', 'document-library'] as const).map(
+    id => [id, getModuleIcon(id)]
+  )
+);
 
 const PLAN_LABELS: Record<string, string> = {
   free: 'Free Trial',
@@ -1069,7 +1066,7 @@ export default function Billing() {
                       <p className="text-xs mt-1" style={{ color: colors.gold }}>$79/mo billed annually</p>
                     </div>
                     <ul className="space-y-2">
-                      {['All 6 modules included', 'Unlimited users', 'Per-location pricing', 'Custom branding', 'Priority support'].map(f => (
+                      {[`All ${getPublicModuleCount()} modules included`, 'Unlimited users', 'Per-location pricing', 'Custom branding', 'Priority support'].map(f => (
                         <li key={f} className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
                           <Check className="h-4 w-4 shrink-0" style={{ color: colors.green }} />
                           {f}

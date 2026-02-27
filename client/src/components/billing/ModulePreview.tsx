@@ -1,8 +1,8 @@
 import {
-  Calculator, DollarSign, Receipt, Coffee, Wrench, ListTodo,
   TrendingUp, Users, Clock, CheckCircle2, AlertTriangle,
   type LucideIcon,
 } from 'lucide-react';
+import { getModuleIcon, MODULE_REGISTRY, type ModuleId } from '@/lib/module-registry';
 import { Badge } from '@/components/ui/badge';
 import { colors } from '@/lib/colors';
 
@@ -336,38 +336,26 @@ function AdminTasksPreview() {
 
 // ─── Main Export ─────────────────────────────────────────────
 
-const MODULE_PREVIEWS: Record<string, { component: () => JSX.Element; icon: LucideIcon; tagline: string }> = {
-  'recipe-costing': {
-    component: RecipeCostingPreview,
-    icon: Calculator,
-    tagline: 'Know your costs. Protect your margins.',
-  },
-  'tip-payout': {
-    component: TipPayoutPreview,
-    icon: DollarSign,
-    tagline: 'Fair tips, calculated in seconds.',
-  },
-  'cash-deposit': {
-    component: CashDepositPreview,
-    icon: Receipt,
-    tagline: 'Every dollar tracked. Every deposit verified.',
-  },
-  'bulk-ordering': {
-    component: BulkOrderingPreview,
-    icon: Coffee,
-    tagline: 'Streamline your supply chain.',
-  },
-  'equipment-maintenance': {
-    component: EquipmentMaintenancePreview,
-    icon: Wrench,
-    tagline: 'Never miss a maintenance window.',
-  },
-  'admin-tasks': {
-    component: AdminTasksPreview,
-    icon: ListTodo,
-    tagline: 'Delegate, track, and get things done.',
-  },
+const MODULE_PREVIEW_COMPONENTS: Record<string, () => JSX.Element> = {
+  'recipe-costing': RecipeCostingPreview,
+  'tip-payout': TipPayoutPreview,
+  'cash-deposit': CashDepositPreview,
+  'bulk-ordering': BulkOrderingPreview,
+  'equipment-maintenance': EquipmentMaintenancePreview,
+  'admin-tasks': AdminTasksPreview,
 };
+
+// Derive icon and tagline from registry; keep preview components here
+const MODULE_PREVIEWS: Record<string, { component: () => JSX.Element; icon: LucideIcon; tagline: string }> = Object.fromEntries(
+  Object.entries(MODULE_PREVIEW_COMPONENTS).map(([id, component]) => {
+    const def = MODULE_REGISTRY[id as ModuleId];
+    return [id, {
+      component,
+      icon: getModuleIcon(id as ModuleId),
+      tagline: def?.previewTagline || '',
+    }];
+  })
+);
 
 interface ModulePreviewProps {
   moduleId: string;
