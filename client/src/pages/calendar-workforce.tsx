@@ -53,6 +53,12 @@ import {
   useCancelTimeOffRequest,
   type TimeOffRequest,
 } from '@/hooks/use-time-off';
+import {
+  useBlackoutDates,
+  useCreateBlackoutDate,
+  useDeleteBlackoutDate,
+  type BlackoutDate,
+} from '@/hooks/use-blackout-dates';
 import { TimeClockTab } from '@/components/time-clock/TimeClockTab';
 
 import FullCalendar from '@fullcalendar/react';
@@ -186,6 +192,9 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   const createICalSub = useCreateICalSubscription();
   const deleteICalSub = useDeleteICalSubscription();
   const syncICal = useSyncICal();
+
+  // Blackout dates
+  const { data: blackoutDates } = useBlackoutDates();
 
   // Sync FullCalendar when view or date changes
   useEffect(() => {
@@ -353,8 +362,23 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
       extendedProps: { type: 'event', calendarEvent: e },
     }));
 
-    return [...shiftEvents, ...eventBanners];
-  }, [shifts, calendarEvents, employeeColorMap]);
+    const blackoutBanners: EventInput[] = (blackoutDates || []).map((bd) => ({
+      id: `blackout-${bd.id}`,
+      title: `⛔ ${bd.label}`,
+      start: bd.start_date,
+      // FullCalendar all-day end is exclusive, so add 1 day
+      end: new Date(new Date(bd.end_date + 'T00:00:00').getTime() + 86_400_000)
+        .toISOString().split('T')[0],
+      allDay: true,
+      backgroundColor: '#dc2626',
+      borderColor: '#dc2626',
+      textColor: '#fff',
+      editable: false,
+      extendedProps: { type: 'blackout', blackout: bd },
+    }));
+
+    return [...shiftEvents, ...eventBanners, ...blackoutBanners];
+  }, [shifts, calendarEvents, blackoutDates, employeeColorMap]);
 
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
     if (!canEdit) return;
@@ -376,6 +400,9 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
     if (eventType === 'event') {
       setViewingEvent(clickInfo.event.extendedProps.calendarEvent as CalendarEvent);
       return;
+    }
+    if (eventType === 'blackout') {
+      return; // blackout date banners are display-only
     }
     const shift = clickInfo.event.extendedProps.shift as Shift;
     if (canEdit) {
@@ -1241,6 +1268,13 @@ function TimeOffTab({ tenantId, canApprove, currentUserId }: {
   });
   const [reviewNotes, setReviewNotes] = useState('');
 
+  // Blackout dates
+  const { data: blackoutDates } = useBlackoutDates();
+  const createBlackout = useCreateBlackoutDate();
+  const deleteBlackout = useDeleteBlackoutDate();
+  const [showBlackoutForm, setShowBlackoutForm] = useState(false);
+  const [blackoutForm, setBlackoutForm] = useState({ label: '', start_date: '', end_date: '', reason: '' });
+
   const pendingTeamRequests = useMemo(() => {
     if (!allRequests || !canApprove) return [];
     return allRequests.filter((r) => {
@@ -1336,6 +1370,18 @@ function TimeOffTab({ tenantId, canApprove, currentUserId }: {
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
                   </div>
                 </div>
+                {formData.start_date && formData.end_date && (blackoutDates || [])
+                  .filter((bd) => formData.start_date <= bd.end_date && formData.end_date >= bd.start_date)
+                  .map((bd) => (
+                    <div key={bd.id} className="flex items-start gap-2 p-2.5 rounded-lg text-sm"
+                      style={{ backgroundColor: '#fef3c7', borderLeft: '3px solid #f59e0b' }}>
+                      <span className="shrink-0">⚠️</span>
+                      <span style={{ color: '#92400e' }}>
+                        <strong>Blackout date:</strong> {bd.label} ({formatDateShort(bd.start_date)} – {formatDateShort(bd.end_date)}). You can still submit, but approval is unlikely.
+                      </span>
+                    </div>
+                  ))
+                }
                 <div className="space-y-1.5">
                   <Label style={{ color: colors.brown }}>Category</Label>
                   <Select value={formData.category} onValueChange={(v) => setFormData((f) => ({ ...f, category: v as TimeOffRequest['category'] }))}>
@@ -1409,6 +1455,107 @@ function TimeOffTab({ tenantId, canApprove, currentUserId }: {
           )}
         </CardContent>
       </Card>
+
+      {/* Blackout Dates (managers only) */}
+      {canApprove && (
+        <Card style={{ backgroundColor: colors.white }}>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+              <span className="text-lg leading-none">⛔</span>
+              Blackout Dates
+            </CardTitle>
+            <Button size="sm" variant="outline" onClick={() => setShowBlackoutForm((v) => !v)}
+              style={{ borderColor: colors.creamDark, color: colors.brown }}>
+              <Plus className="w-4 h-4 mr-1" /> Add
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {showBlackoutForm && (
+              <Card style={{ backgroundColor: colors.cream }}>
+                <CardContent className="space-y-3 pt-4">
+                  <div className="space-y-1.5">
+                    <Label style={{ color: colors.brown }}>Label <span style={{ color: colors.red }}>*</span></Label>
+                    <Input value={blackoutForm.label} placeholder="e.g. Black Friday, Holiday Rush"
+                      onChange={(e) => setBlackoutForm((f) => ({ ...f, label: e.target.value }))}
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label style={{ color: colors.brown }}>Start Date</Label>
+                      <Input type="date" value={blackoutForm.start_date}
+                        onChange={(e) => setBlackoutForm((f) => ({ ...f, start_date: e.target.value }))}
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label style={{ color: colors.brown }}>End Date</Label>
+                      <Input type="date" value={blackoutForm.end_date}
+                        onChange={(e) => setBlackoutForm((f) => ({ ...f, end_date: e.target.value }))}
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label style={{ color: colors.brown }}>Reason (optional)</Label>
+                    <Input value={blackoutForm.reason} placeholder="Internal note..."
+                      onChange={(e) => setBlackoutForm((f) => ({ ...f, reason: e.target.value }))}
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={async () => {
+                      if (!blackoutForm.label || !blackoutForm.start_date || !blackoutForm.end_date) {
+                        toast({ title: 'Label and dates are required', variant: 'destructive' });
+                        return;
+                      }
+                      try {
+                        await createBlackout.mutateAsync({
+                          label: blackoutForm.label,
+                          start_date: blackoutForm.start_date,
+                          end_date: blackoutForm.end_date,
+                          reason: blackoutForm.reason || null,
+                        });
+                        toast({ title: 'Blackout date saved' });
+                        setShowBlackoutForm(false);
+                        setBlackoutForm({ label: '', start_date: '', end_date: '', reason: '' });
+                      } catch {
+                        toast({ title: 'Error', description: 'Failed to save blackout date.', variant: 'destructive' });
+                      }
+                    }} disabled={createBlackout.isPending}
+                      style={{ backgroundColor: colors.gold, color: colors.white }}>
+                      Save
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowBlackoutForm(false)}
+                      style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {(!blackoutDates || blackoutDates.length === 0) ? (
+              <p className="text-sm py-4 text-center" style={{ color: colors.brownLight }}>
+                No blackout dates set.
+              </p>
+            ) : (
+              blackoutDates.map((bd) => (
+                <div key={bd.id} className="flex items-center justify-between p-3 rounded-lg"
+                  style={{ backgroundColor: colors.cream }}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium" style={{ color: colors.brown }}>⛔ {bd.label}</p>
+                    <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+                      {formatDateShort(bd.start_date)} – {formatDateShort(bd.end_date)}
+                    </p>
+                    {bd.reason && <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>{bd.reason}</p>}
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => deleteBlackout.mutate(bd.id)}
+                    disabled={deleteBlackout.isPending}
+                    style={{ color: colors.red }}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Team Requests (approvers) */}
       {canApprove && (
