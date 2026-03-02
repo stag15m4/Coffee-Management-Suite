@@ -25,6 +25,7 @@ export const queryKeys = {
   taskAttachments: ['task-attachments'] as const,
   cashActivity: ['cash-activity'] as const,
   recipeVendors: ['recipe-vendors'] as const,
+  businessAccounts: ['business-accounts'] as const,
 };
 
 export function useIngredientCategories() {
@@ -1018,7 +1019,7 @@ export function useLogMaintenance() {
 
 export function useUpdateUsage() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ taskId, currentUsage }: { taskId: string; currentUsage: number }) => {
       const { data, error } = await supabase
@@ -1034,6 +1035,93 @@ export function useUpdateUsage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.maintenanceTasks });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Business Accounts Tracker (platform admin only)
+// ---------------------------------------------------------------------------
+
+export interface BusinessAccount {
+  id: string;
+  service_name: string;
+  service_url: string | null;
+  business: string;
+  category: string;
+  username_or_email: string | null;
+  cost: number | null;
+  billing_cycle: string;
+  renewal_date: string | null;
+  auto_renew: boolean;
+  status: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useBusinessAccounts() {
+  return useQuery({
+    queryKey: queryKeys.businessAccounts,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('business_accounts')
+        .select('*')
+        .order('service_name');
+      if (error) throw error;
+      return (data || []) as BusinessAccount[];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useAddBusinessAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (account: Omit<BusinessAccount, 'id' | 'created_at' | 'updated_at'>) => {
+      const { data, error } = await supabase
+        .from('business_accounts')
+        .insert(account)
+        .select();
+      if (error) throw error;
+      return data?.[0] as BusinessAccount;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.businessAccounts });
+    },
+  });
+}
+
+export function useUpdateBusinessAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<BusinessAccount, 'id' | 'created_at'>> }) => {
+      const { data, error } = await supabase
+        .from('business_accounts')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select();
+      if (error) throw error;
+      return data?.[0] as BusinessAccount;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.businessAccounts });
+    },
+  });
+}
+
+export function useDeleteBusinessAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('business_accounts')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.businessAccounts });
     },
   });
 }

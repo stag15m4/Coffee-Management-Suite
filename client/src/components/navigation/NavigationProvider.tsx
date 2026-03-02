@@ -14,6 +14,7 @@ import {
   Shield,
   MoreHorizontal,
   Plug,
+  BookKey,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -197,6 +198,13 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
         label: 'Platform Admin',
         href: '/platform-admin',
         icon: Shield,
+        isAccessible: true,
+      });
+      adminItems.push({
+        id: 'business-accounts',
+        label: 'Business Accounts',
+        href: '/admin/business-accounts',
+        icon: BookKey,
         isAccessible: true,
       });
     }

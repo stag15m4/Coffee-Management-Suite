@@ -42,6 +42,7 @@ import AdminIntegrations from "@/pages/admin-integrations";
 import DocumentLibrary from "@/pages/document-library";
 import Kiosk from "@/pages/kiosk";
 import ResetPassword from "@/pages/reset-password";
+import AdminBusinessAccounts from "@/pages/admin-business-accounts";
 
 function HomePage() {
   const { user, loading } = useAuth();
@@ -95,6 +96,11 @@ function Router() {
       <Route path="/admin/integrations">
         <ProtectedRoute>
           <AppLayout><AdminIntegrations /></AppLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/business-accounts">
+        <ProtectedRoute>
+          <AppLayout><AdminBusinessAccounts /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/organization">
