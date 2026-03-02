@@ -7,7 +7,11 @@ import {
   useAddBusinessAccount,
   useUpdateBusinessAccount,
   useDeleteBusinessAccount,
+  useAccountBusinesses,
+  useAddAccountBusiness,
+  useDeleteAccountBusiness,
   type BusinessAccount,
+  type AccountBusiness,
 } from '@/lib/supabase-queries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,13 +56,16 @@ import {
   ChevronUp,
   ChevronDown,
   RefreshCw,
+  Settings,
+  X,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const BUSINESSES = ['Erwin Mills', 'Bearded Marine', 'Personal', 'Shared'] as const;
+const PALETTE = ['#6366f1', '#0ea5e9', '#8b5cf6', '#f97316', '#14b8a6', '#ec4899', '#f59e0b', '#10b981'];
+
 const CATEGORIES = [
   'Hosting',
   'Email',
@@ -82,13 +89,6 @@ type SortDir = 'asc' | 'desc';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const BUSINESS_COLORS: Record<string, string> = {
-  'Erwin Mills': '#6366f1',
-  'Bearded Marine': '#0ea5e9',
-  'Personal': '#8b5cf6',
-  'Shared': '#f97316',
-};
 
 const STATUS_COLORS: Record<string, string> = {
   Active: '#22c55e',
@@ -156,6 +156,7 @@ function emptyForm(): Omit<BusinessAccount, 'id' | 'created_at' | 'updated_at'> 
 interface AccountFormDialogProps {
   open: boolean;
   account: Omit<BusinessAccount, 'id' | 'created_at' | 'updated_at'>;
+  businesses: AccountBusiness[];
   isEditing: boolean;
   saving: boolean;
   onChange: (field: string, value: string | number | boolean | null) => void;
@@ -166,6 +167,7 @@ interface AccountFormDialogProps {
 function AccountFormDialog({
   open,
   account,
+  businesses,
   isEditing,
   saving,
   onChange,
@@ -219,8 +221,8 @@ function AccountFormDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {BUSINESSES.map((b) => (
-                    <SelectItem key={b} value={b}>{b}</SelectItem>
+                  {businesses.map((b) => (
+                    <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -413,9 +415,25 @@ export default function AdminBusinessAccounts() {
   const { toast } = useToast();
 
   const { data: accounts = [], isLoading } = useBusinessAccounts();
+  const { data: businesses = [] } = useAccountBusinesses();
   const addAccount = useAddBusinessAccount();
   const updateAccount = useUpdateBusinessAccount();
   const deleteAccount = useDeleteBusinessAccount();
+  const addBiz = useAddAccountBusiness();
+  const deleteBiz = useDeleteAccountBusiness();
+
+  // Business color lookup
+  const bizColors = useMemo(() => {
+    const map: Record<string, string> = {};
+    businesses.forEach((b) => { map[b.name] = b.color; });
+    return map;
+  }, [businesses]);
+
+  // Manage businesses dialog
+  const [bizDialogOpen, setBizDialogOpen] = useState(false);
+  const [newBizName, setNewBizName] = useState('');
+  const [bizSaving, setBizSaving] = useState(false);
+  const [bizDeleteId, setBizDeleteId] = useState<string | null>(null);
 
   // Filters & search
   const [search, setSearch] = useState('');
@@ -505,9 +523,9 @@ export default function AdminBusinessAccounts() {
     return days !== null && days >= 0 && days <= 30 && a.status === 'Active';
   }).sort((a, b) => (a.renewal_date ?? '') < (b.renewal_date ?? '') ? -1 : 1);
 
-  const byBusiness = BUSINESSES.reduce<Record<string, number>>((acc, biz) => {
-    acc[biz] = activeAccounts
-      .filter((a) => a.business === biz)
+  const byBusiness = businesses.reduce<Record<string, number>>((acc, biz) => {
+    acc[biz.name] = activeAccounts
+      .filter((a) => a.business === biz.name)
       .reduce((s, a) => s + toMonthly(a.cost, a.billing_cycle), 0);
     return acc;
   }, {} as Record<string, number>);
@@ -604,6 +622,44 @@ export default function AdminBusinessAccounts() {
     }
   }
 
+  async function handleAddBusiness() {
+    const trimmed = newBizName.trim();
+    if (!trimmed) return;
+    if (businesses.some((b) => b.name.toLowerCase() === trimmed.toLowerCase())) {
+      toast({ title: 'Business already exists', variant: 'destructive' });
+      return;
+    }
+    setBizSaving(true);
+    try {
+      const color = PALETTE[businesses.length % PALETTE.length];
+      await addBiz.mutateAsync({ name: trimmed, color, display_order: businesses.length });
+      setNewBizName('');
+      toast({ title: `"${trimmed}" added` });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to add business', variant: 'destructive' });
+    } finally {
+      setBizSaving(false);
+    }
+  }
+
+  async function handleDeleteBusiness(id: string) {
+    const biz = businesses.find((b) => b.id === id);
+    const inUse = accounts.some((a) => a.business === biz?.name);
+    if (inUse) {
+      toast({ title: 'Cannot delete', description: `"${biz?.name}" is assigned to one or more accounts. Reassign them first.`, variant: 'destructive' });
+      setBizDeleteId(null);
+      return;
+    }
+    try {
+      await deleteBiz.mutateAsync(id);
+      toast({ title: `"${biz?.name}" removed` });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to delete business', variant: 'destructive' });
+    } finally {
+      setBizDeleteId(null);
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -628,14 +684,25 @@ export default function AdminBusinessAccounts() {
               Internal admin tool — subscriptions, services &amp; renewals
             </p>
           </div>
-          <Button
-            onClick={openAdd}
-            style={{ backgroundColor: colors.gold, color: colors.white }}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Add Account
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setBizDialogOpen(true)}
+              className="flex items-center gap-2"
+              style={{ borderColor: colors.gold, color: colors.gold }}
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Businesses</span>
+            </Button>
+            <Button
+              onClick={openAdd}
+              style={{ backgroundColor: colors.gold, color: colors.white }}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Account
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -704,18 +771,18 @@ export default function AdminBusinessAccounts() {
               <CardTitle className="text-sm" style={{ color: colors.brown }}>Monthly Spend by Business</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {BUSINESSES.map((biz) => {
-                const amount = byBusiness[biz] ?? 0;
+              {businesses.map((biz) => {
+                const amount = byBusiness[biz.name] ?? 0;
                 const maxAmount = Math.max(...Object.values(byBusiness), 0.01);
                 return (
-                  <div key={biz} className="flex items-center gap-2">
-                    <div className="w-24 text-xs truncate" style={{ color: colors.brownLight }}>{biz}</div>
+                  <div key={biz.id} className="flex items-center gap-2">
+                    <div className="w-24 text-xs truncate" style={{ color: colors.brownLight }}>{biz.name}</div>
                     <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: colors.cream }}>
                       <div
                         className="h-full rounded-full transition-all"
                         style={{
                           width: `${(amount / maxAmount) * 100}%`,
-                          backgroundColor: BUSINESS_COLORS[biz],
+                          backgroundColor: biz.color,
                         }}
                       />
                     </div>
@@ -787,7 +854,7 @@ export default function AdminBusinessAccounts() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All Businesses</SelectItem>
-                  {BUSINESSES.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                  {businesses.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={filterCategory} onValueChange={setFilterCategory}>
@@ -927,9 +994,9 @@ export default function AdminBusinessAccounts() {
                           <td className="px-3 py-3 hidden sm:table-cell">
                             <Badge
                               style={{
-                                backgroundColor: BUSINESS_COLORS[account.business] + '22',
-                                color: BUSINESS_COLORS[account.business],
-                                border: `1px solid ${BUSINESS_COLORS[account.business]}44`,
+                                backgroundColor: (bizColors[account.business] ?? '#94a3b8') + '22',
+                                color: bizColors[account.business] ?? '#94a3b8',
+                                border: `1px solid ${bizColors[account.business] ?? '#94a3b8'}44`,
                                 fontSize: '0.7rem',
                               }}
                             >
@@ -1060,6 +1127,7 @@ export default function AdminBusinessAccounts() {
       <AccountFormDialog
         open={dialogOpen}
         account={formData}
+        businesses={businesses}
         isEditing={editingId !== null}
         saving={saving}
         onChange={handleFieldChange}
@@ -1067,7 +1135,7 @@ export default function AdminBusinessAccounts() {
         onClose={closeDialog}
       />
 
-      {/* ── Delete Confirm ── */}
+      {/* ── Delete Account Confirm ── */}
       <AlertDialog open={deleteId !== null} onOpenChange={(v) => { if (!v) setDeleteId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1083,6 +1151,81 @@ export default function AdminBusinessAccounts() {
               style={{ backgroundColor: colors.red, color: colors.white }}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Manage Businesses Dialog ── */}
+      <Dialog open={bizDialogOpen} onOpenChange={setBizDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle style={{ color: colors.brown }}>Manage Businesses</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {businesses.map((biz) => {
+              const count = accounts.filter((a) => a.business === biz.name).length;
+              return (
+                <div key={biz.id} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: colors.cream }}>
+                  <div className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: biz.color }} />
+                  <span className="flex-1 text-sm font-medium" style={{ color: colors.brown }}>{biz.name}</span>
+                  <span className="text-xs" style={{ color: colors.brownLight }}>{count} acct{count !== 1 ? 's' : ''}</span>
+                  <button
+                    onClick={() => setBizDeleteId(biz.id)}
+                    className="p-1 rounded hover:opacity-70"
+                    style={{ color: colors.red }}
+                    title="Remove business"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+            <div className="flex items-center gap-2 pt-1">
+              <Input
+                placeholder="New business name"
+                value={newBizName}
+                onChange={(e) => setNewBizName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddBusiness(); }}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleAddBusiness}
+                disabled={bizSaving || !newBizName.trim()}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
+                size="sm"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Business Confirm ── */}
+      <AlertDialog open={bizDeleteId !== null} onOpenChange={(v) => { if (!v) setBizDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Business?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(() => {
+                const biz = businesses.find((b) => b.id === bizDeleteId);
+                const count = accounts.filter((a) => a.business === biz?.name).length;
+                if (count > 0) {
+                  return `"${biz?.name}" has ${count} account${count !== 1 ? 's' : ''} assigned. Reassign them before removing.`;
+                }
+                return `Remove "${biz?.name}" from the business list?`;
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bizDeleteId && handleDeleteBusiness(bizDeleteId)}
+              style={{ backgroundColor: colors.red, color: colors.white }}
+            >
+              Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

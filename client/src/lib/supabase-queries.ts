@@ -26,6 +26,7 @@ export const queryKeys = {
   cashActivity: ['cash-activity'] as const,
   recipeVendors: ['recipe-vendors'] as const,
   businessAccounts: ['business-accounts'] as const,
+  accountBusinesses: ['account-businesses'] as const,
 };
 
 export function useIngredientCategories() {
@@ -1122,6 +1123,66 @@ export function useDeleteBusinessAccount() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.businessAccounts });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Account Businesses (dynamic business list)
+// ---------------------------------------------------------------------------
+
+export interface AccountBusiness {
+  id: string;
+  name: string;
+  color: string;
+  display_order: number;
+  created_at: string;
+}
+
+export function useAccountBusinesses() {
+  return useQuery({
+    queryKey: queryKeys.accountBusinesses,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('account_businesses')
+        .select('*')
+        .order('display_order');
+      if (error) throw error;
+      return (data || []) as AccountBusiness[];
+    },
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
+export function useAddAccountBusiness() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (biz: { name: string; color: string; display_order: number }) => {
+      const { data, error } = await supabase
+        .from('account_businesses')
+        .insert(biz)
+        .select();
+      if (error) throw error;
+      return data?.[0] as AccountBusiness;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.accountBusinesses });
+    },
+  });
+}
+
+export function useDeleteAccountBusiness() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('account_businesses')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.accountBusinesses });
     },
   });
 }
