@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -69,8 +69,9 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
   const [importing, setImporting] = useState(false);
   const [showChart, setShowChart] = useState(false);
 
-  // Local edits tracked by "year-month" key
+  // Local edits tracked by "year-month" key; focused field tracked separately
   const [localEdits, setLocalEdits] = useState<Record<string, string>>({});
+  const [focusedKey, setFocusedKey] = useState<string | null>(null);
   const saveTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const openMonth = overhead?.growth_open_month as number | null;
@@ -146,17 +147,43 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
     return rows;
   }, [openYear, openMonth, currentYear, currentMonth, revenueMap]);
 
-  // Group rows by year for display
+  // Group rows by year for display with annual totals
   const rowsByYear = useMemo(() => {
     const groups: Record<number, MonthRow[]> = {};
     for (const row of monthRows) {
       if (!groups[row.year]) groups[row.year] = [];
       groups[row.year].push(row);
     }
-    // Return years in descending order (newest first)
+    // Pre-compute annual totals for YoY lookup
+    const yearTotals: Record<number, number> = {};
+    for (const [year, rows] of Object.entries(groups)) {
+      yearTotals[Number(year)] = rows.reduce((sum, r) => sum + (r.hasData ? r.revenue : 0), 0);
+    }
     return Object.entries(groups)
       .sort(([a], [b]) => Number(b) - Number(a))
-      .map(([year, rows]) => ({ year: Number(year), rows }));
+      .map(([year, rows]) => {
+        const y = Number(year);
+        const annualTotal = yearTotals[y];
+        // Average MoM growth for the year
+        const momValues = rows
+          .filter(r => r.momPct !== null && r.momPositive !== null)
+          .map(r => parseFloat(r.momPct!.replace(/[+%]/g, '')));
+        const avgMom = momValues.length > 0
+          ? momValues.reduce((sum, v) => sum + v, 0) / momValues.length
+          : null;
+        // Annual YoY: compare this year's total to prior year's total
+        const priorTotal = yearTotals[y - 1];
+        const annualYoy = priorTotal !== undefined && priorTotal > 0 && annualTotal > 0
+          ? ((annualTotal - priorTotal) / priorTotal) * 100
+          : null;
+        return {
+          year: y,
+          rows: [...rows].reverse(),
+          annualTotal,
+          avgMom,
+          annualYoy,
+        };
+      });
   }, [monthRows]);
 
   // Latest MoM and YoY for collapsed summary
@@ -190,6 +217,23 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
     updateOverhead.mutate({ id: overheadId, updates: { [field]: value } });
   }, [overheadId, updateOverhead]);
 
+  // Clear local edits once the saved data catches up
+  useEffect(() => {
+    setLocalEdits(prev => {
+      const next = { ...prev };
+      let changed = false;
+      for (const key of Object.keys(next)) {
+        const saved = revenueMap[key];
+        const edited = parseFloat(next[key]) || 0;
+        if (saved !== undefined && Math.abs(saved - edited) < 0.01) {
+          delete next[key];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [revenueMap]);
+
   // Auto-save revenue on blur with debounce
   const handleRevenueChange = useCallback((year: number, month: number, value: string) => {
     const key = `${year}-${month}`;
@@ -209,11 +253,6 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
           gross_revenue: numValue,
         });
       }
-      setLocalEdits(prev => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
     }, 1500);
   }, [tenant?.id, upsertMonth]);
 
@@ -233,11 +272,6 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
         gross_revenue: numValue,
       });
     }
-    setLocalEdits(prev => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
   }, [tenant?.id, upsertMonth, localEdits]);
 
   // Import from cash deposits
@@ -281,9 +315,14 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
 
   const getRevenueValue = (year: number, month: number): string => {
     const key = `${year}-${month}`;
+    const isFocused = focusedKey === key;
+    // While editing, show raw number
     if (key in localEdits) return localEdits[key];
     const saved = revenueMap[key];
-    if (saved !== undefined && saved > 0) return saved.toString();
+    if (saved !== undefined && saved > 0) {
+      // When focused, show raw number for easy editing; otherwise formatted
+      return isFocused ? saved.toFixed(2) : saved.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
     return '';
   };
 
@@ -451,15 +490,32 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                       <th className="px-4 py-2.5 text-right font-semibold text-white">YoY</th>
                     </tr>
                   </thead>
-                  {rowsByYear.map(({ year, rows }) => (
+                  {rowsByYear.map(({ year, rows, annualTotal, avgMom, annualYoy }) => (
                     <tbody key={year}>
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="px-4 py-2 font-semibold text-sm"
-                          style={{ backgroundColor: colors.cream, color: colors.brown }}
-                        >
+                      <tr style={{ backgroundColor: colors.cream }}>
+                        <td className="px-4 py-2 font-semibold text-sm" style={{ color: colors.brown }}>
                           {year}
+                        </td>
+                        <td className="px-4 py-2 text-right font-semibold text-sm" style={{ color: colors.gold }}>
+                          {annualTotal > 0 ? formatCurrency(annualTotal) : ''}
+                        </td>
+                        <td className="px-4 py-2 text-right font-semibold text-sm">
+                          {avgMom !== null ? (
+                            <span style={{ color: avgMom >= 0 ? '#16a34a' : '#ef4444' }}>
+                              Avg: {avgMom >= 0 ? '+' : ''}{avgMom.toFixed(1)}%
+                            </span>
+                          ) : (
+                            <span style={{ color: colors.creamDark }}>—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-right font-semibold text-sm">
+                          {annualYoy !== null ? (
+                            <span style={{ color: annualYoy >= 0 ? '#16a34a' : '#ef4444' }}>
+                              {annualYoy >= 0 ? '+' : ''}{annualYoy.toFixed(1)}%
+                            </span>
+                          ) : (
+                            <span style={{ color: colors.creamDark }}>—</span>
+                          )}
                         </td>
                       </tr>
                       {rows.map((row, idx) => (
@@ -477,14 +533,29 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                             <div className="relative inline-flex items-center">
                               <span className="absolute left-2 text-sm" style={{ color: colors.brownLight }}>$</span>
                               <Input
-                                type="number"
-                                step="0.01"
+                                type="text"
                                 inputMode="decimal"
                                 placeholder="0.00"
                                 value={getRevenueValue(row.year, row.month)}
-                                onChange={(e) => handleRevenueChange(row.year, row.month, e.target.value)}
-                                onBlur={() => handleRevenueBlur(row.year, row.month)}
-                                className="w-28 text-right pl-6 pr-2 py-1 h-8 text-sm"
+                                onFocus={() => {
+                                  const key = `${row.year}-${row.month}`;
+                                  setFocusedKey(key);
+                                  // Put raw number into local edits on focus for clean editing
+                                  const saved = revenueMap[key];
+                                  if (saved !== undefined && saved > 0 && !(key in localEdits)) {
+                                    setLocalEdits(prev => ({ ...prev, [key]: saved.toFixed(2) }));
+                                  }
+                                }}
+                                onChange={(e) => {
+                                  // Allow only digits, decimal point, and empty
+                                  const v = e.target.value.replace(/[^0-9.]/g, '');
+                                  handleRevenueChange(row.year, row.month, v);
+                                }}
+                                onBlur={() => {
+                                  setFocusedKey(null);
+                                  handleRevenueBlur(row.year, row.month);
+                                }}
+                                className="w-32 text-right pl-6 pr-2 py-1 h-8 text-sm"
                                 style={{
                                   backgroundColor: colors.inputBg,
                                   borderColor: colors.gold,
