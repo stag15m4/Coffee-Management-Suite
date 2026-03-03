@@ -492,29 +492,29 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                   </thead>
                   {rowsByYear.map(({ year, rows, annualTotal, avgMom, annualYoy }) => (
                     <tbody key={year}>
-                      <tr style={{ backgroundColor: colors.cream }}>
-                        <td className="px-4 py-2 font-semibold text-sm" style={{ color: colors.brown }}>
+                      <tr style={{ backgroundColor: colors.brown, borderTop: `3px solid ${colors.gold}` }}>
+                        <td className="px-4 py-2.5 font-bold text-base text-white">
                           {year}
                         </td>
-                        <td className="px-4 py-2 text-right font-semibold text-sm" style={{ color: colors.gold }}>
+                        <td className="px-4 py-2.5 text-right font-bold text-sm" style={{ color: colors.gold }}>
                           {annualTotal > 0 ? formatCurrency(annualTotal) : ''}
                         </td>
-                        <td className="px-4 py-2 text-right font-semibold text-sm">
+                        <td className="px-4 py-2.5 text-right font-bold text-sm text-white">
                           {avgMom !== null ? (
-                            <span style={{ color: avgMom >= 0 ? '#16a34a' : '#ef4444' }}>
+                            <span style={{ color: avgMom >= 0 ? '#4ade80' : '#fca5a5' }}>
                               Avg: {avgMom >= 0 ? '+' : ''}{avgMom.toFixed(1)}%
                             </span>
                           ) : (
-                            <span style={{ color: colors.creamDark }}>—</span>
+                            <span className="opacity-40">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-2 text-right font-semibold text-sm">
+                        <td className="px-4 py-2.5 text-right font-bold text-sm text-white">
                           {annualYoy !== null ? (
-                            <span style={{ color: annualYoy >= 0 ? '#16a34a' : '#ef4444' }}>
+                            <span style={{ color: annualYoy >= 0 ? '#4ade80' : '#fca5a5' }}>
                               {annualYoy >= 0 ? '+' : ''}{annualYoy.toFixed(1)}%
                             </span>
                           ) : (
-                            <span style={{ color: colors.creamDark }}>—</span>
+                            <span className="opacity-40">—</span>
                           )}
                         </td>
                       </tr>
@@ -522,7 +522,7 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                         <tr
                           key={`${row.year}-${row.month}`}
                           style={{
-                            backgroundColor: idx % 2 === 0 ? colors.white : colors.cream,
+                            backgroundColor: idx % 2 === 1 ? colors.cream : colors.white,
                             borderBottom: `1px solid ${colors.creamDark}`,
                           }}
                         >
