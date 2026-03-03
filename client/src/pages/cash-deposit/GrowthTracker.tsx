@@ -154,16 +154,13 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
       if (!groups[row.year]) groups[row.year] = [];
       groups[row.year].push(row);
     }
-    // Pre-compute annual totals for YoY lookup
-    const yearTotals: Record<number, number> = {};
-    for (const [year, rows] of Object.entries(groups)) {
-      yearTotals[Number(year)] = rows.reduce((sum, r) => sum + (r.hasData ? r.revenue : 0), 0);
-    }
     return Object.entries(groups)
       .sort(([a], [b]) => Number(b) - Number(a))
       .map(([year, rows]) => {
         const y = Number(year);
-        const annualTotal = yearTotals[y];
+        // Annual gross total (only months with data)
+        const monthsWithData = rows.filter(r => r.hasData && r.revenue > 0);
+        const annualTotal = monthsWithData.reduce((sum, r) => sum + r.revenue, 0);
         // Average MoM growth for the year
         const momValues = rows
           .filter(r => r.momPct !== null && r.momPositive !== null)
@@ -171,11 +168,19 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
         const avgMom = momValues.length > 0
           ? momValues.reduce((sum, v) => sum + v, 0) / momValues.length
           : null;
-        // Annual YoY: compare this year's total to prior year's total
-        const priorTotal = yearTotals[y - 1];
-        const annualYoy = priorTotal !== undefined && priorTotal > 0 && annualTotal > 0
-          ? ((annualTotal - priorTotal) / priorTotal) * 100
-          : null;
+        // Annual YoY: only compare months that have data in THIS year
+        // against the same months in the prior year (apples to apples)
+        const priorRows = groups[y - 1];
+        let annualYoy: number | null = null;
+        if (priorRows && monthsWithData.length > 0) {
+          const activeMonths = new Set(monthsWithData.map(r => r.month));
+          const priorMatchTotal = priorRows
+            .filter(r => activeMonths.has(r.month) && r.hasData && r.revenue > 0)
+            .reduce((sum, r) => sum + r.revenue, 0);
+          if (priorMatchTotal > 0) {
+            annualYoy = ((annualTotal - priorMatchTotal) / priorMatchTotal) * 100;
+          }
+        }
         return {
           year: y,
           rows: [...rows].reverse(),
