@@ -26,6 +26,7 @@ import {
 import { DepositForm } from './DepositForm';
 import { DepositHistory } from './DepositHistory';
 import { DepositSummary } from './DepositSummary';
+import GrowthTracker from './GrowthTracker';
 
 export default function CashDeposit() {
   const { profile, tenant, branding, primaryTenant } = useAuth();
@@ -46,6 +47,7 @@ export default function CashDeposit() {
   const [editingEntry, setEditingEntry] = useState<CashEntry | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [showAdjustments, setShowAdjustments] = useState(false);
+  const [showGrowthTracker, setShowGrowthTracker] = useState(false);
   const [dateRange, setDateRange] = useState({ start: yearStart, end: today });
 
   const [formData, setFormData] = useState<FormData>({
@@ -769,6 +771,12 @@ export default function CashDeposit() {
           excludedCount={excludedCount}
           totalDeposits={totalDeposits}
           totalVariance={totalVariance}
+        />
+
+        {/* Growth Tracker */}
+        <GrowthTracker
+          expanded={showGrowthTracker}
+          onToggle={() => setShowGrowthTracker(!showGrowthTracker)}
         />
 
         {/* Transaction History */}

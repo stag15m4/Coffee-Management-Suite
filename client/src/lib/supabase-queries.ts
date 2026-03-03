@@ -24,6 +24,7 @@ export const queryKeys = {
   equipmentAttachments: ['equipment-attachments'] as const,
   taskAttachments: ['task-attachments'] as const,
   cashActivity: ['cash-activity'] as const,
+  growthTracker: ['growth-tracker'] as const,
   recipeVendors: ['recipe-vendors'] as const,
   businessAccounts: ['business-accounts'] as const,
   accountBusinesses: ['account-businesses'] as const,
@@ -308,6 +309,73 @@ export function useCashActivityRevenue() {
       return data || [];
     },
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+// Growth Tracker hooks
+export interface GrowthTrackerMonth {
+  id: string;
+  tenant_id: string;
+  year: number;
+  month: number;
+  gross_revenue: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useGrowthTrackerData() {
+  const { tenant } = useAuth();
+  return useQuery({
+    queryKey: [...queryKeys.growthTracker, tenant?.id],
+    queryFn: async () => {
+      let query = supabase
+        .from('growth_tracker_monthly')
+        .select('*');
+      if (tenant?.id) query = query.eq('tenant_id', tenant.id);
+      const { data, error } = await query.order('year', { ascending: true }).order('month', { ascending: true });
+      if (error) throw error;
+      return (data || []) as GrowthTrackerMonth[];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUpsertGrowthMonth() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (entry: { tenant_id: string; year: number; month: number; gross_revenue: number }) => {
+      const { data, error } = await supabase
+        .from('growth_tracker_monthly')
+        .upsert(
+          { ...entry, updated_at: new Date().toISOString() },
+          { onConflict: 'tenant_id,year,month' }
+        )
+        .select()
+        .single();
+      if (error) throw error;
+      return data as GrowthTrackerMonth;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.growthTracker });
+    },
+  });
+}
+
+export function useBulkUpsertGrowthMonths() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (entries: { tenant_id: string; year: number; month: number; gross_revenue: number }[]) => {
+      const withTimestamp = entries.map(e => ({ ...e, updated_at: new Date().toISOString() }));
+      const { data, error } = await supabase
+        .from('growth_tracker_monthly')
+        .upsert(withTimestamp, { onConflict: 'tenant_id,year,month' })
+        .select();
+      if (error) throw error;
+      return (data || []) as GrowthTrackerMonth[];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.growthTracker });
+    },
   });
 }
 
