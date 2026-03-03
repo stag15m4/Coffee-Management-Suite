@@ -10,24 +10,22 @@ if (typeof document !== 'undefined') {
   }, { capture: true });
 }
 
-/** Same scroll guard as Input — see input.tsx for detailed comments. */
-function attachScrollGuard(input: HTMLElement): void {
-  const onKeyDown = () => {
-    const scrollY = window.scrollY;
-
-    const onScroll = () => {
-      if (Math.abs(window.scrollY - scrollY) > 1) {
-        window.scrollTo(0, scrollY);
-      }
-    };
-
-    window.addEventListener('scroll', onScroll);
-
-    const cleanup = () => window.removeEventListener('scroll', onScroll);
-    requestAnimationFrame(() => requestAnimationFrame(cleanup));
-    setTimeout(cleanup, 300);
+/** See input.tsx for detailed comments on guardScroll / attachKeystrokeGuard. */
+function guardScroll(): void {
+  const scrollY = window.scrollY;
+  const onScroll = () => {
+    if (Math.abs(window.scrollY - scrollY) > 1) {
+      window.scrollTo(0, scrollY);
+    }
   };
+  window.addEventListener('scroll', onScroll);
+  const cleanup = () => window.removeEventListener('scroll', onScroll);
+  requestAnimationFrame(() => requestAnimationFrame(cleanup));
+  setTimeout(cleanup, 300);
+}
 
+function attachKeystrokeGuard(input: HTMLElement): void {
+  const onKeyDown = () => guardScroll();
   input.addEventListener('keydown', onKeyDown);
   input.addEventListener('blur', () => {
     input.removeEventListener('keydown', onKeyDown);
@@ -42,29 +40,17 @@ const Textarea = React.forwardRef<
     const input = e.target;
     const isTabFocus = Date.now() - lastTabTime < 200;
 
+    const rect = input.getBoundingClientRect();
+    const vpHeight = window.visualViewport?.height ?? window.innerHeight;
+    if (rect.top >= 0 && rect.bottom <= vpHeight) {
+      guardScroll();
+    }
+
     if (isTabFocus) {
       input.select();
     }
 
-    attachScrollGuard(input);
-
-    if (!isTabFocus) {
-      const scrollY = window.scrollY;
-      const rect = input.getBoundingClientRect();
-      const vpHeight = window.visualViewport?.height ?? window.innerHeight;
-
-      if (rect.top >= 0 && rect.bottom <= vpHeight) {
-        const onScroll = () => {
-          if (Math.abs(window.scrollY - scrollY) > 1) {
-            window.scrollTo(0, scrollY);
-          }
-        };
-        window.addEventListener('scroll', onScroll);
-        const cleanup = () => window.removeEventListener('scroll', onScroll);
-        requestAnimationFrame(() => requestAnimationFrame(cleanup));
-        setTimeout(cleanup, 300);
-      }
-    }
+    attachKeystrokeGuard(input);
 
     onFocus?.(e);
   };
