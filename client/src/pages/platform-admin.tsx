@@ -31,6 +31,8 @@ import {
   Send,
   Mail,
   Clock,
+  EyeOff,
+  Eye,
 } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import {
@@ -174,6 +176,9 @@ export default function PlatformAdmin() {
   // Usage analytics state
   const [moduleUsage, setModuleUsage] = useState<any[]>([]);
   const [analyticsDays, setAnalyticsDays] = useState(30);
+
+  // Hide inactive tenants toggle
+  const [hideInactive, setHideInactive] = useState(false);
 
   // Tenant IDs where this admin has a user profile
   const [myTenantIds, setMyTenantIds] = useState<Set<string>>(new Set());
@@ -814,6 +819,19 @@ export default function PlatformAdmin() {
 
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold" style={{ color: colors.brown }}>Businesses</h2>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setHideInactive(!hideInactive)}
+              style={{
+                borderColor: hideInactive ? colors.gold : colors.creamDark,
+                color: hideInactive ? colors.gold : colors.brownLight,
+              }}
+            >
+              {hideInactive ? <Eye className="w-4 h-4 mr-1.5" /> : <EyeOff className="w-4 h-4 mr-1.5" />}
+              {hideInactive ? 'Show Inactive' : 'Hide Inactive'}
+            </Button>
           <Dialog open={showNewTenantDialog} onOpenChange={setShowNewTenantDialog}>
             <DialogTrigger asChild>
               <Button style={{ backgroundColor: colors.gold, color: colors.white }} data-testid="button-add-business">
@@ -904,10 +922,11 @@ export default function PlatformAdmin() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="space-y-4">
-          {tenants.map((tenant) => (
+          {(hideInactive ? tenants.filter(t => t.is_active) : tenants).map((tenant) => (
             <Card
               key={tenant.id}
               className="hover:shadow-lg transition-shadow cursor-pointer"
@@ -985,6 +1004,13 @@ export default function PlatformAdmin() {
             <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
               <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
                 No businesses yet. Click "Add Business" to create your first tenant.
+              </CardContent>
+            </Card>
+          )}
+          {hideInactive && tenants.length > 0 && tenants.every(t => !t.is_active) && (
+            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
+                All businesses are inactive. Click "Show Inactive" to see them.
               </CardContent>
             </Card>
           )}

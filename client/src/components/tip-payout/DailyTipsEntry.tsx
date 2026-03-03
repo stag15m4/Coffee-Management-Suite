@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Banknote, CreditCard, DollarSign } from 'lucide-react';
+import { Banknote, ChevronLeft, ChevronRight, CreditCard, DollarSign } from 'lucide-react';
 import { Colors } from './types';
 import { DAYS, formatCurrency, getMonday } from './utils';
 
@@ -80,15 +80,41 @@ export function DailyTipsEntry({
         <p className="font-semibold text-sm" style={{ color: colors.brown }}>
           Week: Monday {weekRange.start} – Sunday {weekRange.end}
         </p>
-        <Input
-          type="date"
-          value={weekKey}
-          onChange={(e) => onWeekKeyChange(getMonday(new Date(e.target.value + 'T12:00:00')))}
-          className="w-40"
-          style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
-          aria-label="Select week starting date"
-          data-testid="input-week-picker"
-        />
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              const d = new Date(weekKey + 'T12:00:00');
+              d.setDate(d.getDate() - 7);
+              onWeekKeyChange(getMonday(d));
+            }}
+            className="p-1 rounded hover:bg-black/10 transition-colors"
+            aria-label="Previous week"
+          >
+            <ChevronLeft className="w-5 h-5" style={{ color: colors.brown }} />
+          </button>
+          <Input
+            type="date"
+            value={weekKey}
+            onChange={(e) => onWeekKeyChange(getMonday(new Date(e.target.value + 'T12:00:00')))}
+            className="w-40"
+            style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+            aria-label="Select week starting date"
+            data-testid="input-week-picker"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const d = new Date(weekKey + 'T12:00:00');
+              d.setDate(d.getDate() + 7);
+              onWeekKeyChange(getMonday(d));
+            }}
+            className="p-1 rounded hover:bg-black/10 transition-colors"
+            aria-label="Next week"
+          >
+            <ChevronRight className="w-5 h-5" style={{ color: colors.brown }} />
+          </button>
+        </div>
       </div>
       <form
         onSubmit={(e) => { e.preventDefault(); onSaveTips(); }}
