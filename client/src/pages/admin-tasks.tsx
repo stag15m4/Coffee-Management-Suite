@@ -560,7 +560,7 @@ export default function AdminTasks() {
     
     const result = await uploadFile(file);
     if (result) {
-      setTaskForm(prev => ({ ...prev, document_url: result.uploadURL, document_name: file.name }));
+      setTaskForm(prev => ({ ...prev, document_url: result.objectPath, document_name: file.name }));
       toast({ title: 'Document uploaded' });
     }
   };
