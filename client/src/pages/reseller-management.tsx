@@ -25,7 +25,12 @@ import {
   Percent,
   Store,
   Globe,
-  TrendingUp
+  TrendingUp,
+  FileText,
+  Send,
+  DollarSign,
+  Ban,
+  CheckCircle,
 } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import {
@@ -65,8 +70,30 @@ interface Reseller {
   minimum_seats: number;
   billing_cycle: string;
   annual_commitment: number;
+  wholesale_rate_per_seat: number;
+  card_surcharge_percent: number;
   created_at: string;
   updated_at: string;
+}
+
+interface ResellerInvoice {
+  id: string;
+  reseller_id: string;
+  stripe_invoice_id: string | null;
+  invoice_number: string;
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'void';
+  payment_method: string | null;
+  billable_seats: number;
+  rate_per_seat: number;
+  subtotal: number;
+  surcharge_amount: number;
+  total: number;
+  period_start: string;
+  period_end: string;
+  due_date: string;
+  paid_at: string | null;
+  notes: string | null;
+  created_at: string;
 }
 
 interface LicenseCode {
@@ -116,9 +143,12 @@ export default function ResellerManagement() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'detail'>('list');
 
+  const [invoices, setInvoices] = useState<ResellerInvoice[]>([]);
   const [showNewResellerDialog, setShowNewResellerDialog] = useState(false);
   const [showEditResellerDialog, setShowEditResellerDialog] = useState(false);
   const [showGenerateCodesDialog, setShowGenerateCodesDialog] = useState(false);
+  const [showCreateInvoiceDialog, setShowCreateInvoiceDialog] = useState(false);
+  const [showMarkPaidDialog, setShowMarkPaidDialog] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
   const [resellerForm, setResellerForm] = useState({
@@ -134,8 +164,22 @@ export default function ResellerManagement() {
     minimumSeats: 0,
     billingCycle: 'monthly',
     annualCommitment: 0,
+    wholesaleRatePerSeat: 0,
+    cardSurchargePercent: 4,
     notes: '',
     isActive: true,
+  });
+
+  const [invoiceForm, setInvoiceForm] = useState({
+    periodStart: '',
+    periodEnd: '',
+    dueDate: '',
+    notes: '',
+  });
+
+  const [markPaidForm, setMarkPaidForm] = useState({
+    paymentMethod: 'check',
+    notes: '',
   });
 
   const [generateForm, setGenerateForm] = useState({
@@ -199,8 +243,9 @@ export default function ResellerManagement() {
   const loadResellerDetail = async (id: string) => {
     try {
       setLoading(true);
-      const [resellerRes] = await Promise.all([
+      const [resellerRes, invoicesRes] = await Promise.all([
         fetch(`/api/resellers/${id}`, { headers: await getAuthHeaders() }),
+        fetch(`/api/resellers/${id}/invoices`, { headers: await getAuthHeaders() }),
         loadAllVerticals(),
       ]);
       if (resellerRes.ok) {
@@ -210,6 +255,9 @@ export default function ResellerManagement() {
         setResellerVerticals(data.verticals || []);
         setReferredTenants(data.referredTenants || []);
         setView('detail');
+      }
+      if (invoicesRes.ok) {
+        setInvoices(await invoicesRes.json());
       }
     } catch (error) {
       console.error('Failed to load reseller:', error);
@@ -376,6 +424,112 @@ export default function ResellerManagement() {
     toast({ title: 'Copied', description: 'License code copied to clipboard' });
   };
 
+  // ── Invoice Handlers ──────────────────────────────────────────────
+
+  const handleCreateInvoice = async () => {
+    if (!selectedReseller) return;
+    try {
+      setProcessing(true);
+      const response = await fetch(`/api/resellers/${selectedReseller.id}/invoices`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(invoiceForm),
+      });
+      if (response.ok) {
+        toast({ title: 'Success', description: 'Invoice created' });
+        setShowCreateInvoiceDialog(false);
+        setInvoiceForm({ periodStart: '', periodEnd: '', dueDate: '', notes: '' });
+        loadResellerDetail(selectedReseller.id);
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create invoice');
+      }
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleSendInvoice = async (invoiceId: string) => {
+    try {
+      setProcessing(true);
+      const response = await fetch(`/api/reseller-invoices/${invoiceId}/send`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+      });
+      if (response.ok) {
+        toast({ title: 'Success', description: 'Invoice sent to reseller' });
+        if (selectedReseller) loadResellerDetail(selectedReseller.id);
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to send invoice');
+      }
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleMarkPaid = async () => {
+    if (!showMarkPaidDialog) return;
+    try {
+      setProcessing(true);
+      const response = await fetch(`/api/reseller-invoices/${showMarkPaidDialog}/mark-paid`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(markPaidForm),
+      });
+      if (response.ok) {
+        toast({ title: 'Success', description: 'Invoice marked as paid' });
+        setShowMarkPaidDialog(null);
+        setMarkPaidForm({ paymentMethod: 'check', notes: '' });
+        if (selectedReseller) loadResellerDetail(selectedReseller.id);
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to mark invoice paid');
+      }
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleVoidInvoice = async (invoiceId: string) => {
+    if (!await confirm({ title: 'Void this invoice?', description: 'This cannot be undone.', confirmLabel: 'Void', variant: 'destructive' })) return;
+    try {
+      setProcessing(true);
+      const response = await fetch(`/api/reseller-invoices/${invoiceId}/void`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+      });
+      if (response.ok) {
+        toast({ title: 'Success', description: 'Invoice voided' });
+        if (selectedReseller) loadResellerDetail(selectedReseller.id);
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to void invoice');
+      }
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const getInvoiceStatusBadge = (status: string) => {
+    switch (status) {
+      case 'draft': return <Badge variant="secondary">Draft</Badge>;
+      case 'sent': return <Badge style={{ backgroundColor: '#3b82f6', color: 'white' }}>Sent</Badge>;
+      case 'paid': return <Badge style={{ backgroundColor: colors.green, color: 'white' }}>Paid</Badge>;
+      case 'overdue': return <Badge style={{ backgroundColor: '#ef4444', color: 'white' }}>Overdue</Badge>;
+      case 'void': return <Badge variant="outline" className="line-through">Void</Badge>;
+      default: return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
   const resetResellerForm = () => {
     setResellerForm({
       name: '',
@@ -390,6 +544,8 @@ export default function ResellerManagement() {
       minimumSeats: 0,
       billingCycle: 'monthly',
       annualCommitment: 0,
+      wholesaleRatePerSeat: 0,
+      cardSurchargePercent: 4,
       notes: '',
       isActive: true,
     });
@@ -411,6 +567,8 @@ export default function ResellerManagement() {
       minimumSeats: reseller.minimum_seats || 0,
       billingCycle: reseller.billing_cycle || 'monthly',
       annualCommitment: reseller.annual_commitment || 0,
+      wholesaleRatePerSeat: reseller.wholesale_rate_per_seat || 0,
+      cardSurchargePercent: reseller.card_surcharge_percent || 4,
       notes: reseller.notes || '',
       isActive: reseller.is_active,
     });
@@ -805,6 +963,90 @@ export default function ResellerManagement() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Invoices */}
+            <Card className="mb-6">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Invoices
+                </CardTitle>
+                <Button
+                  size="sm"
+                  onClick={() => setShowCreateInvoiceDialog(true)}
+                  disabled={!selectedReseller.wholesale_rate_per_seat}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  Create Invoice
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {!selectedReseller.wholesale_rate_per_seat ? (
+                  <p className="text-muted-foreground text-center py-4">
+                    Set a wholesale rate per seat (edit reseller) before creating invoices.
+                  </p>
+                ) : invoices.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">
+                    No invoices yet. Click "Create Invoice" to generate one.
+                  </p>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {invoices.map((inv) => (
+                      <div key={inv.id} className="flex items-center justify-between p-3 bg-muted rounded-md">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-mono text-sm font-medium">{inv.invoice_number}</span>
+                            {getInvoiceStatusBadge(inv.status)}
+                            {inv.payment_method && inv.status === 'paid' && (
+                              <Badge variant="outline" className="text-xs capitalize">{inv.payment_method}</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {inv.billable_seats} seats × ${parseFloat(String(inv.rate_per_seat)).toFixed(2)}/seat
+                            {' '}&middot;{' '}
+                            {new Date(inv.period_start + 'T00:00:00').toLocaleDateString()} — {new Date(inv.period_end + 'T00:00:00').toLocaleDateString()}
+                          </p>
+                          {inv.notes && inv.status === 'paid' && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{inv.notes}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <span className="font-semibold text-sm" style={{ color: colors.brown }}>
+                            ${parseFloat(String(inv.total)).toFixed(2)}
+                          </span>
+                          {inv.status === 'draft' && (
+                            <>
+                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleSendInvoice(inv.id)} disabled={processing}>
+                                <Send className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleVoidInvoice(inv.id)} disabled={processing}>
+                                <Ban className="w-3.5 h-3.5" />
+                              </Button>
+                            </>
+                          )}
+                          {inv.status === 'sent' && (
+                            <>
+                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => { setMarkPaidForm({ paymentMethod: 'check', notes: '' }); setShowMarkPaidDialog(inv.id); }} disabled={processing}>
+                                <CheckCircle className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleVoidInvoice(inv.id)} disabled={processing}>
+                                <Ban className="w-3.5 h-3.5" />
+                              </Button>
+                            </>
+                          )}
+                          {inv.status === 'overdue' && (
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => { setMarkPaidForm({ paymentMethod: 'check', notes: '' }); setShowMarkPaidDialog(inv.id); }} disabled={processing}>
+                              <CheckCircle className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </>
         )}
       </main>
@@ -942,6 +1184,31 @@ export default function ResellerManagement() {
                   value={resellerForm.revenueSharePercent}
                   onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
                   data-testid="input-reseller-revenue-share"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="wholesaleRate">Wholesale Rate ($/seat/mo)</Label>
+                <Input
+                  id="wholesaleRate"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={resellerForm.wholesaleRatePerSeat}
+                  onChange={(e) => setResellerForm({ ...resellerForm, wholesaleRatePerSeat: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="cardSurcharge">Card Surcharge %</Label>
+                <Input
+                  id="cardSurcharge"
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.5"
+                  value={resellerForm.cardSurchargePercent}
+                  onChange={(e) => setResellerForm({ ...resellerForm, cardSurchargePercent: parseFloat(e.target.value) || 0 })}
                 />
               </div>
             </div>
@@ -1105,6 +1372,31 @@ export default function ResellerManagement() {
                 />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="edit-wholesaleRate">Wholesale Rate ($/seat/mo)</Label>
+                <Input
+                  id="edit-wholesaleRate"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={resellerForm.wholesaleRatePerSeat}
+                  onChange={(e) => setResellerForm({ ...resellerForm, wholesaleRatePerSeat: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-cardSurcharge">Card Surcharge %</Label>
+                <Input
+                  id="edit-cardSurcharge"
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.5"
+                  value={resellerForm.cardSurchargePercent}
+                  onChange={(e) => setResellerForm({ ...resellerForm, cardSurchargePercent: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
             <div>
               <Label htmlFor="edit-notes">Notes</Label>
               <Textarea
@@ -1226,6 +1518,141 @@ export default function ResellerManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Create Invoice Dialog */}
+      <Dialog open={showCreateInvoiceDialog} onOpenChange={setShowCreateInvoiceDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Invoice</DialogTitle>
+            <DialogDescription>
+              Generate a new invoice for {selectedReseller?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedReseller && (
+              <div className="p-3 bg-muted rounded-md space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Billable seats</span>
+                  <span className="font-medium">{Math.max(selectedReseller.seats_total, selectedReseller.minimum_seats)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Rate per seat</span>
+                  <span className="font-medium">${Number(selectedReseller.wholesale_rate_per_seat || 0).toFixed(2)}/mo</span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold border-t pt-1 mt-1">
+                  <span>Subtotal</span>
+                  <span>${(Math.max(selectedReseller.seats_total, selectedReseller.minimum_seats) * Number(selectedReseller.wholesale_rate_per_seat || 0)).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="inv-period-start">Period Start</Label>
+                <Input
+                  id="inv-period-start"
+                  type="date"
+                  value={invoiceForm.periodStart}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, periodStart: e.target.value })}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                />
+              </div>
+              <div>
+                <Label htmlFor="inv-period-end">Period End</Label>
+                <Input
+                  id="inv-period-end"
+                  type="date"
+                  value={invoiceForm.periodEnd}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, periodEnd: e.target.value })}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="inv-due-date">Due Date</Label>
+              <Input
+                id="inv-due-date"
+                type="date"
+                value={invoiceForm.dueDate}
+                onChange={(e) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="inv-notes">Notes (Optional)</Label>
+              <Textarea
+                id="inv-notes"
+                value={invoiceForm.notes}
+                onChange={(e) => setInvoiceForm({ ...invoiceForm, notes: e.target.value })}
+                placeholder="e.g. Q1 2026 wholesale billing"
+              />
+            </div>
+            <div className="p-3 rounded-md text-xs" style={{ backgroundColor: '#eff6ff', color: '#1e40af' }}>
+              <strong>Payment options:</strong> ACH/Check pay the base price. Credit card payments incur a {selectedReseller?.card_surcharge_percent || 4}% convenience fee.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateInvoiceDialog(false)}>Cancel</Button>
+            <Button
+              onClick={handleCreateInvoice}
+              disabled={processing || !invoiceForm.periodStart || !invoiceForm.periodEnd || !invoiceForm.dueDate}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Create Invoice
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark Paid Dialog */}
+      <Dialog open={!!showMarkPaidDialog} onOpenChange={(open) => { if (!open) setShowMarkPaidDialog(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Mark Invoice Paid</DialogTitle>
+            <DialogDescription>
+              Record an out-of-band payment (check or ACH)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="paid-method">Payment Method</Label>
+              <Select
+                value={markPaidForm.paymentMethod}
+                onValueChange={(value) => setMarkPaidForm({ ...markPaidForm, paymentMethod: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="check">Check</SelectItem>
+                  <SelectItem value="ach">ACH / Bank Transfer</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="paid-notes">Notes</Label>
+              <Textarea
+                id="paid-notes"
+                value={markPaidForm.notes}
+                onChange={(e) => setMarkPaidForm({ ...markPaidForm, notes: e.target.value })}
+                placeholder="e.g. Check #4521, deposited 3/15"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMarkPaidDialog(null)}>Cancel</Button>
+            <Button
+              onClick={handleMarkPaid}
+              disabled={processing}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Confirm Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {ConfirmDialog}
     </div>
   );

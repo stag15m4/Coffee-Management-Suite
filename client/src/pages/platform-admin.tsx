@@ -51,6 +51,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { formatRelativeTime, getActivityColor } from '@/hooks/use-store-profile';
+import { getTrialStatus } from '@/hooks/use-trial-status';
 import { colors } from '@/lib/colors';
 
 interface TenantWithStats {
@@ -61,6 +62,7 @@ interface TenantWithStats {
   subscription_plan: string;
   is_active: boolean;
   created_at: string;
+  trial_ends_at?: string | null;
   user_count?: number;
   last_login_at?: string | null;
   vertical_id?: string | null;
@@ -963,6 +965,23 @@ export default function PlatformAdmin() {
                         <Badge variant="outline" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
                           {tenant.subscription_status || 'trial'}
                         </Badge>
+                        {(() => {
+                          const ts = getTrialStatus(tenant);
+                          if (!ts.isTrial || ts.trialDaysLeft === null) return null;
+                          return (
+                            <Badge
+                              variant="outline"
+                              style={{
+                                backgroundColor: ts.trialExpired ? '#fef2f2' : ts.trialUrgent ? '#fffbeb' : '#eff6ff',
+                                color: ts.trialExpired ? '#dc2626' : ts.trialUrgent ? '#d97706' : '#2563eb',
+                                borderColor: ts.trialExpired ? '#fca5a5' : ts.trialUrgent ? '#fcd34d' : '#93c5fd',
+                              }}
+                            >
+                              <Clock className="w-3 h-3 mr-1" />
+                              {ts.trialExpired ? 'Trial expired' : `${ts.trialDaysLeft}d left`}
+                            </Badge>
+                          );
+                        })()}
                         {tenant.vertical_name && (
                           <Badge variant="outline" style={{ borderColor: colors.gold, color: colors.gold }}>
                             {tenant.vertical_name}

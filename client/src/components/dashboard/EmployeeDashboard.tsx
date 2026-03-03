@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { LogIn, LogOut, Coffee, Clock, AlertCircle } from 'lucide-react';
+import { LogIn, LogOut, Coffee, Clock, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTrialStatus } from '@/hooks/use-trial-status';
 import { EmployeeWelcomeCard } from '@/components/onboarding/EmployeeWelcomeCard';
 import { useActiveClockEntry, useClockIn, useClockOut, useStartBreak, useEndBreak, useTimeClockEntries } from '@/hooks/use-time-clock';
 import type { TimeClockEntry } from '@/hooks/use-time-clock';
@@ -85,6 +86,7 @@ interface AdminTask {
 
 export default function EmployeeDashboard() {
   const { user, profile, tenant, canAccessModule } = useAuth();
+  const { trialExpired } = useTrialStatus();
   const { toast } = useToast();
   const activeEntry = useActiveClockEntry();
   const clockIn = useClockIn();
@@ -206,6 +208,17 @@ export default function EmployeeDashboard() {
             {tenant?.name} &bull; {weekHours}h this week
           </p>
         </div>
+
+        {/* Expired trial notice */}
+        {trialExpired && (
+          <div
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
+            style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}
+          >
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+            <span>Your organization's free trial has ended. Please contact your administrator to subscribe.</span>
+          </div>
+        )}
 
         {/* Employee Welcome (first login only) */}
         <EmployeeWelcomeCard />

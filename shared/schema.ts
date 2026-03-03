@@ -1,4 +1,4 @@
-import { pgTable, text, integer, numeric, uuid, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, numeric, uuid, timestamp, boolean, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -76,6 +76,8 @@ export const resellers = pgTable("resellers", {
   minimumSeats: integer("minimum_seats").default(0),
   billingCycle: text("billing_cycle").default("monthly"),
   annualCommitment: integer("annual_commitment").default(0),
+  wholesaleRatePerSeat: numeric("wholesale_rate_per_seat").default("0"),
+  cardSurchargePercent: numeric("card_surcharge_percent").default("4.00"),
   tierUpdatedAt: timestamp("tier_updated_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -112,3 +114,40 @@ export type Reseller = typeof resellers.$inferSelect;
 export type InsertReseller = z.infer<typeof insertResellerSchema>;
 export type LicenseCode = typeof licenseCodes.$inferSelect;
 export type InsertLicenseCode = z.infer<typeof insertLicenseCodeSchema>;
+
+// =====================================================
+// RESELLER INVOICING
+// =====================================================
+
+export const resellerInvoices = pgTable("reseller_invoices", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  resellerId: uuid("reseller_id").notNull(),
+  stripeInvoiceId: text("stripe_invoice_id"),
+  invoiceNumber: text("invoice_number").notNull(),
+  status: text("status").notNull().default("draft"),
+  paymentMethod: text("payment_method"),
+  billableSeats: integer("billable_seats").notNull(),
+  ratePerSeat: numeric("rate_per_seat").notNull(),
+  subtotal: numeric("subtotal").notNull(),
+  surchargeAmount: numeric("surcharge_amount").default("0"),
+  total: numeric("total").notNull(),
+  periodStart: date("period_start").notNull(),
+  periodEnd: date("period_end").notNull(),
+  dueDate: date("due_date").notNull(),
+  paidAt: timestamp("paid_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: uuid("created_by"),
+});
+
+export const resellerInvoicesRelations = relations(resellerInvoices, ({ one }) => ({
+  reseller: one(resellers, {
+    fields: [resellerInvoices.resellerId],
+    references: [resellers.id],
+  }),
+}));
+
+export const insertResellerInvoiceSchema = createInsertSchema(resellerInvoices).omit({ id: true, createdAt: true });
+
+export type ResellerInvoice = typeof resellerInvoices.$inferSelect;
+export type InsertResellerInvoice = z.infer<typeof insertResellerInvoiceSchema>;

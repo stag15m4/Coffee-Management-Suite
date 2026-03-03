@@ -70,6 +70,60 @@ export class WebhookHandlers {
         break;
       }
 
+      case 'invoice.paid': {
+        const invoice = event.data.object as any;
+        const stripeInvoiceId = invoice.id as string;
+
+        // Check if this is a reseller invoice
+        const resellerInvoice = await findResellerInvoiceByStripeId(stripeInvoiceId);
+        if (resellerInvoice) {
+          // Determine payment method from the charge
+          let paymentMethod: string | null = null;
+          if (invoice.charge) {
+            try {
+              const stripe = await getUncachableStripeClient();
+              const charge = await stripe.charges.retrieve(invoice.charge as string, {
+                expand: ['payment_method_details'],
+              });
+              const pmType = (charge as any).payment_method_details?.type;
+              if (pmType === 'card') paymentMethod = 'card';
+              else if (pmType === 'ach_debit' || pmType === 'us_bank_account') paymentMethod = 'ach';
+            } catch {
+              // If charge lookup fails, leave payment_method null
+            }
+          }
+
+          const { db } = await import('./db');
+          const { sql } = await import('drizzle-orm');
+          await db.execute(sql`
+            UPDATE reseller_invoices
+            SET status = 'paid',
+                paid_at = NOW(),
+                payment_method = COALESCE(${paymentMethod}, payment_method)
+            WHERE stripe_invoice_id = ${stripeInvoiceId}
+          `);
+          log(`Reseller invoice ${resellerInvoice.invoice_number} paid via ${paymentMethod || 'unknown'}`, 'stripe');
+        }
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as any;
+        const stripeInvoiceId = invoice.id as string;
+
+        const resellerInvoice = await findResellerInvoiceByStripeId(stripeInvoiceId);
+        if (resellerInvoice) {
+          const { db } = await import('./db');
+          const { sql } = await import('drizzle-orm');
+          await db.execute(sql`
+            UPDATE reseller_invoices SET status = 'overdue'
+            WHERE stripe_invoice_id = ${stripeInvoiceId}
+          `);
+          log(`Reseller invoice ${resellerInvoice.invoice_number} payment failed — marked overdue`, 'stripe');
+        }
+        break;
+      }
+
       default:
         log(`Unhandled webhook event: ${event.type}`, 'stripe');
     }
@@ -84,4 +138,13 @@ async function findTenantByStripeCustomer(customerId: string) {
     sql`SELECT id FROM tenants WHERE stripe_customer_id = ${customerId} LIMIT 1`
   );
   return result.rows[0] as { id: string } | undefined;
+}
+
+async function findResellerInvoiceByStripeId(stripeInvoiceId: string) {
+  const { db } = await import('./db');
+  const { sql } = await import('drizzle-orm');
+  const result = await db.execute(
+    sql`SELECT id, invoice_number FROM reseller_invoices WHERE stripe_invoice_id = ${stripeInvoiceId} LIMIT 1`
+  );
+  return result.rows[0] as { id: string; invoice_number: string } | undefined;
 }

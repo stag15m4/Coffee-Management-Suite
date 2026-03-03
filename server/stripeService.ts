@@ -181,6 +181,88 @@ export class StripeService {
       discounts: [{ coupon: couponId }],
     });
   }
+
+  // ── Reseller Invoicing ──────────────────────────────────────────────
+
+  async createResellerCustomer(email: string, resellerId: string, resellerName: string) {
+    const stripe = await getUncachableStripeClient();
+    return await stripe.customers.create({
+      email,
+      name: resellerName,
+      metadata: { resellerId, type: 'reseller' },
+    });
+  }
+
+  async createResellerInvoice(
+    customerId: string,
+    lineItems: Array<{ description: string; amount: number; quantity: number }>,
+    metadata: Record<string, string>,
+    daysUntilDue: number = 30
+  ) {
+    const stripe = await getUncachableStripeClient();
+
+    // Create an invoice
+    const invoice = await stripe.invoices.create({
+      customer: customerId,
+      collection_method: 'send_invoice',
+      days_until_due: daysUntilDue,
+      metadata,
+      payment_settings: {
+        payment_method_types: ['ach_debit', 'card', 'us_bank_account'],
+      },
+    });
+
+    // Add line items
+    for (const item of lineItems) {
+      await stripe.invoiceItems.create({
+        customer: customerId,
+        invoice: invoice.id,
+        description: item.description,
+        amount: item.amount, // in cents
+        quantity: item.quantity,
+        currency: 'usd',
+      });
+    }
+
+    return invoice;
+  }
+
+  async sendInvoice(invoiceId: string) {
+    const stripe = await getUncachableStripeClient();
+    // Finalize then send
+    const finalized = await stripe.invoices.finalizeInvoice(invoiceId);
+    const sent = await stripe.invoices.sendInvoice(finalized.id);
+    return sent;
+  }
+
+  async markInvoicePaidOutOfBand(invoiceId: string) {
+    const stripe = await getUncachableStripeClient();
+    // Finalize first if still draft
+    const invoice = await stripe.invoices.retrieve(invoiceId);
+    if (invoice.status === 'draft') {
+      await stripe.invoices.finalizeInvoice(invoiceId);
+    }
+    return await stripe.invoices.pay(invoiceId, { paid_out_of_band: true });
+  }
+
+  async voidInvoice(invoiceId: string) {
+    const stripe = await getUncachableStripeClient();
+    // Must be finalized (open) to void — finalize if draft
+    const invoice = await stripe.invoices.retrieve(invoiceId);
+    if (invoice.status === 'draft') {
+      await stripe.invoices.finalizeInvoice(invoiceId);
+    }
+    return await stripe.invoices.voidInvoice(invoiceId);
+  }
+
+  async getInvoice(invoiceId: string) {
+    const stripe = await getUncachableStripeClient();
+    try {
+      return await stripe.invoices.retrieve(invoiceId);
+    } catch {
+      return null;
+    }
+  }
 }
 
 export const stripeService = new StripeService();

@@ -981,15 +981,18 @@ export async function registerRoutes(
   app.post('/api/resellers', requirePlatformAdmin, async (req, res) => {
     try {
       const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, revenueSharePercent, notes,
-              tier, discountPercent, minimumSeats, billingCycle, annualCommitment } = req.body;
+              tier, discountPercent, minimumSeats, billingCycle, annualCommitment,
+              wholesaleRatePerSeat, cardSurchargePercent } = req.body;
 
       const result = await db.execute(sql`
         INSERT INTO resellers (name, contact_email, contact_name, phone, company_address, seats_total,
                                revenue_share_percent, notes, tier, discount_percent, minimum_seats,
-                               billing_cycle, annual_commitment, tier_updated_at)
+                               billing_cycle, annual_commitment, wholesale_rate_per_seat,
+                               card_surcharge_percent, tier_updated_at)
         VALUES (${name}, ${contactEmail}, ${contactName}, ${phone}, ${companyAddress}, ${seatsTotal || 0},
                 ${revenueSharePercent || 0}, ${notes}, ${tier || 'authorized'}, ${discountPercent || 20},
-                ${minimumSeats || 0}, ${billingCycle || 'monthly'}, ${annualCommitment || 0}, NOW())
+                ${minimumSeats || 0}, ${billingCycle || 'monthly'}, ${annualCommitment || 0},
+                ${wholesaleRatePerSeat || 0}, ${cardSurchargePercent || 4}, NOW())
         RETURNING *
       `);
 
@@ -1003,7 +1006,8 @@ export async function registerRoutes(
   app.put('/api/resellers/:id', requirePlatformAdmin, async (req, res) => {
     try {
       const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, revenueSharePercent, notes, isActive,
-              tier, discountPercent, minimumSeats, billingCycle, annualCommitment } = req.body;
+              tier, discountPercent, minimumSeats, billingCycle, annualCommitment,
+              wholesaleRatePerSeat, cardSurchargePercent } = req.body;
 
       const result = await db.execute(sql`
         UPDATE resellers
@@ -1021,6 +1025,8 @@ export async function registerRoutes(
             minimum_seats = ${minimumSeats || 0},
             billing_cycle = ${billingCycle || 'monthly'},
             annual_commitment = ${annualCommitment || 0},
+            wholesale_rate_per_seat = ${wholesaleRatePerSeat || 0},
+            card_surcharge_percent = ${cardSurchargePercent || 4},
             tier_updated_at = NOW(),
             updated_at = NOW()
         WHERE id = ${req.params.id}
@@ -1093,6 +1099,181 @@ export async function registerRoutes(
       }
       
       res.status(201).json(codes);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── Reseller Invoicing ──────────────────────────────────────────────
+
+  // List invoices for a reseller
+  app.get('/api/resellers/:id/invoices', requirePlatformAdmin, async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT * FROM reseller_invoices
+        WHERE reseller_id = ${req.params.id}
+        ORDER BY created_at DESC
+      `);
+      res.json(result.rows);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create invoice for a reseller
+  app.post('/api/resellers/:id/invoices', requirePlatformAdmin, async (req, res) => {
+    try {
+      const resellerId = req.params.id;
+      const { periodStart, periodEnd, dueDate, notes } = req.body;
+
+      // Fetch reseller
+      const resellerResult = await db.execute(sql`
+        SELECT * FROM resellers WHERE id = ${resellerId}
+      `);
+      const reseller = resellerResult.rows[0] as any;
+      if (!reseller) return res.status(404).json({ error: 'Reseller not found' });
+
+      const wholesaleRate = parseFloat(reseller.wholesale_rate_per_seat || '0');
+      if (wholesaleRate <= 0) {
+        return res.status(400).json({ error: 'Wholesale rate per seat must be set before creating invoices' });
+      }
+
+      // Compute billable seats: max of allocated seats and minimum floor
+      const billableSeats = Math.max(reseller.seats_total || 0, reseller.minimum_seats || 0);
+      if (billableSeats <= 0) {
+        return res.status(400).json({ error: 'No billable seats (allocate seats or set a minimum)' });
+      }
+
+      const subtotal = billableSeats * wholesaleRate;
+      const total = subtotal; // Surcharge added later if card payment
+
+      // Generate invoice number
+      const invoiceNumResult = await db.execute(sql`SELECT generate_invoice_number() as num`);
+      const invoiceNumber = (invoiceNumResult.rows[0] as any).num;
+
+      // Ensure reseller has a Stripe customer
+      let stripeCustomerId = reseller.stripe_customer_id;
+      if (!stripeCustomerId) {
+        const customer = await stripeService.createResellerCustomer(
+          reseller.contact_email,
+          resellerId,
+          reseller.name
+        );
+        stripeCustomerId = customer.id;
+        await db.execute(sql`
+          UPDATE resellers SET stripe_customer_id = ${stripeCustomerId} WHERE id = ${resellerId}
+        `);
+      }
+
+      // Create Stripe invoice
+      const stripeInvoice = await stripeService.createResellerInvoice(
+        stripeCustomerId,
+        [{
+          description: `Wholesale seats (${billableSeats} × $${wholesaleRate.toFixed(2)}/seat) — ${periodStart} to ${periodEnd}`,
+          amount: Math.round(subtotal * 100), // cents
+          quantity: 1,
+        }],
+        { resellerId, invoiceNumber },
+        30
+      );
+
+      // Insert local record
+      const result = await db.execute(sql`
+        INSERT INTO reseller_invoices (
+          reseller_id, stripe_invoice_id, invoice_number, status,
+          billable_seats, rate_per_seat, subtotal, total,
+          period_start, period_end, due_date, notes, created_by
+        )
+        VALUES (
+          ${resellerId}, ${stripeInvoice.id}, ${invoiceNumber}, 'draft',
+          ${billableSeats}, ${wholesaleRate}, ${subtotal}, ${total},
+          ${periodStart}, ${periodEnd}, ${dueDate}, ${notes || null}, ${req.body.createdBy || null}
+        )
+        RETURNING *
+      `);
+
+      res.status(201).json(result.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Send invoice (finalize + email to reseller)
+  app.post('/api/reseller-invoices/:id/send', requirePlatformAdmin, async (req, res) => {
+    try {
+      const invoiceResult = await db.execute(sql`
+        SELECT * FROM reseller_invoices WHERE id = ${req.params.id}
+      `);
+      const invoice = invoiceResult.rows[0] as any;
+      if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+      if (invoice.status !== 'draft') return res.status(400).json({ error: 'Only draft invoices can be sent' });
+
+      if (invoice.stripe_invoice_id) {
+        await stripeService.sendInvoice(invoice.stripe_invoice_id);
+      }
+
+      await db.execute(sql`
+        UPDATE reseller_invoices SET status = 'sent' WHERE id = ${req.params.id}
+      `);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Mark invoice as paid out of band (check/ACH manual)
+  app.post('/api/reseller-invoices/:id/mark-paid', requirePlatformAdmin, async (req, res) => {
+    try {
+      const { paymentMethod, notes } = req.body;
+      const invoiceResult = await db.execute(sql`
+        SELECT * FROM reseller_invoices WHERE id = ${req.params.id}
+      `);
+      const invoice = invoiceResult.rows[0] as any;
+      if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+      if (invoice.status === 'paid') return res.status(400).json({ error: 'Invoice already paid' });
+      if (invoice.status === 'void') return res.status(400).json({ error: 'Cannot pay a voided invoice' });
+
+      // Mark paid in Stripe
+      if (invoice.stripe_invoice_id) {
+        await stripeService.markInvoicePaidOutOfBand(invoice.stripe_invoice_id);
+      }
+
+      // Update local record
+      await db.execute(sql`
+        UPDATE reseller_invoices
+        SET status = 'paid',
+            payment_method = ${paymentMethod || 'other'},
+            paid_at = NOW(),
+            notes = COALESCE(${notes || null}, notes)
+        WHERE id = ${req.params.id}
+      `);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Void an invoice
+  app.post('/api/reseller-invoices/:id/void', requirePlatformAdmin, async (req, res) => {
+    try {
+      const invoiceResult = await db.execute(sql`
+        SELECT * FROM reseller_invoices WHERE id = ${req.params.id}
+      `);
+      const invoice = invoiceResult.rows[0] as any;
+      if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+      if (invoice.status === 'paid') return res.status(400).json({ error: 'Cannot void a paid invoice' });
+
+      if (invoice.stripe_invoice_id) {
+        await stripeService.voidInvoice(invoice.stripe_invoice_id);
+      }
+
+      await db.execute(sql`
+        UPDATE reseller_invoices SET status = 'void' WHERE id = ${req.params.id}
+      `);
+
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

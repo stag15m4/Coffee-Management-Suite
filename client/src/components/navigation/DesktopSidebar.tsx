@@ -5,9 +5,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeProvider';
 import {
   ChevronDown, Lock, LogOut, MapPin, Check,
-  Settings, ArrowLeft, User, type LucideIcon,
+  Settings, ArrowLeft, User, Sparkles, Clock, type LucideIcon,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { useTrialStatus } from '@/hooks/use-trial-status';
 
 // ---------------------------------------------------------------------------
 // DesktopSidebar
@@ -32,6 +33,8 @@ export function DesktopSidebar({ className }: { className?: string }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
   const locationRef = useRef<HTMLDivElement>(null);
+
+  const { isTrial, trialDaysLeft, trialExpired, trialUrgent } = useTrialStatus();
 
   const displayName = meta.companyName || tenant?.name || 'Dashboard';
   const hasMultipleLocations = accessibleLocations.length > 1;
@@ -134,6 +137,26 @@ export function DesktopSidebar({ className }: { className?: string }) {
               </div>
             )}
           </div>
+        )}
+
+        {/* Trial countdown badge */}
+        {isTrial && trialDaysLeft !== null && (
+          <Link href="/billing">
+            <button
+              className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors hover:opacity-90"
+              style={{
+                backgroundColor: trialExpired ? '#fef2f2' : trialUrgent ? '#fffbeb' : '#eff6ff',
+                color: trialExpired ? '#dc2626' : trialUrgent ? '#d97706' : '#2563eb',
+              }}
+            >
+              {trialExpired
+                ? <Clock className="w-3 h-3" />
+                : <Sparkles className="w-3 h-3" />}
+              {trialExpired
+                ? 'Trial expired'
+                : `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
+            </button>
+          </Link>
         )}
       </div>
 

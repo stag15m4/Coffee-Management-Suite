@@ -1,14 +1,17 @@
 import { useState } from 'react';
+import { Link } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { RefreshCw, Users, Building2, AlertTriangle } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { RefreshCw, Users, Building2, AlertTriangle, Sparkles, Clock, ArrowRight } from 'lucide-react';
 import { StoreCard } from '@/components/dashboard/StoreCard';
 import { MyDashboardCard } from '@/components/dashboard/MyDashboardCard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import { WelcomeDialog } from '@/components/onboarding/WelcomeDialog';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { useAllStoreMetrics } from '@/hooks/use-store-metrics';
+import { useTrialStatus } from '@/hooks/use-trial-status';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';
@@ -27,6 +30,7 @@ export default function Dashboard() {
 function ManagerOwnerDashboard() {
   const { profile, primaryTenant, canAccessModule, hasRole } = useAuth();
   const { locations, queries } = useAllStoreMetrics();
+  const { isTrial, trialDaysLeft, trialExpired, trialProgress, trialEndsAt, trialUrgent } = useTrialStatus();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
@@ -98,6 +102,58 @@ function ManagerOwnerDashboard() {
 
         {/* Onboarding wizard for new tenants */}
         <OnboardingWizard />
+
+        {/* Trial countdown banner */}
+        {isTrial && trialDaysLeft !== null && (
+          <Card
+            className="mb-6 border-2"
+            style={{
+              backgroundColor: trialExpired ? '#fef2f2' : trialUrgent ? '#fffbeb' : colors.white,
+              borderColor: trialExpired ? '#fca5a5' : trialUrgent ? '#fcd34d' : colors.gold,
+            }}
+          >
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{
+                      backgroundColor: trialExpired ? '#fee2e2' : trialUrgent ? '#fef3c7' : colors.cream,
+                    }}
+                  >
+                    {trialExpired
+                      ? <Clock className="w-5 h-5" style={{ color: '#dc2626' }} />
+                      : <Sparkles className="w-5 h-5" style={{ color: colors.gold }} />}
+                  </div>
+                  <div>
+                    <p className="font-semibold" style={{ color: trialExpired ? '#dc2626' : colors.brown }}>
+                      {trialExpired
+                        ? 'Your free trial has ended'
+                        : `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left in your free trial`}
+                    </p>
+                    <p className="text-sm" style={{ color: colors.brownLight }}>
+                      {trialExpired
+                        ? 'Subscribe to continue using all features'
+                        : `Trial ends ${trialEndsAt!.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                    </p>
+                  </div>
+                </div>
+                <Link href="/billing">
+                  <Button
+                    size="sm"
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
+                  >
+                    {trialExpired ? 'Subscribe Now' : 'View Plans'}
+                    <ArrowRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </Link>
+              </div>
+              {!trialExpired && (
+                <Progress value={trialProgress} className="h-1.5 mt-3" />
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Owner: Multi-location summary */}
         {isOwner && ownerAggregates && (
