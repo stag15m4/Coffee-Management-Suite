@@ -42,6 +42,16 @@ export function DepositForm({
   onToggleAdjustments,
   onToggleOwnerTips,
 }: DepositFormProps) {
+  // Format currency field to 2 decimal places on blur
+  const handleCurrencyBlur = (field: string) => (e: React.FocusEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    if (!isNaN(val)) {
+      onUpdateField(field, val.toFixed(2));
+    } else if (e.target.value.trim() === '') {
+      onUpdateField(field, '0.00');
+    }
+  };
+
   return (
     <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
       <CardHeader className="pb-2">
@@ -73,11 +83,11 @@ export function DepositForm({
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                 <Input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   inputMode="decimal"
                   value={formData.gross_revenue}
                   onChange={(e) => onUpdateField('gross_revenue', e.target.value)}
+                  onBlur={handleCurrencyBlur('gross_revenue')}
                   className="pl-7"
                   style={{ backgroundColor: colors.inputBg }}
                   placeholder="0.00"
@@ -90,12 +100,12 @@ export function DepositForm({
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                 <Input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   inputMode="decimal"
                   value={formData.starting_drawer}
                   onChange={(e) => onUpdateField('starting_drawer', e.target.value)}
                   onFocus={(e) => e.target.select()}
+                  onBlur={handleCurrencyBlur('starting_drawer')}
                   className="pl-7"
                   style={{ backgroundColor: colors.inputBg }}
                   placeholder={drawerDefault.toFixed(2)}
@@ -108,11 +118,11 @@ export function DepositForm({
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                 <Input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   inputMode="decimal"
                   value={formData.cash_sales}
                   onChange={(e) => onUpdateField('cash_sales', e.target.value)}
+                  onBlur={handleCurrencyBlur('cash_sales')}
                   className="pl-7"
                   style={{ backgroundColor: colors.inputBg }}
                   placeholder="0.00"
@@ -145,11 +155,11 @@ export function DepositForm({
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       inputMode="decimal"
                       value={formData.tip_pool}
                       onChange={(e) => onUpdateField('tip_pool', e.target.value)}
+                      onBlur={handleCurrencyBlur('tip_pool')}
                       className="pl-7"
                       style={{ backgroundColor: colors.inputBg }}
                       placeholder="0.00"
@@ -162,11 +172,11 @@ export function DepositForm({
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       inputMode="decimal"
                       value={formData.cash_refund}
                       onChange={(e) => onUpdateField('cash_refund', e.target.value)}
+                      onBlur={handleCurrencyBlur('cash_refund')}
                       className="pl-7"
                       style={{ backgroundColor: colors.inputBg }}
                       placeholder="0.00"
@@ -179,11 +189,11 @@ export function DepositForm({
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       inputMode="decimal"
                       value={formData.pay_in}
                       onChange={(e) => onUpdateField('pay_in', e.target.value)}
+                      onBlur={handleCurrencyBlur('pay_in')}
                       className="pl-7"
                       style={{ backgroundColor: colors.inputBg }}
                       placeholder="0.00"
@@ -196,11 +206,11 @@ export function DepositForm({
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       inputMode="decimal"
                       value={formData.pay_out}
                       onChange={(e) => onUpdateField('pay_out', e.target.value)}
+                      onBlur={handleCurrencyBlur('pay_out')}
                       className="pl-7"
                       style={{ backgroundColor: colors.inputBg }}
                       placeholder="0.00"
@@ -228,11 +238,11 @@ export function DepositForm({
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       inputMode="decimal"
                       value={formData.owner_tips}
                       onChange={(e) => onUpdateField('owner_tips', e.target.value)}
+                      onBlur={handleCurrencyBlur('owner_tips')}
                       className="pl-7"
                       style={{ backgroundColor: ownerTipsEnabled && ownerTipsLoaded ? colors.inputBg : colors.creamDark }}
                       placeholder="0.00"
@@ -251,11 +261,11 @@ export function DepositForm({
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                 <Input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   inputMode="decimal"
                   value={formData.actual_deposit}
                   onChange={(e) => onUpdateField('actual_deposit', e.target.value)}
+                  onBlur={handleCurrencyBlur('actual_deposit')}
                   className="pl-7"
                   style={{ backgroundColor: colors.inputBg }}
                   placeholder="0.00"

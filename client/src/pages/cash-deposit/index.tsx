@@ -200,17 +200,18 @@ export default function CashDeposit() {
 
   useEffect(() => {
     if (editingEntry) {
+      const fmt2 = (v: number | null | undefined) => (v != null ? v.toFixed(2) : '0.00');
       setFormData({
         drawer_date: editingEntry.drawer_date,
-        gross_revenue: editingEntry.gross_revenue?.toString() || '0.00',
-        starting_drawer: editingEntry.starting_drawer?.toString() || drawerDefault.toFixed(2),
-        actual_deposit: editingEntry.actual_deposit?.toString() || '0.00',
-        cash_sales: editingEntry.cash_sales?.toString() || '0.00',
-        tip_pool: editingEntry.tip_pool?.toString() || '0.00',
-        owner_tips: editingEntry.owner_tips?.toString() || '0.00',
-        pay_in: editingEntry.pay_in?.toString() || '0.00',
-        pay_out: editingEntry.pay_out?.toString() || '0.00',
-        cash_refund: editingEntry.cash_refund?.toString() || '0.00',
+        gross_revenue: fmt2(editingEntry.gross_revenue),
+        starting_drawer: editingEntry.starting_drawer != null ? editingEntry.starting_drawer.toFixed(2) : drawerDefault.toFixed(2),
+        actual_deposit: fmt2(editingEntry.actual_deposit),
+        cash_sales: fmt2(editingEntry.cash_sales),
+        tip_pool: fmt2(editingEntry.tip_pool),
+        owner_tips: fmt2(editingEntry.owner_tips),
+        pay_in: fmt2(editingEntry.pay_in),
+        pay_out: fmt2(editingEntry.pay_out),
+        cash_refund: fmt2(editingEntry.cash_refund),
         notes: editingEntry.notes || '',
         flagged: editingEntry.flagged || false,
       });
