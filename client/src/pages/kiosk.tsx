@@ -127,10 +127,11 @@ export default function Kiosk() {
   }, []);
 
   const [step, setStep] = useState<KioskStep>('store_code');
-  const [storeCode, setStoreCode] = useState('');
+  const [storeCode, setStoreCode] = useState(() => localStorage.getItem('kiosk_store_code') || '');
   const [tenantId, setTenantId] = useState('');
   const [tenantName, setTenantName] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [autoVerified, setAutoVerified] = useState(false);
   const [pin, setPin] = useState('');
   const [employee, setEmployee] = useState<EmployeeInfo | null>(null);
   const [clockState, setClockState] = useState<ClockState>({
@@ -194,6 +195,7 @@ export default function Kiosk() {
       setTenantId(data.tenantId);
       setTenantName(data.tenantName);
       setLogoUrl(data.logoUrl);
+      localStorage.setItem('kiosk_store_code', storeCode.trim().toUpperCase());
       setStep('pin_entry');
     } catch {
       setError('Connection error. Try again.');
@@ -201,6 +203,37 @@ export default function Kiosk() {
       setLoading(false);
     }
   }, [storeCode]);
+
+  // Auto-verify saved store code on mount
+  useEffect(() => {
+    if (autoVerified) return;
+    const saved = localStorage.getItem('kiosk_store_code');
+    if (saved && step === 'store_code') {
+      setAutoVerified(true);
+      setStoreCode(saved);
+      (async () => {
+        try {
+          const resp = await fetch('/api/kiosk/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: saved }),
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            setTenantId(data.tenantId);
+            setTenantName(data.tenantName);
+            setLogoUrl(data.logoUrl);
+            setStep('pin_entry');
+          } else {
+            // Saved code no longer valid — clear it
+            localStorage.removeItem('kiosk_store_code');
+          }
+        } catch {
+          // Network error — stay on store code screen
+        }
+      })();
+    }
+  }, []);
 
   // ─── PIN ENTRY ───────────────────────────────────
 
@@ -526,7 +559,7 @@ export default function Kiosk() {
           </div>
 
           <button
-            onClick={() => { setStep('store_code'); setStoreCode(''); setPin(''); setError(''); }}
+            onClick={() => { localStorage.removeItem('kiosk_store_code'); setStep('store_code'); setStoreCode(''); setPin(''); setError(''); }}
             className="text-sm underline mt-2"
             style={{ color: colors.brownLight }}
           >
