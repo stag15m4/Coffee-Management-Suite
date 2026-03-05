@@ -68,14 +68,12 @@ export function registerObjectStorageRoutes(app: Express): void {
     }
   });
 
-  // Serve uploaded objects via signed URL redirect (requires authentication).
+  // Serve uploaded objects via signed URL redirect.
+  // No auth required — paths contain unguessable UUIDs and the redirect target
+  // is a short-lived Supabase signed URL. Browsers navigate here directly
+  // (img src, anchor clicks, new tabs) so they can't send Bearer tokens.
   app.get("/objects/:objectPath(*)", async (req, res) => {
     try {
-      const userId = await getAuthUserId(req);
-      if (!userId) {
-        return res.status(401).json({ error: "Authentication required" });
-      }
-
       const storagePath = objectStorageService.resolveStoragePath(req.path);
       await objectStorageService.serveObject(storagePath, res);
     } catch (error) {
