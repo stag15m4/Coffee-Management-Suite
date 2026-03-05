@@ -88,7 +88,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Check if running in dev mode
-  const isDevMode = import.meta.env.VITE_USE_MOCK_DATA === 'true' &&
+  const isDevMode = import.meta.env.DEV &&
+                    import.meta.env.VITE_USE_MOCK_DATA === 'true' &&
                     typeof localStorage !== 'undefined' &&
                     localStorage.getItem('dev_mode') === 'true';
 

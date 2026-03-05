@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/node";
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -9,6 +11,18 @@ import { startSquareSyncScheduler } from "./squareSync";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy (Railway/reverse proxy) for correct req.protocol
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Allow inline styles/scripts for the SPA
+  crossOriginEmbedderPolicy: false, // Allow loading cross-origin resources (Stripe, Supabase)
+}));
+
+// CORS — allow same-origin by default; configure explicitly for production
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || true, // true = reflect request origin (same-origin)
+  credentials: true,
+}));
 const httpServer = createServer(app);
 
 declare module "http" {
@@ -95,13 +109,14 @@ app.post(
 
 app.use(
   express.json({
+    limit: '1mb',
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
 app.get("/api/health", (_req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
@@ -122,8 +137,10 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      // Only log response body in development, and truncate to avoid leaking sensitive data
+      if (capturedJsonResponse && process.env.NODE_ENV !== 'production') {
+        const body = JSON.stringify(capturedJsonResponse);
+        logLine += ` :: ${body.length > 200 ? body.slice(0, 200) + '...' : body}`;
       }
 
       log(logLine);

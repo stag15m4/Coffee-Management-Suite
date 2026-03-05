@@ -240,15 +240,15 @@ export default function Billing() {
     }
     setCheckoutLoading(priceId);
     try {
+      const { getAuthHeaders } = await import('@/lib/api-helpers');
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           priceId,
           tenantId: tenant.id,
           tenantEmail: profile.email,
           tenantName: tenant.name,
-          userId: user?.id,
         }),
       });
       const data = await response.json();
@@ -268,10 +268,11 @@ export default function Billing() {
     if (!tenant) return;
     setPortalLoading(true);
     try {
+      const { getAuthHeaders } = await import('@/lib/api-helpers');
       const response = await fetch('/api/stripe/portal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId: tenant.id, userId: user?.id }),
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ tenantId: tenant.id }),
       });
       const data = await response.json();
       if (data.url) {

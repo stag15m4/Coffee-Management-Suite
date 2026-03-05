@@ -1,5 +1,6 @@
 // Resend email integration for Coffee Order module and Feedback
 import { Resend } from 'resend';
+import { escapeHtml } from '@shared/escapeHtml';
 
 function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY;
@@ -40,8 +41,8 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
             ? `${item.retailLabels} of ${item.quantity}`
             : '0');
         return `<tr>
-          <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.size}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(item.name)}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(item.size)}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
           ${hasRetailLabels ? `<td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${retailDisplay}</td>` : ''}
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">$${(item.price * item.quantity).toFixed(2)}</td>
@@ -51,7 +52,7 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #5D4037;">Coffee Order from ${data.tenantName || 'Customer'}</h2>
+        <h2 style="color: #5D4037;">Coffee Order from ${escapeHtml(data.tenantName) || 'Customer'}</h2>
         <p>Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
 
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
@@ -77,7 +78,7 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
           </tfoot>
         </table>
 
-        ${data.notes ? `<p style="background-color: #FFF8E1; padding: 10px; border-radius: 4px;"><strong>Notes:</strong> ${data.notes}</p>` : ''}
+        ${data.notes ? `<p style="background-color: #FFF8E1; padding: 10px; border-radius: 4px;"><strong>Notes:</strong> ${escapeHtml(data.notes)}</p>` : ''}
 
         <p style="color: #888; font-size: 12px; margin-top: 30px;">
           This order was sent via the Erwin Mills Management Suite.
@@ -88,7 +89,7 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
     const emailOptions: any = {
       from: fromEmail,
       to: data.vendorEmail,
-      subject: `Coffee Order from ${data.tenantName || 'Customer'} - ${new Date().toLocaleDateString()}`,
+      subject: `Coffee Order from ${(data.tenantName || 'Customer').replace(/[<>"]/g, '')} - ${new Date().toLocaleDateString()}`,
       html
     };
 
@@ -137,7 +138,7 @@ export async function sendBetaInviteEmail(data: BetaInviteEmailData): Promise<{ 
           <div style="background-color: white; padding: 20px; border-radius: 8px; border: 2px solid #C9A227; text-align: center; margin: 24px 0;">
             <p style="color: #6B5344; margin: 0 0 8px 0; font-size: 13px;">Your Beta Access Code</p>
             <p style="color: #4A3728; font-size: 28px; font-weight: bold; letter-spacing: 3px; margin: 0;">
-              ${data.licenseCode}
+              ${escapeHtml(data.licenseCode)}
             </p>
           </div>
 
@@ -221,10 +222,10 @@ export async function sendFeedbackEmail(data: FeedbackEmailData): Promise<{ succ
             ${typeLabels[data.feedbackType]}
           </div>
 
-          <h2 style="color: #4A3728; margin-top: 0;">${data.subject}</h2>
+          <h2 style="color: #4A3728; margin-top: 0;">${escapeHtml(data.subject)}</h2>
 
           <div style="background-color: white; padding: 16px; border-radius: 8px; border-left: 4px solid ${typeColors[data.feedbackType]};">
-            <p style="margin: 0; white-space: pre-wrap; color: #333;">${data.description}</p>
+            <p style="margin: 0; white-space: pre-wrap; color: #333;">${escapeHtml(data.description)}</p>
           </div>
 
           <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
@@ -233,23 +234,23 @@ export async function sendFeedbackEmail(data: FeedbackEmailData): Promise<{ succ
           <table style="font-size: 13px; color: #666;">
             <tr>
               <td style="padding: 4px 12px 4px 0; font-weight: bold;">Name:</td>
-              <td>${data.userName || 'Not provided'}</td>
+              <td>${escapeHtml(data.userName) || 'Not provided'}</td>
             </tr>
             <tr>
               <td style="padding: 4px 12px 4px 0; font-weight: bold;">Email:</td>
-              <td>${data.userEmail || 'Not provided'}</td>
+              <td>${escapeHtml(data.userEmail) || 'Not provided'}</td>
             </tr>
             <tr>
               <td style="padding: 4px 12px 4px 0; font-weight: bold;">Tenant:</td>
-              <td>${data.tenantName || 'Unknown'} ${data.tenantId ? `(${data.tenantId})` : ''}</td>
+              <td>${escapeHtml(data.tenantName) || 'Unknown'} ${data.tenantId ? `(${escapeHtml(data.tenantId)})` : ''}</td>
             </tr>
             <tr>
               <td style="padding: 4px 12px 4px 0; font-weight: bold;">Page:</td>
-              <td>${data.pageUrl || 'Not provided'}</td>
+              <td>${escapeHtml(data.pageUrl) || 'Not provided'}</td>
             </tr>
             <tr>
               <td style="padding: 4px 12px 4px 0; font-weight: bold;">Browser:</td>
-              <td style="font-size: 11px; max-width: 400px; word-break: break-all;">${data.browserInfo || 'Not provided'}</td>
+              <td style="font-size: 11px; max-width: 400px; word-break: break-all;">${escapeHtml(data.browserInfo) || 'Not provided'}</td>
             </tr>
           </table>
         </div>

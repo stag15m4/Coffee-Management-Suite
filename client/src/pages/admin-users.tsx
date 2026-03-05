@@ -256,15 +256,15 @@ export default function AdminUsers() {
 
     setCreating(true);
     try {
+      const { getAuthHeaders } = await import('@/lib/api-helpers');
       const response = await fetch('/api/users/invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           email: newEmail,
           fullName: newName || newEmail.split('@')[0],
           role: newRole,
           tenantId: profile.tenant_id,
-          requestingUserId: user.id,
           redirectTo: `${window.location.origin}/reset-password`,
         }),
       });
@@ -370,9 +370,10 @@ export default function AdminUsers() {
       });
       // Save kiosk PIN if changed
       if (detailPin && detailPin.length === 4 && profile?.tenant_id) {
+        const pinHeaders = await (await import('@/lib/api-helpers')).getAuthHeaders();
         const pinResp = await fetch('/api/kiosk/update-pin', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: pinHeaders,
           body: JSON.stringify({ userId: detailUser.id, tenantId: profile.tenant_id, newPin: detailPin }),
         });
         if (!pinResp.ok) {
@@ -963,9 +964,10 @@ export default function AdminUsers() {
                       if (!profile?.tenant_id) return;
                       setSavingKioskCode(true);
                       try {
+                        const kioskHeaders = await (await import('@/lib/api-helpers')).getAuthHeaders();
                         const resp = await fetch('/api/kiosk/set-code', {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
+                          headers: kioskHeaders,
                           body: JSON.stringify({ tenantId: profile.tenant_id, kioskCode }),
                         });
                         if (!resp.ok) {

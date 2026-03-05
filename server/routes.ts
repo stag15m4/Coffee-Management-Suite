@@ -9,6 +9,7 @@ import { db } from "./db";
 import { sql } from "drizzle-orm";
 import ical from "node-ical";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import crypto from "crypto";
 
 // Extract user ID from request: tries Authorization Bearer JWT first, falls back to x-user-id header
 async function getUserIdFromRequest(req: Request): Promise<{ userId: string | null; debug: string }> {
@@ -33,13 +34,15 @@ async function getUserIdFromRequest(req: Request): Promise<{ userId: string | nu
     debugParts.push(authHeader ? `Auth header present but not Bearer: ${authHeader.slice(0, 20)}` : 'No Authorization header');
   }
 
-  // Fallback to x-user-id header (for local dev / backward compatibility)
-  const xUserId = req.headers['x-user-id'] as string;
-  if (xUserId) {
-    debugParts.push('Fell back to x-user-id');
-    return { userId: xUserId, debug: debugParts.join(' | ') };
+  // Fallback to x-user-id header (LOCAL DEV ONLY — disabled in production)
+  if (process.env.NODE_ENV !== 'production') {
+    const xUserId = req.headers['x-user-id'] as string;
+    if (xUserId) {
+      debugParts.push('Fell back to x-user-id (dev only)');
+      return { userId: xUserId, debug: debugParts.join(' | ') };
+    }
   }
-  debugParts.push('No x-user-id header either');
+  debugParts.push('No valid auth');
   return { userId: null, debug: debugParts.join(' | ') };
 }
 
@@ -66,7 +69,8 @@ const requirePlatformAdmin = async (req: Request, res: Response, next: NextFunct
   const { isAdmin, debug: adminDebug } = await verifyPlatformAdmin(userId ?? undefined);
   if (!isAdmin) {
     console.error(`[platform-admin] Access denied: ${authDebug} | ${adminDebug}`);
-    return res.status(403).json({ error: 'Platform admin access required', debug: `${authDebug} | ${adminDebug}` });
+    console.error(`[platform-admin] Denied: ${authDebug} | ${adminDebug}`);
+    return res.status(403).json({ error: 'Platform admin access required' });
   }
   (req as any).userId = userId;
   next();
@@ -77,14 +81,18 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
-  // Ingredients Routes
+  // Ingredients Routes (require authentication)
   app.get(api.ingredients.list.path, async (req, res) => {
+    const { userId } = await getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
     const ingredients = await storage.getIngredients();
     res.json(ingredients);
   });
 
   app.post(api.ingredients.create.path, async (req, res) => {
     try {
+      const { userId } = await getUserIdFromRequest(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
       const input = api.ingredients.create.input.parse(req.body);
       const ingredient = await storage.createIngredient(input);
       res.status(201).json(ingredient);
@@ -100,6 +108,8 @@ export async function registerRoutes(
   });
 
   app.get(api.ingredients.get.path, async (req, res) => {
+    const { userId } = await getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
     const ingredient = await storage.getIngredient(req.params.id);
     if (!ingredient) {
       return res.status(404).json({ message: 'Ingredient not found' });
@@ -109,6 +119,8 @@ export async function registerRoutes(
 
   app.put(api.ingredients.update.path, async (req, res) => {
     try {
+      const { userId } = await getUserIdFromRequest(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
       const input = api.ingredients.update.input.parse(req.body);
       const ingredient = await storage.updateIngredient(req.params.id, input);
       if (!ingredient) {
@@ -127,13 +139,20 @@ export async function registerRoutes(
   });
 
   app.delete(api.ingredients.delete.path, async (req, res) => {
+    const { userId } = await getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
     await storage.deleteIngredient(req.params.id);
     res.status(204).end();
   });
 
-  // Coffee Order Email Route
+  // Coffee Order Email Route (requires authentication)
   app.post('/api/coffee-order/send-email', async (req, res) => {
     try {
+      const { userId } = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Authentication required' });
+      }
+
       const data = sendOrderEmailSchema.parse(req.body);
       const result = await sendOrderEmail({
         vendorEmail: data.vendorEmail,
@@ -231,14 +250,18 @@ export async function registerRoutes(
     }
   });
 
-  // Recipes Routes
+  // Recipes Routes (require authentication)
   app.get(api.recipes.list.path, async (req, res) => {
+    const { userId } = await getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
     const recipes = await storage.getRecipes();
     res.json(recipes);
   });
 
   app.post(api.recipes.create.path, async (req, res) => {
     try {
+      const { userId } = await getUserIdFromRequest(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
       const input = api.recipes.create.input.parse(req.body);
       const recipe = await storage.createRecipe(input);
       res.status(201).json(recipe);
@@ -254,6 +277,8 @@ export async function registerRoutes(
   });
 
   app.get(api.recipes.get.path, async (req, res) => {
+    const { userId } = await getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
     const recipe = await storage.getRecipe(req.params.id);
     if (!recipe) {
       return res.status(404).json({ message: 'Recipe not found' });
@@ -263,6 +288,8 @@ export async function registerRoutes(
 
   app.put(api.recipes.update.path, async (req, res) => {
      try {
+      const { userId } = await getUserIdFromRequest(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
       const input = api.recipes.update.input.parse(req.body);
       const recipe = await storage.updateRecipe(req.params.id, input);
       if (!recipe) {
@@ -281,20 +308,24 @@ export async function registerRoutes(
   });
 
   app.delete(api.recipes.delete.path, async (req, res) => {
+    const { userId } = await getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
     await storage.deleteRecipe(req.params.id);
     res.status(204).end();
   });
 
-  // Recipe Ingredients Routes
+  // Recipe Ingredients Routes (require authentication)
   app.post(api.recipeIngredients.create.path, async (req, res) => {
     try {
+      const { userId } = await getUserIdFromRequest(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
       const recipeId = req.params.recipeId;
       const bodySchema = api.recipeIngredients.create.input.extend({
          recipeId: z.string().default(recipeId) // inject recipeId
       });
 
       const input = bodySchema.parse({ ...req.body, recipeId });
-      
+
       const item = await storage.addRecipeIngredient(input);
       res.status(201).json(item);
     } catch (err) {
@@ -309,6 +340,8 @@ export async function registerRoutes(
   });
 
   app.delete(api.recipeIngredients.delete.path, async (req, res) => {
+    const { userId } = await getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
     await storage.deleteRecipeIngredient(req.params.id);
     res.status(204).end();
   });
@@ -325,7 +358,8 @@ export async function registerRoutes(
       const publishableKey = await getStripePublishableKey();
       res.json({ publishableKey });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -334,18 +368,21 @@ export async function registerRoutes(
       const products = await stripeService.listProductsWithPrices();
       res.json({ data: products });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
   app.post('/api/stripe/checkout', async (req, res) => {
     try {
-      const { priceId, tenantId, tenantEmail, tenantName, userId } = req.body;
-      
+      const { priceId, tenantId, tenantEmail, tenantName } = req.body;
+
       if (!priceId || !tenantId || !tenantEmail) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
+      // Authenticate via JWT
+      const { userId } = await getUserIdFromRequest(req);
       if (!userId) {
         return res.status(401).json({ error: 'Authentication required' });
       }
@@ -386,18 +423,21 @@ export async function registerRoutes(
       res.json({ url: session.url });
     } catch (error: any) {
       console.error('Checkout error:', error);
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
   app.post('/api/stripe/portal', async (req, res) => {
     try {
-      const { tenantId, userId } = req.body;
-      
+      const { tenantId } = req.body;
+
       if (!tenantId) {
         return res.status(400).json({ error: 'Missing tenantId' });
       }
 
+      // Authenticate via JWT
+      const { userId } = await getUserIdFromRequest(req);
       if (!userId) {
         return res.status(401).json({ error: 'Authentication required' });
       }
@@ -429,13 +469,28 @@ export async function registerRoutes(
       res.json({ url: session.url });
     } catch (error: any) {
       console.error('Portal error:', error);
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
   app.get('/api/stripe/subscription/:tenantId', async (req, res) => {
     try {
-      const tenant = await storage.getTenant(req.params.tenantId);
+      // Require authentication + tenant ownership
+      const { userId } = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      const tenantId = req.params.tenantId;
+      const profileResult = await db.execute(
+        sql`SELECT tenant_id FROM user_profiles WHERE id = ${userId}::uuid AND is_active = true LIMIT 1`
+      );
+      const profile = profileResult.rows[0] as any;
+      if (!profile || profile.tenant_id !== tenantId) {
+        return res.status(403).json({ error: 'Not authorized for this tenant' });
+      }
+
+      const tenant = await storage.getTenant(tenantId);
       if (!tenant?.stripe_subscription_id) {
         return res.json({ subscription: null });
       }
@@ -443,7 +498,7 @@ export async function registerRoutes(
       const subscription = await stripeService.getSubscription(tenant.stripe_subscription_id);
       res.json({ subscription });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to fetch subscription' });
     }
   });
 
@@ -459,6 +514,16 @@ export async function registerRoutes(
       }
 
       const tenantId = req.params.tenantId;
+
+      // Verify user belongs to this tenant
+      const profileResult = await db.execute(
+        sql`SELECT tenant_id FROM user_profiles WHERE id = ${userId}::uuid AND is_active = true LIMIT 1`
+      );
+      const userProfile = profileResult.rows[0] as any;
+      if (!userProfile || userProfile.tenant_id !== tenantId) {
+        return res.status(403).json({ error: 'Not authorized for this tenant' });
+      }
+
       const tenant = await storage.getTenant(tenantId);
       if (!tenant) {
         return res.status(404).json({ error: 'Tenant not found' });
@@ -507,7 +572,8 @@ export async function registerRoutes(
 
       res.json(result);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -537,32 +603,50 @@ export async function registerRoutes(
 
   // --- OAuth ---
 
+  // CSRF state map for Square OAuth: maps state token → { tenantId, expiresAt }
+  const squareOAuthStates = new Map<string, { tenantId: string; expiresAt: number }>();
+
   app.get('/api/square/auth-url', async (req, res) => {
     try {
       const auth = await verifySquareAdmin(req, res);
       if (!auth) return;
+
+      // Generate a CSRF state token (random, tied to the tenant)
+      const stateToken = crypto.randomUUID();
+      squareOAuthStates.set(stateToken, {
+        tenantId: auth.tenantId,
+        expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+      });
 
       // Use X-Forwarded headers (set by Codespace proxy / reverse proxies) to build the real URL
       const proto = req.get('x-forwarded-proto') || req.protocol;
       const host = req.get('x-forwarded-host') || req.get('host');
       // Redirect to server-side callback handler (not the SPA) for instant code exchange
       const redirectUri = `${proto}://${host}/api/square/oauth/callback`;
-      const url = getSquareOAuthUrl(auth.tenantId, redirectUri);
+      const url = getSquareOAuthUrl(stateToken, redirectUri);
       res.json({ url });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to generate auth URL' });
     }
   });
 
-  // Server-side OAuth callback — Square redirects here with ?code=...&state=tenantId
+  // Server-side OAuth callback — Square redirects here with ?code=...&state=stateToken
   // This exchanges the code instantly (no SPA load delay) then redirects to the frontend.
   app.get('/api/square/oauth/callback', async (req, res) => {
-    const { code, state: tenantId } = req.query;
+    const { code, state: stateToken } = req.query;
     const frontendUrl = '/admin/integrations';
 
-    if (!code || !tenantId) {
+    if (!code || !stateToken) {
       return res.redirect(`${frontendUrl}?square_error=${encodeURIComponent('Missing authorization code or state')}`);
     }
+
+    // Validate the CSRF state token
+    const stateData = squareOAuthStates.get(stateToken as string);
+    squareOAuthStates.delete(stateToken as string); // one-time use
+    if (!stateData || Date.now() > stateData.expiresAt) {
+      return res.redirect(`${frontendUrl}?square_error=${encodeURIComponent('Invalid or expired OAuth state. Please try again.')}`);
+    }
+    const tenantId = stateData.tenantId;
 
     try {
       // Reconstruct the redirect URI that was used in the authorize request (must match exactly)
@@ -571,7 +655,7 @@ export async function registerRoutes(
       const redirectUri = `${proto}://${host}/api/square/oauth/callback`;
       const tokens = await squareService.exchangeCodeForTokens(code as string, redirectUri);
       await squareService.saveTenantSquareTokens(
-        tenantId as string,
+        tenantId,
         tokens.merchantId,
         tokens.accessToken,
         tokens.refreshToken,
@@ -581,7 +665,7 @@ export async function registerRoutes(
       res.redirect(`${frontendUrl}?square_connected=true`);
     } catch (error: any) {
       console.error('[square] OAuth callback error:', error.message);
-      res.redirect(`${frontendUrl}?square_error=${encodeURIComponent(error.message)}`);
+      res.redirect(`${frontendUrl}?square_error=${encodeURIComponent('Failed to connect Square. Please try again.')}`);
     }
   });
 
@@ -593,7 +677,8 @@ export async function registerRoutes(
       await squareService.disconnectSquare(auth.tenantId);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -605,7 +690,8 @@ export async function registerRoutes(
       const status = await squareService.getSquareStatus(auth.tenantId);
       res.json(status || { connected: false });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -624,7 +710,8 @@ export async function registerRoutes(
       await squareService.setSquareLocation(auth.tenantId, locationId);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -637,7 +724,8 @@ export async function registerRoutes(
       await squareService.toggleSquareSync(auth.tenantId, !!enabled);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -652,7 +740,8 @@ export async function registerRoutes(
       });
       res.json(result);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -664,7 +753,8 @@ export async function registerRoutes(
       const locations = await squareService.listLocations(auth.tenantId);
       res.json(locations);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -678,7 +768,8 @@ export async function registerRoutes(
       const members = await squareService.listTeamMembers(auth.tenantId);
       res.json(members);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -690,7 +781,8 @@ export async function registerRoutes(
       const suggestions = await squareService.suggestEmployeeMappings(auth.tenantId);
       res.json(suggestions);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -702,7 +794,8 @@ export async function registerRoutes(
       const mappings = await squareService.getMappings(auth.tenantId);
       res.json(mappings);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -728,7 +821,8 @@ export async function registerRoutes(
 
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -745,7 +839,8 @@ export async function registerRoutes(
       `);
       res.json(result.rows);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -766,13 +861,16 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'tenantId is required' });
       }
 
-      // Verify owner
+      // Verify owner AND that they belong to the requested tenant
       const userProfileResult = await db.execute(
-        sql`SELECT tenant_id, role FROM user_profiles WHERE id = ${userId}`
+        sql`SELECT tenant_id, role FROM user_profiles WHERE id = ${userId}::uuid AND is_active = true`
       );
       const userProfile = userProfileResult.rows[0] as any;
       if (!userProfile || userProfile.role !== 'owner') {
         return res.status(403).json({ error: 'Only owners can generate referral codes' });
+      }
+      if (userProfile.tenant_id !== tenantId) {
+        return res.status(403).json({ error: 'Not authorized for this tenant' });
       }
 
       // Check if tenant already has a code
@@ -799,7 +897,8 @@ export async function registerRoutes(
 
       res.json(result.rows[0]);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -812,6 +911,15 @@ export async function registerRoutes(
       }
 
       const tenantId = req.params.tenantId;
+
+      // Verify user belongs to this tenant
+      const profileResult = await db.execute(
+        sql`SELECT tenant_id FROM user_profiles WHERE id = ${userId}::uuid AND is_active = true LIMIT 1`
+      );
+      const profile = profileResult.rows[0] as any;
+      if (!profile || profile.tenant_id !== tenantId) {
+        return res.status(403).json({ error: 'Not authorized for this tenant' });
+      }
 
       const codeResult = await db.execute(sql`
         SELECT id, code, is_active, created_at FROM referral_codes
@@ -842,7 +950,8 @@ export async function registerRoutes(
         },
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -899,7 +1008,8 @@ export async function registerRoutes(
 
       res.json({ success: true, message: 'Referral code redeemed! Your trial has been extended by 30 days.' });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -915,7 +1025,8 @@ export async function registerRoutes(
       `);
       res.json(result.rows);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -928,7 +1039,8 @@ export async function registerRoutes(
       `);
       res.json(resellers.rows);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -973,7 +1085,8 @@ export async function registerRoutes(
         referredTenants: referredTenants.rows,
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -998,7 +1111,8 @@ export async function registerRoutes(
 
       res.status(201).json(result.rows[0]);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1039,7 +1153,8 @@ export async function registerRoutes(
 
       res.json(result.rows[0]);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1049,7 +1164,8 @@ export async function registerRoutes(
       await db.execute(sql`DELETE FROM resellers WHERE id = ${req.params.id}`);
       res.status(204).end();
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1100,7 +1216,8 @@ export async function registerRoutes(
       
       res.status(201).json(codes);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1116,7 +1233,8 @@ export async function registerRoutes(
       `);
       res.json(result.rows);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1194,7 +1312,8 @@ export async function registerRoutes(
 
       res.status(201).json(result.rows[0]);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1218,7 +1337,8 @@ export async function registerRoutes(
 
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1251,7 +1371,8 @@ export async function registerRoutes(
 
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1275,7 +1396,8 @@ export async function registerRoutes(
 
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1357,7 +1479,8 @@ export async function registerRoutes(
       
       res.json({ success: true, licenseId });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1373,7 +1496,8 @@ export async function registerRoutes(
       `);
       res.json(result.rows);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1392,7 +1516,8 @@ export async function registerRoutes(
       
       res.status(204).end();
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1446,7 +1571,8 @@ export async function registerRoutes(
 
       res.json({ success: true, code, email, emailSent: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1463,7 +1589,8 @@ export async function registerRoutes(
       `);
       res.json(result.rows);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1475,7 +1602,8 @@ export async function registerRoutes(
       `);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1651,7 +1779,150 @@ export async function registerRoutes(
 
       res.json({ modules: modules.rows, trend: trend.rows });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // GET /api/analytics/platform-overview — aggregated platform analytics
+  app.get('/api/analytics/platform-overview', requirePlatformAdmin, async (req, res) => {
+    try {
+      // Run queries individually so one failure doesn't kill the whole response
+      const safeQuery = async (label: string, fn: () => Promise<any>, fallback: any = []) => {
+        try { return await fn(); }
+        catch (e: any) { console.error(`[platform-analytics] ${label} failed:`, e.message); return { rows: fallback }; }
+      };
+
+      const [tenantsByPlan, totalUsers, monthlyGrowth, moduleAdoption, resellers, plans, totalTenants] = await Promise.all([
+        safeQuery('tenantsByPlan', () => db.execute(sql`
+          SELECT subscription_plan, subscription_status, billing_interval,
+                 COUNT(*)::int as count,
+                 COALESCE(SUM(billable_locations), COUNT(*))::int as total_locations
+          FROM tenants
+          WHERE is_active = true OR subscription_status IN ('active', 'trial')
+          GROUP BY subscription_plan, subscription_status, billing_interval
+        `)),
+        safeQuery('totalUsers', () => db.execute(sql`
+          SELECT COUNT(*)::int as total_users FROM user_profiles WHERE is_active = true
+        `), [{ total_users: 0 }]),
+        safeQuery('monthlyGrowth', () => db.execute(sql`
+          SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') as month,
+                 COUNT(*)::int as new_tenants,
+                 SUM(CASE WHEN reseller_id IS NULL THEN 1 ELSE 0 END)::int as direct,
+                 SUM(CASE WHEN reseller_id IS NOT NULL THEN 1 ELSE 0 END)::int as wholesale
+          FROM tenants
+          WHERE created_at >= NOW() - INTERVAL '12 months'
+          GROUP BY DATE_TRUNC('month', created_at)
+          ORDER BY DATE_TRUNC('month', created_at)
+        `)),
+        safeQuery('moduleAdoption', () => db.execute(sql`
+          SELECT m.id as module_id, m.name as module_name,
+                 COUNT(DISTINCT tms.tenant_id)::int as subscriber_count
+          FROM modules m
+          LEFT JOIN tenant_module_subscriptions tms ON tms.module_id = m.id
+          WHERE m.rollout_status IN ('ga', 'beta')
+          GROUP BY m.id, m.name
+          ORDER BY subscriber_count DESC
+        `)),
+        safeQuery('resellers', () => db.execute(sql`
+          SELECT r.id, r.name, r.tier, r.seats_used::int, r.seats_total::int,
+                 r.wholesale_rate_per_seat,
+                 COALESCE(SUM(CASE WHEN ri.status != 'void' THEN ri.total ELSE 0 END), 0) as total_invoiced,
+                 COALESCE(SUM(CASE WHEN ri.status = 'paid' THEN ri.total ELSE 0 END), 0) as total_paid
+          FROM resellers r
+          LEFT JOIN reseller_invoices ri ON ri.reseller_id = r.id
+          WHERE r.is_active = true
+          GROUP BY r.id, r.name, r.tier, r.seats_used, r.seats_total, r.wholesale_rate_per_seat
+          ORDER BY r.name
+        `)),
+        safeQuery('plans', () => db.execute(sql`
+          SELECT id, name, monthly_price, annual_price
+          FROM subscription_plans
+          WHERE is_active = true
+          ORDER BY display_order
+        `)),
+        safeQuery('totalTenants', () => db.execute(sql`
+          SELECT COUNT(*)::int as total FROM tenants WHERE is_active = true
+        `), [{ total: 0 }]),
+      ]);
+
+      res.json({
+        tenantsByPlan: tenantsByPlan.rows,
+        totalActiveUsers: (totalUsers.rows[0] as any)?.total_users || 0,
+        monthlyGrowth: monthlyGrowth.rows,
+        moduleAdoption: moduleAdoption.rows,
+        resellers: resellers.rows,
+        plans: plans.rows,
+        totalActiveTenants: (totalTenants.rows[0] as any)?.total || 0,
+      });
+    } catch (error: any) {
+      console.error('[platform-analytics] Overview error:', error);
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // GET /api/analytics/platform-costs — read cost settings
+  app.get('/api/analytics/platform-costs', requirePlatformAdmin, async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT hosting, supabase, stripe_fee_percent, support_labor, other, notes, updated_at
+        FROM platform_cost_settings
+        LIMIT 1
+      `);
+      res.json(result.rows[0] || { hosting: 0, supabase: 0, stripe_fee_percent: 2.9, support_labor: 0, other: 0 });
+    } catch (error: any) {
+      // Table may not exist yet — return defaults
+      res.json({ hosting: 0, supabase: 0, stripe_fee_percent: 2.9, support_labor: 0, other: 0 });
+    }
+  });
+
+  // PUT /api/analytics/platform-costs — save cost settings
+  app.put('/api/analytics/platform-costs', requirePlatformAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        hosting: z.number().min(0),
+        supabase: z.number().min(0),
+        stripe_fee_percent: z.number().min(0).max(100),
+        support_labor: z.number().min(0),
+        other: z.number().min(0),
+        notes: z.string().optional(),
+      });
+      const data = schema.parse(req.body);
+      const { userId } = await getUserIdFromRequest(req);
+
+      const result = await db.execute(sql`
+        UPDATE platform_cost_settings
+        SET hosting = ${data.hosting},
+            supabase = ${data.supabase},
+            stripe_fee_percent = ${data.stripe_fee_percent},
+            support_labor = ${data.support_labor},
+            other = ${data.other},
+            notes = ${data.notes || null},
+            updated_at = NOW(),
+            updated_by = ${userId}::uuid
+        WHERE id = (SELECT id FROM platform_cost_settings LIMIT 1)
+        RETURNING *
+      `);
+
+      if (result.rows.length === 0) {
+        // No row exists yet — insert one
+        const insertResult = await db.execute(sql`
+          INSERT INTO platform_cost_settings (hosting, supabase, stripe_fee_percent, support_labor, other, notes, updated_by)
+          VALUES (${data.hosting}, ${data.supabase}, ${data.stripe_fee_percent}, ${data.support_labor}, ${data.other}, ${data.notes || null}, ${userId}::uuid)
+          RETURNING *
+        `);
+        return res.json(insertResult.rows[0]);
+      }
+
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid cost settings', details: error.errors });
+      }
+      console.error('[platform-analytics] Save costs error:', error);
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1670,7 +1941,8 @@ export async function registerRoutes(
       `);
       res.json(result.rows);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1684,7 +1956,8 @@ export async function registerRoutes(
       `);
       res.json(result.rows);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1724,7 +1997,8 @@ export async function registerRoutes(
       if (error.message?.includes('unique')) {
         return res.status(409).json({ error: 'A vertical with that slug already exists' });
       }
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1760,7 +2034,8 @@ export async function registerRoutes(
 
       res.json(result.rows[0]);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1786,7 +2061,8 @@ export async function registerRoutes(
 
       res.status(204).end();
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1832,7 +2108,8 @@ export async function registerRoutes(
         seatsUsed: resellerData?.seats_used || 0,
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1901,7 +2178,8 @@ export async function registerRoutes(
       res.status(201).json({ tenant, userId });
     } catch (error: any) {
       // If tenant was created but later steps failed, try to clean up
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1919,7 +2197,8 @@ export async function registerRoutes(
       `);
       res.json(result.rows);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1959,7 +2238,8 @@ export async function registerRoutes(
 
       res.status(201).json(insertResult.rows[0]);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1983,7 +2263,8 @@ export async function registerRoutes(
 
       res.status(204).end();
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1993,10 +2274,16 @@ export async function registerRoutes(
 
   app.post('/api/users/invite', async (req, res) => {
     try {
-      const { email, fullName, role, tenantId, requestingUserId, redirectTo } = req.body;
+      const { email, fullName, role, tenantId, redirectTo } = req.body;
 
-      if (!email || !tenantId || !requestingUserId) {
-        return res.status(400).json({ error: 'Email, tenantId, and requestingUserId are required' });
+      // Authenticate via JWT (not from request body)
+      const { userId: requestingUserId } = await getUserIdFromRequest(req);
+      if (!requestingUserId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      if (!email || !tenantId) {
+        return res.status(400).json({ error: 'Email and tenantId are required' });
       }
 
       // Verify the requesting user is an owner or manager of this tenant
@@ -2065,7 +2352,8 @@ export async function registerRoutes(
 
       res.status(201).json({ userId, email, isNewUser });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -2523,20 +2811,38 @@ export async function registerRoutes(
     }
   });
 
-  // POST /api/kiosk/update-pin — manager updates employee PIN
+  // POST /api/kiosk/update-pin — manager/owner updates employee PIN (requires auth)
   app.post('/api/kiosk/update-pin', async (req, res) => {
     try {
-      const { userId, tenantId, newPin } = req.body;
-      if (!userId || !tenantId || !newPin) {
+      // Authenticate via JWT — only managers/owners can update PINs
+      const { userId: authUserId } = await getUserIdFromRequest(req);
+      if (!authUserId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const { userId: targetUserId, tenantId, newPin } = req.body;
+      if (!targetUserId || !tenantId || !newPin) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
+
+      // Verify requester is manager/owner of this tenant
+      const requesterResult = await db.execute(sql`
+        SELECT role FROM user_profiles
+        WHERE id = ${authUserId}::uuid AND tenant_id = ${tenantId}::uuid AND is_active = true
+        LIMIT 1
+      `);
+      const requester = requesterResult.rows[0] as any;
+      if (!requester || !['owner', 'manager'].includes(requester.role)) {
+        return res.status(403).json({ error: 'Only owners and managers can update PINs' });
+      }
+
       if (!/^\d{4}$/.test(newPin)) {
         return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
       }
       // Check uniqueness within tenant
       const dupCheck = await db.execute(sql`
         SELECT 1 FROM user_profiles
-        WHERE tenant_id = ${tenantId}::uuid AND kiosk_pin = ${newPin} AND is_active = true AND id != ${userId}::uuid
+        WHERE tenant_id = ${tenantId}::uuid AND kiosk_pin = ${newPin} AND is_active = true AND id != ${targetUserId}::uuid
         LIMIT 1
       `);
       if (dupCheck.rows.length > 0) {
@@ -2544,7 +2850,7 @@ export async function registerRoutes(
       }
       await db.execute(sql`
         UPDATE user_profiles SET kiosk_pin = ${newPin}, updated_at = NOW()
-        WHERE id = ${userId}::uuid AND tenant_id = ${tenantId}::uuid
+        WHERE id = ${targetUserId}::uuid AND tenant_id = ${tenantId}::uuid
       `);
       res.json({ success: true });
     } catch (err: any) {
@@ -2552,13 +2858,31 @@ export async function registerRoutes(
     }
   });
 
-  // POST /api/kiosk/set-code — owner sets kiosk store code
+  // POST /api/kiosk/set-code — owner sets kiosk store code (requires auth)
   app.post('/api/kiosk/set-code', async (req, res) => {
     try {
+      // Authenticate via JWT — only owners can set kiosk code
+      const { userId: authUserId } = await getUserIdFromRequest(req);
+      if (!authUserId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
       const { tenantId, kioskCode } = req.body;
       if (!tenantId) {
         return res.status(400).json({ error: 'Missing tenantId' });
       }
+
+      // Verify requester is owner of this tenant
+      const requesterResult = await db.execute(sql`
+        SELECT role FROM user_profiles
+        WHERE id = ${authUserId}::uuid AND tenant_id = ${tenantId}::uuid AND is_active = true
+        LIMIT 1
+      `);
+      const requester = requesterResult.rows[0] as any;
+      if (!requester || requester.role !== 'owner') {
+        return res.status(403).json({ error: 'Only owners can set the kiosk code' });
+      }
+
       const code = (kioskCode || '').trim().toUpperCase();
       if (code && (code.length < 2 || code.length > 10 || !/^[A-Z0-9]+$/.test(code))) {
         return res.status(400).json({ error: 'Code must be 2-10 alphanumeric characters' });

@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
+import { escapeHtml } from '@/lib/escapeHtml';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -450,9 +451,10 @@ export default function CoffeeOrder() {
           };
         });
 
+      const { getAuthHeaders } = await import('@/lib/api-helpers');
       const response = await fetch('/api/coffee-order/send-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           vendorEmail: vendor.contact_email,
           ccEmail: vendor.cc_email || '',
@@ -830,7 +832,7 @@ export default function CoffeeOrder() {
         ${sortedOrders.map((order, index) => `
           <div class="page">
             <div class="header">
-              <h1>${tenant?.name || 'Coffee Order'}</h1>
+              <h1>${escapeHtml(tenant?.name) || 'Coffee Order'}</h1>
               <h2>Order Details</h2>
               <p>Order ${index + 1} of ${orderHistory.length}</p>
             </div>
@@ -861,7 +863,7 @@ export default function CoffeeOrder() {
                     : (orderRetailLabels[id] || 0);
                   return `
                     <tr>
-                      <td>${product?.name || 'Unknown Product'}</td>
+                      <td>${escapeHtml(product?.name) || 'Unknown Product'}</td>
                       <td>${product?.size || '-'}</td>
                       <td>${qty}</td>
                       <td>${retailCount > 0 ? (productCategory === '12oz' ? `${retailCount} (all)` : retailCount) : '-'}</td>
@@ -883,7 +885,7 @@ export default function CoffeeOrder() {
             ${order.notes ? `
               <div class="section-title">Order Notes</div>
               <p style="padding: 15px; background: #FDF8F0; border-radius: 8px; font-style: italic;">
-                ${order.notes}
+                ${escapeHtml(order.notes)}
               </p>
             ` : ''}
           </div>
