@@ -841,11 +841,14 @@ export default function Kiosk() {
         </div>
       )}
 
-      {/* Live clock footer — keeps page active */}
-      <div className="fixed bottom-0 left-0 right-0 py-2 text-center text-xs" style={{ color: colors.brownLight }}>
-        {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}
-        {' \u00B7 '}
-        {now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+      {/* Live clock footer */}
+      <div className="fixed bottom-0 left-0 right-0 py-4 text-center" style={{ color: colors.brown }}>
+        <div className="text-2xl font-bold tracking-wide">
+          {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+        </div>
+        <div className="text-sm mt-0.5" style={{ color: colors.brownLight }}>
+          {now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+        </div>
       </div>
     </div>
   );
