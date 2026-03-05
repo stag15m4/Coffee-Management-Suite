@@ -80,7 +80,45 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
+
+  // Temporary auth diagnostic endpoint — remove after debugging
+  app.get('/api/debug/auth-check', async (req, res) => {
+    const checks: Record<string, any> = {};
+
+    // 1. Check env vars
+    checks.hasSupabaseUrl = !!(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+    checks.hasServiceRoleKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    checks.hasDatabaseUrl = !!process.env.DATABASE_URL;
+
+    // 2. Check auth header
+    const authHeader = req.headers['authorization'];
+    checks.hasAuthHeader = !!authHeader;
+    checks.authHeaderType = authHeader ? authHeader.slice(0, 10) + '...' : 'none';
+
+    // 3. Try getUserIdFromRequest
+    const { userId, debug: authDebug } = await getUserIdFromRequest(req);
+    checks.userId = userId;
+    checks.authDebug = authDebug;
+
+    // 4. If we got a userId, check platform_admins
+    if (userId) {
+      const { isAdmin, debug: adminDebug } = await verifyPlatformAdmin(userId);
+      checks.isAdmin = isAdmin;
+      checks.adminDebug = adminDebug;
+    }
+
+    // 5. Test DB connection
+    try {
+      const dbTest = await db.execute(sql`SELECT 1 as ok`);
+      checks.dbConnected = dbTest.rows.length > 0;
+    } catch (e: any) {
+      checks.dbConnected = false;
+      checks.dbError = e.message;
+    }
+
+    res.json(checks);
+  });
+
   // Ingredients Routes — legacy seed-data endpoints (no tenant isolation in Drizzle schema).
   // Gated to non-production to prevent cross-tenant data exposure.
   if (process.env.NODE_ENV !== 'production') {
