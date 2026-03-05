@@ -771,7 +771,7 @@ export default function CoffeeOrder() {
         <!-- SUMMARY PAGE -->
         <div class="page">
           <div class="header">
-            <h1>${tenant?.name || 'Coffee Order'}</h1>
+            <h1>${escapeHtml(tenant?.name) || 'Coffee Order'}</h1>
             <h2>Order Summary Report</h2>
             <p>${startDate} - ${endDate}</p>
           </div>
@@ -787,7 +787,7 @@ export default function CoffeeOrder() {
             </div>
             <div class="summary-item">
               Vendor
-              <strong>${vendorName}</strong>
+              <strong>${escapeHtml(vendorName)}</strong>
             </div>
             <div class="summary-item">
               Report Generated

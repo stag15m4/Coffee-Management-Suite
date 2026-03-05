@@ -1,3 +1,5 @@
+import { escapeHtml } from '@/lib/escapeHtml';
+
 export interface CashEntry {
   id: string;
   tenant_id: string;
@@ -283,8 +285,8 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
 
   <div class="container">
     <div class="header">
-      <h1>${companyName}</h1>
-      ${locationName ? `<h2>${locationName}</h2>` : ''}
+      <h1>${escapeHtml(companyName)}</h1>
+      ${locationName ? `<h2>${escapeHtml(locationName)}</h2>` : ''}
       <div class="date">${displayDate}</div>
       ${entry.flagged ? '<div class="flag-badge">&#9873; Flagged for Follow-up</div>' : ''}
     </div>
@@ -360,7 +362,7 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
     <!-- Notes -->
     <div class="notes-section" style="margin-top:18px">
       <div class="label">Notes</div>
-      <div class="content">${entry.notes ? entry.notes.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '<span style="color:#6B5344; font-style:italic">No notes</span>'}</div>
+      <div class="content">${entry.notes ? escapeHtml(entry.notes) : '<span style="color:#6B5344; font-style:italic">No notes</span>'}</div>
     </div>
 
     <!-- Handwritten Follow-up Area -->

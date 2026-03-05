@@ -1,4 +1,5 @@
 import { colors } from '@/lib/colors';
+import { escapeHtml } from '@/lib/escapeHtml';
 import {
   supabase,
   type Equipment,
@@ -470,7 +471,7 @@ export async function exportEquipmentRecords(
     </head>
     <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;" class="loading-state">
       <h2>Generating Maintenance Record</h2>
-      <p>Loading all maintenance history for ${equipment.name}...</p>
+      <p>Loading all maintenance history for ${escapeHtml(equipment.name)}...</p>
       <p style="color: #6B5344; font-size: 14px;">Please wait...</p>
     </body>
     </html>
@@ -512,7 +513,7 @@ export async function exportEquipmentRecords(
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Equipment Maintenance Record - ${equipment.name}</title>
+      <title>Equipment Maintenance Record - ${escapeHtml(equipment.name)}</title>
       <style>
         body { font-family: Arial, sans-serif; padding: 20px; color: #4A3728; max-width: 800px; margin: 0 auto; }
         .back-button {
@@ -592,49 +593,49 @@ export async function exportEquipmentRecords(
       <div class="page">
         <div class="header">
           <h1>Equipment Maintenance Record</h1>
-          <h2>${equipment.name}</h2>
+          <h2>${escapeHtml(equipment.name)}</h2>
           <p>Exported: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
         </div>
 
       ${equipment.photo_url ? `
       <div style="margin-bottom: 15px;">
-        <img src="${equipment.photo_url}" alt="${equipment.name}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #E8E0CC;" />
+        <img src="${escapeHtml(equipment.photo_url)}" alt="${escapeHtml(equipment.name)}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #E8E0CC;" />
       </div>
       ` : ''}
 
       <div class="section-title">Equipment Information</div>
         <div class="info-grid">
           <span class="info-label">Name:</span>
-          <span class="info-value">${equipment.name}</span>
+          <span class="info-value">${escapeHtml(equipment.name)}</span>
 
           ${equipment.category ? `
           <span class="info-label">Category:</span>
-          <span class="info-value">${equipment.category}</span>
+          <span class="info-value">${escapeHtml(equipment.category)}</span>
           ` : ''}
 
           ${!isVehicle(equipment.category) && equipment.model ? `
           <span class="info-label">Model:</span>
-          <span class="info-value">${equipment.model}</span>
+          <span class="info-value">${escapeHtml(equipment.model)}</span>
           ` : ''}
 
           ${!isVehicle(equipment.category) && equipment.serial_number ? `
           <span class="info-label">Serial Number:</span>
-          <span class="info-value">${equipment.serial_number}</span>
+          <span class="info-value">${escapeHtml(equipment.serial_number)}</span>
           ` : ''}
 
           ${equipment.notes ? `
           <span class="info-label">Notes:</span>
-          <span class="info-value">${equipment.notes}</span>
+          <span class="info-value">${escapeHtml(equipment.notes)}</span>
           ` : ''}
 
           ${isVehicle(equipment.category) && equipment.license_plate ? `
           <span class="info-label">License Plate:</span>
-          <span class="info-value">${equipment.license_state ? equipment.license_state + ' ' : ''}${equipment.license_plate}</span>
+          <span class="info-value">${equipment.license_state ? escapeHtml(equipment.license_state) + ' ' : ''}${escapeHtml(equipment.license_plate)}</span>
           ` : ''}
 
           ${isVehicle(equipment.category) && equipment.vin ? `
           <span class="info-label">VIN:</span>
-          <span class="info-value">${equipment.vin}</span>
+          <span class="info-value">${escapeHtml(equipment.vin)}</span>
           ` : ''}
 
           <span class="info-label">Added:</span>
@@ -670,7 +671,7 @@ export async function exportEquipmentRecords(
 
           ${equipment.warranty_notes ? `
           <span class="info-label">Warranty Notes:</span>
-          <span class="info-value">${equipment.warranty_notes}</span>
+          <span class="info-value">${escapeHtml(equipment.warranty_notes)}</span>
           ` : ''}
         </div>
         ` : ''}
@@ -680,13 +681,13 @@ export async function exportEquipmentRecords(
 
         ${taskLogs.map(({ task, logs }) => `
           <div class="task-card">
-            <h3>${task.name}</h3>
-            ${task.description ? `<p style="color: #666; margin: 0 0 10px 0; font-size: 14px;">${task.description}</p>` : ''}
+            <h3>${escapeHtml(task.name)}</h3>
+            ${task.description ? `<p style="color: #666; margin: 0 0 10px 0; font-size: 14px;">${escapeHtml(task.description)}</p>` : ''}
             <div class="info-grid">
               <span class="info-label">Type:</span>
               <span class="info-value">${task.interval_type === 'time' ?
                 `Every ${task.interval_days} days` :
-                `Every ${task.interval_units} ${task.usage_unit_label || 'units'}`
+                `Every ${task.interval_units} ${escapeHtml(task.usage_unit_label) || 'units'}`
               }</span>
 
               ${task.estimated_cost ? `
@@ -713,8 +714,8 @@ export async function exportEquipmentRecords(
                 ${logs.map(log => `
                   <tr>
                     <td>${new Date(log.completed_at).toLocaleDateString()}</td>
-                    <td>${log.completed_by || '-'}</td>
-                    <td>${log.notes || '-'}</td>
+                    <td>${escapeHtml(log.completed_by) || '-'}</td>
+                    <td>${escapeHtml(log.notes) || '-'}</td>
                     <td style="color: #C9A227; font-weight: bold;">${log.cost ? '$' + Number(log.cost).toFixed(2) : '-'}</td>
                   </tr>
                 `).join('')}

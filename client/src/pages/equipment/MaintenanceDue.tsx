@@ -57,6 +57,7 @@ interface MaintenanceDueProps {
   handleDeleteTask: (id: string) => Promise<void>;
   profileFullName: string | undefined;
   onUploadTaskPhoto: (taskId: string, file: File) => Promise<void>;
+  onDeleteTaskPhoto: (taskId: string) => Promise<void>;
 }
 
 export function MaintenanceDue({
@@ -78,6 +79,7 @@ export function MaintenanceDue({
   handleDeleteTask,
   profileFullName,
   onUploadTaskPhoto,
+  onDeleteTaskPhoto,
 }: MaintenanceDueProps) {
   const [uploadingTaskId, setUploadingTaskId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -242,12 +244,27 @@ export function MaintenanceDue({
                           {task.image_url ? (
                             <div>
                               <p className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Task Photo</p>
-                              <div
-                                className="w-48 h-48 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                                style={{ border: `2px solid ${colors.gold}` }}
-                                onClick={(e) => { e.stopPropagation(); setLightboxUrl(task.image_url!); }}
-                              >
-                                <img src={task.image_url} alt={task.name} className="w-full h-full object-cover" />
+                              <div className="relative w-48 h-48 group">
+                                <div
+                                  className="w-full h-full rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                                  style={{ border: `2px solid ${colors.gold}` }}
+                                  onClick={(e) => { e.stopPropagation(); setLightboxUrl(task.image_url!); }}
+                                >
+                                  <img src={task.image_url} alt={task.name} className="w-full h-full object-cover" />
+                                </div>
+                                <button
+                                  type="button"
+                                  className="absolute top-1 right-1 p-1.5 rounded-full bg-black/60 hover:bg-red-600 transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Remove this task photo?')) {
+                                      onDeleteTaskPhoto(task.id);
+                                    }
+                                  }}
+                                  aria-label="Remove task photo"
+                                >
+                                  <Trash2 className="w-4 h-4 text-white" />
+                                </button>
                               </div>
                             </div>
                           ) : (

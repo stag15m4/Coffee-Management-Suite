@@ -142,6 +142,7 @@ export default function Kiosk() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [pinError, setPinError] = useState(false);
+  const [kioskToken, setKioskToken] = useState('');
 
   // My Hours state
   const [hoursEntries, setHoursEntries] = useState<HoursEntry[]>([]);
@@ -237,6 +238,7 @@ export default function Kiosk() {
       }
       const data = await resp.json();
       setEmployee(data.employee);
+      setKioskToken(data.kioskToken || '');
       setClockState({
         status: data.status,
         activeEntryId: data.activeEntryId,
@@ -280,7 +282,7 @@ export default function Kiosk() {
   const executeAction = useCallback(async () => {
     try {
       let endpoint = '';
-      let body: Record<string, string> = { tenantId };
+      let body: Record<string, string> = { tenantId, kioskToken };
 
       switch (pendingAction) {
         case 'clock_in':
@@ -301,6 +303,7 @@ export default function Kiosk() {
           break;
         case 'break_end':
           endpoint = '/api/kiosk/break-end';
+          body.employeeId = employee!.id;
           body.breakId = clockState.activeBreakId!;
           break;
       }
@@ -345,7 +348,7 @@ export default function Kiosk() {
     setLoadingHours(true);
     try {
       const { start, end } = getPayPeriodRange();
-      const params = new URLSearchParams({ tenantId, employeeId: employee.id, source: employee.source, start, end });
+      const params = new URLSearchParams({ tenantId, employeeId: employee.id, source: employee.source, start, end, kioskToken });
       const resp = await fetch(`/api/kiosk/my-hours?${params}`);
       if (resp.ok) {
         const data = await resp.json();
@@ -397,6 +400,7 @@ export default function Kiosk() {
           correctedClockIn: combine(editClockInDate, editClockInTime),
           correctedClockOut: combine(editClockOutDate, editClockOutTime),
           reason: editReason.trim(),
+          kioskToken,
         }),
       });
       if (!resp.ok) throw new Error('Failed');

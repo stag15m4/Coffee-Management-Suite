@@ -3,6 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChevronRight } from 'lucide-react';
 
+/** Strip all HTML tags except the few needed for formatting headlines */
+function sanitizeHtml(html: string): string {
+  return html.replace(/<(?!\/?(?:em|br|strong)\s*\/?>)[^>]*>/gi, '');
+}
+
 interface HeroSectionProps {
   headline: string;
   subheadline: string;
@@ -40,7 +45,7 @@ export function HeroSection({
             <h1
               className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
               style={{ color: 'var(--color-secondary)' }}
-              dangerouslySetInnerHTML={{ __html: headline }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(headline) }}
             />
             <p
               className="text-lg md:text-xl mb-8"

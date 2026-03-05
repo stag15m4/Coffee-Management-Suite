@@ -14,13 +14,27 @@ app.set('trust proxy', 1); // Trust first proxy (Railway/reverse proxy) for corr
 
 // Security headers
 app.use(helmet({
-  contentSecurityPolicy: false, // Allow inline styles/scripts for the SPA
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.supabase.co"],
+      connectSrc: ["'self'", "https://*.supabase.co", "https://api.stripe.com"],
+      frameSrc: ["https://js.stripe.com"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"],
+    },
+  } : false,
   crossOriginEmbedderPolicy: false, // Allow loading cross-origin resources (Stripe, Supabase)
 }));
 
-// CORS — allow same-origin by default; configure explicitly for production
+// CORS — restrict origins in production; permissive in dev
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+  : (process.env.NODE_ENV === 'production' ? false : true);
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || true, // true = reflect request origin (same-origin)
+  origin: corsOrigin as any,
   credentials: true,
 }));
 const httpServer = createServer(app);
@@ -157,10 +171,12 @@ app.use((req, res, next) => {
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+    // Only expose error details for client errors; mask server errors
+    const message = status < 500 ? (err.message || "Internal Server Error") : "Internal Server Error";
+    if (!res.headersSent) {
+      res.status(status).json({ message });
+    }
+    console.error(err);
   });
 
   if (process.env.NODE_ENV === "production") {

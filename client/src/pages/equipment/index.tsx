@@ -285,6 +285,15 @@ export default function EquipmentMaintenance() {
     }
   };
 
+  const handleDeleteTaskPhoto = async (taskId: string) => {
+    try {
+      await updateTaskMutation.mutateAsync({ id: taskId, updates: { image_url: null } });
+      toast({ title: 'Task photo removed' });
+    } catch (error: any) {
+      toast({ title: 'Failed to remove photo', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const [completionNotes, setCompletionNotes] = useState('');
   const [completionUsage, setCompletionUsage] = useState('');
   const [completionCost, setCompletionCost] = useState('');
@@ -838,6 +847,7 @@ export default function EquipmentMaintenance() {
               handleDeleteTask={handleDeleteTask}
               profileFullName={profile?.full_name || undefined}
               onUploadTaskPhoto={handleInlineTaskPhotoUpload}
+              onDeleteTaskPhoto={handleDeleteTaskPhoto}
             />
 
             {/* Add Task form */}

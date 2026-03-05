@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
+import { getAuthHeaders } from '@/lib/api-helpers';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -47,7 +48,7 @@ export function FeedbackButton() {
     try {
       const response = await fetch('/api/feedback/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           feedbackType: formData.type,
           subject: formData.subject || `${formData.type.charAt(0).toUpperCase() + formData.type.slice(1)} Report`,

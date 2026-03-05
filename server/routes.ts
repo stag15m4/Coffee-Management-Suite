@@ -31,7 +31,7 @@ async function getUserIdFromRequest(req: Request): Promise<{ userId: string | nu
       debugParts.push(`JWT error: ${err.message}`);
     }
   } else {
-    debugParts.push(authHeader ? `Auth header present but not Bearer: ${authHeader.slice(0, 20)}` : 'No Authorization header');
+    debugParts.push(authHeader ? 'Non-Bearer auth header present' : 'No Authorization header');
   }
 
   // Fallback to x-user-id header (LOCAL DEV ONLY — disabled in production)
@@ -81,7 +81,9 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
-  // Ingredients Routes (require authentication)
+  // Ingredients Routes — legacy seed-data endpoints (no tenant isolation in Drizzle schema).
+  // Gated to non-production to prevent cross-tenant data exposure.
+  if (process.env.NODE_ENV !== 'production') {
   app.get(api.ingredients.list.path, async (req, res) => {
     const { userId } = await getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Authentication required' });
@@ -144,6 +146,7 @@ export async function registerRoutes(
     await storage.deleteIngredient(req.params.id);
     res.status(204).end();
   });
+  } // end dev-only ingredient/recipe routes
 
   // Coffee Order Email Route (requires authentication)
   app.post('/api/coffee-order/send-email', async (req, res) => {
@@ -189,15 +192,13 @@ export async function registerRoutes(
 
   app.post('/api/feedback/submit', async (req, res) => {
     try {
-      const data = sendFeedbackEmailSchema.parse(req.body);
-      
-      // Require user email and tenant ID (only authenticated users have these)
-      if (!data.userEmail || !data.tenantId) {
-        return res.status(401).json({ 
-          success: false, 
-          error: 'Authentication required to submit feedback' 
-        });
+      // M12: Require JWT authentication for feedback
+      const { userId } = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Authentication required' });
       }
+
+      const data = sendFeedbackEmailSchema.parse(req.body);
       
       // Rate limiting by IP + email
       const clientIP = req.ip || req.socket.remoteAddress || 'unknown';
@@ -881,12 +882,13 @@ export async function registerRoutes(
         return res.json(existing.rows[0]);
       }
 
-      // Generate unique code: XXXX-XXXX format
+      // Generate unique code: XXXX-XXXX format (crypto random)
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const randomBytes = crypto.randomBytes(8);
       let code = '';
       for (let i = 0; i < 8; i++) {
         if (i === 4) code += '-';
-        code += chars[Math.floor(Math.random() * chars.length)];
+        code += chars[randomBytes[i] % chars.length];
       }
 
       const result = await db.execute(sql`
@@ -963,9 +965,18 @@ export async function registerRoutes(
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      const { code, tenantId } = req.body;
-      if (!code || !tenantId) {
-        return res.status(400).json({ error: 'code and tenantId are required' });
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ error: 'code is required' });
+      }
+
+      // H5: Derive tenantId from the authenticated user's profile (don't trust client)
+      const profileResult = await db.execute(
+        sql`SELECT tenant_id FROM user_profiles WHERE id = ${userId}::uuid AND is_active = true LIMIT 1`
+      );
+      const tenantId = (profileResult.rows[0] as any)?.tenant_id;
+      if (!tenantId) {
+        return res.status(403).json({ error: 'User has no associated tenant' });
       }
 
       // Look up the referral code
@@ -1431,7 +1442,8 @@ export async function registerRoutes(
         verticalSlug: license.vertical_slug,
       });
     } catch (error: any) {
-      res.status(500).json({ valid: false, error: error.message });
+      console.error('License validate error:', error);
+      res.status(500).json({ valid: false, error: 'Internal server error' });
     }
   });
 
@@ -1740,7 +1752,7 @@ export async function registerRoutes(
       });
     } catch (error: any) {
       console.error('Beta signup error:', error);
-      res.status(500).json({ error: error.message || 'Signup failed' });
+      res.status(500).json({ error: 'Signup failed' });
     }
   });
 
@@ -2286,14 +2298,38 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Email and tenantId are required' });
       }
 
+      // M14: Validate role is one of the allowed values
+      const VALID_ROLES = ['owner', 'manager', 'lead', 'employee'];
+      const assignedRole = VALID_ROLES.includes(role) ? role : 'employee';
+
       // Verify the requesting user is an owner or manager of this tenant
       const requesterResult = await db.execute(sql`
         SELECT role FROM user_profiles
         WHERE id = ${requestingUserId}::uuid AND tenant_id = ${tenantId}::uuid AND is_active = true
         LIMIT 1
       `);
-      if (!requesterResult.rows.length || !['owner', 'manager'].includes((requesterResult.rows[0] as any).role)) {
+      const requesterRole = (requesterResult.rows[0] as any)?.role;
+      if (!requesterRole || !['owner', 'manager'].includes(requesterRole)) {
         return res.status(403).json({ error: 'Only owners and managers can invite users' });
+      }
+
+      // H2: Role hierarchy — managers cannot invite owners; only owners can assign owner role
+      const ROLE_HIERARCHY: Record<string, number> = { employee: 0, lead: 1, manager: 2, owner: 3 };
+      if ((ROLE_HIERARCHY[assignedRole] || 0) > (ROLE_HIERARCHY[requesterRole] || 0)) {
+        return res.status(403).json({ error: 'Cannot invite users with a higher role than your own' });
+      }
+
+      // M11: Validate redirectTo to prevent open redirect
+      if (redirectTo) {
+        try {
+          const url = new URL(redirectTo);
+          const appHost = req.get('host');
+          if (appHost && url.host !== appHost) {
+            return res.status(400).json({ error: 'Invalid redirect URL' });
+          }
+        } catch {
+          return res.status(400).json({ error: 'Invalid redirect URL' });
+        }
       }
 
       const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
@@ -2322,6 +2358,14 @@ export async function registerRoutes(
         }
         userId = existing.id;
 
+        // H1: Check if user already belongs to another tenant — prevent hijacking
+        const existingProfile = await db.execute(sql`
+          SELECT tenant_id FROM user_profiles WHERE id = ${userId}::uuid AND is_active = true LIMIT 1
+        `);
+        if (existingProfile.rows.length > 0 && (existingProfile.rows[0] as any).tenant_id !== tenantId) {
+          return res.status(409).json({ error: 'This user already belongs to another organization' });
+        }
+
         // Send password recovery email so the user can set their own password
         const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
         const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
@@ -2339,15 +2383,15 @@ export async function registerRoutes(
         }
       }
 
-      // Upsert user profile
+      // Upsert user profile — only update if user belongs to THIS tenant (prevent hijack)
       await db.execute(sql`
         INSERT INTO user_profiles (id, tenant_id, email, full_name, role, is_active)
-        VALUES (${userId}::uuid, ${tenantId}::uuid, ${email}, ${fullName || email.split('@')[0]}, ${role || 'employee'}, true)
+        VALUES (${userId}::uuid, ${tenantId}::uuid, ${email}, ${fullName || email.split('@')[0]}, ${assignedRole}, true)
         ON CONFLICT (id) DO UPDATE SET
-          tenant_id = ${tenantId}::uuid,
-          role = ${role || 'employee'},
+          role = ${assignedRole},
           full_name = ${fullName || email.split('@')[0]},
           is_active = true
+        WHERE user_profiles.tenant_id = ${tenantId}::uuid
       `);
 
       res.status(201).json({ userId, email, isNewUser });
@@ -2384,8 +2428,24 @@ export async function registerRoutes(
         return res.status(403).json({ error: 'Lead role or higher required' });
       }
 
-      // Fetch + parse iCal feed (webcal:// → https://)
+      // Fetch + parse iCal feed (webcal:// → https://) with SSRF protection
       const feedUrl = (sub.url as string).replace(/^webcal:\/\//i, 'https://');
+      try {
+        const parsedUrl = new URL(feedUrl);
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+          return res.status(400).json({ error: 'Only HTTP/HTTPS URLs are allowed' });
+        }
+        // Block private/internal IPs
+        const hostname = parsedUrl.hostname.toLowerCase();
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+            || hostname.startsWith('10.') || hostname.startsWith('192.168.')
+            || hostname.startsWith('172.') || hostname === '169.254.169.254'
+            || hostname.endsWith('.internal') || hostname.endsWith('.local')) {
+          return res.status(400).json({ error: 'Internal URLs are not allowed' });
+        }
+      } catch {
+        return res.status(400).json({ error: 'Invalid feed URL' });
+      }
       const events = await ical.async.fromURL(feedUrl);
       let syncCount = 0;
 
@@ -2449,11 +2509,41 @@ export async function registerRoutes(
           WHERE id = ${subscriptionId}::uuid
         `);
       } catch { /* ignore */ }
-      res.status(500).json({ error: 'Failed to sync iCal feed', details: err.message });
+      console.error('iCal sync error:', err);
+      res.status(500).json({ error: 'Failed to sync iCal feed' });
     }
   });
 
   // ─── KIOSK ENDPOINTS ──────────────────────────────────────
+
+  // Kiosk session tokens — issued after PIN verification, required for all actions
+  const kioskSessions = new Map<string, { tenantId: string; employeeId: string; expiresAt: number }>();
+  const KIOSK_SESSION_TTL = 15 * 60 * 1000; // 15 minutes
+
+  function verifyKioskSession(token: string | undefined, tenantId: string, employeeId: string): boolean {
+    if (!token) return false;
+    const session = kioskSessions.get(token);
+    if (!session) return false;
+    if (Date.now() > session.expiresAt) {
+      kioskSessions.delete(token);
+      return false;
+    }
+    return session.tenantId === tenantId && session.employeeId === employeeId;
+  }
+
+  // Periodic cleanup of expired kiosk sessions and rate limit entries
+  setInterval(() => {
+    const now = Date.now();
+    kioskSessions.forEach((session, key) => {
+      if (now > session.expiresAt) kioskSessions.delete(key);
+    });
+    kioskRateLimit.forEach((entry, key) => {
+      if (now >= entry.resetTime) kioskRateLimit.delete(key);
+    });
+    feedbackRateLimit.forEach((entry, key) => {
+      if (now >= entry.resetTime) feedbackRateLimit.delete(key);
+    });
+  }, 5 * 60 * 1000); // every 5 minutes
 
   // Rate limiting for PIN attempts
   const kioskRateLimit = new Map<string, { count: number; resetTime: number }>();
@@ -2581,6 +2671,14 @@ export async function registerRoutes(
         }
       }
 
+      // Issue a kiosk session token after successful PIN verification
+      const kioskToken = crypto.randomBytes(32).toString('hex');
+      kioskSessions.set(kioskToken, {
+        tenantId,
+        employeeId: emp.id,
+        expiresAt: Date.now() + KIOSK_SESSION_TTL,
+      });
+
       res.json({
         employee: { id: emp.id, fullName: emp.fullName, avatarUrl: emp.avatarUrl, role: emp.role, source: emp.source },
         status,
@@ -2588,6 +2686,7 @@ export async function registerRoutes(
         clockInTime,
         activeBreakId,
         breakStartTime,
+        kioskToken,
       });
     } catch (err: any) {
       res.status(500).json({ error: 'Server error' });
@@ -2597,9 +2696,12 @@ export async function registerRoutes(
   // POST /api/kiosk/clock-in
   app.post('/api/kiosk/clock-in', async (req, res) => {
     try {
-      const { tenantId, employeeId, source, employeeName } = req.body;
+      const { tenantId, employeeId, source, employeeName, kioskToken } = req.body;
       if (!tenantId || !employeeId) {
         return res.status(400).json({ error: 'Missing tenantId or employeeId' });
+      }
+      if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
+        return res.status(401).json({ error: 'Invalid or expired kiosk session' });
       }
       const isTipEmployee = source === 'tip_employee';
 
@@ -2644,9 +2746,12 @@ export async function registerRoutes(
   // POST /api/kiosk/clock-out
   app.post('/api/kiosk/clock-out', async (req, res) => {
     try {
-      const { tenantId, employeeId, entryId } = req.body;
+      const { tenantId, employeeId, entryId, kioskToken } = req.body;
       if (!tenantId || !employeeId || !entryId) {
         return res.status(400).json({ error: 'Missing required fields' });
+      }
+      if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
+        return res.status(401).json({ error: 'Invalid or expired kiosk session' });
       }
       // End any active breaks
       await db.execute(sql`
@@ -2674,9 +2779,12 @@ export async function registerRoutes(
   // POST /api/kiosk/break-start
   app.post('/api/kiosk/break-start', async (req, res) => {
     try {
-      const { tenantId, employeeId, entryId } = req.body;
+      const { tenantId, employeeId, entryId, kioskToken } = req.body;
       if (!tenantId || !employeeId || !entryId) {
         return res.status(400).json({ error: 'Missing required fields' });
+      }
+      if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
+        return res.status(401).json({ error: 'Invalid or expired kiosk session' });
       }
       // Verify no active break
       const activeBreak = await db.execute(sql`
@@ -2702,9 +2810,12 @@ export async function registerRoutes(
   // POST /api/kiosk/break-end
   app.post('/api/kiosk/break-end', async (req, res) => {
     try {
-      const { tenantId, breakId } = req.body;
+      const { tenantId, breakId, employeeId, kioskToken } = req.body;
       if (!tenantId || !breakId) {
         return res.status(400).json({ error: 'Missing required fields' });
+      }
+      if (employeeId && kioskToken && !verifyKioskSession(kioskToken, tenantId, employeeId)) {
+        return res.status(401).json({ error: 'Invalid or expired kiosk session' });
       }
       const result = await db.execute(sql`
         UPDATE time_clock_breaks
@@ -2725,9 +2836,12 @@ export async function registerRoutes(
   // GET /api/kiosk/my-hours — employee's time entries for a date range
   app.get('/api/kiosk/my-hours', async (req, res) => {
     try {
-      const { tenantId, employeeId, source, start, end } = req.query as Record<string, string>;
+      const { tenantId, employeeId, source, start, end, kioskToken } = req.query as Record<string, string>;
       if (!tenantId || !employeeId || !start || !end) {
         return res.status(400).json({ error: 'Missing required query params' });
+      }
+      if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
+        return res.status(401).json({ error: 'Invalid or expired kiosk session' });
       }
       const isTip = source === 'tip_employee';
       const result = await db.execute(
@@ -2784,9 +2898,12 @@ export async function registerRoutes(
   // POST /api/kiosk/edit-request — submit a time clock edit request
   app.post('/api/kiosk/edit-request', async (req, res) => {
     try {
-      const { tenantId, employeeId, entryId, correctedClockIn, correctedClockOut, reason } = req.body;
+      const { tenantId, employeeId, entryId, correctedClockIn, correctedClockOut, reason, kioskToken } = req.body;
       if (!tenantId || !employeeId || !entryId || !reason) {
         return res.status(400).json({ error: 'Missing required fields' });
+      }
+      if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
+        return res.status(401).json({ error: 'Invalid or expired kiosk session' });
       }
       // Verify entry belongs to employee
       const entryCheck = await db.execute(sql`

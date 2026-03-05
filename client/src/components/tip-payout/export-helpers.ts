@@ -1,5 +1,6 @@
 import { CC_FEE_RATE, TipEmployee } from './types';
 import { formatCurrency, formatHoursMinutes, getWeekRange } from './utils';
+import { escapeHtml } from '@/lib/escapeHtml';
 
 interface WeeklyPdfParams {
   companyName: string;
@@ -194,12 +195,12 @@ export function buildWeeklyPdfHtml(params: WeeklyPdfParams): string {
       <div class="page-break"></div>
       <div class="container paystub">
         <div class="header">
-          <h1>${companyName}</h1>
+          <h1>${escapeHtml(companyName)}</h1>
           <h2>Employee Tip Paystub</h2>
           <div class="week">Week: ${weekRange.start} - ${weekRange.end}</div>
         </div>
 
-        <div class="employee-name">${name}</div>
+        <div class="employee-name">${escapeHtml(name)}</div>
 
         <div class="summary">
           <div class="summary-item">Total Tip Pool: ${formatCurrency(totalPool)}</div>
@@ -238,7 +239,7 @@ export function buildWeeklyPdfHtml(params: WeeklyPdfParams): string {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>${companyName} - Weekly Tip Payout Summary</title>
+      <title>${escapeHtml(companyName)} - Weekly Tip Payout Summary</title>
       <style>${pdfBaseStyles}</style>
     </head>
     <body>
@@ -248,7 +249,7 @@ export function buildWeeklyPdfHtml(params: WeeklyPdfParams): string {
       </div>
       <div class="container">
         <div class="header">
-          <h1>${companyName}</h1>
+          <h1>${escapeHtml(companyName)}</h1>
           <h2>Weekly Tip Payout Summary</h2>
           <div class="week">Week: ${weekRange.start} - ${weekRange.end}</div>
         </div>
@@ -274,7 +275,7 @@ export function buildWeeklyPdfHtml(params: WeeklyPdfParams): string {
             ${sortedEmployees
               .map(([name, hours]) => `
                 <tr>
-                  <td>${name}</td>
+                  <td>${escapeHtml(name)}</td>
                   <td>${formatHoursMinutes(hours)}</td>
                   <td>${formatCurrency(hours * hourlyRate)}</td>
                 </tr>
@@ -410,7 +411,7 @@ export function buildHistoricalGroupHtml(params: HistoricalGroupParams): string 
       tableRows += `
         <tr>
           <td>${weekRange.start} - ${weekRange.end}</td>
-          <td>${h.tip_employees?.name || 'Unknown'}</td>
+          <td>${escapeHtml(h.tip_employees?.name) || 'Unknown'}</td>
           <td>${hours.toFixed(2)}</td>
           <td>$${rate.toFixed(2)}</td>
           <td>$${payout.toFixed(2)}</td>
@@ -427,7 +428,7 @@ export function buildHistoricalGroupHtml(params: HistoricalGroupParams): string 
       : '<span style="background: #f0f0f0; color: #666; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px;">Inactive</span>';
     employeeSummaryRows += `
       <tr>
-        <td>${emp.name}${statusBadge}</td>
+        <td>${escapeHtml(emp.name)}${statusBadge}</td>
         <td>${emp.hours.toFixed(2)}</td>
         <td>$${emp.payout.toFixed(2)}</td>
       </tr>
@@ -561,7 +562,7 @@ export function buildHistoricalIndividualHtml(params: HistoricalIndividualParams
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Tip Payout History - ${employeeName}</title>
+      <title>Tip Payout History - ${escapeHtml(employeeName)}</title>
       <style>${historicalBaseStyles}</style>
     </head>
     <body>
@@ -571,7 +572,7 @@ export function buildHistoricalIndividualHtml(params: HistoricalIndividualParams
       </div>
       <div class="container">
         <h1>Tip Payout History</h1>
-        <h2>${employeeName}</h2>
+        <h2>${escapeHtml(employeeName)}</h2>
         <p class="date-range">${startRange} - ${endRange}</p>
 
         <div class="summary-box">

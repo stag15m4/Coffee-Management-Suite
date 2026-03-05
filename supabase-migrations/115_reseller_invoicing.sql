@@ -43,19 +43,19 @@ ALTER TABLE reseller_invoices ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Platform admins can view reseller invoices"
   ON reseller_invoices FOR SELECT
-  USING (EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid()));
+  USING (is_platform_admin());
 
 CREATE POLICY "Platform admins can insert reseller invoices"
   ON reseller_invoices FOR INSERT
-  WITH CHECK (EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid()));
+  WITH CHECK (is_platform_admin());
 
 CREATE POLICY "Platform admins can update reseller invoices"
   ON reseller_invoices FOR UPDATE
-  USING (EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid()));
+  USING (is_platform_admin());
 
 CREATE POLICY "Platform admins can delete reseller invoices"
   ON reseller_invoices FOR DELETE
-  USING (EXISTS (SELECT 1 FROM platform_admins WHERE user_id = auth.uid()));
+  USING (is_platform_admin());
 
 -- Sequence for invoice numbers per year
 CREATE SEQUENCE IF NOT EXISTS reseller_invoice_number_seq START 1;

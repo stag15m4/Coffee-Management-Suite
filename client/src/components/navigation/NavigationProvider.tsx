@@ -15,6 +15,7 @@ import {
   MoreHorizontal,
   Plug,
   BookKey,
+  BarChart3,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -198,6 +199,13 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
         label: 'Platform Admin',
         href: '/platform-admin',
         icon: Shield,
+        isAccessible: true,
+      });
+      adminItems.push({
+        id: 'platform-analytics',
+        label: 'Platform Analytics',
+        href: '/platform-analytics',
+        icon: BarChart3,
         isAccessible: true,
       });
       adminItems.push({

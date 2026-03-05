@@ -33,6 +33,7 @@ import UserProfile from "@/pages/user-profile";
 import MyTeam from "@/pages/my-team";
 import OrganizationDashboard from "@/pages/organization-dashboard";
 import PlatformAdmin from "@/pages/platform-admin";
+import PlatformAnalytics from "@/pages/platform-analytics";
 import ResellerManagement from "@/pages/reseller-management";
 import Billing from "@/pages/billing";
 import Reporting from "@/pages/reporting";
@@ -72,6 +73,7 @@ function Router() {
       <Route path="/signup/:code?" component={Signup} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/platform-admin" component={PlatformAdmin} />
+      <Route path="/platform-analytics" component={PlatformAnalytics} />
       <Route path="/reseller-management" component={ResellerManagement} />
       <Route path="/admin/users">
         <ProtectedRoute>
