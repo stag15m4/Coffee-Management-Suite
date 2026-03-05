@@ -21,7 +21,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   // Update browser tab title when tenant changes
   useEffect(() => {
-    document.title = `${displayName} — Management Suite`;
+    document.title = `${displayName} — CMS`;
   }, [displayName]);
 
   // Close mobile menu on route change

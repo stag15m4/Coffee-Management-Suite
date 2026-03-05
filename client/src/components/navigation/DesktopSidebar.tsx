@@ -74,19 +74,19 @@ export function DesktopSidebar({ className }: { className?: string }) {
       {/* ---- Header ---- */}
       <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: 'var(--color-accent-dark)' }}>
         <Link href="/">
-          <button className="flex items-center gap-2.5 w-full">
+          <button className="flex flex-col items-center gap-1.5 w-full">
             {meta.logoUrl ? (
-              <img src={meta.logoUrl} alt={displayName} className="h-8 w-auto flex-shrink-0" />
+              <img src={meta.logoUrl} alt={displayName} className="h-12 w-auto" />
             ) : (
               <div
-                className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
+                className="w-10 h-10 rounded-md flex items-center justify-center text-sm font-bold text-white"
                 style={{ backgroundColor: 'var(--color-primary)' }}
               >
                 {displayName.substring(0, 2).toUpperCase()}
               </div>
             )}
             <span
-              className="text-sm font-bold truncate"
+              className="text-sm font-bold truncate max-w-full"
               style={{ color: 'var(--color-secondary)' }}
             >
               {displayName}
