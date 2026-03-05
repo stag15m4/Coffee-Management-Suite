@@ -504,12 +504,12 @@ export default function Kiosk() {
       {/* ─── PIN ENTRY STEP ─── */}
       {step === 'pin_entry' && (
         <div className="flex flex-col items-center gap-6 w-full max-w-xs">
-          {/* Tenant header */}
+          {/* Tenant header with branding */}
           <div className="text-center">
             {logoUrl ? (
-              <img src={logoUrl} alt="" className="w-12 h-12 rounded-full mx-auto mb-2 object-cover" />
+              <img src={logoUrl} alt="" className="w-20 h-20 rounded-full mx-auto mb-3 object-cover" style={{ border: `3px solid ${colors.gold}` }} />
             ) : (
-              <div className="w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: colors.gold }}>
+              <div className="w-20 h-20 rounded-full mx-auto mb-3 flex items-center justify-center text-white font-bold text-2xl" style={{ backgroundColor: colors.gold }}>
                 {tenantName.charAt(0)}
               </div>
             )}
