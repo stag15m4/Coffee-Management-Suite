@@ -1154,15 +1154,32 @@ export default function PlatformAdmin() {
               <CardContent className="py-6 text-center">
                 <p className="font-medium mb-1" style={{ color: colors.red }}>Failed to load platform admins</p>
                 <p className="text-xs" style={{ color: colors.brownLight }}>{adminsError}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3"
-                  onClick={loadAdmins}
-                  style={{ borderColor: colors.gold, color: colors.gold }}
-                >
-                  Retry
-                </Button>
+                <div className="flex gap-2 justify-center mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadAdmins}
+                    style={{ borderColor: colors.gold, color: colors.gold }}
+                  >
+                    Retry
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/debug/auth-check', { headers: await getAuthHeaders() });
+                        const data = await res.json();
+                        setAdminsError(`API returned 403 | Debug: ${JSON.stringify(data, null, 2)}`);
+                      } catch (e: any) {
+                        setAdminsError(`Debug fetch failed: ${e.message}`);
+                      }
+                    }}
+                    style={{ borderColor: colors.brownLight, color: colors.brownLight }}
+                  >
+                    Diagnose
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
