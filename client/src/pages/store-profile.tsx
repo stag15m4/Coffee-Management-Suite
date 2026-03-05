@@ -19,6 +19,8 @@ import {
   Pencil,
   Check,
   X,
+  KeyRound,
+  Copy,
 } from 'lucide-react';
 import {
   useStoreTeamMembers,
@@ -246,6 +248,11 @@ export default function StoreProfile() {
           editing={editingDrawer}
           onEditToggle={() => setEditingDrawer(!editingDrawer)}
         />
+
+        {/* Kiosk Store Code */}
+        {canEdit && (storeTenant as any).kiosk_code && (
+          <KioskCodeCard code={(storeTenant as any).kiosk_code} />
+        )}
       </div>
 
       {/* Team Member Profile Overlay */}
@@ -875,6 +882,53 @@ function LocationAddressCard({
             )}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// --- Kiosk Store Code Card ---
+
+function KioskCodeCard({ code }: { code: string }) {
+  const { toast } = useToast();
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code).then(() => {
+      toast({ title: 'Store code copied' });
+    }).catch(() => {
+      toast({ title: 'Failed to copy', variant: 'destructive' });
+    });
+  };
+
+  return (
+    <Card style={{ backgroundColor: colors.white }}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+          <KeyRound className="w-5 h-5" style={{ color: colors.gold }} />
+          Kiosk Store Code
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm mb-3" style={{ color: colors.brownLight }}>
+          Employees enter this code on the kiosk to identify your store before clocking in.
+        </p>
+        <div className="flex items-center gap-3">
+          <div
+            className="px-4 py-2 rounded-lg font-mono text-lg font-bold tracking-widest select-all"
+            style={{ backgroundColor: colors.cream, color: colors.brown, border: `2px solid ${colors.gold}` }}
+          >
+            {code}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopy}
+            style={{ borderColor: colors.creamDark, color: colors.brown }}
+          >
+            <Copy className="w-4 h-4 mr-1" />
+            Copy
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
