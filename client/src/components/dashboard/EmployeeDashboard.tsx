@@ -207,6 +207,11 @@ export default function EmployeeDashboard() {
           <p className="text-sm mt-1 opacity-70" style={{ color: 'var(--color-secondary)' }}>
             {tenant?.name} &bull; {weekHours}h this week
           </p>
+          {profile?.kiosk_pin && (
+            <p className="text-xs mt-1 font-mono tracking-widest opacity-50" style={{ color: 'var(--color-secondary)' }}>
+              Kiosk PIN: {profile.kiosk_pin}
+            </p>
+          )}
         </div>
 
         {/* Expired trial notice */}

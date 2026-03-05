@@ -16,6 +16,7 @@ export interface UserProfile {
   avatar_url: string | null;
   start_date: string | null;
   is_exempt: boolean;
+  kiosk_pin: string | null;
 }
 
 export interface PlatformAdmin {
@@ -371,6 +372,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         avatar_url: null,
         start_date: null,
         is_exempt: false,
+        kiosk_pin: null,
       };
 
       // Create mock tenant

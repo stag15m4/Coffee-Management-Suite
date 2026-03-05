@@ -500,6 +500,18 @@ export default function UserProfile() {
               </div>
             </div>
 
+            {profile.kiosk_pin && (
+              <div>
+                <Label style={{ color: colors.brown }}>Kiosk PIN</Label>
+                <div className="px-3 py-2 rounded font-mono text-lg tracking-widest" style={{ backgroundColor: colors.cream, color: colors.brown }}>
+                  {profile.kiosk_pin}
+                </div>
+                <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                  Use this PIN to clock in/out on the shared kiosk
+                </p>
+              </div>
+            )}
+
             <Button
               onClick={handleUpdateProfile}
               disabled={updatingProfile}
