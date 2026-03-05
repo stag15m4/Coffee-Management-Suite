@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Save, RotateCcw, Check } from 'lucide-react';
+import { useUpload } from '@/hooks/use-upload';
+import { Save, RotateCcw, Check, Upload, Loader2, Trash2 } from 'lucide-react';
 import { colors } from '@/lib/colors';
 
 const defaultBranding = {
@@ -78,6 +79,35 @@ export default function AdminBranding() {
   const [accentColor, setAccentColor] = useState(defaultBranding.accent_color);
   const [backgroundColor, setBackgroundColor] = useState(defaultBranding.background_color);
   const [saving, setSaving] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+
+  const { uploadFile, isUploading: uploadingLogo } = useUpload({
+    onSuccess: (response) => {
+      // Use the permanent serve path
+      const serveUrl = `${window.location.origin}${response.objectPath}`;
+      setLogoUrl(serveUrl);
+      toast({ title: 'Logo uploaded! Click "Save Changes" to apply.' });
+    },
+    onError: (error) => {
+      toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const handleLogoFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Please select an image file', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Image must be under 5MB', variant: 'destructive' });
+      return;
+    }
+    await uploadFile(file);
+    e.target.value = '';
+  };
 
   useEffect(() => {
     if (branding) {
@@ -223,31 +253,77 @@ export default function AdminBranding() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-2" style={{ color: colors.brown }}>
-                Logo URL
+                Logo
               </label>
-              <Input
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://example.com/logo.png"
-                style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                data-testid="input-logo-url"
-              />
-              <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
-                Enter a URL to your logo image. Recommended size: 200x50px
-              </p>
+
+              {/* Current logo preview */}
               {logoUrl && (
-                <div className="mt-3 p-4 rounded-lg" style={{ backgroundColor: colors.cream }}>
-                  <p className="text-sm mb-2" style={{ color: colors.brownLight }}>Preview:</p>
+                <div className="mb-3 p-4 rounded-lg flex items-center gap-4" style={{ backgroundColor: colors.cream }}>
                   <img
                     src={logoUrl}
                     alt="Logo preview"
-                    className="h-12 w-auto"
+                    className="h-14 w-auto max-w-[200px] object-contain"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLogoUrl('')}
+                    style={{ borderColor: colors.creamDark, color: '#ef4444' }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               )}
+
+              {/* Upload button */}
+              <input
+                ref={logoFileRef}
+                type="file"
+                accept="image/*"
+                onChange={handleLogoFileSelect}
+                className="hidden"
+              />
+              <div className="flex gap-2 items-center">
+                <Button
+                  variant="outline"
+                  onClick={() => logoFileRef.current?.click()}
+                  disabled={uploadingLogo}
+                  style={{ borderColor: colors.gold, color: colors.gold }}
+                >
+                  {uploadingLogo ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</>
+                  ) : (
+                    <><Upload className="w-4 h-4 mr-2" /> Upload Logo</>
+                  )}
+                </Button>
+                <button
+                  onClick={() => setShowUrlInput(!showUrlInput)}
+                  className="text-xs underline"
+                  style={{ color: colors.brownLight }}
+                >
+                  {showUrlInput ? 'Hide URL input' : 'Or enter a URL'}
+                </button>
+              </div>
+
+              {/* Optional URL input */}
+              {showUrlInput && (
+                <div className="mt-2">
+                  <Input
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    placeholder="https://example.com/logo.png"
+                    style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                    data-testid="input-logo-url"
+                  />
+                </div>
+              )}
+
+              <p className="text-xs mt-2" style={{ color: colors.brownLight }}>
+                Upload an image or paste a URL. Recommended: PNG or SVG, max 5MB.
+              </p>
             </div>
           </CardContent>
         </Card>
