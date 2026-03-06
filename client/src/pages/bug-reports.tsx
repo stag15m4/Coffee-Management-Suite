@@ -92,6 +92,9 @@ export default function BugReports() {
       .eq('tenant_id', tenant.id)
       .order('created_at', { ascending: false });
 
+    if (error) {
+      console.error('[BugReports] fetch error:', error, 'tenant_id:', tenant.id);
+    }
     if (!error && data) setReports(data);
     setLoading(false);
   }
