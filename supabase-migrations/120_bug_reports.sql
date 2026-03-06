@@ -12,6 +12,7 @@ create table if not exists bug_reports (
   severity text not null default 'medium' check (severity in ('low', 'medium', 'high', 'critical')),
   status text not null default 'open' check (status in ('open', 'in_progress', 'resolved', 'closed')),
   admin_notes text,
+  screenshot_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
