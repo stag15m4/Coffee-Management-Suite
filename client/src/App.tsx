@@ -76,7 +76,11 @@ function Router() {
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/platform-admin" component={PlatformAdmin} />
       <Route path="/platform-analytics" component={PlatformAnalytics} />
-      <Route path="/platform-bug-reports" component={PlatformBugReports} />
+      <Route path="/platform-bug-reports">
+        <ProtectedRoute>
+          <AppLayout><PlatformBugReports /></AppLayout>
+        </ProtectedRoute>
+      </Route>
       <Route path="/reseller-management" component={ResellerManagement} />
       <Route path="/admin/users">
         <ProtectedRoute>

@@ -398,20 +398,20 @@ export function Sidebar() {
       </div>
       <div className="px-3 pb-3" style={{ borderColor: colors.creamDark }}>
         {isPlatformAdmin && !adminViewingTenant && (
-          <>
-            <SidebarLink
-              href="/platform-admin"
-              label="Platform Admin"
-              icon={Shield}
-              isActive={location === '/platform-admin'}
-            />
-            <SidebarLink
-              href="/platform-bug-reports"
-              label="Bug Triage"
-              icon={Bug}
-              isActive={location === '/platform-bug-reports'}
-            />
-          </>
+          <SidebarLink
+            href="/platform-admin"
+            label="Platform Admin"
+            icon={Shield}
+            isActive={location === '/platform-admin'}
+          />
+        )}
+        {isPlatformAdmin && (
+          <SidebarLink
+            href="/platform-bug-reports"
+            label="Bug Triage"
+            icon={Bug}
+            isActive={location === '/platform-bug-reports'}
+          />
         )}
         <div ref={userMenuRef} className="relative">
           <button
