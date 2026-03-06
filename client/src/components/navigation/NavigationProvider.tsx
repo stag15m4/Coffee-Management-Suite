@@ -16,6 +16,7 @@ import {
   Plug,
   BookKey,
   BarChart3,
+  Bug,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -163,6 +164,14 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
         icon: Plug,
         requiredRole: 'owner',
         isAccessible: hasRole('owner'),
+      },
+      {
+        id: 'settings-bug-reports',
+        label: 'Bug Reports',
+        href: '/bug-reports',
+        icon: Bug,
+        requiredRole: 'manager',
+        isAccessible: hasRole('manager'),
       },
     ];
 
