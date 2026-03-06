@@ -24,18 +24,21 @@ create index if not exists idx_bug_reports_created on bug_reports(created_at des
 -- RLS
 alter table bug_reports enable row level security;
 
--- Tenants can insert bug reports for their own tenant
+-- Users can insert bug reports for their own tenant (or platform admins for any tenant)
 create policy "Users can submit bug reports for their tenant"
   on bug_reports for insert
   with check (
     tenant_id = (SELECT tenant_id FROM user_profiles WHERE id = auth.uid())
+    OR tenant_id IN (SELECT tenant_id FROM user_tenant_assignments WHERE user_id = auth.uid() AND is_active = true)
+    OR EXISTS (SELECT 1 FROM platform_admins WHERE id = auth.uid() AND is_active = true)
   );
 
--- Tenants can view their own tenant's bug reports
+-- Users can view their own tenant's bug reports (including multi-tenant assignments)
 create policy "Users can view their tenant bug reports"
   on bug_reports for select
   using (
     tenant_id = (SELECT tenant_id FROM user_profiles WHERE id = auth.uid())
+    OR tenant_id IN (SELECT tenant_id FROM user_tenant_assignments WHERE user_id = auth.uid() AND is_active = true)
   );
 
 -- Platform admins can view all bug reports
