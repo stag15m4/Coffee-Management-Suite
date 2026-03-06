@@ -44,6 +44,8 @@ import DocumentLibrary from "@/pages/document-library";
 import Kiosk from "@/pages/kiosk";
 import ResetPassword from "@/pages/reset-password";
 import AdminBusinessAccounts from "@/pages/admin-business-accounts";
+import BugReports from "@/pages/bug-reports";
+import PlatformBugReports from "@/pages/platform-bug-reports";
 
 function HomePage() {
   const { user, loading } = useAuth();
@@ -74,6 +76,7 @@ function Router() {
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/platform-admin" component={PlatformAdmin} />
       <Route path="/platform-analytics" component={PlatformAnalytics} />
+      <Route path="/platform-bug-reports" component={PlatformBugReports} />
       <Route path="/reseller-management" component={ResellerManagement} />
       <Route path="/admin/users">
         <ProtectedRoute>
@@ -103,6 +106,11 @@ function Router() {
       <Route path="/admin/business-accounts">
         <ProtectedRoute>
           <AppLayout><AdminBusinessAccounts /></AppLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bug-reports">
+        <ProtectedRoute>
+          <AppLayout><BugReports /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/organization">

@@ -1,0 +1,249 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase-queries';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Bug, Plus, Loader2, Clock, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { colors } from '@/lib/colors';
+
+interface BugReport {
+  id: string;
+  title: string;
+  description: string;
+  severity: string;
+  status: string;
+  admin_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const severityColors: Record<string, string> = {
+  low: colors.blue,
+  medium: colors.gold,
+  high: colors.orange,
+  critical: colors.red,
+};
+
+const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
+  open: { label: 'Open', color: colors.blue, icon: Clock },
+  in_progress: { label: 'In Progress', color: colors.orange, icon: AlertTriangle },
+  resolved: { label: 'Resolved', color: colors.green, icon: CheckCircle },
+  closed: { label: 'Closed', color: colors.brownLight, icon: XCircle },
+};
+
+export default function BugReports() {
+  const { user, profile, tenant } = useAuth();
+  const { toast } = useToast();
+  const [reports, setReports] = useState<BugReport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [severity, setSeverity] = useState('medium');
+
+  async function fetchReports() {
+    if (!tenant?.id) return;
+    const { data, error } = await supabase
+      .from('bug_reports')
+      .select('id, title, description, severity, status, admin_notes, created_at, updated_at')
+      .eq('tenant_id', tenant.id)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) setReports(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    fetchReports();
+  }, [tenant?.id]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim() || !description.trim() || !tenant?.id || !user?.id) return;
+
+    setSubmitting(true);
+    const { error } = await supabase.from('bug_reports').insert({
+      tenant_id: tenant.id,
+      submitted_by: user.id,
+      submitted_by_name: profile?.full_name || null,
+      submitted_by_email: user.email || null,
+      title: title.trim(),
+      description: description.trim(),
+      severity,
+    });
+
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to submit bug report. Please try again.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Bug Report Submitted', description: 'Your report has been sent to the team.' });
+      setTitle('');
+      setDescription('');
+      setSeverity('medium');
+      setShowForm(false);
+      fetchReports();
+    }
+    setSubmitting(false);
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>Bug Reports</h1>
+          <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
+            Report issues and track their resolution
+          </p>
+        </div>
+        <Button
+          onClick={() => setShowForm(!showForm)}
+          style={{ backgroundColor: colors.gold, color: colors.white }}
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Report a Bug
+        </Button>
+      </div>
+
+      {showForm && (
+        <Card style={{ backgroundColor: colors.white }}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+              <Bug className="w-5 h-5" />
+              New Bug Report
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label style={{ color: colors.brown }}>Title</Label>
+                <Input
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="Brief summary of the issue"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label style={{ color: colors.brown }}>Description</Label>
+                <textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Describe the bug in detail. Include steps to reproduce, what you expected, and what actually happened."
+                  className="w-full min-h-[120px] rounded-md border px-3 py-2 text-sm resize-y"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label style={{ color: colors.brown }}>Severity</Label>
+                <Select value={severity} onValueChange={setSeverity}>
+                  <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low - Minor inconvenience</SelectItem>
+                    <SelectItem value="medium">Medium - Affects workflow</SelectItem>
+                    <SelectItem value="high">High - Major functionality broken</SelectItem>
+                    <SelectItem value="critical">Critical - Cannot use the system</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="submit"
+                  disabled={submitting || !title.trim() || !description.trim()}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
+                >
+                  {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Submit Report
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowForm(false)}
+                  style={{ borderColor: colors.gold, color: colors.gold }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: colors.gold }} />
+        </div>
+      ) : reports.length === 0 ? (
+        <Card style={{ backgroundColor: colors.white }}>
+          <CardContent className="py-12 text-center">
+            <Bug className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              No bug reports yet. Click "Report a Bug" to submit one.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {reports.map(report => {
+            const sc = statusConfig[report.status] || statusConfig.open;
+            const StatusIcon = sc.icon;
+            return (
+              <Card key={report.id} style={{ backgroundColor: colors.white }}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>
+                          {report.title}
+                        </h3>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] px-1.5 py-0"
+                          style={{ borderColor: severityColors[report.severity], color: severityColors[report.severity] }}
+                        >
+                          {report.severity}
+                        </Badge>
+                      </div>
+                      <p className="text-xs mt-1 line-clamp-2" style={{ color: colors.brownLight }}>
+                        {report.description}
+                      </p>
+                      {report.admin_notes && (
+                        <div className="mt-2 p-2 rounded text-xs" style={{ backgroundColor: colors.cream, color: colors.brown }}>
+                          <span className="font-semibold">Admin response:</span> {report.admin_notes}
+                        </div>
+                      )}
+                      <p className="text-[10px] mt-2" style={{ color: colors.brownLight }}>
+                        Submitted {new Date(report.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <StatusIcon className="w-3.5 h-3.5" style={{ color: sc.color }} />
+                      <span className="text-xs font-medium" style={{ color: sc.color }}>
+                        {sc.label}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
