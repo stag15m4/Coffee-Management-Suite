@@ -31,6 +31,7 @@ import {
   Building2,
   User,
   Mail,
+  ImagePlus,
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { colors } from '@/lib/colors';
@@ -293,6 +294,12 @@ export default function PlatformBugReports() {
                           <User className="w-3 h-3" />
                           {report.submitted_by_name || 'Unknown'}
                         </span>
+                        {report.screenshot_url && (
+                          <span className="flex items-center gap-1">
+                            <ImagePlus className="w-3 h-3" />
+                            Screenshot
+                          </span>
+                        )}
                         <span>{new Date(report.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
@@ -353,6 +360,21 @@ export default function PlatformBugReports() {
                     {selected.description}
                   </div>
                 </div>
+
+                {/* Screenshot */}
+                {selected.screenshot_url && (
+                  <div>
+                    <Label className="text-xs font-semibold" style={{ color: colors.brown }}>Screenshot</Label>
+                    <a href={selected.screenshot_url} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={selected.screenshot_url}
+                        alt="Bug screenshot"
+                        className="mt-1 max-h-48 rounded border object-contain cursor-pointer hover:opacity-80 transition-opacity"
+                        style={{ borderColor: colors.gold }}
+                      />
+                    </a>
+                  </div>
+                )}
 
                 {/* Status update */}
                 <div className="space-y-2">

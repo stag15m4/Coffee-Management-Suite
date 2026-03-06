@@ -224,6 +224,13 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
         icon: BookKey,
         isAccessible: true,
       });
+      adminItems.push({
+        id: 'platform-bug-reports',
+        label: 'Bug Triage',
+        href: '/platform-bug-reports',
+        icon: Bug,
+        isAccessible: true,
+      });
     }
 
     // -----------------------------------------------------------------------

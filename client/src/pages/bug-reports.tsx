@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
+import { useUpload } from '@/hooks/use-upload';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Bug, Plus, Loader2, Clock, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { Bug, Plus, Loader2, Clock, CheckCircle, AlertTriangle, XCircle, ImagePlus, X, ExternalLink } from 'lucide-react';
 import { colors } from '@/lib/colors';
 
 interface BugReport {
@@ -24,6 +25,7 @@ interface BugReport {
   severity: string;
   status: string;
   admin_notes: string | null;
+  screenshot_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -53,12 +55,40 @@ export default function BugReports() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [severity, setSeverity] = useState('medium');
+  const [screenshotUrl, setScreenshotUrl] = useState('');
+  const screenshotRef = useRef<HTMLInputElement>(null);
+
+  const { uploadFile, isUploading: uploadingScreenshot } = useUpload({
+    onSuccess: (response) => {
+      const serveUrl = `${window.location.origin}${response.objectPath}`;
+      setScreenshotUrl(serveUrl);
+      toast({ title: 'Screenshot uploaded' });
+    },
+    onError: (error) => {
+      toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  async function handleScreenshotSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Please select an image file', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: 'Image must be under 10MB', variant: 'destructive' });
+      return;
+    }
+    await uploadFile(file);
+    e.target.value = '';
+  }
 
   async function fetchReports() {
     if (!tenant?.id) return;
     const { data, error } = await supabase
       .from('bug_reports')
-      .select('id, title, description, severity, status, admin_notes, created_at, updated_at')
+      .select('id, title, description, severity, status, admin_notes, screenshot_url, created_at, updated_at')
       .eq('tenant_id', tenant.id)
       .order('created_at', { ascending: false });
 
@@ -83,6 +113,7 @@ export default function BugReports() {
       title: title.trim(),
       description: description.trim(),
       severity,
+      screenshot_url: screenshotUrl || null,
     });
 
     if (error) {
@@ -92,6 +123,7 @@ export default function BugReports() {
       setTitle('');
       setDescription('');
       setSeverity('medium');
+      setScreenshotUrl('');
       setShowForm(false);
       fetchReports();
     }
@@ -161,10 +193,55 @@ export default function BugReports() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label style={{ color: colors.brown }}>Screenshot (optional)</Label>
+                <input
+                  ref={screenshotRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleScreenshotSelect}
+                  className="hidden"
+                />
+                {screenshotUrl ? (
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={screenshotUrl}
+                      alt="Screenshot preview"
+                      className="h-20 rounded border object-cover"
+                      style={{ borderColor: colors.gold }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setScreenshotUrl('')}
+                      style={{ borderColor: colors.red, color: colors.red }}
+                    >
+                      <X className="w-3 h-3 mr-1" />
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => screenshotRef.current?.click()}
+                    disabled={uploadingScreenshot}
+                    style={{ borderColor: colors.gold, color: colors.gold }}
+                  >
+                    {uploadingScreenshot ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <ImagePlus className="w-4 h-4 mr-2" />
+                    )}
+                    {uploadingScreenshot ? 'Uploading...' : 'Attach Screenshot'}
+                  </Button>
+                )}
+              </div>
               <div className="flex gap-3 pt-2">
                 <Button
                   type="submit"
-                  disabled={submitting || !title.trim() || !description.trim()}
+                  disabled={submitting || uploadingScreenshot || !title.trim() || !description.trim()}
                   style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -222,6 +299,14 @@ export default function BugReports() {
                       <p className="text-xs mt-1 line-clamp-2" style={{ color: colors.brownLight }}>
                         {report.description}
                       </p>
+                      {report.screenshot_url && (
+                        <a href={report.screenshot_url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium"
+                          style={{ color: colors.gold }}
+                        >
+                          <ImagePlus className="w-3 h-3" /> View Screenshot <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                      )}
                       {report.admin_notes && (
                         <div className="mt-2 p-2 rounded text-xs" style={{ backgroundColor: colors.cream, color: colors.brown }}>
                           <span className="font-semibold">Admin response:</span> {report.admin_notes}
