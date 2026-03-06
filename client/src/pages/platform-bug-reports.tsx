@@ -31,6 +31,8 @@ import {
   User,
   Mail,
   ImagePlus,
+  Clipboard,
+  Check,
 } from 'lucide-react';
 import { colors } from '@/lib/colors';
 
@@ -79,6 +81,7 @@ export default function PlatformBugReports() {
   const [editStatus, setEditStatus] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   async function fetchReports() {
     // Fetch bug reports — platform admin RLS policy gives access to all
@@ -118,6 +121,7 @@ export default function PlatformBugReports() {
     setSelected(report);
     setEditStatus(report.status);
     setEditNotes(report.admin_notes || '');
+    setCopied(false);
   }
 
   async function handleSave() {
@@ -400,7 +404,7 @@ export default function PlatformBugReports() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-3 pt-2">
+                <div className="flex gap-3 pt-2 flex-wrap">
                   <Button
                     onClick={handleSave}
                     disabled={saving}
@@ -408,6 +412,36 @@ export default function PlatformBugReports() {
                   >
                     {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Save Changes
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const lines = [
+                        `Bug Report: ${selected.title}`,
+                        `Severity: ${selected.severity}`,
+                        `Tenant: ${selected.tenant_name}`,
+                        `Submitted by: ${selected.submitted_by_name || 'Unknown'} (${selected.submitted_by_email || 'N/A'})`,
+                        `Date: ${new Date(selected.created_at).toLocaleString()}`,
+                        '',
+                        'Description:',
+                        selected.description,
+                      ];
+                      if (selected.admin_notes) {
+                        lines.push('', 'Admin Notes:', selected.admin_notes);
+                      }
+                      if (selected.screenshot_url) {
+                        lines.push('', `Screenshot: ${selected.screenshot_url}`);
+                      }
+                      lines.push('', `Bug Report ID: ${selected.id}`);
+                      navigator.clipboard.writeText(lines.join('\n'));
+                      setCopied(true);
+                      toast({ title: 'Copied to clipboard', description: 'Paste into a Claude Code session to start fixing.' });
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    style={{ borderColor: colors.brown, color: colors.brown }}
+                  >
+                    {copied ? <Check className="w-4 h-4 mr-2" /> : <Clipboard className="w-4 h-4 mr-2" />}
+                    {copied ? 'Copied!' : 'Copy for Claude'}
                   </Button>
                   <Button
                     variant="outline"
