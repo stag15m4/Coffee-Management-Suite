@@ -40,12 +40,28 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false, // Allow loading cross-origin resources (Stripe, Supabase)
 }));
 
-// CORS — restrict origins in production; permissive in dev
-const corsOrigin = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
-  : (process.env.NODE_ENV === 'production' ? false : true);
+// CORS — restrict origins in production; auto-detect Codespace URL in dev
+function buildCorsOrigin(): cors.CorsOptions['origin'] {
+  if (process.env.CORS_ORIGIN) {
+    return process.env.CORS_ORIGIN.split(',').map(o => o.trim());
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return false;
+  }
+  // In Codespaces, allow the forwarded URL origin
+  const codespace = process.env.CODESPACE_NAME;
+  const domain = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
+  if (codespace && domain) {
+    return [
+      `https://${codespace}-5001.${domain}`,
+      `https://${codespace}-5173.${domain}`,
+    ];
+  }
+  // Local dev fallback
+  return ['http://localhost:5001', 'http://localhost:5173'];
+}
 app.use(cors({
-  origin: corsOrigin as any,
+  origin: buildCorsOrigin() as any,
   credentials: true,
 }));
 const httpServer = createServer(app);

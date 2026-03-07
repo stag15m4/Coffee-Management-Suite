@@ -166,9 +166,9 @@ The platform includes a wholesale distribution system for resellers/partners:
 **Security Implementation (migrations 049-051):**
 - `requirePlatformAdmin` middleware protects all reseller/license management endpoints
 - Verifies user against `platform_admins` table (user_id + is_active)
-- License redemption endpoint requires `x-user-id` header (401 if missing)
+- License redemption endpoint requires Bearer JWT (401 if missing)
 - TenantId is derived server-side from user_profiles, never trusted from client
-- Frontend sends `x-user-id` header with all authenticated reseller API calls
+- Frontend sends Bearer JWT with all authenticated API calls
 - RLS policies and function search paths secured (SET search_path = '')
 
 **Key Files:**

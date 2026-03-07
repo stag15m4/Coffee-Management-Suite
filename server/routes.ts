@@ -29,39 +29,24 @@ const kioskVerifyRateLimit = rateLimit({
   message: { error: 'Too many verification attempts. Please wait a moment.' },
 });
 
-// Extract user ID from request: tries Authorization Bearer JWT first, falls back to x-user-id header
+// Extract user ID from request via Authorization Bearer JWT
 async function getUserIdFromRequest(req: Request): Promise<{ userId: string | null; debug: string }> {
-  const debugParts: string[] = [];
-
-  // Try Authorization Bearer token (Supabase JWT)
   const authHeader = req.headers['authorization'];
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
-    debugParts.push(`Bearer token present (${token.length} chars)`);
-    try {
-      const supabaseAdmin = getSupabaseAdmin();
-      const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-      if (!error && user?.id) {
-        return { userId: user.id, debug: 'JWT verified' };
-      }
-      debugParts.push(`JWT verify failed: ${error?.message || 'no user returned'}`);
-    } catch (err: any) {
-      debugParts.push(`JWT error: ${err.message}`);
-    }
-  } else {
-    debugParts.push(authHeader ? 'Non-Bearer auth header present' : 'No Authorization header');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { userId: null, debug: 'No Bearer token' };
   }
 
-  // Fallback to x-user-id header (LOCAL DEV ONLY — disabled in production)
-  if (process.env.NODE_ENV !== 'production') {
-    const xUserId = req.headers['x-user-id'] as string;
-    if (xUserId) {
-      debugParts.push('Fell back to x-user-id (dev only)');
-      return { userId: xUserId, debug: debugParts.join(' | ') };
+  const token = authHeader.slice(7);
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    if (!error && user?.id) {
+      return { userId: user.id, debug: 'JWT verified' };
     }
+    return { userId: null, debug: `JWT verify failed: ${error?.message || 'no user returned'}` };
+  } catch (err: any) {
+    return { userId: null, debug: `JWT error: ${err.message}` };
   }
-  debugParts.push('No valid auth');
-  return { userId: null, debug: debugParts.join(' | ') };
 }
 
 // Helper to verify platform admin status
@@ -2450,22 +2435,35 @@ export async function registerRoutes(
 
       // Fetch + parse iCal feed (webcal:// → https://) with SSRF protection
       const feedUrl = (sub.url as string).replace(/^webcal:\/\//i, 'https://');
+      let parsedUrl: URL;
       try {
-        const parsedUrl = new URL(feedUrl);
+        parsedUrl = new URL(feedUrl);
         if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
           return res.status(400).json({ error: 'Only HTTP/HTTPS URLs are allowed' });
-        }
-        // Block private/internal IPs
-        const hostname = parsedUrl.hostname.toLowerCase();
-        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
-            || hostname.startsWith('10.') || hostname.startsWith('192.168.')
-            || hostname.startsWith('172.') || hostname === '169.254.169.254'
-            || hostname.endsWith('.internal') || hostname.endsWith('.local')) {
-          return res.status(400).json({ error: 'Internal URLs are not allowed' });
         }
       } catch {
         return res.status(400).json({ error: 'Invalid feed URL' });
       }
+
+      // Resolve hostname and block private/internal IPs (prevents DNS rebinding)
+      const { promises: dnsPromises } = await import('dns');
+      try {
+        const { address } = await dnsPromises.lookup(parsedUrl.hostname);
+        const parts = address.split('.').map(Number);
+        const isPrivate =
+          address === '127.0.0.1' || address === '0.0.0.0' ||
+          address.startsWith('::') || address.startsWith('fe80') || address.startsWith('fc00') ||
+          parts[0] === 10 ||
+          (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+          (parts[0] === 192 && parts[1] === 168) ||
+          (parts[0] === 169 && parts[1] === 254);
+        if (isPrivate) {
+          return res.status(400).json({ error: 'Internal URLs are not allowed' });
+        }
+      } catch {
+        return res.status(400).json({ error: 'Could not resolve feed URL hostname' });
+      }
+
       const events = await ical.async.fromURL(feedUrl);
       let syncCount = 0;
 
