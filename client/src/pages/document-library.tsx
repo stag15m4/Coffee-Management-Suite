@@ -1273,7 +1273,6 @@ export default function DocumentLibrary() {
                   className="rounded-lg bg-white"
                   style={{ width: '100%', height: '100%', minWidth: '100%', border: 'none' }}
                 />
-              )
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3">
                 <FileText className="w-16 h-16 text-white/70" />

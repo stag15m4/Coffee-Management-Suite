@@ -28,6 +28,7 @@ import {
   Layers,
   FlaskConical,
   BarChart3,
+  Bug,
   Send,
   Mail,
   Clock,
@@ -775,6 +776,30 @@ export default function PlatformAdmin() {
           </div>
         </div>
       </header>
+
+      {/* Platform nav tabs */}
+      <nav className="border-b px-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+        <div className="max-w-7xl mx-auto flex gap-1">
+          {[
+            { href: '/platform-admin', label: 'Businesses', icon: Building2, active: true },
+            { href: '/platform-analytics', label: 'Analytics', icon: BarChart3, active: false },
+            { href: '/platform-bug-reports', label: 'Bug Triage', icon: Bug, active: false },
+          ].map((tab) => (
+            <button
+              key={tab.href}
+              onClick={() => setLocation(tab.href)}
+              className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors"
+              style={{
+                borderColor: tab.active ? colors.gold : 'transparent',
+                color: tab.active ? colors.gold : colors.brownLight,
+              }}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </nav>
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-5">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

@@ -36,6 +36,8 @@ import {
   LayoutDashboard,
   Building2,
   Database,
+  Settings,
+  Bug,
 } from 'lucide-react';
 import {
   LineChart,
@@ -510,14 +512,6 @@ export default function PlatformAnalytics() {
           </div>
           <div className="flex items-center gap-2">
             <Button
-              onClick={() => setLocation('/platform-admin')}
-              variant="outline"
-              style={{ borderColor: colors.creamDark, color: colors.brown }}
-            >
-              <ArrowLeft className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Platform Admin</span>
-            </Button>
-            <Button
               onClick={() => setLocation('/')}
               style={{ backgroundColor: colors.gold, color: colors.white }}
             >
@@ -527,6 +521,30 @@ export default function PlatformAnalytics() {
           </div>
         </div>
       </header>
+
+      {/* Platform nav tabs */}
+      <nav className="border-b px-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+        <div className="max-w-7xl mx-auto flex gap-1">
+          {[
+            { href: '/platform-admin', label: 'Businesses', icon: Settings, active: false },
+            { href: '/platform-analytics', label: 'Analytics', icon: BarChart3, active: true },
+            { href: '/platform-bug-reports', label: 'Bug Triage', icon: Bug, active: false },
+          ].map((tab) => (
+            <button
+              key={tab.href}
+              onClick={() => setLocation(tab.href)}
+              className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors"
+              style={{
+                borderColor: tab.active ? colors.gold : 'transparent',
+                color: tab.active ? colors.gold : colors.brownLight,
+              }}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </nav>
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8 space-y-8">
         {/* ─── Section 1: KPI Cards ───────────────────────────────────── */}
