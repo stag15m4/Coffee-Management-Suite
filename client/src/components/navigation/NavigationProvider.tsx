@@ -167,7 +167,7 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
       },
       {
         id: 'settings-bug-reports',
-        label: 'Reports & Feedback',
+        label: 'Bugs & Feedback',
         href: '/bug-reports',
         icon: Bug,
         requiredRole: 'manager',

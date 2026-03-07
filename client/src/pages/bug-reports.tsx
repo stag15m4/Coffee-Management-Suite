@@ -149,7 +149,7 @@ export default function BugReports() {
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>Reports & Feedback</h1>
+          <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>Bugs & Feedback</h1>
           <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
             Report bugs, suggest improvements, or share feedback
           </p>
