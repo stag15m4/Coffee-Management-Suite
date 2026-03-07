@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -776,51 +776,48 @@ export default function PlatformAdmin() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-            <CardHeader className="pb-2">
-              <CardDescription style={{ color: colors.brownLight }}>Total Businesses</CardDescription>
-              <CardTitle className="text-3xl" style={{ color: colors.brown }} data-testid="text-total-tenants">{stats.totalTenants}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Building2 className="w-8 h-8" style={{ color: colors.gold }} />
-            </CardContent>
+      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <Card className="py-3 px-4" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+            <div className="flex items-center gap-3">
+              <Building2 className="w-5 h-5 shrink-0" style={{ color: colors.gold }} />
+              <div>
+                <p className="text-xs" style={{ color: colors.brownLight }}>Businesses</p>
+                <p className="text-2xl font-bold leading-tight" style={{ color: colors.brown }} data-testid="text-total-tenants">{stats.totalTenants}</p>
+              </div>
+            </div>
           </Card>
-
-          <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-            <CardHeader className="pb-2">
-              <CardDescription style={{ color: colors.brownLight }}>Active Businesses</CardDescription>
-              <CardTitle className="text-3xl" style={{ color: colors.brown }} data-testid="text-active-tenants">{stats.activeTenants}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CheckCircle className="w-8 h-8" style={{ color: colors.green }} />
-            </CardContent>
+          <Card className="py-3 px-4" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 shrink-0" style={{ color: colors.green }} />
+              <div>
+                <p className="text-xs" style={{ color: colors.brownLight }}>Active</p>
+                <p className="text-2xl font-bold leading-tight" style={{ color: colors.brown }} data-testid="text-active-tenants">{stats.activeTenants}</p>
+              </div>
+            </div>
           </Card>
-
-          <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-            <CardHeader className="pb-2">
-              <CardDescription style={{ color: colors.brownLight }}>Total Users</CardDescription>
-              <CardTitle className="text-3xl" style={{ color: colors.brown }} data-testid="text-total-users">{stats.totalUsers}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Users className="w-8 h-8" style={{ color: colors.gold }} />
-            </CardContent>
+          <Card className="py-3 px-4" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+            <div className="flex items-center gap-3">
+              <Users className="w-5 h-5 shrink-0" style={{ color: colors.gold }} />
+              <div>
+                <p className="text-xs" style={{ color: colors.brownLight }}>Users</p>
+                <p className="text-2xl font-bold leading-tight" style={{ color: colors.brown }} data-testid="text-total-users">{stats.totalUsers}</p>
+              </div>
+            </div>
           </Card>
-
-          <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-            <CardHeader className="pb-2">
-              <CardDescription style={{ color: colors.brownLight }}>On Trial</CardDescription>
-              <CardTitle className="text-3xl" style={{ color: colors.brown }} data-testid="text-trial-tenants">{stats.trialTenants}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Activity className="w-8 h-8" style={{ color: colors.yellow }} />
-            </CardContent>
+          <Card className="py-3 px-4" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+            <div className="flex items-center gap-3">
+              <Activity className="w-5 h-5 shrink-0" style={{ color: colors.yellow }} />
+              <div>
+                <p className="text-xs" style={{ color: colors.brownLight }}>On Trial</p>
+                <p className="text-2xl font-bold leading-tight" style={{ color: colors.brown }} data-testid="text-trial-tenants">{stats.trialTenants}</p>
+              </div>
+            </div>
           </Card>
         </div>
 
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold" style={{ color: colors.brown }}>Businesses</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold" style={{ color: colors.brown }}>Businesses</h2>
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
@@ -927,118 +924,114 @@ export default function PlatformAdmin() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          {(hideInactive ? tenants.filter(t => t.is_active) : tenants).map((tenant) => (
-            <Card
+        <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+          {(hideInactive ? tenants.filter(t => t.is_active) : tenants).map((tenant, idx, arr) => (
+            <div
               key={tenant.id}
-              className="hover:shadow-lg transition-shadow cursor-pointer"
-              style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+              className="px-4 py-3 cursor-pointer hover:bg-opacity-50 transition-colors"
+              style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${colors.creamDark}` : undefined, backgroundColor: 'transparent' }}
               onClick={() => openSubscriptionDialog(tenant)}
               data-testid={`card-tenant-${tenant.id}`}
             >
-              <CardContent className="py-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
-                      <Building2 className="w-6 h-6" style={{ color: colors.gold }} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold" style={{ color: colors.brown }} data-testid={`text-tenant-name-${tenant.id}`}>{tenant.name}</h3>
-                      <p className="text-sm" style={{ color: colors.brownLight }}>{tenant.slug}</p>
-                    </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: colors.cream }}>
+                    <Building2 className="w-4 h-4" style={{ color: colors.gold }} />
                   </div>
-                  <div className="flex items-center justify-between sm:justify-end gap-3">
-                    <div className="text-left sm:text-right">
-                      <p className="text-sm" style={{ color: colors.brownLight }}>{tenant.user_count} users</p>
-                      <p className="text-xs mt-0.5" style={{ color: getActivityColor(tenant.last_login_at ?? null) }}>
-                        Last active: {formatRelativeTime(tenant.last_login_at ?? null)}
-                      </p>
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        <Badge
-                          style={tenant.is_active
-                            ? { backgroundColor: colors.green, color: '#fff' }
-                            : { backgroundColor: colors.creamDark, color: colors.brown }
-                          }
-                        >
-                          {tenant.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                        <Badge variant="outline" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
-                          {tenant.subscription_status || 'trial'}
-                        </Badge>
-                        {(() => {
-                          const ts = getTrialStatus(tenant);
-                          if (!ts.isTrial || ts.trialDaysLeft === null) return null;
-                          return (
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor: ts.trialExpired ? '#fef2f2' : ts.trialUrgent ? '#fffbeb' : '#eff6ff',
-                                color: ts.trialExpired ? '#dc2626' : ts.trialUrgent ? '#d97706' : '#2563eb',
-                                borderColor: ts.trialExpired ? '#fca5a5' : ts.trialUrgent ? '#fcd34d' : '#93c5fd',
-                              }}
-                            >
-                              <Clock className="w-3 h-3 mr-1" />
-                              {ts.trialExpired ? 'Trial expired' : `${ts.trialDaysLeft}d left`}
-                            </Badge>
-                          );
-                        })()}
-                        {tenant.vertical_name && (
-                          <Badge variant="outline" style={{ borderColor: colors.gold, color: colors.gold }}>
-                            {tenant.vertical_name}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        // Ensure platform admin has an assignment so it shows in the store switcher
-                        if (user && !myTenantIds.has(tenant.id)) {
-                          await supabase.from('user_tenant_assignments').upsert({
-                            user_id: user.id,
-                            tenant_id: tenant.id,
-                            role: 'owner',
-                            is_active: true,
-                          }, { onConflict: 'user_id,tenant_id' });
-                          setMyTenantIds((prev) => { const next = new Set(Array.from(prev)); next.add(tenant.id); return next; });
-                        }
-                        await enterTenantView(tenant.id);
-                        setLocation('/');
-                      }}
-                      style={{ backgroundColor: colors.gold, color: colors.white }}
-                      data-testid={`button-go-to-tenant-${tenant.id}`}
-                    >
-                      <ExternalLink className="w-4 h-4 mr-1" /> Go to page
-                    </Button>
-                    <Settings className="w-5 h-5" style={{ color: colors.brownLight }} />
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-sm" style={{ color: colors.brown }} data-testid={`text-tenant-name-${tenant.id}`}>{tenant.name}</h3>
+                    <p className="text-xs" style={{ color: colors.brownLight }}>{tenant.slug}</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex items-center justify-between sm:justify-end gap-3">
+                  <div className="text-left sm:text-right">
+                    <p className="text-xs" style={{ color: colors.brownLight }}>{tenant.user_count} users</p>
+                    <p className="text-xs" style={{ color: getActivityColor(tenant.last_login_at ?? null) }}>
+                      {formatRelativeTime(tenant.last_login_at ?? null)}
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      <Badge
+                        className="text-xs px-1.5 py-0"
+                        style={tenant.is_active
+                          ? { backgroundColor: colors.green, color: '#fff' }
+                          : { backgroundColor: colors.creamDark, color: colors.brown }
+                        }
+                      >
+                        {tenant.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                      <Badge className="text-xs px-1.5 py-0" variant="outline" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
+                        {tenant.subscription_status || 'trial'}
+                      </Badge>
+                      {(() => {
+                        const ts = getTrialStatus(tenant);
+                        if (!ts.isTrial || ts.trialDaysLeft === null) return null;
+                        return (
+                          <Badge
+                            className="text-xs px-1.5 py-0"
+                            variant="outline"
+                            style={{
+                              backgroundColor: ts.trialExpired ? '#fef2f2' : ts.trialUrgent ? '#fffbeb' : '#eff6ff',
+                              color: ts.trialExpired ? '#dc2626' : ts.trialUrgent ? '#d97706' : '#2563eb',
+                              borderColor: ts.trialExpired ? '#fca5a5' : ts.trialUrgent ? '#fcd34d' : '#93c5fd',
+                            }}
+                          >
+                            <Clock className="w-3 h-3 mr-1" />
+                            {ts.trialExpired ? 'Expired' : `${ts.trialDaysLeft}d`}
+                          </Badge>
+                        );
+                      })()}
+                      {tenant.vertical_name && (
+                        <Badge className="text-xs px-1.5 py-0" variant="outline" style={{ borderColor: colors.gold, color: colors.gold }}>
+                          {tenant.vertical_name}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (user && !myTenantIds.has(tenant.id)) {
+                        await supabase.from('user_tenant_assignments').upsert({
+                          user_id: user.id,
+                          tenant_id: tenant.id,
+                          role: 'owner',
+                          is_active: true,
+                        }, { onConflict: 'user_id,tenant_id' });
+                        setMyTenantIds((prev) => { const next = new Set(Array.from(prev)); next.add(tenant.id); return next; });
+                      }
+                      await enterTenantView(tenant.id);
+                      setLocation('/');
+                    }}
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
+                    data-testid={`button-go-to-tenant-${tenant.id}`}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 mr-1" /> View
+                  </Button>
+                  <Settings className="w-4 h-4 shrink-0" style={{ color: colors.brownLight }} />
+                </div>
+              </div>
+            </div>
           ))}
 
           {tenants.length === 0 && !loading && (
-            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
-                No businesses yet. Click "Add Business" to create your first tenant.
-              </CardContent>
-            </Card>
+            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+              No businesses yet. Click "Add Business" to create your first tenant.
+            </div>
           )}
           {hideInactive && tenants.length > 0 && tenants.every(t => !t.is_active) && (
-            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
-                All businesses are inactive. Click "Show Inactive" to see them.
-              </CardContent>
-            </Card>
+            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+              All businesses are inactive. Click "Show Inactive" to see them.
+            </div>
           )}
-        </div>
+        </Card>
 
         {/* Platform Admins Section */}
-        <div className="flex items-center justify-between mb-6 mt-12">
-          <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: colors.brown }}>
-            <ShieldCheck className="w-6 h-6" style={{ color: colors.gold }} />
+        <div className="flex items-center justify-between mb-3 mt-8">
+          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
+            <ShieldCheck className="w-5 h-5" style={{ color: colors.gold }} />
             Platform Admins
           </h2>
           <Dialog open={showAddAdminDialog} onOpenChange={setShowAddAdminDialog}>
@@ -1094,91 +1087,77 @@ export default function PlatformAdmin() {
           </Dialog>
         </div>
 
-        <div className="space-y-4 mb-8">
-          {admins.map((admin) => (
-            <Card key={admin.id} className="hover:shadow-lg transition-shadow" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
-                      <ShieldCheck className="w-6 h-6" style={{ color: colors.gold }} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold" style={{ color: colors.brown }}>{admin.full_name || admin.email}</h3>
-                      <p className="text-sm" style={{ color: colors.brownLight }}>{admin.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <Badge
-                      style={admin.is_active
-                        ? { backgroundColor: colors.green, color: '#fff' }
-                        : { backgroundColor: colors.creamDark, color: colors.brown }
-                      }
-                    >
-                      {admin.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                    {admin.id !== user?.id && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRemoveAdmin(admin.id)}
-                        disabled={removingAdminId === admin.id}
-                        style={{ borderColor: colors.red, color: colors.red }}
-                        data-testid={`button-remove-admin-${admin.id}`}
-                      >
-                        {removingAdminId === admin.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Trash2 className="w-4 h-4 mr-1" /> Remove
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </div>
+        <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+          {admins.map((admin, idx) => (
+            <div
+              key={admin.id}
+              className="px-4 py-3 flex items-center justify-between"
+              style={{ borderBottom: idx < admins.length - 1 ? `1px solid ${colors.creamDark}` : undefined }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: colors.cream }}>
+                  <ShieldCheck className="w-4 h-4" style={{ color: colors.gold }} />
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>{admin.full_name || admin.email}</h3>
+                  <p className="text-xs" style={{ color: colors.brownLight }}>{admin.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge
+                  className="text-xs px-1.5 py-0"
+                  style={admin.is_active
+                    ? { backgroundColor: colors.green, color: '#fff' }
+                    : { backgroundColor: colors.creamDark, color: colors.brown }
+                  }
+                >
+                  {admin.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+                {admin.id !== user?.id && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => handleRemoveAdmin(admin.id)}
+                    disabled={removingAdminId === admin.id}
+                    style={{ borderColor: colors.red, color: colors.red }}
+                    data-testid={`button-remove-admin-${admin.id}`}
+                  >
+                    {removingAdminId === admin.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
           ))}
 
           {adminsLoading && admins.length === 0 && (
-            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
-                <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
-                Loading platform admins...
-              </CardContent>
-            </Card>
+            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+              <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+              Loading platform admins...
+            </div>
           )}
           {adminsError && (
-            <Card style={{ backgroundColor: colors.white, borderColor: colors.red }}>
-              <CardContent className="py-6 text-center">
-                <p className="font-medium mb-1" style={{ color: colors.red }}>Failed to load platform admins</p>
-                <p className="text-xs" style={{ color: colors.brownLight }}>{adminsError}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3"
-                  onClick={loadAdmins}
-                  style={{ borderColor: colors.gold, color: colors.gold }}
-                >
-                  Retry
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="py-4 text-center">
+              <p className="font-medium text-sm mb-1" style={{ color: colors.red }}>Failed to load platform admins</p>
+              <p className="text-xs" style={{ color: colors.brownLight }}>{adminsError}</p>
+              <Button variant="outline" size="sm" className="mt-2 h-7 text-xs" onClick={loadAdmins} style={{ borderColor: colors.gold, color: colors.gold }}>Retry</Button>
+            </div>
           )}
           {!adminsLoading && !adminsError && admins.length === 0 && (
-            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
-                No platform admins found.
-              </CardContent>
-            </Card>
+            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+              No platform admins found.
+            </div>
           )}
-        </div>
+        </Card>
 
         {/* Beta Invites Section */}
-        <div className="flex items-center justify-between mb-6 mt-12">
-          <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: colors.brown }}>
-            <FlaskConical className="w-6 h-6" style={{ color: colors.gold }} />
+        <div className="flex items-center justify-between mb-3 mt-8">
+          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
+            <FlaskConical className="w-5 h-5" style={{ color: colors.gold }} />
             Beta Invites
           </h2>
           <Dialog open={showBetaInviteDialog} onOpenChange={setShowBetaInviteDialog}>
@@ -1222,94 +1201,80 @@ export default function PlatformAdmin() {
           </Dialog>
         </div>
 
-        <div className="space-y-3 mb-8">
-          {betaInvites.map((invite: any) => (
-            <Card key={invite.id} style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
-                      <Mail className="w-5 h-5" style={{ color: colors.gold }} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>{invite.invited_email || 'No email'}</h3>
-                      <p className="text-xs font-mono" style={{ color: colors.brownLight }}>{invite.code}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <Badge style={invite.tenant_name
-                        ? { backgroundColor: colors.green, color: '#fff' }
-                        : { backgroundColor: '#dbeafe', color: '#2563eb' }
-                      }>
-                        {invite.tenant_name ? 'Redeemed' : 'Pending'}
-                      </Badge>
-                      {invite.tenant_name && (
-                        <p className="text-xs mt-1" style={{ color: colors.brownLight }}>{invite.tenant_name}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 text-xs" style={{ color: colors.brownLight }}>
-                      <Clock className="w-3 h-3" />
-                      {new Date(invite.created_at).toLocaleDateString()}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteBetaInvite(invite.id, invite.invited_email)}
-                      className="h-8 w-8 p-0"
-                      style={{ color: colors.brownLight }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+        <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+          {betaInvites.map((invite: any, idx: number) => (
+            <div
+              key={invite.id}
+              className="px-4 py-3 flex items-center justify-between"
+              style={{ borderBottom: idx < betaInvites.length - 1 ? `1px solid ${colors.creamDark}` : undefined }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: colors.cream }}>
+                  <Mail className="w-4 h-4" style={{ color: colors.gold }} />
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>{invite.invited_email || 'No email'}</h3>
+                  <p className="text-xs font-mono" style={{ color: colors.brownLight }}>{invite.code}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge
+                  className="text-xs px-1.5 py-0"
+                  style={invite.tenant_name
+                    ? { backgroundColor: colors.green, color: '#fff' }
+                    : { backgroundColor: '#dbeafe', color: '#2563eb' }
+                  }
+                >
+                  {invite.tenant_name ? 'Redeemed' : 'Pending'}
+                </Badge>
+                {invite.tenant_name && (
+                  <span className="text-xs hidden sm:inline" style={{ color: colors.brownLight }}>{invite.tenant_name}</span>
+                )}
+                <span className="text-xs hidden sm:inline" style={{ color: colors.brownLight }}>
+                  {new Date(invite.created_at).toLocaleDateString()}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeleteBetaInvite(invite.id, invite.invited_email)}
+                  className="h-7 w-7 p-0"
+                  style={{ color: colors.brownLight }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
           ))}
           {betaInvitesLoading && betaInvites.length === 0 && (
-            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
-                <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
-                Loading beta invites...
-              </CardContent>
-            </Card>
+            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+              <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+              Loading beta invites...
+            </div>
           )}
           {betaInvitesError && (
-            <Card style={{ backgroundColor: colors.white, borderColor: colors.red }}>
-              <CardContent className="py-6 text-center">
-                <p className="font-medium mb-1" style={{ color: colors.red }}>Failed to load beta invites</p>
-                <p className="text-xs" style={{ color: colors.brownLight }}>{betaInvitesError}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3"
-                  onClick={loadBetaInvites}
-                  style={{ borderColor: colors.gold, color: colors.gold }}
-                >
-                  Retry
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="py-4 text-center">
+              <p className="font-medium text-sm mb-1" style={{ color: colors.red }}>Failed to load beta invites</p>
+              <p className="text-xs" style={{ color: colors.brownLight }}>{betaInvitesError}</p>
+              <Button variant="outline" size="sm" className="mt-2 h-7 text-xs" onClick={loadBetaInvites} style={{ borderColor: colors.gold, color: colors.gold }}>Retry</Button>
+            </div>
           )}
           {!betaInvitesLoading && !betaInvitesError && betaInvites.length === 0 && (
-            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
-                No beta invites sent yet. Click "Send Invite" to invite a beta tester.
-              </CardContent>
-            </Card>
+            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+              No beta invites sent yet. Click "Send Invite" to invite a beta tester.
+            </div>
           )}
-        </div>
+        </Card>
 
         {/* Module Rollout Section */}
-        <div className="flex items-center justify-between mb-6 mt-12">
-          <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: colors.brown }}>
-            <Layers className="w-6 h-6" style={{ color: colors.gold }} />
+        <div className="flex items-center justify-between mb-3 mt-8">
+          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
+            <Layers className="w-5 h-5" style={{ color: colors.gold }} />
             Module Rollout
           </h2>
         </div>
 
-        <div className="space-y-3 mb-8">
-          {modules.map((module) => {
+        <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+          {modules.map((module, idx) => {
             const statusColors = {
               internal: { bg: colors.creamDark, text: colors.brown, label: 'Internal' },
               beta: { bg: '#dbeafe', text: '#2563eb', label: 'Beta' },
@@ -1318,50 +1283,48 @@ export default function PlatformAdmin() {
             const status = statusColors[module.rollout_status] || statusColors.ga;
 
             return (
-              <Card key={module.id} style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-                <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <h3 className="font-semibold" style={{ color: colors.brown }}>{module.name}</h3>
-                        <p className="text-xs" style={{ color: colors.brownLight }}>{module.id}</p>
-                      </div>
-                      <Badge style={{ backgroundColor: status.bg, color: status.text }}>
-                        {status.label}
-                      </Badge>
-                    </div>
-                    <Select
-                      value={module.rollout_status}
-                      onValueChange={(value) => updateModuleRollout(module.id, value as 'internal' | 'beta' | 'ga')}
-                    >
-                      <SelectTrigger className="w-[140px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="internal">Internal</SelectItem>
-                        <SelectItem value="beta">Beta</SelectItem>
-                        <SelectItem value="ga">GA</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <div
+                key={module.id}
+                className="px-4 py-3 flex items-center justify-between"
+                style={{ borderBottom: idx < modules.length - 1 ? `1px solid ${colors.creamDark}` : undefined }}
+              >
+                <div className="flex items-center gap-3">
+                  <div>
+                    <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>{module.name}</h3>
+                    <p className="text-xs" style={{ color: colors.brownLight }}>{module.id}</p>
                   </div>
-                </CardContent>
-              </Card>
+                  <Badge className="text-xs px-1.5 py-0" style={{ backgroundColor: status.bg, color: status.text }}>
+                    {status.label}
+                  </Badge>
+                </div>
+                <Select
+                  value={module.rollout_status}
+                  onValueChange={(value) => updateModuleRollout(module.id, value as 'internal' | 'beta' | 'ga')}
+                >
+                  <SelectTrigger className="w-[120px] h-8 text-sm" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="internal">Internal</SelectItem>
+                    <SelectItem value="beta">Beta</SelectItem>
+                    <SelectItem value="ga">GA</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             );
           })}
 
           {modules.length === 0 && (
-            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
-                Loading modules...
-              </CardContent>
-            </Card>
+            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+              Loading modules...
+            </div>
           )}
-        </div>
+        </Card>
 
         {/* Usage Analytics Section */}
-        <div className="flex items-center justify-between mb-6 mt-12">
-          <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: colors.brown }}>
-            <BarChart3 className="w-6 h-6" style={{ color: colors.gold }} />
+        <div className="flex items-center justify-between mb-3 mt-8">
+          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
+            <BarChart3 className="w-5 h-5" style={{ color: colors.gold }} />
             Usage Analytics
           </h2>
           <div className="flex items-center gap-2">
@@ -1385,40 +1348,35 @@ export default function PlatformAdmin() {
           </div>
         </div>
 
-        <div className="space-y-3 mb-8">
+        <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
           {moduleUsage.length > 0 ? (
-            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-              <CardContent className="py-4">
-                <div className="grid grid-cols-4 gap-4 mb-3 px-2">
-                  <span className="text-xs font-semibold uppercase" style={{ color: colors.brownLight }}>Module</span>
-                  <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>Visits</span>
-                  <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>Users</span>
-                  <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>Tenants</span>
-                </div>
-                {moduleUsage.map((m: any) => {
-                  const mod = modules.find((mod) => mod.id === m.module_id);
-                  return (
-                    <div key={m.module_id} className="grid grid-cols-4 gap-4 py-2 px-2 rounded-lg hover:bg-opacity-50" style={{ backgroundColor: colors.cream }}>
-                      <div>
-                        <p className="font-medium text-sm" style={{ color: colors.brown }}>{mod?.name || m.module_id}</p>
-                        <p className="text-xs" style={{ color: colors.brownLight }}>{m.module_id}</p>
-                      </div>
-                      <p className="text-center font-semibold" style={{ color: colors.brown }}>{m.visit_count}</p>
-                      <p className="text-center font-semibold" style={{ color: colors.brown }}>{m.unique_users}</p>
-                      <p className="text-center font-semibold" style={{ color: colors.brown }}>{m.tenant_count}</p>
+            <div className="px-4 py-3">
+              <div className="grid grid-cols-4 gap-3 mb-2">
+                <span className="text-xs font-semibold uppercase" style={{ color: colors.brownLight }}>Module</span>
+                <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>Visits</span>
+                <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>Users</span>
+                <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>Tenants</span>
+              </div>
+              {moduleUsage.map((m: any) => {
+                const mod = modules.find((mod) => mod.id === m.module_id);
+                return (
+                  <div key={m.module_id} className="grid grid-cols-4 gap-3 py-1.5 rounded" style={{ backgroundColor: colors.cream }}>
+                    <div className="pl-2">
+                      <p className="font-medium text-sm" style={{ color: colors.brown }}>{mod?.name || m.module_id}</p>
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
+                    <p className="text-center text-sm font-semibold" style={{ color: colors.brown }}>{m.visit_count}</p>
+                    <p className="text-center text-sm font-semibold" style={{ color: colors.brown }}>{m.unique_users}</p>
+                    <p className="text-center text-sm font-semibold" style={{ color: colors.brown }}>{m.tenant_count}</p>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
-            <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-              <CardContent className="py-8 text-center" style={{ color: colors.brownLight }}>
-                No module usage data for the last {analyticsDays} days.
-              </CardContent>
-            </Card>
+            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+              No module usage data for the last {analyticsDays} days.
+            </div>
           )}
-        </div>
+        </Card>
 
         {/* Unified Tenant Management Dialog */}
         <Dialog open={showSubscriptionDialog} onOpenChange={setShowSubscriptionDialog}>
