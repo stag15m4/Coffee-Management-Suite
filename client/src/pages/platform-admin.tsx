@@ -816,6 +816,10 @@ export default function PlatformAdmin() {
           </Card>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr,380px] gap-6">
+          {/* Left Column: Businesses, Admins, Beta Invites */}
+          <div>
+
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold" style={{ color: colors.brown }}>Businesses</h2>
           <div className="flex items-center gap-3">
@@ -1029,7 +1033,7 @@ export default function PlatformAdmin() {
         </Card>
 
         {/* Platform Admins Section */}
-        <div className="flex items-center justify-between mb-3 mt-8">
+        <div className="flex items-center justify-between mb-3 mt-6">
           <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
             <ShieldCheck className="w-5 h-5" style={{ color: colors.gold }} />
             Platform Admins
@@ -1155,7 +1159,7 @@ export default function PlatformAdmin() {
         </Card>
 
         {/* Beta Invites Section */}
-        <div className="flex items-center justify-between mb-3 mt-8">
+        <div className="flex items-center justify-between mb-3 mt-6">
           <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
             <FlaskConical className="w-5 h-5" style={{ color: colors.gold }} />
             Beta Invites
@@ -1265,8 +1269,12 @@ export default function PlatformAdmin() {
           )}
         </Card>
 
+          </div>
+          {/* Right Column: Module Rollout, Usage Analytics */}
+          <div className="lg:sticky lg:top-4 lg:self-start">
+
         {/* Module Rollout Section */}
-        <div className="flex items-center justify-between mb-3 mt-8">
+        <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
             <Layers className="w-5 h-5" style={{ color: colors.gold }} />
             Module Rollout
@@ -1322,7 +1330,7 @@ export default function PlatformAdmin() {
         </Card>
 
         {/* Usage Analytics Section */}
-        <div className="flex items-center justify-between mb-3 mt-8">
+        <div className="flex items-center justify-between mb-3 mt-6">
           <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
             <BarChart3 className="w-5 h-5" style={{ color: colors.gold }} />
             Usage Analytics
@@ -1377,6 +1385,9 @@ export default function PlatformAdmin() {
             </div>
           )}
         </Card>
+
+          </div>
+        </div>
 
         {/* Unified Tenant Management Dialog */}
         <Dialog open={showSubscriptionDialog} onOpenChange={setShowSubscriptionDialog}>
