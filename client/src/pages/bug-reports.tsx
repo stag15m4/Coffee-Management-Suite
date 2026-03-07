@@ -15,11 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Bug, Plus, Loader2, Clock, CheckCircle, AlertTriangle, XCircle, ImagePlus, X, ExternalLink } from 'lucide-react';
+import { Bug, Plus, Loader2, Clock, CheckCircle, AlertTriangle, XCircle, ImagePlus, X, ExternalLink, MessageSquarePlus, Lightbulb } from 'lucide-react';
 import { colors } from '@/lib/colors';
+
+type ReportType = 'bug' | 'suggestion' | 'feedback';
 
 interface BugReport {
   id: string;
+  report_type: ReportType;
   title: string;
   description: string;
   severity: string;
@@ -29,6 +32,12 @@ interface BugReport {
   created_at: string;
   updated_at: string;
 }
+
+const reportTypeConfig: Record<ReportType, { label: string; icon: typeof Bug; color: string }> = {
+  bug: { label: 'Bug', icon: Bug, color: colors.red },
+  suggestion: { label: 'Suggestion', icon: Lightbulb, color: colors.gold },
+  feedback: { label: 'Feedback', icon: MessageSquarePlus, color: colors.blue },
+};
 
 const severityColors: Record<string, string> = {
   low: colors.blue,
@@ -52,6 +61,7 @@ export default function BugReports() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
+  const [reportType, setReportType] = useState<ReportType>('bug');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [severity, setSeverity] = useState('medium');
@@ -88,7 +98,7 @@ export default function BugReports() {
     if (!tenant?.id) return;
     const { data, error } = await supabase
       .from('bug_reports')
-      .select('id, title, description, severity, status, admin_notes, screenshot_url, created_at, updated_at')
+      .select('id, report_type, title, description, severity, status, admin_notes, screenshot_url, created_at, updated_at')
       .eq('tenant_id', tenant.id)
       .order('created_at', { ascending: false });
 
@@ -113,6 +123,7 @@ export default function BugReports() {
       submitted_by: user.id,
       submitted_by_name: profile?.full_name || null,
       submitted_by_email: user.email || null,
+      report_type: reportType,
       title: title.trim(),
       description: description.trim(),
       severity,
@@ -122,7 +133,8 @@ export default function BugReports() {
     if (error) {
       toast({ title: 'Error', description: 'Failed to submit bug report. Please try again.', variant: 'destructive' });
     } else {
-      toast({ title: 'Bug Report Submitted', description: 'Your report has been sent to the team.' });
+      toast({ title: 'Submitted', description: 'Your report has been sent to the team.' });
+      setReportType('bug');
       setTitle('');
       setDescription('');
       setSeverity('medium');
@@ -137,9 +149,9 @@ export default function BugReports() {
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>Bug Reports</h1>
+          <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>Reports & Feedback</h1>
           <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
-            Report issues and track their resolution
+            Report bugs, suggest improvements, or share feedback
           </p>
         </div>
         <Button
@@ -147,7 +159,7 @@ export default function BugReports() {
           style={{ backgroundColor: colors.gold, color: colors.white }}
         >
           <Plus className="w-4 h-4 mr-2" />
-          Report a Bug
+          New Report
         </Button>
       </div>
 
@@ -155,12 +167,25 @@ export default function BugReports() {
         <Card style={{ backgroundColor: colors.white }}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
-              <Bug className="w-5 h-5" />
-              New Bug Report
+              {(() => { const Icon = reportTypeConfig[reportType].icon; return <Icon className="w-5 h-5" />; })()}
+              New {reportTypeConfig[reportType].label} Report
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label style={{ color: colors.brown }}>Type</Label>
+                <Select value={reportType} onValueChange={(v: ReportType) => setReportType(v)}>
+                  <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bug">Bug Report</SelectItem>
+                    <SelectItem value="suggestion">Suggestion</SelectItem>
+                    <SelectItem value="feedback">General Feedback</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label style={{ color: colors.brown }}>Title</Label>
                 <Input
@@ -176,12 +201,19 @@ export default function BugReports() {
                 <textarea
                   value={description}
                   onChange={e => setDescription(e.target.value)}
-                  placeholder="Describe the bug in detail. Include steps to reproduce, what you expected, and what actually happened."
+                  placeholder={
+                    reportType === 'bug'
+                      ? "Describe the bug in detail. Include steps to reproduce, what you expected, and what actually happened."
+                      : reportType === 'suggestion'
+                      ? "What improvement would you like to see? How would it help you?"
+                      : "Share your thoughts with us..."
+                  }
                   className="w-full min-h-[120px] rounded-md border px-3 py-2 text-sm resize-y"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   required
                 />
               </div>
+              {reportType === 'bug' && (
               <div className="space-y-2">
                 <Label style={{ color: colors.brown }}>Severity</Label>
                 <Select value={severity} onValueChange={setSeverity}>
@@ -196,6 +228,7 @@ export default function BugReports() {
                   </SelectContent>
                 </Select>
               </div>
+              )}
               <div className="space-y-2">
                 <Label style={{ color: colors.brown }}>Screenshot (optional)</Label>
                 <input
@@ -248,7 +281,7 @@ export default function BugReports() {
                   style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Submit Report
+                  Submit
                 </Button>
                 <Button
                   type="button"
@@ -271,9 +304,9 @@ export default function BugReports() {
       ) : reports.length === 0 ? (
         <Card style={{ backgroundColor: colors.white }}>
           <CardContent className="py-12 text-center">
-            <Bug className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
+            <MessageSquarePlus className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
             <p className="text-sm" style={{ color: colors.brownLight }}>
-              No bug reports yet. Click "Report a Bug" to submit one.
+              No reports yet. Click "New Report" to submit one.
             </p>
           </CardContent>
         </Card>
@@ -291,6 +324,19 @@ export default function BugReports() {
                         <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>
                           {report.title}
                         </h3>
+                        {(() => {
+                          const rt = reportTypeConfig[report.report_type] || reportTypeConfig.bug;
+                          return (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0"
+                              style={{ borderColor: rt.color, color: rt.color }}
+                            >
+                              {rt.label}
+                            </Badge>
+                          );
+                        })()}
+                        {report.report_type === 'bug' && (
                         <Badge
                           variant="outline"
                           className="text-[10px] px-1.5 py-0"
@@ -298,6 +344,7 @@ export default function BugReports() {
                         >
                           {report.severity}
                         </Badge>
+                        )}
                       </div>
                       <p className="text-xs mt-1 line-clamp-2" style={{ color: colors.brownLight }}>
                         {report.description}

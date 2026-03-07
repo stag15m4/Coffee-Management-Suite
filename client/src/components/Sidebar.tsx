@@ -367,7 +367,7 @@ export function Sidebar() {
                 )}
                 <SidebarLink
                   href="/bug-reports"
-                  label="Bug Reports"
+                  label="Reports & Feedback"
                   icon={Bug}
                   isActive={location === '/bug-reports'}
                 />

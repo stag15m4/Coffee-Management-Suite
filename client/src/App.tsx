@@ -9,7 +9,6 @@ import { ThemeProvider } from "@/contexts/ThemeProvider";
 import { NavigationProvider } from "@/components/navigation/NavigationProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
-import { FeedbackButton } from "@/components/FeedbackButton";
 import { CommandPalette } from "@/components/CommandPalette";
 import { WhatsNew } from "@/components/WhatsNew";
 import { Spotlight } from "@/components/Spotlight";
@@ -192,12 +191,6 @@ function Router() {
   );
 }
 
-function AuthenticatedFeedbackButton() {
-  const { user } = useAuth();
-  if (!user) return null;
-  return <FeedbackButton />;
-}
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -212,7 +205,6 @@ function App() {
                 <CommandPalette />
                 <WhatsNew />
                 <Spotlight />
-                <AuthenticatedFeedbackButton />
               </NavigationProvider>
             </ThemeProvider>
           </VerticalProvider>

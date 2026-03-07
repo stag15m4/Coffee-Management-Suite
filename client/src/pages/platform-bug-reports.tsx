@@ -33,8 +33,12 @@ import {
   ImagePlus,
   Clipboard,
   Check,
+  Lightbulb,
+  MessageSquarePlus,
 } from 'lucide-react';
 import { colors } from '@/lib/colors';
+
+type ReportType = 'bug' | 'suggestion' | 'feedback';
 
 interface BugReport {
   id: string;
@@ -42,6 +46,7 @@ interface BugReport {
   submitted_by: string;
   submitted_by_name: string | null;
   submitted_by_email: string | null;
+  report_type: ReportType;
   title: string;
   description: string;
   severity: string;
@@ -52,6 +57,12 @@ interface BugReport {
   updated_at: string;
   tenant_name?: string;
 }
+
+const reportTypeConfig: Record<ReportType, { label: string; icon: typeof Bug; color: string }> = {
+  bug: { label: 'Bug', icon: Bug, color: colors.red },
+  suggestion: { label: 'Suggestion', icon: Lightbulb, color: colors.gold },
+  feedback: { label: 'Feedback', icon: MessageSquarePlus, color: colors.blue },
+};
 
 const severityColors: Record<string, string> = {
   low: colors.blue,
@@ -178,9 +189,9 @@ export default function PlatformBugReports() {
     <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>Bug Reports</h1>
+        <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>Reports & Feedback</h1>
         <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
-          Triage and manage bug reports from all tenants
+          Triage and manage reports and feedback from all tenants
         </p>
       </div>
 
@@ -266,6 +277,19 @@ export default function PlatformBugReports() {
                         <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>
                           {report.title}
                         </h3>
+                        {(() => {
+                          const rt = reportTypeConfig[report.report_type] || reportTypeConfig.bug;
+                          return (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0"
+                              style={{ borderColor: rt.color, color: rt.color }}
+                            >
+                              {rt.label}
+                            </Badge>
+                          );
+                        })()}
+                        {report.report_type === 'bug' && (
                         <Badge
                           variant="outline"
                           className="text-[10px] px-1.5 py-0"
@@ -273,6 +297,7 @@ export default function PlatformBugReports() {
                         >
                           {report.severity}
                         </Badge>
+                        )}
                         <div className="flex items-center gap-1">
                           <StatusIcon className="w-3 h-3" style={{ color: sc.color }} />
                           <span className="text-[10px] font-medium" style={{ color: sc.color }}>{sc.label}</span>
@@ -336,14 +361,24 @@ export default function PlatformBugReports() {
                   </div>
                 </div>
 
-                {/* Severity badge */}
+                {/* Type & Severity badges */}
                 <div className="flex items-center gap-2">
+                  {(() => {
+                    const rt = reportTypeConfig[selected.report_type] || reportTypeConfig.bug;
+                    return (
+                      <Badge variant="outline" style={{ borderColor: rt.color, color: rt.color }}>
+                        {rt.label}
+                      </Badge>
+                    );
+                  })()}
+                  {selected.report_type === 'bug' && (
                   <Badge
                     variant="outline"
                     style={{ borderColor: severityColors[selected.severity], color: severityColors[selected.severity] }}
                   >
                     {selected.severity} severity
                   </Badge>
+                  )}
                 </div>
 
                 {/* Description */}
@@ -416,9 +451,10 @@ export default function PlatformBugReports() {
                   <Button
                     variant="outline"
                     onClick={() => {
+                      const rtLabel = (reportTypeConfig[selected.report_type] || reportTypeConfig.bug).label;
                       const lines = [
-                        `Bug Report: ${selected.title}`,
-                        `Severity: ${selected.severity}`,
+                        `${rtLabel} Report: ${selected.title}`,
+                        ...(selected.report_type === 'bug' ? [`Severity: ${selected.severity}`] : []),
                         `Tenant: ${selected.tenant_name}`,
                         `Submitted by: ${selected.submitted_by_name || 'Unknown'} (${selected.submitted_by_email || 'N/A'})`,
                         `Date: ${new Date(selected.created_at).toLocaleString()}`,
@@ -432,7 +468,7 @@ export default function PlatformBugReports() {
                       if (selected.screenshot_url) {
                         lines.push('', `Screenshot: ${selected.screenshot_url}`);
                       }
-                      lines.push('', `Bug Report ID: ${selected.id}`);
+                      lines.push('', `Report ID: ${selected.id}`);
                       navigator.clipboard.writeText(lines.join('\n'));
                       setCopied(true);
                       toast({ title: 'Copied to clipboard', description: 'Paste into a Claude Code session to start fixing.' });
