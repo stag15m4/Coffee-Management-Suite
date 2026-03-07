@@ -1267,11 +1267,31 @@ export default function DocumentLibrary() {
                 />
               </div>
             ) : previewDoc.file_type === 'application/pdf' ? (
-              <iframe
-                src={previewUrl}
-                title={previewDoc.title}
-                className="w-full h-full rounded-lg bg-white"
-              />
+              // iOS Safari cannot render PDFs in iframes — show iframe for desktop,
+              // fallback with "Open PDF" button for touch devices (iPad/iPhone)
+              /iPad|iPhone|iPod/.test(navigator.userAgent) ? (
+                <div className="h-full flex flex-col items-center justify-center gap-4">
+                  <FileText className="w-20 h-20 text-white/70" />
+                  <p className="text-white text-lg font-medium">{previewDoc.title}</p>
+                  <p className="text-white/50 text-sm">PDF preview is not supported on this device</p>
+                  <a
+                    href={previewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-medium"
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Open PDF
+                  </a>
+                </div>
+              ) : (
+                <iframe
+                  src={previewUrl}
+                  title={previewDoc.title}
+                  className="w-full h-full rounded-lg bg-white"
+                />
+              )
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3">
                 <FileText className="w-16 h-16 text-white/70" />
