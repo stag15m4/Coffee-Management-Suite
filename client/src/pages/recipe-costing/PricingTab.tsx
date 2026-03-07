@@ -86,11 +86,25 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
     hasIngredientsForSizeIds(r, drinkSizeIds)
   );
 
-  // Also include recipes with NO ingredients yet in the drink section as default
+  // Also include recipes with NO ingredients yet — route by category_name
+  const foodCategoryNames = ['food items', 'grab-n-go'];
+  const merchCategoryNames = ['merchandise'];
   const recipesWithNoIngredients = nonBulkRecipes.filter(r =>
     !hasIngredientsForSizeIds(r, foodSizeIds) && !hasIngredientsForSizeIds(r, drinkSizeIds) && !hasIngredientsForSizeIds(r, merchSizeIds)
   );
-  const drinkRecipesWithDefaults = [...drinkRecipes, ...recipesWithNoIngredients];
+  const noIngDrinks = recipesWithNoIngredients.filter(r =>
+    !foodCategoryNames.includes((r.category_name || '').toLowerCase()) &&
+    !merchCategoryNames.includes((r.category_name || '').toLowerCase())
+  );
+  const noIngFood = recipesWithNoIngredients.filter(r =>
+    foodCategoryNames.includes((r.category_name || '').toLowerCase())
+  );
+  const noIngMerch = recipesWithNoIngredients.filter(r =>
+    merchCategoryNames.includes((r.category_name || '').toLowerCase())
+  );
+  const drinkRecipesWithDefaults = [...drinkRecipes, ...noIngDrinks];
+  const foodRecipesWithDefaults = [...foodRecipes, ...noIngFood];
+  const merchRecipesWithDefaults = [...merchRecipes, ...noIngMerch];
 
   const getSizeBaseTemplateId = (recipeId: string, sizeId: string): string | null => {
     const rsb = recipeSizeBases.find(r => r.recipe_id === recipeId && r.size_id === sizeId);
@@ -629,14 +643,14 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
                 </tr>
               </thead>
               <tbody>
-                {foodRecipes.length === 0 ? (
+                {foodRecipesWithDefaults.length === 0 ? (
                   <tr style={{ backgroundColor: colors.white }}>
                     <td colSpan={1 + foodSizes.length * 4} className="px-4 py-6 text-center" style={{ color: colors.brownLight }}>
                       No food items yet. Create a recipe with a Food base template.
                     </td>
                   </tr>
                 ) : (
-                  [...foodRecipes]
+                  [...foodRecipesWithDefaults]
                     .sort((a, b) => {
                       const categoryOrder = ['Food Items', 'Grab-N-Go'];
                       const aOrder = categoryOrder.indexOf(a.category_name || '');
@@ -782,14 +796,14 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
                 </tr>
               </thead>
               <tbody>
-                {merchRecipes.length === 0 ? (
+                {merchRecipesWithDefaults.length === 0 ? (
                   <tr style={{ backgroundColor: colors.white }}>
                     <td colSpan={1 + merchSizes.length * 4} className="px-4 py-6 text-center" style={{ color: colors.brownLight }}>
                       No merchandise items yet. Create a recipe with a Merchandise base template.
                     </td>
                   </tr>
                 ) : (
-                  [...merchRecipes]
+                  [...merchRecipesWithDefaults]
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .map((recipe, idx) => {
                       return (

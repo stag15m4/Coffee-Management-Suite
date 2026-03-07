@@ -1052,14 +1052,14 @@ export default function ResellerManagement() {
       </main>
 
       <Dialog open={showNewResellerDialog} onOpenChange={setShowNewResellerDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add New Reseller</DialogTitle>
             <DialogDescription>
               Create a new wholesale partner account
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="name">Company Name *</Label>
               <Input
@@ -1107,8 +1107,9 @@ export default function ResellerManagement() {
                 id="seats"
                 type="number"
                 min="0"
-                value={resellerForm.seatsTotal}
+                value={resellerForm.seatsTotal || ''}
                 onChange={(e) => setResellerForm({ ...resellerForm, seatsTotal: parseInt(e.target.value) || 0 })}
+                placeholder="0"
                 data-testid="input-reseller-seats"
               />
             </div>
@@ -1132,87 +1133,86 @@ export default function ResellerManagement() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="discountPercent">Wholesale Discount %</Label>
-                <Input
-                  id="discountPercent"
-                  type="number"
-                  min="0"
-                  max="50"
-                  step="1"
-                  value={resellerForm.discountPercent}
-                  onChange={(e) => setResellerForm({ ...resellerForm, discountPercent: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="minimumSeats">Minimum Seats</Label>
-                <Input
-                  id="minimumSeats"
-                  type="number"
-                  min="0"
-                  value={resellerForm.minimumSeats}
-                  onChange={(e) => setResellerForm({ ...resellerForm, minimumSeats: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="billingCycle">Billing Cycle</Label>
-                <Select
-                  value={resellerForm.billingCycle}
-                  onValueChange={(value) => setResellerForm({ ...resellerForm, billingCycle: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                    <SelectItem value="annual">Annual</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="revenueShare">Revenue Share %</Label>
-                <Input
-                  id="revenueShare"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={resellerForm.revenueSharePercent}
-                  onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
-                  data-testid="input-reseller-revenue-share"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="wholesaleRate">Wholesale Rate ($/seat/mo)</Label>
-                <Input
-                  id="wholesaleRate"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={resellerForm.wholesaleRatePerSeat}
-                  onChange={(e) => setResellerForm({ ...resellerForm, wholesaleRatePerSeat: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="cardSurcharge">Card Surcharge %</Label>
-                <Input
-                  id="cardSurcharge"
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="0.5"
-                  value={resellerForm.cardSurchargePercent}
-                  onChange={(e) => setResellerForm({ ...resellerForm, cardSurchargePercent: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
+            <div>
+              <Label htmlFor="discountPercent">Wholesale Discount %</Label>
+              <Input
+                id="discountPercent"
+                type="number"
+                min="0"
+                max="50"
+                step="1"
+                value={resellerForm.discountPercent || ''}
+                onChange={(e) => setResellerForm({ ...resellerForm, discountPercent: parseFloat(e.target.value) || 0 })}
+                placeholder="0"
+              />
             </div>
             <div>
+              <Label htmlFor="minimumSeats">Minimum Seats</Label>
+              <Input
+                id="minimumSeats"
+                type="number"
+                min="0"
+                value={resellerForm.minimumSeats || ''}
+                onChange={(e) => setResellerForm({ ...resellerForm, minimumSeats: parseInt(e.target.value) || 0 })}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <Label htmlFor="billingCycle">Billing Cycle</Label>
+              <Select
+                value={resellerForm.billingCycle}
+                onValueChange={(value) => setResellerForm({ ...resellerForm, billingCycle: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                  <SelectItem value="annual">Annual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="revenueShare">Revenue Share %</Label>
+              <Input
+                id="revenueShare"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={resellerForm.revenueSharePercent || ''}
+                onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
+                placeholder="0"
+                data-testid="input-reseller-revenue-share"
+              />
+            </div>
+            <div>
+              <Label htmlFor="wholesaleRate">Wholesale Rate ($/seat/mo)</Label>
+              <Input
+                id="wholesaleRate"
+                type="number"
+                min="0"
+                step="0.01"
+                value={resellerForm.wholesaleRatePerSeat || ''}
+                onChange={(e) => setResellerForm({ ...resellerForm, wholesaleRatePerSeat: parseFloat(e.target.value) || 0 })}
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Label htmlFor="cardSurcharge">Card Surcharge %</Label>
+              <Input
+                id="cardSurcharge"
+                type="number"
+                min="0"
+                max="10"
+                step="0.5"
+                value={resellerForm.cardSurchargePercent || ''}
+                onChange={(e) => setResellerForm({ ...resellerForm, cardSurchargePercent: parseFloat(e.target.value) || 0 })}
+                placeholder="0"
+              />
+            </div>
+            <div className="col-span-2">
               <Label htmlFor="notes">Notes</Label>
               <Textarea
                 id="notes"
@@ -1241,14 +1241,14 @@ export default function ResellerManagement() {
       </Dialog>
 
       <Dialog open={showEditResellerDialog} onOpenChange={setShowEditResellerDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Reseller</DialogTitle>
             <DialogDescription>
               Update wholesale partner details
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="edit-name">Company Name *</Label>
               <Input
@@ -1292,8 +1292,9 @@ export default function ResellerManagement() {
                 id="edit-seats"
                 type="number"
                 min="0"
-                value={resellerForm.seatsTotal}
+                value={resellerForm.seatsTotal || ''}
                 onChange={(e) => setResellerForm({ ...resellerForm, seatsTotal: parseInt(e.target.value) || 0 })}
+                placeholder="0"
                 data-testid="input-edit-reseller-seats"
               />
             </div>
@@ -1317,87 +1318,86 @@ export default function ResellerManagement() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="edit-discountPercent">Wholesale Discount %</Label>
-                <Input
-                  id="edit-discountPercent"
-                  type="number"
-                  min="0"
-                  max="50"
-                  step="1"
-                  value={resellerForm.discountPercent}
-                  onChange={(e) => setResellerForm({ ...resellerForm, discountPercent: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-minimumSeats">Minimum Seats</Label>
-                <Input
-                  id="edit-minimumSeats"
-                  type="number"
-                  min="0"
-                  value={resellerForm.minimumSeats}
-                  onChange={(e) => setResellerForm({ ...resellerForm, minimumSeats: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="edit-billingCycle">Billing Cycle</Label>
-                <Select
-                  value={resellerForm.billingCycle}
-                  onValueChange={(value) => setResellerForm({ ...resellerForm, billingCycle: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                    <SelectItem value="annual">Annual</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="edit-revenueShare">Revenue Share %</Label>
-                <Input
-                  id="edit-revenueShare"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={resellerForm.revenueSharePercent}
-                  onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
-                  data-testid="input-edit-reseller-revenue-share"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="edit-wholesaleRate">Wholesale Rate ($/seat/mo)</Label>
-                <Input
-                  id="edit-wholesaleRate"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={resellerForm.wholesaleRatePerSeat}
-                  onChange={(e) => setResellerForm({ ...resellerForm, wholesaleRatePerSeat: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-cardSurcharge">Card Surcharge %</Label>
-                <Input
-                  id="edit-cardSurcharge"
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="0.5"
-                  value={resellerForm.cardSurchargePercent}
-                  onChange={(e) => setResellerForm({ ...resellerForm, cardSurchargePercent: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
+            <div>
+              <Label htmlFor="edit-discountPercent">Wholesale Discount %</Label>
+              <Input
+                id="edit-discountPercent"
+                type="number"
+                min="0"
+                max="50"
+                step="1"
+                value={resellerForm.discountPercent || ''}
+                onChange={(e) => setResellerForm({ ...resellerForm, discountPercent: parseFloat(e.target.value) || 0 })}
+                placeholder="0"
+              />
             </div>
             <div>
+              <Label htmlFor="edit-minimumSeats">Minimum Seats</Label>
+              <Input
+                id="edit-minimumSeats"
+                type="number"
+                min="0"
+                value={resellerForm.minimumSeats || ''}
+                onChange={(e) => setResellerForm({ ...resellerForm, minimumSeats: parseInt(e.target.value) || 0 })}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-billingCycle">Billing Cycle</Label>
+              <Select
+                value={resellerForm.billingCycle}
+                onValueChange={(value) => setResellerForm({ ...resellerForm, billingCycle: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                  <SelectItem value="annual">Annual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit-revenueShare">Revenue Share %</Label>
+              <Input
+                id="edit-revenueShare"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={resellerForm.revenueSharePercent || ''}
+                onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
+                placeholder="0"
+                data-testid="input-edit-reseller-revenue-share"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-wholesaleRate">Wholesale Rate ($/seat/mo)</Label>
+              <Input
+                id="edit-wholesaleRate"
+                type="number"
+                min="0"
+                step="0.01"
+                value={resellerForm.wholesaleRatePerSeat || ''}
+                onChange={(e) => setResellerForm({ ...resellerForm, wholesaleRatePerSeat: parseFloat(e.target.value) || 0 })}
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-cardSurcharge">Card Surcharge %</Label>
+              <Input
+                id="edit-cardSurcharge"
+                type="number"
+                min="0"
+                max="10"
+                step="0.5"
+                value={resellerForm.cardSurchargePercent || ''}
+                onChange={(e) => setResellerForm({ ...resellerForm, cardSurchargePercent: parseFloat(e.target.value) || 0 })}
+                placeholder="0"
+              />
+            </div>
+            <div className="col-span-2">
               <Label htmlFor="edit-notes">Notes</Label>
               <Textarea
                 id="edit-notes"
