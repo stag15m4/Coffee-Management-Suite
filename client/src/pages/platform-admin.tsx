@@ -817,223 +817,11 @@ export default function PlatformAdmin() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr,380px] gap-6">
-          {/* Left Column: Businesses, Admins, Beta Invites */}
+          {/* Left Column: Admins, Beta Invites, Businesses */}
           <div>
 
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold" style={{ color: colors.brown }}>Businesses</h2>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setHideInactive(!hideInactive)}
-              style={{
-                borderColor: hideInactive ? colors.gold : colors.creamDark,
-                color: hideInactive ? colors.gold : colors.brownLight,
-              }}
-            >
-              {hideInactive ? <Eye className="w-4 h-4 mr-1.5" /> : <EyeOff className="w-4 h-4 mr-1.5" />}
-              {hideInactive ? 'Show Inactive' : 'Hide Inactive'}
-            </Button>
-          <Dialog open={showNewTenantDialog} onOpenChange={setShowNewTenantDialog}>
-            <DialogTrigger asChild>
-              <Button style={{ backgroundColor: colors.gold, color: colors.white }} data-testid="button-add-business">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Business
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Create New Business</DialogTitle>
-                <DialogDescription style={{ color: colors.brownLight }}>
-                  Set up a new tenant with their owner account
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="tenant-name">Business Name</Label>
-                  <Input
-                    id="tenant-name"
-                    value={newTenantName}
-                    onChange={(e) => {
-                      setNewTenantName(e.target.value);
-                      setNewTenantSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-'));
-                    }}
-                    placeholder="Acme Coffee Shop"
-                    style={{ backgroundColor: colors.inputBg }}
-                    data-testid="input-tenant-name"
-                  />
-                </div>
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="tenant-slug">URL Slug</Label>
-                  <Input
-                    id="tenant-slug"
-                    value={newTenantSlug}
-                    onChange={(e) => setNewTenantSlug(e.target.value)}
-                    placeholder="acme-coffee"
-                    style={{ backgroundColor: colors.inputBg }}
-                    data-testid="input-tenant-slug"
-                  />
-                </div>
-                <hr style={{ borderColor: colors.creamDark }} />
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="owner-name">Owner Name</Label>
-                  <Input
-                    id="owner-name"
-                    value={ownerName}
-                    onChange={(e) => setOwnerName(e.target.value)}
-                    placeholder="John Smith"
-                    style={{ backgroundColor: colors.inputBg }}
-                    data-testid="input-owner-name"
-                  />
-                </div>
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="owner-email">Owner Email</Label>
-                  <Input
-                    id="owner-email"
-                    type="email"
-                    value={ownerEmail}
-                    onChange={(e) => setOwnerEmail(e.target.value)}
-                    placeholder="owner@example.com"
-                    style={{ backgroundColor: colors.inputBg }}
-                    data-testid="input-owner-email"
-                  />
-                </div>
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="owner-password">Temporary Password</Label>
-                  <Input
-                    id="owner-password"
-                    type="password"
-                    value={ownerPassword}
-                    onChange={(e) => setOwnerPassword(e.target.value)}
-                    placeholder="Leave blank if user already exists"
-                    style={{ backgroundColor: colors.inputBg }}
-                    data-testid="input-owner-password"
-                  />
-                  <p className="text-xs mt-1" style={{ color: colors.brownLight }}>Only needed for new users. Existing accounts will be linked automatically.</p>
-                </div>
-                <Button
-                  onClick={handleCreateTenant}
-                  disabled={creating}
-                  className="w-full"
-                  style={{ backgroundColor: colors.gold, color: colors.white }}
-                  data-testid="button-create-tenant"
-                >
-                  {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Create Business
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-          </div>
-        </div>
-
-        <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-          {(hideInactive ? tenants.filter(t => t.is_active) : tenants).map((tenant, idx, arr) => (
-            <div
-              key={tenant.id}
-              className="px-4 py-3 cursor-pointer hover:bg-opacity-50 transition-colors"
-              style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${colors.creamDark}` : undefined, backgroundColor: 'transparent' }}
-              onClick={() => openSubscriptionDialog(tenant)}
-              data-testid={`card-tenant-${tenant.id}`}
-            >
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: colors.cream }}>
-                    <Building2 className="w-4 h-4" style={{ color: colors.gold }} />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-sm" style={{ color: colors.brown }} data-testid={`text-tenant-name-${tenant.id}`}>{tenant.name}</h3>
-                    <p className="text-xs" style={{ color: colors.brownLight }}>{tenant.slug}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between sm:justify-end gap-3">
-                  <div className="text-left sm:text-right">
-                    <p className="text-xs" style={{ color: colors.brownLight }}>{tenant.user_count} users</p>
-                    <p className="text-xs" style={{ color: getActivityColor(tenant.last_login_at ?? null) }}>
-                      {formatRelativeTime(tenant.last_login_at ?? null)}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mt-0.5">
-                      <Badge
-                        className="text-xs px-1.5 py-0"
-                        style={tenant.is_active
-                          ? { backgroundColor: colors.green, color: '#fff' }
-                          : { backgroundColor: colors.creamDark, color: colors.brown }
-                        }
-                      >
-                        {tenant.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <Badge className="text-xs px-1.5 py-0" variant="outline" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
-                        {tenant.subscription_status || 'trial'}
-                      </Badge>
-                      {(() => {
-                        const ts = getTrialStatus(tenant);
-                        if (!ts.isTrial || ts.trialDaysLeft === null) return null;
-                        return (
-                          <Badge
-                            className="text-xs px-1.5 py-0"
-                            variant="outline"
-                            style={{
-                              backgroundColor: ts.trialExpired ? '#fef2f2' : ts.trialUrgent ? '#fffbeb' : '#eff6ff',
-                              color: ts.trialExpired ? '#dc2626' : ts.trialUrgent ? '#d97706' : '#2563eb',
-                              borderColor: ts.trialExpired ? '#fca5a5' : ts.trialUrgent ? '#fcd34d' : '#93c5fd',
-                            }}
-                          >
-                            <Clock className="w-3 h-3 mr-1" />
-                            {ts.trialExpired ? 'Expired' : `${ts.trialDaysLeft}d`}
-                          </Badge>
-                        );
-                      })()}
-                      {tenant.vertical_name && (
-                        <Badge className="text-xs px-1.5 py-0" variant="outline" style={{ borderColor: colors.gold, color: colors.gold }}>
-                          {tenant.vertical_name}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (user && !myTenantIds.has(tenant.id)) {
-                        await supabase.from('user_tenant_assignments').upsert({
-                          user_id: user.id,
-                          tenant_id: tenant.id,
-                          role: 'owner',
-                          is_active: true,
-                        }, { onConflict: 'user_id,tenant_id' });
-                        setMyTenantIds((prev) => { const next = new Set(Array.from(prev)); next.add(tenant.id); return next; });
-                      }
-                      await enterTenantView(tenant.id);
-                      setLocation('/');
-                    }}
-                    style={{ backgroundColor: colors.gold, color: colors.white }}
-                    data-testid={`button-go-to-tenant-${tenant.id}`}
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 mr-1" /> View
-                  </Button>
-                  <Settings className="w-4 h-4 shrink-0" style={{ color: colors.brownLight }} />
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {tenants.length === 0 && !loading && (
-            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
-              No businesses yet. Click "Add Business" to create your first tenant.
-            </div>
-          )}
-          {hideInactive && tenants.length > 0 && tenants.every(t => !t.is_active) && (
-            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
-              All businesses are inactive. Click "Show Inactive" to see them.
-            </div>
-          )}
-        </Card>
-
         {/* Platform Admins Section */}
-        <div className="flex items-center justify-between mb-3 mt-6">
+        <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
             <ShieldCheck className="w-5 h-5" style={{ color: colors.gold }} />
             Platform Admins
@@ -1206,11 +994,11 @@ export default function PlatformAdmin() {
         </div>
 
         <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-          {betaInvites.map((invite: any, idx: number) => (
+          {[...betaInvites].sort((a: any, b: any) => (a.invited_email || '').localeCompare(b.invited_email || '')).map((invite: any, idx: number, arr: any[]) => (
             <div
               key={invite.id}
               className="px-4 py-3 flex items-center justify-between"
-              style={{ borderBottom: idx < betaInvites.length - 1 ? `1px solid ${colors.creamDark}` : undefined }}
+              style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${colors.creamDark}` : undefined }}
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: colors.cream }}>
@@ -1265,6 +1053,219 @@ export default function PlatformAdmin() {
           {!betaInvitesLoading && !betaInvitesError && betaInvites.length === 0 && (
             <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
               No beta invites sent yet. Click "Send Invite" to invite a beta tester.
+            </div>
+          )}
+        </Card>
+
+        {/* Businesses Section */}
+        <div className="flex items-center justify-between mb-3 mt-6">
+          <h2 className="text-lg font-bold" style={{ color: colors.brown }}>Businesses</h2>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setHideInactive(!hideInactive)}
+              style={{
+                borderColor: hideInactive ? colors.gold : colors.creamDark,
+                color: hideInactive ? colors.gold : colors.brownLight,
+              }}
+            >
+              {hideInactive ? <Eye className="w-4 h-4 mr-1.5" /> : <EyeOff className="w-4 h-4 mr-1.5" />}
+              {hideInactive ? 'Show Inactive' : 'Hide Inactive'}
+            </Button>
+          <Dialog open={showNewTenantDialog} onOpenChange={setShowNewTenantDialog}>
+            <DialogTrigger asChild>
+              <Button style={{ backgroundColor: colors.gold, color: colors.white }} data-testid="button-add-business">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Business
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Create New Business</DialogTitle>
+                <DialogDescription style={{ color: colors.brownLight }}>
+                  Set up a new tenant with their owner account
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                <div>
+                  <Label style={{ color: colors.brown }} htmlFor="tenant-name">Business Name</Label>
+                  <Input
+                    id="tenant-name"
+                    value={newTenantName}
+                    onChange={(e) => {
+                      setNewTenantName(e.target.value);
+                      setNewTenantSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-'));
+                    }}
+                    placeholder="Acme Coffee Shop"
+                    style={{ backgroundColor: colors.inputBg }}
+                    data-testid="input-tenant-name"
+                  />
+                </div>
+                <div>
+                  <Label style={{ color: colors.brown }} htmlFor="tenant-slug">URL Slug</Label>
+                  <Input
+                    id="tenant-slug"
+                    value={newTenantSlug}
+                    onChange={(e) => setNewTenantSlug(e.target.value)}
+                    placeholder="acme-coffee"
+                    style={{ backgroundColor: colors.inputBg }}
+                    data-testid="input-tenant-slug"
+                  />
+                </div>
+                <hr style={{ borderColor: colors.creamDark }} />
+                <div>
+                  <Label style={{ color: colors.brown }} htmlFor="owner-name">Owner Name</Label>
+                  <Input
+                    id="owner-name"
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                    placeholder="John Smith"
+                    style={{ backgroundColor: colors.inputBg }}
+                    data-testid="input-owner-name"
+                  />
+                </div>
+                <div>
+                  <Label style={{ color: colors.brown }} htmlFor="owner-email">Owner Email</Label>
+                  <Input
+                    id="owner-email"
+                    type="email"
+                    value={ownerEmail}
+                    onChange={(e) => setOwnerEmail(e.target.value)}
+                    placeholder="owner@example.com"
+                    style={{ backgroundColor: colors.inputBg }}
+                    data-testid="input-owner-email"
+                  />
+                </div>
+                <div>
+                  <Label style={{ color: colors.brown }} htmlFor="owner-password">Temporary Password</Label>
+                  <Input
+                    id="owner-password"
+                    type="password"
+                    value={ownerPassword}
+                    onChange={(e) => setOwnerPassword(e.target.value)}
+                    placeholder="Leave blank if user already exists"
+                    style={{ backgroundColor: colors.inputBg }}
+                    data-testid="input-owner-password"
+                  />
+                  <p className="text-xs mt-1" style={{ color: colors.brownLight }}>Only needed for new users. Existing accounts will be linked automatically.</p>
+                </div>
+                <Button
+                  onClick={handleCreateTenant}
+                  disabled={creating}
+                  className="w-full"
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
+                  data-testid="button-create-tenant"
+                >
+                  {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Create Business
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          </div>
+        </div>
+
+        <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+          {(hideInactive ? tenants.filter(t => t.is_active) : tenants).sort((a, b) => a.name.localeCompare(b.name)).map((tenant, idx, arr) => (
+            <div
+              key={tenant.id}
+              className="px-4 py-3 cursor-pointer hover:bg-opacity-50 transition-colors"
+              style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${colors.creamDark}` : undefined, backgroundColor: 'transparent' }}
+              onClick={() => openSubscriptionDialog(tenant)}
+              data-testid={`card-tenant-${tenant.id}`}
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: colors.cream }}>
+                    <Building2 className="w-4 h-4" style={{ color: colors.gold }} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-sm" style={{ color: colors.brown }} data-testid={`text-tenant-name-${tenant.id}`}>{tenant.name}</h3>
+                    <p className="text-xs" style={{ color: colors.brownLight }}>{tenant.slug}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between sm:justify-end gap-3">
+                  <div className="text-left sm:text-right">
+                    <p className="text-xs" style={{ color: colors.brownLight }}>{tenant.user_count} users</p>
+                    <p className="text-xs" style={{ color: getActivityColor(tenant.last_login_at ?? null) }}>
+                      {formatRelativeTime(tenant.last_login_at ?? null)}
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      <Badge
+                        className="text-xs px-1.5 py-0"
+                        style={tenant.is_active
+                          ? { backgroundColor: colors.green, color: '#fff' }
+                          : { backgroundColor: colors.creamDark, color: colors.brown }
+                        }
+                      >
+                        {tenant.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                      <Badge className="text-xs px-1.5 py-0" variant="outline" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
+                        {tenant.subscription_status || 'trial'}
+                      </Badge>
+                      {(() => {
+                        const ts = getTrialStatus(tenant);
+                        if (!ts.isTrial || ts.trialDaysLeft === null) return null;
+                        return (
+                          <Badge
+                            className="text-xs px-1.5 py-0"
+                            variant="outline"
+                            style={{
+                              backgroundColor: ts.trialExpired ? '#fef2f2' : ts.trialUrgent ? '#fffbeb' : '#eff6ff',
+                              color: ts.trialExpired ? '#dc2626' : ts.trialUrgent ? '#d97706' : '#2563eb',
+                              borderColor: ts.trialExpired ? '#fca5a5' : ts.trialUrgent ? '#fcd34d' : '#93c5fd',
+                            }}
+                          >
+                            <Clock className="w-3 h-3 mr-1" />
+                            {ts.trialExpired ? 'Expired' : `${ts.trialDaysLeft}d`}
+                          </Badge>
+                        );
+                      })()}
+                      {tenant.vertical_name && (
+                        <Badge className="text-xs px-1.5 py-0" variant="outline" style={{ borderColor: colors.gold, color: colors.gold }}>
+                          {tenant.vertical_name}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (user && !myTenantIds.has(tenant.id)) {
+                        await supabase.from('user_tenant_assignments').upsert({
+                          user_id: user.id,
+                          tenant_id: tenant.id,
+                          role: 'owner',
+                          is_active: true,
+                        }, { onConflict: 'user_id,tenant_id' });
+                        setMyTenantIds((prev) => { const next = new Set(Array.from(prev)); next.add(tenant.id); return next; });
+                      }
+                      await enterTenantView(tenant.id);
+                      setLocation('/');
+                    }}
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
+                    data-testid={`button-go-to-tenant-${tenant.id}`}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 mr-1" /> View
+                  </Button>
+                  <Settings className="w-4 h-4 shrink-0" style={{ color: colors.brownLight }} />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {tenants.length === 0 && !loading && (
+            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+              No businesses yet. Click "Add Business" to create your first tenant.
+            </div>
+          )}
+          {hideInactive && tenants.length > 0 && tenants.every(t => !t.is_active) && (
+            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+              All businesses are inactive. Click "Show Inactive" to see them.
             </div>
           )}
         </Card>
