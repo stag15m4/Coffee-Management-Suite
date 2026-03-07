@@ -10,6 +10,24 @@ import { sql } from "drizzle-orm";
 import ical from "node-ical";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import crypto from "crypto";
+import rateLimit from "express-rate-limit";
+
+// Rate limiters for sensitive endpoints
+const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 attempts per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' },
+});
+
+const kioskVerifyRateLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 15, // 15 attempts per minute (multiple employees may use same kiosk IP)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many verification attempts. Please wait a moment.' },
+});
 
 // Extract user ID from request: tries Authorization Bearer JWT first, falls back to x-user-id header
 async function getUserIdFromRequest(req: Request): Promise<{ userId: string | null; debug: string }> {
@@ -1448,7 +1466,7 @@ export async function registerRoutes(
   });
 
   // Redeem a license code (called during signup - requires authenticated user)
-  app.post('/api/license-codes/redeem', async (req, res) => {
+  app.post('/api/license-codes/redeem', authRateLimit, async (req, res) => {
     try {
       const { code } = req.body;
       const { userId } = await getUserIdFromRequest(req);
@@ -1623,15 +1641,18 @@ export async function registerRoutes(
   // BETA SIGNUP (Public — license code is the auth gate)
   // =====================================================
 
-  app.post('/api/beta-signup', async (req, res) => {
+  app.post('/api/beta-signup', authRateLimit, async (req, res) => {
     try {
       const { code, email, password, fullName, businessName } = req.body;
       if (!code || !email || !password || !fullName || !businessName) {
         return res.status(400).json({ error: 'All fields are required' });
       }
 
-      if (password.length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      }
+      if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+        return res.status(400).json({ error: 'Password must include uppercase, lowercase, and a number' });
       }
 
       // 1. Validate license code
@@ -2167,14 +2188,14 @@ export async function registerRoutes(
       if (newUserData?.user) {
         userId = newUserData.user.id;
       } else {
-        // User likely already exists — look them up
-        const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-        if (listError) throw listError;
-        const existing = listData.users.find((u: any) => u.email === ownerEmail);
-        if (!existing) {
+        // User likely already exists — look them up via DB (avoids listUsers pagination issues)
+        const existingUser = await db.execute(sql`
+          SELECT id FROM auth.users WHERE email = ${ownerEmail} LIMIT 1
+        `);
+        if (!existingUser.rows.length) {
           throw new Error(createError?.message || 'Could not find or create user with this email');
         }
-        userId = existing.id;
+        userId = (existingUser.rows[0] as any).id;
       }
 
       // 4. Upsert user_profiles — set them as owner of this tenant
@@ -2222,15 +2243,14 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Email is required' });
       }
 
-      // Look up the user via Supabase admin API
-      const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
-      const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (listError) throw listError;
-      const authUser = listData.users.find((u: any) => u.email === email);
-
-      if (!authUser) {
+      // Look up the user via DB (avoids listUsers pagination issues)
+      const authUserResult = await db.execute(sql`
+        SELECT id, email FROM auth.users WHERE email = ${email} LIMIT 1
+      `);
+      if (!authUserResult.rows.length) {
         return res.status(404).json({ error: 'No user found with that email. They must have an account first.' });
       }
+      const authUser = authUserResult.rows[0] as { id: string; email: string };
 
       // Check if already a platform admin
       const existingResult = await db.execute(sql`
@@ -2284,7 +2304,7 @@ export async function registerRoutes(
   // USER INVITE ROUTE
   // =====================================================
 
-  app.post('/api/users/invite', async (req, res) => {
+  app.post('/api/users/invite', authRateLimit, async (req, res) => {
     try {
       const { email, fullName, role, tenantId, redirectTo } = req.body;
 
@@ -2349,14 +2369,14 @@ export async function registerRoutes(
         userId = inviteData.user.id;
         isNewUser = true;
       } else {
-        // User already exists in auth — look them up
-        const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-        if (listError) throw listError;
-        const existing = listData.users.find((u: any) => u.email === email);
-        if (!existing) {
+        // User already exists in auth — look them up via DB
+        const existingAuthUser = await db.execute(sql`
+          SELECT id FROM auth.users WHERE email = ${email} LIMIT 1
+        `);
+        if (!existingAuthUser.rows.length) {
           throw new Error(inviteError?.message || 'Could not find or create user with this email');
         }
-        userId = existing.id;
+        userId = (existingAuthUser.rows[0] as any).id;
 
         // H1: Check if user already belongs to another tenant — prevent hijacking
         const existingProfile = await db.execute(sql`
@@ -2560,7 +2580,7 @@ export async function registerRoutes(
   }
 
   // POST /api/kiosk/verify — validate store code, return tenant info
-  app.post('/api/kiosk/verify', async (req, res) => {
+  app.post('/api/kiosk/verify', kioskVerifyRateLimit, async (req, res) => {
     try {
       const { code } = req.body;
       if (!code || typeof code !== 'string') {
@@ -2811,10 +2831,10 @@ export async function registerRoutes(
   app.post('/api/kiosk/break-end', async (req, res) => {
     try {
       const { tenantId, breakId, employeeId, kioskToken } = req.body;
-      if (!tenantId || !breakId) {
+      if (!tenantId || !breakId || !employeeId) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
-      if (employeeId && kioskToken && !verifyKioskSession(kioskToken, tenantId, employeeId)) {
+      if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
         return res.status(401).json({ error: 'Invalid or expired kiosk session' });
       }
       const result = await db.execute(sql`

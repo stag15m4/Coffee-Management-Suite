@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from "./supabaseAdmin";
 
 // Allowed MIME types for uploads
 const ALLOWED_CONTENT_TYPES = new Set([
-  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
   'application/pdf',
   'text/csv', 'text/plain',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx

@@ -2,10 +2,11 @@ import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChevronRight } from 'lucide-react';
+import DOMPurify from 'dompurify';
 
-/** Strip all HTML tags except the few needed for formatting headlines */
+/** Sanitize HTML, allowing only safe formatting tags for headlines */
 function sanitizeHtml(html: string): string {
-  return html.replace(/<(?!\/?(?:em|br|strong)\s*\/?>)[^>]*>/gi, '');
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['em', 'br', 'strong'] });
 }
 
 interface HeroSectionProps {

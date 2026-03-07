@@ -54,8 +54,12 @@ export class ObjectStorageService {
     if (!objectPath.startsWith("/objects/")) {
       throw new ObjectNotFoundError();
     }
-    // Strip "/objects/" prefix to get the Supabase storage path
-    return objectPath.slice("/objects/".length);
+    const storagePath = objectPath.slice("/objects/".length);
+    // Block path traversal attempts
+    if (storagePath.includes('..') || storagePath.includes('\0')) {
+      throw new ObjectNotFoundError();
+    }
+    return storagePath;
   }
 
   // Normalizes a raw path (which may be a full URL or storage path) to the /objects/ format.

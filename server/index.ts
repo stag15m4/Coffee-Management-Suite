@@ -25,7 +25,18 @@ app.use(helmet({
       formAction: ["'self'"],
       frameAncestors: ["'none'"],
     },
-  } : false,
+  } : {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.supabase.co"],
+      connectSrc: ["'self'", "ws:", "wss:", "https://*.supabase.co", "https://api.stripe.com"],
+      frameSrc: ["https://js.stripe.com"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"],
+    },
+  },
   crossOriginEmbedderPolicy: false, // Allow loading cross-origin resources (Stripe, Supabase)
 }));
 

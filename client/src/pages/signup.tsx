@@ -81,8 +81,12 @@ export default function Signup() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) {
-      toast({ title: 'Password too short', description: 'Must be at least 6 characters.', variant: 'destructive' });
+    if (password.length < 8) {
+      toast({ title: 'Password too short', description: 'Must be at least 8 characters.', variant: 'destructive' });
+      return;
+    }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+      toast({ title: 'Weak password', description: 'Must include uppercase, lowercase, and a number.', variant: 'destructive' });
       return;
     }
 
@@ -226,7 +230,7 @@ export default function Signup() {
                   <Input
                     id="password"
                     type="password"
-                    placeholder="At least 6 characters"
+                    placeholder="At least 8 characters (A-z, 0-9)"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
