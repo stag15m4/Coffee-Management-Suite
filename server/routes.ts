@@ -3323,6 +3323,24 @@ export async function registerRoutes(
     }
   });
 
+  // Auto-close bug reports that have been "resolved" for 14+ days
+  setInterval(async () => {
+    try {
+      const result = await db.execute(sql`
+        UPDATE bug_reports
+        SET status = 'closed'
+        WHERE status = 'resolved'
+          AND updated_at < now() - interval '14 days'
+      `);
+      const count = (result as any).rowCount ?? 0;
+      if (count > 0) {
+        console.log(`[auto-close] Closed ${count} resolved bug report(s) older than 14 days`);
+      }
+    } catch (err: any) {
+      console.error('[auto-close] Error:', err.message);
+    }
+  }, 60 * 60 * 1000); // check every hour
+
   return httpServer;
 }
 
