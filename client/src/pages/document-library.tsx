@@ -1267,9 +1267,10 @@ export default function DocumentLibrary() {
                 />
               </div>
             ) : previewDoc.file_type === 'application/pdf' ? (
-              // iOS Safari cannot render PDFs in iframes — show iframe for desktop,
-              // fallback with "Open PDF" button for touch devices (iPad/iPhone)
-              /iPad|iPhone|iPod/.test(navigator.userAgent) ? (
+              // iOS/iPadOS Safari cannot render PDFs properly in iframes.
+              // iPadOS 13+ reports as "Macintosh" so check maxTouchPoints too.
+              (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1)) ? (
                 <div className="h-full flex flex-col items-center justify-center gap-4">
                   <FileText className="w-20 h-20 text-white/70" />
                   <p className="text-white text-lg font-medium">{previewDoc.title}</p>
