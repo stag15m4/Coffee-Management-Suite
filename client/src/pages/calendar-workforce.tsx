@@ -377,8 +377,44 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
       extendedProps: { type: 'blackout', blackout: bd },
     }));
 
-    return [...shiftEvents, ...eventBanners, ...blackoutBanners];
-  }, [shifts, calendarEvents, blackoutDates, employeeColorMap]);
+    // Work anniversary events
+    const anniversaryEvents: EventInput[] = [];
+    if (startDate && endDate) {
+      const rangeStart = new Date(startDate + 'T00:00:00');
+      const rangeEnd = new Date(endDate + 'T00:00:00');
+      for (const emp of employees) {
+        if (!emp.start_date) continue;
+        const hired = new Date(emp.start_date + 'T00:00:00');
+        // Check anniversaries for the year(s) visible in the range
+        for (let yr = rangeStart.getFullYear(); yr <= rangeEnd.getFullYear(); yr++) {
+          const years = yr - hired.getFullYear();
+          if (years <= 0) continue;
+          let anniv = new Date(yr, hired.getMonth(), hired.getDate());
+          // If anniversary falls on Sunday, move to Saturday before
+          if (anniv.getDay() === 0) {
+            anniv = new Date(anniv.getTime() - 86_400_000);
+          }
+          const annivStr = formatDate(anniv);
+          if (annivStr >= startDate && annivStr <= endDate) {
+            const suffix = years === 1 ? 'yr' : 'yrs';
+            anniversaryEvents.push({
+              id: `anniversary-${emp.name}-${yr}`,
+              title: `🎉 ${emp.name} — ${years} ${suffix}`,
+              start: annivStr,
+              allDay: true,
+              backgroundColor: '#f59e0b',
+              borderColor: '#f59e0b',
+              textColor: '#fff',
+              editable: false,
+              extendedProps: { type: 'anniversary', employeeName: emp.name, years },
+            });
+          }
+        }
+      }
+    }
+
+    return [...shiftEvents, ...eventBanners, ...blackoutBanners, ...anniversaryEvents];
+  }, [shifts, calendarEvents, blackoutDates, employeeColorMap, startDate, endDate, employees]);
 
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
     if (!canEdit) return;

@@ -18,6 +18,8 @@ export interface UnifiedEmployee {
   schedule_color: string | null;
   /** Hourly rate for pay calculations (from user_profiles) */
   hourly_rate: number | null;
+  /** Hire / start date (from user_profiles) */
+  start_date: string | null;
   /** 'profile' | 'tip' | 'both' */
   source: 'profile' | 'tip' | 'both';
 }
@@ -36,7 +38,7 @@ export function useAllEmployees(tenantId?: string) {
       const [profilesResult, tipResult] = await Promise.all([
         supabase
           .from('user_profiles')
-          .select('id, full_name, avatar_url, role, email, schedule_color, hourly_rate')
+          .select('id, full_name, avatar_url, role, email, schedule_color, hourly_rate, start_date')
           .eq('tenant_id', tenantId)
           .eq('is_active', true),
         supabase
@@ -71,7 +73,7 @@ export function useAllEmployees(tenantId?: string) {
           if (extraIds.length > 0) {
             const { data: extra } = await supabase
               .from('user_profiles')
-              .select('id, full_name, avatar_url, role, email, schedule_color, hourly_rate')
+              .select('id, full_name, avatar_url, role, email, schedule_color, hourly_rate, start_date')
               .in('id', extraIds)
               .eq('is_active', true);
             if (extra) assignmentProfiles = extra;
@@ -96,6 +98,7 @@ export function useAllEmployees(tenantId?: string) {
           existing.avatar_url = existing.avatar_url ?? p.avatar_url;
           existing.role = existing.role ?? p.role;
           existing.schedule_color = existing.schedule_color ?? p.schedule_color;
+          existing.start_date = existing.start_date ?? (p as any).start_date ?? null;
           existing.source = existing.source === 'tip' ? 'both' : existing.source;
         } else {
           byName.set(key, {
@@ -106,6 +109,7 @@ export function useAllEmployees(tenantId?: string) {
             role: p.role,
             schedule_color: p.schedule_color ?? null,
             hourly_rate: (p as any).hourly_rate ?? null,
+            start_date: (p as any).start_date ?? null,
             source: 'profile',
           });
         }
@@ -128,6 +132,7 @@ export function useAllEmployees(tenantId?: string) {
             role: null,
             schedule_color: t.schedule_color ?? null,
             hourly_rate: null,
+            start_date: null,
             source: 'tip',
           });
         }

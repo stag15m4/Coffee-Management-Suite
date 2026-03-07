@@ -271,10 +271,15 @@ export default function MyTeam() {
                       {member.role}
                     </Badge>
 
-                    {/* Tenure */}
-                    <div className="flex items-center gap-2 text-sm" style={{ color: colors.brownLight }}>
-                      <Calendar className="w-4 h-4" />
-                      <span>{tenure}</span>
+                    {/* Serving Since & Tenure */}
+                    <div className="text-center space-y-0.5">
+                      {member.start_date && (
+                        <div className="flex items-center justify-center gap-2 text-sm" style={{ color: colors.brown }}>
+                          <Calendar className="w-4 h-4" style={{ color: colors.gold }} />
+                          <span>Serving Since {new Date(member.start_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        </div>
+                      )}
+                      <p className="text-xs" style={{ color: colors.brownLight }}>{tenure}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -323,7 +328,9 @@ export default function MyTeam() {
                   <div className="flex items-center gap-2 mt-1">
                     <Calendar className="w-4 h-4" style={{ color: colors.brownLight }} />
                     <span className="text-sm" style={{ color: colors.brownLight }}>
-                      {calculateTenure(selectedMember.start_date)} with the team
+                      {selectedMember.start_date
+                        ? `Serving Since ${new Date(selectedMember.start_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} (${calculateTenure(selectedMember.start_date)})`
+                        : `${calculateTenure(selectedMember.start_date)} with the team`}
                     </span>
                   </div>
                   <Badge
