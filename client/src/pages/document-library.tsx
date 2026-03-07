@@ -1004,10 +1004,25 @@ export default function DocumentLibrary() {
   const [editDoc, setEditDoc] = useState<Document | null>(null);
   const [showCategories, setShowCategories] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [ackDetailDoc, setAckDetailDoc] = useState<Document | null>(null);
 
   const canManage = hasRole('lead');
   const isOwner = hasRole('owner');
+
+  // Resolve signed URL for preview (avoids cross-origin redirect issues on iPad Safari)
+  useEffect(() => {
+    if (!previewDoc) {
+      setPreviewUrl(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`${previewDoc.file_url}?resolve=1`)
+      .then(r => r.json())
+      .then(data => { if (!cancelled && data.url) setPreviewUrl(data.url); })
+      .catch(() => { if (!cancelled) setPreviewUrl(previewDoc.file_url); });
+    return () => { cancelled = true; };
+  }, [previewDoc]);
 
   // Seed default categories on first load if none exist
   useEffect(() => {
@@ -1239,17 +1254,21 @@ export default function DocumentLibrary() {
             className="flex-1 min-h-0 px-2 pb-2"
             onClick={(e) => e.stopPropagation()}
           >
-            {previewDoc.file_type?.startsWith('image/') ? (
+            {!previewUrl ? (
+              <div className="h-full flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-white/70 animate-spin" />
+              </div>
+            ) : previewDoc.file_type?.startsWith('image/') ? (
               <div className="h-full flex items-center justify-center">
                 <img
-                  src={previewDoc.file_url}
+                  src={previewUrl}
                   alt={previewDoc.title}
                   className="max-w-full max-h-full rounded-lg object-contain"
                 />
               </div>
             ) : previewDoc.file_type === 'application/pdf' ? (
               <iframe
-                src={previewDoc.file_url}
+                src={previewUrl}
                 title={previewDoc.title}
                 className="w-full h-full rounded-lg bg-white"
               />

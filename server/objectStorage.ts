@@ -33,9 +33,8 @@ export class ObjectStorageService {
     };
   }
 
-  // Creates a signed URL and redirects the browser to Supabase storage.
-  // This supports HTTP Range requests (needed for video playback/seeking).
-  async serveObject(storagePath: string, res: Response) {
+  // Returns a signed URL for the given storage path.
+  async getSignedUrl(storagePath: string): Promise<string> {
     const supabase = getSupabaseAdmin();
 
     const { data, error } = await supabase.storage
@@ -46,7 +45,14 @@ export class ObjectStorageService {
       throw new ObjectNotFoundError();
     }
 
-    res.redirect(data.signedUrl);
+    return data.signedUrl;
+  }
+
+  // Creates a signed URL and redirects the browser to Supabase storage.
+  // This supports HTTP Range requests (needed for video playback/seeking).
+  async serveObject(storagePath: string, res: Response) {
+    const url = await this.getSignedUrl(storagePath);
+    res.redirect(url);
   }
 
   // Resolves an object path (e.g. "/objects/uploads/uuid") to the Supabase storage path.

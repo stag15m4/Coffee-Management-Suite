@@ -75,6 +75,15 @@ export function registerObjectStorageRoutes(app: Express): void {
   app.get("/objects/:objectPath(*)", async (req, res) => {
     try {
       const storagePath = objectStorageService.resolveStoragePath(req.path);
+
+      // If ?resolve=1, return the signed URL as JSON instead of redirecting.
+      // This lets the client set iframe/img src directly, avoiding cross-origin
+      // redirect issues on iPad Safari.
+      if (req.query.resolve === '1') {
+        const url = await objectStorageService.getSignedUrl(storagePath);
+        return res.json({ url });
+      }
+
       await objectStorageService.serveObject(storagePath, res);
     } catch (error) {
       console.error("Error serving object:", error);
