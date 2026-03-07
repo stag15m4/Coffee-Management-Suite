@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { UserRole } from '@/contexts/AuthContext';
 import { useRoleSettings, useUpdateRoleSetting, ALL_PERMISSIONS, type TenantRoleSetting, type PermissionKey } from '@/hooks/use-role-settings';
@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, Lock, Save } from 'lucide-react';
+import { Shield, Lock, Save, ChevronDown, ChevronRight } from 'lucide-react';
 import { colors } from '@/lib/colors';
 
 const ROLE_ORDER: UserRole[] = ['owner', 'manager', 'lead', 'employee'];
@@ -35,6 +35,8 @@ export default function AdminRoleSettings() {
 
   // Track pending edits per role
   const [edits, setEdits] = useState<Record<string, Partial<TenantRoleSetting>>>({});
+  // Track which role cards are expanded (all collapsed by default)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   if (!profile || profile.role !== 'owner') {
     return (
@@ -105,23 +107,31 @@ export default function AdminRoleSettings() {
 
           return (
             <Card key={role} style={{ backgroundColor: colors.white }}>
-              <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <CardHeader
+                className="flex flex-row items-center justify-between gap-2 cursor-pointer select-none"
+                onClick={() => setExpanded(prev => ({ ...prev, [role]: !prev[role] }))}
+              >
                 <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+                  {expanded[role]
+                    ? <ChevronDown className="w-4 h-4" style={{ color: colors.brownLight }} />
+                    : <ChevronRight className="w-4 h-4" style={{ color: colors.brownLight }} />}
                   {isOwnerRole && <Lock className="w-4 h-4" style={{ color: colors.brownLight }} />}
                   {getEditedValue(setting, 'display_name') as string}
                   <Badge variant="outline" className="text-xs" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
                     {role}
                   </Badge>
                 </CardTitle>
-                {!isOwnerRole && hasEdits && (
-                  <Button size="sm" onClick={() => handleSave(setting)}
-                    disabled={updateSetting.isPending}
-                    style={{ backgroundColor: colors.gold, color: colors.white }}>
-                    <Save className="w-3.5 h-3.5 mr-1" /> Save
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {!isOwnerRole && hasEdits && (
+                    <Button size="sm" onClick={(e) => { e.stopPropagation(); handleSave(setting); }}
+                      disabled={updateSetting.isPending}
+                      style={{ backgroundColor: colors.gold, color: colors.white }}>
+                      <Save className="w-3.5 h-3.5 mr-1" /> Save
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              {expanded[role] && <CardContent className="space-y-4">
                 {isOwnerRole ? (
                   <p className="text-sm" style={{ color: colors.brownLight }}>
                     Owners always have full access to all permissions. This cannot be changed.
@@ -161,7 +171,7 @@ export default function AdminRoleSettings() {
                     ))}
                   </>
                 )}
-              </CardContent>
+              </CardContent>}
             </Card>
           );
         })}
