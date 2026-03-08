@@ -246,7 +246,7 @@ export default function MyTeam() {
       .from('user_profiles')
       .update({
         phone: editForm.phone?.trim() || null,
-        date_of_birth: editForm.date_of_birth || null,
+        date_of_birth: editForm.date_of_birth && editForm.date_of_birth.trim() !== '' ? editForm.date_of_birth : null,
         address_line1: editForm.address_line1?.trim() || null,
         address_line2: editForm.address_line2?.trim() || null,
         city: editForm.city?.trim() || null,
@@ -258,7 +258,8 @@ export default function MyTeam() {
       .eq('id', editingMember.id);
 
     if (error) {
-      toast({ title: 'Error', description: 'Failed to update directory info.', variant: 'destructive' });
+      console.error('Directory update error:', error);
+      toast({ title: 'Error', description: `${error.message} (${error.code}: ${error.details})`, variant: 'destructive' });
     } else {
       toast({ title: 'Updated', description: `${editingMember.full_name || 'Member'}'s info saved.` });
       setEditingMember(null);
