@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
 import { escapeHtml } from '@/lib/escapeHtml';
+import { closeWindowScript } from '@/components/tip-payout/export-helpers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -84,12 +85,12 @@ export default function CoffeeOrder() {
       setLoading(false);
     }
   }, [tenant?.id]);
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (silent = false) => {
     if (!tenant?.id) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const [vendorRes, productsRes, historyRes] = await Promise.all([
         supabase
@@ -111,10 +112,10 @@ export default function CoffeeOrder() {
           .limit(50)
       ]);
 
-      // Log any errors for debugging
-      if (vendorRes.error) console.error('Vendor query error:', vendorRes.error);
-      if (productsRes.error) console.error('Products query error:', productsRes.error);
-      if (historyRes.error) console.error('History query error:', historyRes.error);
+      // Notify user of query errors
+      if (vendorRes.error) toast({ title: 'Failed to load vendor', description: vendorRes.error.message, variant: 'destructive' });
+      if (productsRes.error) toast({ title: 'Failed to load products', description: productsRes.error.message, variant: 'destructive' });
+      if (historyRes.error) toast({ title: 'Failed to load order history', description: historyRes.error.message, variant: 'destructive' });
 
       if (vendorRes.data) {
         setVendor(vendorRes.data);
@@ -146,14 +147,12 @@ export default function CoffeeOrder() {
   // Refresh data when app resumes from background (iPad multitasking)
   useAppResume(() => {
     if (tenant?.id) {
-      console.log('[CoffeeOrder] Refreshing data after app resume');
-      loadData();
+      loadData(true);
     }
   }, [tenant?.id, loadData]);
 
   // Refresh data when location changes
   useLocationChange(() => {
-    console.log('[CoffeeOrder] Refreshing data after location change');
     loadData();
   }, [loadData]);
 
@@ -576,15 +575,16 @@ export default function CoffeeOrder() {
             border: 1px solid #ddd;
           }
           .button.secondary:hover { background-color: #e5e5e5; }
-          .info { 
-            background: #F5F0E1; 
-            padding: 15px; 
-            border-radius: 8px; 
+          .info {
+            background: #F5F0E1;
+            padding: 15px;
+            border-radius: 8px;
             margin: 20px 0;
             text-align: left;
           }
           .info p { margin: 5px 0; }
         </style>
+        <script>${closeWindowScript}</script>
       </head>
       <body>
         <div class="container">
@@ -603,7 +603,7 @@ export default function CoffeeOrder() {
           </div>
           
           <div>
-            <button class="button secondary" onclick="window.close()">
+            <button class="button secondary" onclick="closeAndReturn()">
               Close & Return to App
             </button>
           </div>
@@ -752,15 +752,16 @@ export default function CoffeeOrder() {
             padding-bottom: 5px;
             border-bottom: 1px solid #E8E0CC;
           }
-          @media print { 
+          @media print {
             body { print-color-adjust: exact; -webkit-print-color-adjust: exact; padding: 0; }
             .page { border: none; box-shadow: none; margin-bottom: 0; }
           }
         </style>
+        <script>${closeWindowScript}</script>
       </head>
       <body>
         <div class="no-print" style="margin-bottom: 20px;">
-          <button class="back-button" onclick="window.close()">
+          <button class="back-button" onclick="closeAndReturn()">
             Close & Return to App
           </button>
           <button class="back-button" onclick="window.print()" style="margin-left: 10px;">

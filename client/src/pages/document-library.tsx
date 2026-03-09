@@ -1264,6 +1264,7 @@ export default function DocumentLibrary() {
                   src={previewUrl}
                   alt={previewDoc.title}
                   className="max-w-full max-h-full rounded-lg object-contain"
+                  loading="lazy"
                 />
               </div>
             ) : previewDoc.file_type === 'application/pdf' ? (

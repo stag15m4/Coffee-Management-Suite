@@ -263,6 +263,7 @@ export default function AdminBranding() {
                     src={logoUrl}
                     alt="Logo preview"
                     className="h-14 w-auto max-w-[200px] object-contain"
+                    loading="lazy"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}

@@ -402,6 +402,7 @@ export default function PlatformBugReports() {
                         alt="Bug screenshot"
                         className="mt-1 max-h-48 rounded border object-contain cursor-pointer hover:opacity-80 transition-opacity"
                         style={{ borderColor: colors.gold }}
+                        loading="lazy"
                       />
                     </a>
                   </div>

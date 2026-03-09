@@ -507,7 +507,7 @@ export default function Kiosk() {
           {/* Tenant header with branding */}
           <div className="text-center">
             {logoUrl ? (
-              <img src={logoUrl} alt="" className="w-20 h-20 rounded-full mx-auto mb-3 object-cover" style={{ border: `3px solid ${colors.gold}` }} />
+              <img src={logoUrl} alt="" className="w-20 h-20 rounded-full mx-auto mb-3 object-cover" style={{ border: `3px solid ${colors.gold}` }} loading="lazy" />
             ) : (
               <div className="w-20 h-20 rounded-full mx-auto mb-3 flex items-center justify-center text-white font-bold text-2xl" style={{ backgroundColor: colors.gold }}>
                 {tenantName.charAt(0)}
@@ -573,7 +573,7 @@ export default function Kiosk() {
         <div className="flex flex-col items-center gap-6 w-full max-w-sm">
           {/* Employee info */}
           {employee.avatarUrl ? (
-            <img src={employee.avatarUrl} alt="" className="w-24 h-24 rounded-full object-cover border-4" style={{ borderColor: colors.gold }} />
+            <img src={employee.avatarUrl} alt="" className="w-24 h-24 rounded-full object-cover border-4" style={{ borderColor: colors.gold }} loading="lazy" />
           ) : (
             <div className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold text-white" style={{ backgroundColor: colors.gold }}>
               {employee.fullName.charAt(0).toUpperCase()}

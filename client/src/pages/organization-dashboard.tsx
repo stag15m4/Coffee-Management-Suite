@@ -52,9 +52,9 @@ export default function OrganizationDashboard() {
   // Use primaryTenant for organization view (always the parent)
   const parentTenantId = primaryTenant?.id;
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (silent = false) => {
     if (!parentTenantId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
 
     try {
       // Fetch child locations
@@ -74,41 +74,44 @@ export default function OrganizationDashboard() {
       ];
       setLocations(allLocations);
 
-      // Fetch metrics for each location
-      const metricsData: Record<string, LocationMetrics> = {};
-      
-      for (const loc of allLocations) {
+      // Fetch metrics for all locations in parallel
+      const metricsResults = await Promise.all(allLocations.map(async (loc) => {
         const locMetrics: LocationMetrics = { tenant_id: loc.id };
 
-        // Get active employee count (from profiles + location assignments)
-        const { count: profileCount } = await supabase
-          .from('user_profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', loc.id)
-          .eq('is_active', true);
+        // Run all queries for this location in parallel
+        const [profileResult, assignmentResult, taskResult, maintenanceResult] = await Promise.all([
+          // Get active employee count (from profiles)
+          supabase
+            .from('user_profiles')
+            .select('*', { count: 'exact', head: true })
+            .eq('tenant_id', loc.id)
+            .eq('is_active', true),
+          // Get active employee count (from location assignments)
+          supabase
+            .from('user_tenant_assignments')
+            .select('*', { count: 'exact', head: true })
+            .eq('tenant_id', loc.id)
+            .eq('is_active', true),
+          // Get pending admin tasks
+          supabase
+            .from('admin_tasks')
+            .select('*', { count: 'exact', head: true })
+            .eq('tenant_id', loc.id)
+            .neq('status', 'completed'),
+          // Get overdue maintenance count
+          supabase
+            .from('maintenance_tasks')
+            .select('*, equipment!inner(*)')
+            .eq('equipment.tenant_id', loc.id),
+        ]);
 
-        const { count: assignmentCount } = await supabase
-          .from('user_tenant_assignments')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', loc.id)
-          .eq('is_active', true);
-
+        const profileCount = profileResult.count;
+        const assignmentCount = assignmentResult.count;
         locMetrics.active_employees = Math.max(profileCount || 0, assignmentCount || 0) || (profileCount || 0);
 
-        // Get pending admin tasks
-        const { count: taskCount } = await supabase
-          .from('admin_tasks')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', loc.id)
-          .neq('status', 'completed');
-        locMetrics.pending_tasks = taskCount || 0;
+        locMetrics.pending_tasks = taskResult.count || 0;
 
-        // Get overdue maintenance count
-        const { data: maintenanceTasks } = await supabase
-          .from('maintenance_tasks')
-          .select('*, equipment!inner(*)')
-          .eq('equipment.tenant_id', loc.id);
-        
+        const maintenanceTasks = maintenanceResult.data;
         if (maintenanceTasks) {
           const now = new Date();
           let overdueCount = 0;
@@ -122,7 +125,12 @@ export default function OrganizationDashboard() {
           locMetrics.overdue_maintenance = overdueCount;
         }
 
-        metricsData[loc.id] = locMetrics;
+        return { id: loc.id, metrics: locMetrics };
+      }));
+
+      const metricsData: Record<string, LocationMetrics> = {};
+      for (const result of metricsResults) {
+        metricsData[result.id] = result.metrics;
       }
 
       setMetrics(metricsData);
@@ -142,8 +150,7 @@ export default function OrganizationDashboard() {
 
   useAppResume(() => {
     if (parentTenantId) {
-      console.log('[OrganizationDashboard] Refreshing data after app resume');
-      loadData();
+      loadData(true);
     }
   }, [parentTenantId, loadData]);
 
@@ -180,7 +187,7 @@ export default function OrganizationDashboard() {
               </Button>
             </Link>
             {branding?.logo_url ? (
-              <img src={branding.logo_url} alt={companyName} className="h-10 w-auto" />
+              <img src={branding.logo_url} alt={companyName} className="h-10 w-auto" loading="lazy" />
             ) : (
               <div 
                 className="w-10 h-10 rounded-full flex items-center justify-center"

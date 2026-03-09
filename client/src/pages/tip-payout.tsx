@@ -91,7 +91,7 @@ export default function TipPayout() {
         .from('tip_employees')
         .select('*')
         .eq('tenant_id', tenant.id)
-        .or('is_active.eq.true,is_active.is.null')
+        .eq('is_active', true)
         .order('name');
       if (error) throw error;
       setEmployees(data || []);
@@ -115,12 +115,12 @@ export default function TipPayout() {
     }
   }, [tenant?.id]);
 
-  const loadWeekData = useCallback(async () => {
+  const loadWeekData = useCallback(async (silent = false) => {
     if (!tenant?.id) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const { data: weekData, error: weekError } = await supabase
         .from('tip_weekly_data')
@@ -175,7 +175,7 @@ export default function TipPayout() {
     if (tenant?.id) {
       loadEmployees();
       loadAllEmployees();
-      loadWeekData();
+      loadWeekData(true);
     }
   }, [tenant?.id, loadEmployees, loadAllEmployees, loadWeekData]);
 

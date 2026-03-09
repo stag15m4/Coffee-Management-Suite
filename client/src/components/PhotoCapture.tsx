@@ -179,7 +179,7 @@ export function PhotoCapture({
             }}
           >
             {currentPhotoUrl ? (
-              <img src={currentPhotoUrl} alt="Photo" className="w-full h-full object-cover" />
+              <img src={currentPhotoUrl} alt="Photo" className="w-full h-full object-cover" loading="lazy" />
             ) : (
               placeholderIcon || <Camera className="w-8 h-8" style={{ color: colors.brownLight }} />
             )}
@@ -333,7 +333,7 @@ export function PhotoCapture({
                 }}
               >
                 {previewImage && (
-                  <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
+                  <img src={previewImage} alt="Preview" className="w-full h-full object-cover" loading="lazy" />
                 )}
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { Trash2, Pencil, Package, Columns3 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import {
@@ -37,6 +38,7 @@ const EMPTY_FORM = {
 };
 
 export const IngredientsTab = ({ ingredients, categories, productCategories, onUpdate, onAdd, onDelete, onCreateRecipeFromIngredients }: IngredientsTabProps) => {
+  const { toast } = useToast();
   const [selectedType, setSelectedType] = useState<string>('FOH Ingredient');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -94,7 +96,7 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
       }
     } else {
       if (!formData.name || !formData.category_id) {
-        alert('Please fill in name and category');
+        toast({ title: 'Please fill in name and category', variant: 'destructive' });
         return;
       }
       await onAdd(formData);
@@ -119,7 +121,7 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
 
   const handleBulkTransfer = async () => {
     if (!transferTarget || selectedItems.size === 0) {
-      alert('Please select items and a target type');
+      toast({ title: 'Please select items and a target type', variant: 'destructive' });
       return;
     }
     try {
@@ -135,14 +137,14 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
         }
       }
       if (failCount > 0) {
-        alert(`Transfer issue: ${failCount} item(s) failed. This is likely due to Supabase security policies. Please check RLS settings.`);
+        toast({ title: 'Transfer issue', description: `${failCount} item(s) failed. This is likely due to Supabase security policies. Please check RLS settings.`, variant: 'destructive' });
       } else if (successCount > 0) {
-        alert(`Successfully transferred ${successCount} item(s) to ${pluralizeType(transferTarget)}`);
+        toast({ title: `Successfully transferred ${successCount} item(s) to ${pluralizeType(transferTarget)}` });
       }
       setSelectedItems(new Set());
       setTransferTarget('');
     } catch (error: any) {
-      alert('Transfer failed: ' + error.message);
+      toast({ title: 'Transfer failed', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -250,7 +252,7 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
           <button
             onClick={async () => {
               if (!newRecipeName.trim() || !newRecipeCategoryId) {
-                alert('Please enter a recipe name and select a type');
+                toast({ title: 'Please enter a recipe name and select a type', variant: 'destructive' });
                 return;
               }
               await onCreateRecipeFromIngredients({

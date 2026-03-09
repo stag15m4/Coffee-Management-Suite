@@ -136,7 +136,8 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      throw err;
+      console.error('Error creating ingredient:', err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -167,7 +168,8 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      throw err;
+      console.error('Error updating ingredient:', err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -304,7 +306,8 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      throw err;
+      console.error('Error creating recipe:', err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -335,7 +338,8 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      throw err;
+      console.error('Error updating recipe:', err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -367,7 +371,8 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      throw err;
+      console.error('Error adding recipe ingredient:', err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 

@@ -144,7 +144,7 @@ export default function StoreProfile() {
                       style={{ backgroundColor: colors.white, border: `2px solid ${colors.gold}` }}
                     >
                       {member.avatar_url ? (
-                        <img src={member.avatar_url} alt="" className="w-full h-full object-cover" />
+                        <img src={member.avatar_url} alt="" className="w-full h-full object-cover" loading="lazy" />
                       ) : (
                         <User className="w-8 h-8" style={{ color: colors.brownLight }} />
                       )}
@@ -200,7 +200,7 @@ export default function StoreProfile() {
                       }}
                     >
                       {shift.employee_avatar ? (
-                        <img src={shift.employee_avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                        <img src={shift.employee_avatar} alt="" className="w-8 h-8 rounded-full object-cover" loading="lazy" />
                       ) : (
                         (shift.employee_name || '?').charAt(0).toUpperCase()
                       )}
@@ -269,7 +269,7 @@ export default function StoreProfile() {
                   style={{ backgroundColor: colors.cream, border: `2px solid ${colors.gold}` }}
                 >
                   {selectedMember.avatar_url ? (
-                    <img src={selectedMember.avatar_url} alt="" className="w-full h-full object-cover" />
+                    <img src={selectedMember.avatar_url} alt="" className="w-full h-full object-cover" loading="lazy" />
                   ) : (
                     <User className="w-10 h-10" style={{ color: colors.brownLight }} />
                   )}

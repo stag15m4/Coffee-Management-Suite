@@ -312,6 +312,7 @@ export function TaskAttachments({ taskId, tenantId, userName }: TaskAttachmentsP
                 src={previewAttachment.url}
                 alt={previewAttachment.name}
                 className="max-w-[95vw] max-h-[75vh] rounded-lg object-contain"
+                loading="lazy"
               />
             ) : previewAttachment.file_type === 'application/pdf' ? (
               <iframe

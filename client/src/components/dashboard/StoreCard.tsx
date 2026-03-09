@@ -240,6 +240,7 @@ export function StoreCard({
                       src={member.avatar_url}
                       alt=""
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   ) : (
                     <User

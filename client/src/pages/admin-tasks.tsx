@@ -251,7 +251,6 @@ export default function AdminTasks() {
           msg.includes('load failed') || msg.includes('timeout') || msg.includes('connection');
         
         if (isNetworkError && attempt < retries) {
-          console.log(`[AdminTasks] Retry attempt ${attempt + 1}/${retries}...`);
           await supabase.auth.refreshSession();
           await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
           continue;
@@ -268,9 +267,9 @@ export default function AdminTasks() {
     }
   }, [tenant?.id]);
   
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (silent = false) => {
     if (!tenant?.id) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     
     try {
       const [categoriesRes, usersRes, tasksRes] = await Promise.all([
@@ -296,14 +295,12 @@ export default function AdminTasks() {
   // Refresh data when app resumes from background (iPad multitasking)
   useAppResume(() => {
     if (tenant?.id) {
-      console.log('[AdminTasks] Refreshing data after app resume');
-      loadData();
+      loadData(true);
     }
   }, [tenant?.id, loadData]);
   
   // Refresh data when location changes
   useLocationChange(() => {
-    console.log('[AdminTasks] Refreshing data after location change');
     loadData();
   }, [loadData]);
   

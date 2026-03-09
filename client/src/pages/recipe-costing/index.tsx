@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Settings } from 'lucide-react';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStoreOperatingHours, computeHoursFromStoreProfile } from '@/hooks/use-store-profile';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
@@ -100,6 +101,7 @@ export default function RecipeCostingPage() {
   const queryClient = useQueryClient();
   const { profile, tenant, branding, primaryTenant, adminViewingTenant } = useAuth();
   const { confirm, ConfirmDialog } = useConfirmDialog();
+  const { toast } = useToast();
 
   // Settings drawer
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -215,7 +217,7 @@ export default function RecipeCostingPage() {
     try {
       await updateIngredientMutation.mutateAsync({ id, updates: updates as Record<string, any> });
     } catch (error: any) {
-      alert('Error updating ingredient: ' + error.message);
+      toast({ title: 'Error updating ingredient', description: error.message, variant: 'destructive' });
       throw error;
     }
   };
@@ -224,7 +226,7 @@ export default function RecipeCostingPage() {
     try {
       await addIngredientMutation.mutateAsync({ ...ingredient, tenant_id: profile?.tenant_id } as Record<string, any>);
     } catch (error: any) {
-      alert('Error adding ingredient: ' + error.message);
+      toast({ title: 'Error adding ingredient', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -237,7 +239,7 @@ export default function RecipeCostingPage() {
       if (!overhead?.id) return;
       await updateOverheadMutation.mutateAsync({ id: overhead.id, updates });
     } catch (error: any) {
-      alert('Error updating overhead: ' + error.message);
+      toast({ title: 'Error updating overhead', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -250,7 +252,7 @@ export default function RecipeCostingPage() {
         sort_order: overheadItems.length,
       });
     } catch (error: any) {
-      alert('Error adding overhead item: ' + error.message);
+      toast({ title: 'Error adding overhead item', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -258,7 +260,7 @@ export default function RecipeCostingPage() {
     try {
       await updateOverheadItemMutation.mutateAsync({ id, updates });
     } catch (error: any) {
-      alert('Error updating overhead item: ' + error.message);
+      toast({ title: 'Error updating overhead item', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -266,7 +268,7 @@ export default function RecipeCostingPage() {
     try {
       await deleteOverheadItemMutation.mutateAsync(id);
     } catch (error: any) {
-      alert('Error deleting overhead item: ' + error.message);
+      toast({ title: 'Error deleting overhead item', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -280,7 +282,7 @@ export default function RecipeCostingPage() {
         existingId: existing?.id,
       });
     } catch (error: any) {
-      alert('Error updating price: ' + error.message);
+      toast({ title: 'Error updating price', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -294,7 +296,7 @@ export default function RecipeCostingPage() {
         existingId: existing?.id,
       });
     } catch (error: any) {
-      alert('Error updating base: ' + error.message);
+      toast({ title: 'Error updating base', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -352,7 +354,7 @@ export default function RecipeCostingPage() {
 
       invalidateRecipeData();
     } catch (error: any) {
-      alert('Error duplicating recipe: ' + error.message);
+      toast({ title: 'Error duplicating recipe', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -379,7 +381,7 @@ export default function RecipeCostingPage() {
       invalidateRecipeData();
       showDeleteUndoToast({ itemName: name, undo: { type: 'none' } });
     } catch (error: any) {
-      alert('Error deleting recipe: ' + error.message);
+      toast({ title: 'Error deleting recipe', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -399,7 +401,7 @@ export default function RecipeCostingPage() {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
     } catch (error: any) {
-      alert('Error adding recipe: ' + error.message);
+      toast({ title: 'Error adding recipe', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -440,7 +442,7 @@ export default function RecipeCostingPage() {
       invalidateRecipeData();
       setActiveTab('recipes');
     } catch (error: any) {
-      alert('Error creating recipe: ' + error.message);
+      toast({ title: 'Error creating recipe', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -454,7 +456,7 @@ export default function RecipeCostingPage() {
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
     } catch (error: any) {
-      alert('Error updating recipe: ' + error.message);
+      toast({ title: 'Error updating recipe', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -473,14 +475,14 @@ export default function RecipeCostingPage() {
 
       if (error) {
         console.error('Supabase error adding bulk size:', error);
-        alert('Error adding bulk size: ' + error.message + '\n\nMake sure your Supabase RLS policies allow inserts on the product_sizes table.');
+        toast({ title: 'Error adding bulk size', description: error.message + ' Make sure your Supabase RLS policies allow inserts on the product_sizes table.', variant: 'destructive' });
         return false;
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.productSizes });
       return true;
     } catch (error: any) {
       console.error('Error in handleAddBulkSize:', error);
-      alert('Error adding bulk size: ' + error.message);
+      toast({ title: 'Error adding bulk size', description: error.message, variant: 'destructive' });
       return false;
     }
   };
@@ -496,7 +498,7 @@ export default function RecipeCostingPage() {
 
       if (ingredientError) {
         console.error('Error deleting associated ingredients:', ingredientError);
-        alert('Error removing ingredients for this size: ' + ingredientError.message);
+        toast({ title: 'Error removing ingredients for this size', description: ingredientError.message, variant: 'destructive' });
         return;
       }
 
@@ -507,7 +509,7 @@ export default function RecipeCostingPage() {
 
       if (error) {
         console.error('Supabase error deleting bulk size:', error);
-        alert('Error deleting bulk size: ' + error.message);
+        toast({ title: 'Error deleting bulk size', description: error.message, variant: 'destructive' });
         return;
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.productSizes });
@@ -515,7 +517,7 @@ export default function RecipeCostingPage() {
       showDeleteUndoToast({ itemName: name, undo: { type: 'none' } });
     } catch (error: any) {
       console.error('Error in handleDeleteBulkSize:', error);
-      alert('Error deleting bulk size: ' + error.message);
+      toast({ title: 'Error deleting bulk size', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -560,7 +562,7 @@ export default function RecipeCostingPage() {
       }
 
       if (!tenantId) {
-        alert('Unable to determine your tenant. Please refresh the page and try again.');
+        toast({ title: 'Unable to determine your tenant', description: 'Please refresh the page and try again.', variant: 'destructive' });
         return;
       }
 
@@ -578,7 +580,7 @@ export default function RecipeCostingPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
     } catch (error: any) {
       console.error('Error adding base template:', error);
-      alert('Error adding base template: ' + error.message);
+      toast({ title: 'Error adding base template', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -597,7 +599,7 @@ export default function RecipeCostingPage() {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
     } catch (error: any) {
-      alert('Error adding template ingredient: ' + error.message);
+      toast({ title: 'Error adding template ingredient', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -611,7 +613,7 @@ export default function RecipeCostingPage() {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
     } catch (error: any) {
-      alert('Error deleting template ingredient: ' + error.message);
+      toast({ title: 'Error deleting template ingredient', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -631,7 +633,7 @@ export default function RecipeCostingPage() {
       showDeleteUndoToast({ itemName: name, undo: { type: 'none' } });
     } catch (error: any) {
       console.error('Error deleting base template:', error);
-      alert('Error deleting base template: ' + error.message);
+      toast({ title: 'Error deleting base template', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -657,7 +659,7 @@ export default function RecipeCostingPage() {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
     } catch (error: any) {
-      alert('Error adding recipe ingredient: ' + error.message);
+      toast({ title: 'Error adding recipe ingredient', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -685,7 +687,7 @@ export default function RecipeCostingPage() {
         invalidateKeys: [queryKeys.ingredients],
       });
     } catch (error: any) {
-      alert('Error deleting ingredient: ' + error.message);
+      toast({ title: 'Error deleting ingredient', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -699,7 +701,7 @@ export default function RecipeCostingPage() {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
     } catch (error: any) {
-      alert('Error deleting recipe ingredient: ' + error.message);
+      toast({ title: 'Error deleting recipe ingredient', description: error.message, variant: 'destructive' });
     }
   };
 

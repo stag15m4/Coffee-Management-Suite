@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/node";
 import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -64,6 +65,10 @@ app.use(cors({
   origin: buildCorsOrigin() as any,
   credentials: true,
 }));
+
+// Gzip compression for responses
+app.use(compression());
+
 const httpServer = createServer(app);
 
 declare module "http" {

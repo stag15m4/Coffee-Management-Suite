@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { Trash2, X, Plus, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -18,6 +19,7 @@ interface BaseTemplatesTabProps {
 }
 
 export const BaseTemplatesTab = ({ baseTemplates, ingredients, productSizes, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient, onDeleteTemplate, onAddProductSize, onRemoveTemplateSize }: BaseTemplatesTabProps) => {
+  const { toast } = useToast();
   const [showAddForm, setShowAddForm] = useState(false);
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
   const [newTemplate, setNewTemplate] = useState({ name: '', drink_type: 'Hot', description: '' });
@@ -33,7 +35,7 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, productSizes, onA
   const handleCopyFromSize = async (template: BaseTemplate, targetSizeId: string, sourceSizeId: string) => {
     const sourceIngredients = (template.ingredients || []).filter(i => i.size_id === sourceSizeId);
     if (sourceIngredients.length === 0) {
-      alert('No ingredients to copy from that size');
+      toast({ title: 'No ingredients to copy from that size', variant: 'destructive' });
       return;
     }
     setCopying(true);
@@ -54,7 +56,7 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, productSizes, onA
 
   const handleAddTemplate = async () => {
     if (!newTemplate.name) {
-      alert('Please enter a template name');
+      toast({ title: 'Please enter a template name', variant: 'destructive' });
       return;
     }
     await onAddTemplate(newTemplate);
@@ -64,7 +66,7 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, productSizes, onA
 
   const handleAddIngredient = async (templateId: string, sizeId: string) => {
     if (!newIngredient.ingredient_id) {
-      alert('Please select an ingredient');
+      toast({ title: 'Please select an ingredient', variant: 'destructive' });
       return;
     }
     const selectedIng = ingredients.find(i => i.id === newIngredient.ingredient_id);
@@ -420,7 +422,7 @@ export const BaseTemplatesTab = ({ baseTemplates, ingredients, productSizes, onA
                                     setNewSizeName('');
                                     setNewSizeOz('');
                                   } catch (err: any) {
-                                    alert('Error creating size: ' + err.message);
+                                    toast({ title: 'Error creating size', description: err.message, variant: 'destructive' });
                                   }
                                 }}
                                 className="flex-1 px-2 py-1.5 rounded text-sm font-medium"

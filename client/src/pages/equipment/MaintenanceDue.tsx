@@ -177,7 +177,7 @@ export function MaintenanceDue({
                               className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0"
                               style={{ border: `2px solid ${colors.creamDark}` }}
                             >
-                              <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
+                              <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" loading="lazy" />
                             </div>
                           )}
                           {task.image_url && (
@@ -188,7 +188,7 @@ export function MaintenanceDue({
                                 zIndex: 1,
                               }}
                             >
-                              <img src={task.image_url} alt={task.name} className="w-full h-full object-cover" />
+                              <img src={task.image_url} alt={task.name} className="w-full h-full object-cover" loading="lazy" />
                             </div>
                           )}
                         </div>
@@ -237,7 +237,7 @@ export function MaintenanceDue({
                                 style={{ border: `2px solid ${colors.creamDark}` }}
                                 onClick={(e) => { e.stopPropagation(); setLightboxUrl(task.equipment!.photo_url!); }}
                               >
-                                <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" />
+                                <img src={task.equipment.photo_url} alt={task.equipment.name} className="w-full h-full object-cover" loading="lazy" />
                               </div>
                             </div>
                           )}
@@ -250,7 +250,7 @@ export function MaintenanceDue({
                                   style={{ border: `2px solid ${colors.gold}` }}
                                   onClick={(e) => { e.stopPropagation(); setLightboxUrl(task.image_url!); }}
                                 >
-                                  <img src={task.image_url} alt={task.name} className="w-full h-full object-cover" />
+                                  <img src={task.image_url} alt={task.name} className="w-full h-full object-cover" loading="lazy" />
                                 </div>
                                 <button
                                   type="button"

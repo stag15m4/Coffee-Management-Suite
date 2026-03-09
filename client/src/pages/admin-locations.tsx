@@ -83,9 +83,9 @@ export default function AdminLocations() {
 
   const companyName = branding?.company_name || tenant?.name || 'Organization';
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (silent = false) => {
     if (!tenant?.id) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
 
     try {
       // Fetch child locations
@@ -138,7 +138,7 @@ export default function AdminLocations() {
   useAppResume(() => {
     if (tenant?.id) {
       console.log('[AdminLocations] Refreshing data after app resume');
-      loadData();
+      loadData(true);
     }
   }, [tenant?.id, loadData]);
 
@@ -160,6 +160,12 @@ export default function AdminLocations() {
   const handleSave = async () => {
     if (!tenant?.id || !formData.name.trim() || !formData.slug.trim()) {
       toast({ title: 'Please fill in all fields', variant: 'destructive' });
+      return;
+    }
+
+    const drawerAmount = parseFloat(formData.starting_drawer_default);
+    if (drawerAmount < 0) {
+      toast({ title: 'Starting drawer amount cannot be negative', variant: 'destructive' });
       return;
     }
 

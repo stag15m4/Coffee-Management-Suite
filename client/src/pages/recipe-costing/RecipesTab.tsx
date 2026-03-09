@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { Trash2, Pencil, Copy, BookOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { BaseTemplatesTab } from './BaseTemplatesTab';
@@ -43,6 +44,7 @@ interface RecipesTabProps {
 }
 
 export const RecipesTab = ({ recipes, ingredients, productCategories, productSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase, onDuplicateRecipe, onDeleteRecipe, onAddBulkSize, onDeleteBulkSize, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient, onDeleteTemplate, onAddProductSize, onRemoveTemplateSize }: RecipesTabProps) => {
+  const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -187,7 +189,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
 
   const handleAddRecipe = async () => {
     if (!newRecipe.name || !newRecipe.category_id) {
-      alert('Please fill in recipe name and category');
+      toast({ title: 'Please fill in recipe name and category', variant: 'destructive' });
       return;
     }
     await onAddRecipe({
@@ -202,7 +204,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
 
   const handleAddIngredient = async (recipeId: string, sizeId: string) => {
     if (!newIngredient.ingredient_id) {
-      alert('Please select an ingredient');
+      toast({ title: 'Please select an ingredient', variant: 'destructive' });
       return;
     }
 
@@ -538,19 +540,16 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                       />
                       <button
                         onClick={async () => {
-                          console.log('Save clicked, oz value:', newBulkSize.oz);
                           if (newBulkSize.oz) {
                             const name = newBulkSize.name || `Bulk ${newBulkSize.oz}oz`;
                             const finalName = name.toLowerCase().includes('bulk') ? name : `Bulk ${name}`;
-                            console.log('Calling onAddBulkSize with:', finalName, parseFloat(newBulkSize.oz));
                             const success = await onAddBulkSize(finalName, parseFloat(newBulkSize.oz));
-                            console.log('onAddBulkSize returned:', success);
                             if (success) {
                               setNewBulkSize({ name: '', oz: '' });
                               setShowAddBulkSize(false);
                             }
                           } else {
-                            alert('Please enter a size in oz');
+                            toast({ title: 'Please enter a size in oz', variant: 'destructive' });
                           }
                         }}
                         className="px-2 py-1 rounded text-sm font-medium"

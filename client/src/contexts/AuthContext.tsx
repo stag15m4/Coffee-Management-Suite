@@ -884,38 +884,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [platformAdmin, adminViewingTenant, enterTenantView]);
 
+  const contextValue = useMemo(() => ({
+    user,
+    session,
+    profile,
+    platformAdmin,
+    isPlatformAdmin: !!platformAdmin,
+    tenant,
+    primaryTenant,
+    accessibleLocations,
+    activeLocationId,
+    branding,
+    enabledModules,
+    roleSettings,
+    loading,
+    signIn,
+    signUp,
+    signOut,
+    hasRole,
+    hasPermission,
+    getRoleDisplayName,
+    canAccessModule,
+    refreshEnabledModules,
+    switchLocation,
+    retryProfileFetch,
+    isParentTenant,
+    adminViewingTenant,
+    enterTenantView,
+    exitTenantView,
+  }), [
+    user, session, profile, platformAdmin, tenant, primaryTenant,
+    accessibleLocations, activeLocationId, branding, enabledModules,
+    roleSettings, loading, hasPermission, getRoleDisplayName,
+    refreshEnabledModules, switchLocation, retryProfileFetch,
+    isParentTenant, adminViewingTenant, enterTenantView, exitTenantView,
+  ]);
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        profile,
-        platformAdmin,
-        isPlatformAdmin: !!platformAdmin,
-        tenant,
-        primaryTenant,
-        accessibleLocations,
-        activeLocationId,
-        branding,
-        enabledModules,
-        roleSettings,
-        loading,
-        signIn,
-        signUp,
-        signOut,
-        hasRole,
-        hasPermission,
-        getRoleDisplayName,
-        canAccessModule,
-        refreshEnabledModules,
-        switchLocation,
-        retryProfileFetch,
-        isParentTenant,
-        adminViewingTenant,
-        enterTenantView,
-        exitTenantView,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

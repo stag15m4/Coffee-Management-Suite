@@ -245,6 +245,7 @@ export default function BugReports() {
                       alt="Screenshot preview"
                       className="h-20 rounded border object-cover"
                       style={{ borderColor: colors.gold }}
+                      loading="lazy"
                     />
                     <Button
                       type="button"

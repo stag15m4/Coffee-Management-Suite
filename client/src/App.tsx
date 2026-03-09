@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -14,37 +15,42 @@ import { WhatsNew } from "@/components/WhatsNew";
 import { Spotlight } from "@/components/Spotlight";
 import { AppResumeIndicator } from "@/components/AppResumeIndicator";
 import { CoffeeLoader } from "@/components/CoffeeLoader";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+
+// Eagerly loaded — needed for initial render
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
 import Dashboard from "@/pages/dashboard";
-import RecipeCostingPage from "@/pages/recipe-costing";
-import CashDeposit from "@/pages/cash-deposit";
-import TipPayout from "@/pages/tip-payout";
-import CoffeeOrder from "@/pages/coffee-order";
-import EquipmentMaintenance from "@/pages/equipment";
-import AdminTasks from "@/pages/admin-tasks";
-import CalendarWorkforce from "@/pages/calendar-workforce";
-import AdminUsers from "@/pages/admin-users";
-import AdminBranding from "@/pages/admin-branding";
-import AdminLocations from "@/pages/admin-locations";
-import UserProfile from "@/pages/user-profile";
-import MyTeam from "@/pages/my-team";
-import OrganizationDashboard from "@/pages/organization-dashboard";
-import PlatformAdmin from "@/pages/platform-admin";
-import PlatformAnalytics from "@/pages/platform-analytics";
-import ResellerManagement from "@/pages/reseller-management";
-import Billing from "@/pages/billing";
-import Reporting from "@/pages/reporting";
-import AdminRoleSettings from "@/pages/admin-role-settings";
-import StoreProfile from "@/pages/store-profile";
-import AdminIntegrations from "@/pages/admin-integrations";
-import DocumentLibrary from "@/pages/document-library";
-import Kiosk from "@/pages/kiosk";
-import ResetPassword from "@/pages/reset-password";
-import AdminBusinessAccounts from "@/pages/admin-business-accounts";
-import BugReports from "@/pages/bug-reports";
-import PlatformBugReports from "@/pages/platform-bug-reports";
+
+// Lazy loaded — only fetched when the route is visited
+const RecipeCostingPage = lazy(() => import("@/pages/recipe-costing"));
+const CashDeposit = lazy(() => import("@/pages/cash-deposit"));
+const TipPayout = lazy(() => import("@/pages/tip-payout"));
+const CoffeeOrder = lazy(() => import("@/pages/coffee-order"));
+const EquipmentMaintenance = lazy(() => import("@/pages/equipment"));
+const AdminTasks = lazy(() => import("@/pages/admin-tasks"));
+const CalendarWorkforce = lazy(() => import("@/pages/calendar-workforce"));
+const AdminUsers = lazy(() => import("@/pages/admin-users"));
+const AdminBranding = lazy(() => import("@/pages/admin-branding"));
+const AdminLocations = lazy(() => import("@/pages/admin-locations"));
+const UserProfile = lazy(() => import("@/pages/user-profile"));
+const MyTeam = lazy(() => import("@/pages/my-team"));
+const OrganizationDashboard = lazy(() => import("@/pages/organization-dashboard"));
+const PlatformAdmin = lazy(() => import("@/pages/platform-admin"));
+const PlatformAnalytics = lazy(() => import("@/pages/platform-analytics"));
+const ResellerManagement = lazy(() => import("@/pages/reseller-management"));
+const Billing = lazy(() => import("@/pages/billing"));
+const Reporting = lazy(() => import("@/pages/reporting"));
+const AdminRoleSettings = lazy(() => import("@/pages/admin-role-settings"));
+const StoreProfile = lazy(() => import("@/pages/store-profile"));
+const AdminIntegrations = lazy(() => import("@/pages/admin-integrations"));
+const DocumentLibrary = lazy(() => import("@/pages/document-library"));
+const Kiosk = lazy(() => import("@/pages/kiosk"));
+const ResetPassword = lazy(() => import("@/pages/reset-password"));
+const AdminBusinessAccounts = lazy(() => import("@/pages/admin-business-accounts"));
+const BugReports = lazy(() => import("@/pages/bug-reports"));
+const PlatformBugReports = lazy(() => import("@/pages/platform-bug-reports"));
 
 function HomePage() {
   const { user, loading } = useAuth();
@@ -68,6 +74,7 @@ function HomePage() {
 
 function Router() {
   return (
+    <Suspense fallback={<CoffeeLoader fullScreen />}>
     <Switch>
       <Route path="/kiosk" component={Kiosk} />
       <Route path="/login" component={Login} />
@@ -188,6 +195,7 @@ function Router() {
       </Route>
       <Route path="/" component={HomePage} />
     </Switch>
+    </Suspense>
   );
 }
 
@@ -201,7 +209,9 @@ function App() {
               <NavigationProvider>
                 <AppResumeIndicator />
                 <Toaster />
-                <Router />
+                <ErrorBoundary>
+                  <Router />
+                </ErrorBoundary>
                 <CommandPalette />
                 <WhatsNew />
                 <Spotlight />

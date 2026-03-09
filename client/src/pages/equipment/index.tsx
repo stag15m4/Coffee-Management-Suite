@@ -960,6 +960,7 @@ export default function EquipmentMaintenance() {
               alt="Equipment photo"
               className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
               onClick={(e) => e.stopPropagation()}
+              loading="lazy"
             />
           </div>
         )}

@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { User, Calendar, Mail, Lock, TrendingUp, Phone, MapPin, Heart, Users, BookOpen, Pencil } from 'lucide-react';
+import { User, Calendar, Mail, Lock, TrendingUp, Phone, MapPin, Heart, Users, Pencil } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { colors } from '@/lib/colors';
 
@@ -91,7 +91,6 @@ export default function MyTeam() {
   const { profile, tenant, branding, primaryTenant, canAccessModule } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
-  const [activeTab, setActiveTab] = useState<'team' | 'directory'>('team');
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [editForm, setEditForm] = useState<Partial<TeamMember>>({});
   const [saving, setSaving] = useState(false);
@@ -294,48 +293,25 @@ export default function MyTeam() {
         </div>
       </header>
 
-      {/* Tab Navigation */}
-      <nav className="px-6" style={{ borderBottom: `1px solid ${colors.creamDark}` }}>
-        <div className="max-w-6xl mx-auto flex gap-1">
-          {[
-            { key: 'team' as const, label: 'Team', icon: Users },
-            { key: 'directory' as const, label: 'Staff Directory', icon: BookOpen },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors"
-              style={{
-                borderColor: activeTab === tab.key ? colors.gold : 'transparent',
-                color: activeTab === tab.key ? colors.gold : colors.brownLight,
-              }}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </nav>
-
       <main className="max-w-6xl mx-auto p-6">
-        {activeTab === 'team' ? (
-          /* ============ TEAM TAB ============ */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {teamMembers?.map((member) => {
-              const tenure = calculateTenure(member.start_date);
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {teamMembers?.map((member) => {
+            const tenure = calculateTenure(member.start_date);
+            const address = canViewFullDirectory ? formatAddress(member) : null;
 
-              return (
-                <Card
-                  key={member.id}
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
-                  style={{ backgroundColor: colors.white }}
-                  onClick={() => setSelectedMember(member)}
-                >
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col items-center text-center space-y-4">
-                      {/* Avatar */}
+            return (
+              <Card
+                key={member.id}
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                style={{ backgroundColor: colors.white }}
+                onClick={() => setSelectedMember(member)}
+              >
+                <CardContent className="pt-6">
+                  <div className="flex flex-col items-center text-center space-y-3">
+                    {/* Avatar */}
+                    <div className="relative">
                       <div
-                        className="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center"
+                        className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center"
                         style={{ backgroundColor: colors.cream, border: `2px solid ${colors.gold}` }}
                       >
                         {member.avatar_url ? (
@@ -343,25 +319,32 @@ export default function MyTeam() {
                             src={member.avatar_url}
                             alt={member.full_name || 'Team member'}
                             className="w-full h-full object-cover"
+                            loading="lazy"
                           />
                         ) : (
-                          <User className="w-12 h-12" style={{ color: colors.brownLight }} />
+                          <User className="w-10 h-10" style={{ color: colors.brownLight }} />
                         )}
                       </div>
+                      {/* Edit button — owner/manager only */}
+                      {canEditDirectory && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEditDialog(member); }}
+                          className="absolute -top-1 -right-1 p-1.5 rounded-full bg-white shadow-sm hover:bg-gray-50 transition-colors"
+                          style={{ border: `1px solid ${colors.creamDark}` }}
+                          title="Edit directory info"
+                        >
+                          <Pencil className="w-3 h-3" style={{ color: colors.brownLight }} />
+                        </button>
+                      )}
+                    </div>
 
-                      {/* Name */}
-                      <div>
-                        <h3 className="font-semibold text-lg" style={{ color: colors.brown }}>
-                          {member.full_name || member.email.split('@')[0]}
-                        </h3>
-                        <p className="text-sm" style={{ color: colors.brownLight }}>
-                          {member.email}
-                        </p>
-                      </div>
-
-                      {/* Role Badge */}
+                    {/* Name & Role */}
+                    <div>
+                      <h3 className="font-semibold text-lg" style={{ color: colors.brown }}>
+                        {member.full_name || member.email.split('@')[0]}
+                      </h3>
                       <Badge
-                        className="capitalize"
+                        className="capitalize mt-1"
                         style={{
                           backgroundColor: getRoleBadgeColor(member.role),
                           color: colors.white,
@@ -369,126 +352,55 @@ export default function MyTeam() {
                       >
                         {member.role}
                       </Badge>
-
-                      {/* Serving Since & Tenure */}
-                      <div className="text-center space-y-0.5">
-                        {member.start_date && (
-                          <div className="flex items-center justify-center gap-2 text-sm" style={{ color: colors.brown }}>
-                            <Calendar className="w-4 h-4" style={{ color: colors.gold }} />
-                            <span>Serving Since {new Date(member.start_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                          </div>
-                        )}
-                        <p className="text-xs" style={{ color: colors.brownLight }}>{tenure}</p>
-                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          /* ============ STAFF DIRECTORY TAB ============ */
-          <div className="space-y-4">
-            {teamMembers?.map((member) => {
-              const address = canViewFullDirectory ? formatAddress(member) : null;
-              return (
-                <Card key={member.id} style={{ backgroundColor: colors.white }}>
-                  <CardContent className="py-4">
-                    <div className="flex items-start gap-4">
-                      {/* Avatar */}
-                      <div
-                        className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: colors.cream, border: `2px solid ${colors.gold}` }}
-                      >
-                        {member.avatar_url ? (
-                          <img src={member.avatar_url} alt={member.full_name || ''} className="w-full h-full object-cover" />
-                        ) : (
-                          <User className="w-6 h-6" style={{ color: colors.brownLight }} />
-                        )}
+
+                    {/* Contact Info */}
+                    <div className="w-full text-left space-y-1.5 pt-2" style={{ borderTop: `1px solid ${colors.creamDark}` }}>
+                      <div className="flex items-center gap-2 text-xs" style={{ color: colors.brownLight }}>
+                        <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="truncate">{member.email}</span>
                       </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold" style={{ color: colors.brown }}>
-                            {member.full_name || member.email.split('@')[0]}
-                          </h3>
-                          <Badge
-                            className="capitalize text-xs"
-                            style={{ backgroundColor: getRoleBadgeColor(member.role), color: colors.white }}
-                          >
-                            {member.role}
-                          </Badge>
+                      {member.phone && (
+                        <div className="flex items-center gap-2 text-xs" style={{ color: colors.brownLight }}>
+                          <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>{member.phone}</span>
                         </div>
-
-                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
-                          {/* Email — visible to all */}
-                          <div className="flex items-center gap-2 text-sm" style={{ color: colors.brownLight }}>
-                            <Mail className="w-3.5 h-3.5 flex-shrink-0" />
-                            <span className="truncate">{member.email}</span>
-                          </div>
-
-                          {/* Phone — visible to all */}
-                          {member.phone && (
-                            <div className="flex items-center gap-2 text-sm" style={{ color: colors.brownLight }}>
-                              <Phone className="w-3.5 h-3.5 flex-shrink-0" />
-                              <span>{member.phone}</span>
-                            </div>
-                          )}
-
-                          {/* DOB — owner/manager only */}
-                          {canViewFullDirectory && member.date_of_birth && (
-                            <div className="flex items-center gap-2 text-sm" style={{ color: colors.brownLight }}>
-                              <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-                              <span>{new Date(member.date_of_birth + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                            </div>
-                          )}
-
-                          {/* Address — owner/manager only */}
-                          {canViewFullDirectory && address && (
-                            <div className="flex items-start gap-2 text-sm" style={{ color: colors.brownLight }}>
-                              <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                              <span className="whitespace-pre-line">{address}</span>
-                            </div>
-                          )}
-
-                          {/* Emergency Contact — owner/manager only */}
-                          {canViewFullDirectory && member.emergency_contact_name && (
-                            <div className="flex items-center gap-2 text-sm sm:col-span-2" style={{ color: colors.brownLight }}>
-                              <Heart className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.red }} />
-                              <span>
-                                {member.emergency_contact_name}
-                                {member.emergency_contact_phone && ` — ${member.emergency_contact_phone}`}
-                              </span>
-                            </div>
-                          )}
+                      )}
+                      {member.start_date && (
+                        <div className="flex items-center gap-2 text-xs" style={{ color: colors.brownLight }}>
+                          <Calendar className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.gold }} />
+                          <span>Since {new Date(member.start_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} ({tenure})</span>
                         </div>
-                      </div>
-
-                      {/* Edit button — owner/manager only */}
-                      {canEditDirectory && (
-                        <button
-                          onClick={() => openEditDialog(member)}
-                          className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
-                          title="Edit directory info"
-                        >
-                          <Pencil className="w-4 h-4" style={{ color: colors.brownLight }} />
-                        </button>
+                      )}
+                      {canViewFullDirectory && address && (
+                        <div className="flex items-start gap-2 text-xs" style={{ color: colors.brownLight }}>
+                          <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                          <span className="whitespace-pre-line">{address}</span>
+                        </div>
+                      )}
+                      {canViewFullDirectory && member.emergency_contact_name && (
+                        <div className="flex items-center gap-2 text-xs" style={{ color: colors.brownLight }}>
+                          <Heart className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.red }} />
+                          <span>
+                            {member.emergency_contact_name}
+                            {member.emergency_contact_phone && ` — ${member.emergency_contact_phone}`}
+                          </span>
+                        </div>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
 
-            {(!teamMembers || teamMembers.length === 0) && (
-              <div className="text-center py-12">
-                <Users className="w-12 h-12 mx-auto mb-3" style={{ color: colors.brownLight }} />
-                <p style={{ color: colors.brownLight }}>No team members found.</p>
-              </div>
-            )}
-          </div>
-        )}
+          {(!teamMembers || teamMembers.length === 0) && (
+            <div className="text-center py-12 col-span-full">
+              <Users className="w-12 h-12 mx-auto mb-3" style={{ color: colors.brownLight }} />
+              <p style={{ color: colors.brownLight }}>No team members found.</p>
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Member Detail Dialog (Team tab) */}
@@ -511,6 +423,7 @@ export default function MyTeam() {
                       src={selectedMember.avatar_url}
                       alt={selectedMember.full_name || 'Team member'}
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   ) : (
                     <User className="w-10 h-10" style={{ color: colors.brownLight }} />
@@ -532,7 +445,7 @@ export default function MyTeam() {
                     <span className="text-sm" style={{ color: colors.brownLight }}>
                       {selectedMember.start_date
                         ? `Serving Since ${new Date(selectedMember.start_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} (${calculateTenure(selectedMember.start_date)})`
-                        : `${calculateTenure(selectedMember.start_date)} with the team`}
+                        : 'No start date recorded'}
                     </span>
                   </div>
                   <Badge

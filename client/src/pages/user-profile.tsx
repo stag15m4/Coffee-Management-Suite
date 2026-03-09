@@ -404,6 +404,7 @@ export default function UserProfile() {
                       src={profile.avatar_url}
                       alt={profile?.full_name || 'Profile'}
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   ) : (
                     <User className="w-16 h-16" style={{ color: colors.brownLight }} />
@@ -737,6 +738,7 @@ export default function UserProfile() {
                     src={previewImage}
                     alt="Preview"
                     className="w-full h-full object-cover"
+                    loading="lazy"
                   />
                 )}
               </div>

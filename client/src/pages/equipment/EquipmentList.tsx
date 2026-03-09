@@ -353,7 +353,7 @@ export function EquipmentList({
                         className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0"
                         style={{ border: `2px solid ${colors.creamDark}` }}
                       >
-                        <img src={item.photo_url} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={item.photo_url} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
                       </div>
                     )}
                     <div className="flex-1">
