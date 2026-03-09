@@ -51,6 +51,18 @@ export function buildCsvContent(params: {
   return csv;
 }
 
+/**
+ * Inline JS for the "Close & Return to App" button in export windows.
+ * window.close() silently fails on iPad Safari (new tabs aren't considered
+ * script-opened windows). Fall back to history.back(), then as a last resort
+ * redirect to the app root.
+ */
+/**
+ * Shared inline script tag for export windows. Import this in any file that
+ * builds an export HTML string and include it inside <head>.
+ */
+export const closeWindowScript = `function closeAndReturn(){window.close();setTimeout(function(){if(!window.closed){history.length>1?history.back():location.assign(location.origin)}},300)}`;
+
 const pdfBaseStyles = `
   body {
     font-family: Arial, sans-serif;
@@ -241,10 +253,11 @@ export function buildWeeklyPdfHtml(params: WeeklyPdfParams): string {
     <head>
       <title>${escapeHtml(companyName)} - Weekly Tip Payout Summary</title>
       <style>${pdfBaseStyles}</style>
+      <script>${closeWindowScript}</script>
     </head>
     <body>
       <div class="button-row no-print">
-        <button class="button secondary" onclick="window.close()">Close & Return to App</button>
+        <button class="button secondary" onclick="closeAndReturn()">Close & Return to App</button>
         <button class="button" onclick="window.print()">Print / Save as PDF</button>
       </div>
       <div class="container">
@@ -453,10 +466,11 @@ export function buildHistoricalGroupHtml(params: HistoricalGroupParams): string 
           padding-bottom: 5px;
         }
       </style>
+      <script>${closeWindowScript}</script>
     </head>
     <body>
       <div class="button-row no-print">
-        <button class="button secondary" onclick="window.close()">Close & Return to App</button>
+        <button class="button secondary" onclick="closeAndReturn()">Close & Return to App</button>
         <button class="button" onclick="window.print()">Print / Save as PDF</button>
       </div>
 
@@ -564,10 +578,11 @@ export function buildHistoricalIndividualHtml(params: HistoricalIndividualParams
     <head>
       <title>Tip Payout History - ${escapeHtml(employeeName)}</title>
       <style>${historicalBaseStyles}</style>
+      <script>${closeWindowScript}</script>
     </head>
     <body>
       <div class="button-row no-print">
-        <button class="button secondary" onclick="window.close()">Close & Return to App</button>
+        <button class="button secondary" onclick="closeAndReturn()">Close & Return to App</button>
         <button class="button" onclick="window.print()">Print / Save as PDF</button>
       </div>
       <div class="container">

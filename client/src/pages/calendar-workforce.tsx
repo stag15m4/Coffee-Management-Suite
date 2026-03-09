@@ -30,6 +30,7 @@ import {
   Link,
 } from 'lucide-react';
 import { useAllEmployees, useUpdateEmployeeColor, type UnifiedEmployee } from '@/hooks/use-all-employees';
+import { useStoreOperatingHours } from '@/hooks/use-store-profile';
 import {
   useShifts,
   useCreateShift,
@@ -65,6 +66,7 @@ import { MyBalancesCard, TeamBalancesCard } from '@/components/time-off/Balances
 import {
   useMyTimeOffBalances,
   useTimeOffPolicies,
+  useTimeOffBalances,
   useEmployeeTimeOffBalances,
   type TimeOffBalance,
 } from '@/hooks/use-time-off-policies';
@@ -159,11 +161,13 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   }, [calendarView, currentDate]);
 
   const { data: shifts, isLoading } = useShifts(startDate, endDate);
+  const { data: operatingHours } = useStoreOperatingHours(tenantId);
   const createShift = useCreateShift();
   const updateShift = useUpdateShift();
   const deleteShift = useDeleteShift();
   const bulkCreate = useBulkCreateShifts();
   const { data: templates } = useShiftTemplates();
+  const templatePanelRef = useRef<HTMLDivElement>(null);
   const createTemplate = useCreateShiftTemplate();
   const deleteTemplate = useDeleteShiftTemplate();
   const { data: timeOffRequests } = useTimeOffRequests('approved');
@@ -196,6 +200,32 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   const [newTemplateEnd, setNewTemplateEnd] = useState('16:00');
   const [newTemplateEmployee, setNewTemplateEmployee] = useState('');
   const [newTemplatePosition, setNewTemplatePosition] = useState('');
+
+  // Derive calendar slot range from tenant operating hours (with 1hr padding)
+  const { slotMinTime, slotMaxTime } = useMemo(() => {
+    if (!operatingHours || operatingHours.length === 0) {
+      return { slotMinTime: '05:00:00', slotMaxTime: '23:00:00' };
+    }
+    const openDays = operatingHours.filter((h) => !h.is_closed && h.open_time && h.close_time);
+    if (openDays.length === 0) {
+      return { slotMinTime: '05:00:00', slotMaxTime: '23:00:00' };
+    }
+    let earliestOpen = 24;
+    let latestClose = 0;
+    openDays.forEach((d) => {
+      const [oh, om] = (d.open_time || '0:0').split(':').map(Number);
+      const [ch, cm] = (d.close_time || '0:0').split(':').map(Number);
+      earliestOpen = Math.min(earliestOpen, oh + om / 60);
+      latestClose = Math.max(latestClose, ch + cm / 60);
+    });
+    // 1 hour padding before/after, clamped to 0–24
+    const minH = Math.max(0, Math.floor(earliestOpen) - 1);
+    const maxH = Math.min(24, Math.ceil(latestClose) + 1);
+    return {
+      slotMinTime: `${String(minH).padStart(2, '0')}:00:00`,
+      slotMaxTime: `${String(maxH).padStart(2, '0')}:00:00`,
+    };
+  }, [operatingHours]);
 
   // Calendar events
   const { data: calendarEvents } = useCalendarEvents(startDate, endDate);
@@ -713,8 +743,17 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
             >
               <Plus className="w-4 h-4 mr-1" /> Add Shift
             </Button>
-            <Button variant="outline" onClick={() => setShowTemplatePanel(!showTemplatePanel)}
-              style={{ borderColor: colors.creamDark, color: colors.brown }}>
+            <Button variant="outline" onClick={() => {
+                const opening = !showTemplatePanel;
+                setShowTemplatePanel(opening);
+                if (opening) {
+                  // Scroll to the template panel after it renders
+                  requestAnimationFrame(() => {
+                    setTimeout(() => templatePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+                  });
+                }
+              }}
+              style={{ borderColor: showTemplatePanel ? colors.gold : colors.creamDark, color: colors.brown }}>
               <CalendarDays className="w-4 h-4 mr-1" /> Templates
             </Button>
             {templates && templates.length > 0 && (
@@ -914,8 +953,8 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
             selectable={canEdit}
             selectMirror
             dayMaxEvents
-            slotMinTime="05:00:00"
-            slotMaxTime="23:00:00"
+            slotMinTime={slotMinTime}
+            slotMaxTime={slotMaxTime}
             allDaySlot={true}
             allDayText=""
             height="auto"
@@ -1288,7 +1327,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
       {/* Template Management Panel */}
       {showTemplatePanel && canEdit && (
-        <Card style={{ backgroundColor: colors.white }}>
+        <Card ref={templatePanelRef} style={{ backgroundColor: colors.white }}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base" style={{ color: colors.brown }}>
               <CalendarDays className="w-5 h-5" style={{ color: colors.gold }} />

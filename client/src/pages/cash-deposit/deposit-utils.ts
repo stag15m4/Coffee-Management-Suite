@@ -1,4 +1,5 @@
 import { escapeHtml } from '@/lib/escapeHtml';
+import { closeWindowScript } from '@/components/tip-payout/export-helpers';
 
 export interface CashEntry {
   id: string;
@@ -276,10 +277,11 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
       .no-print { display: none !important; }
     }
   </style>
+  <script>${closeWindowScript}</script>
 </head>
 <body>
   <div class="button-row no-print">
-    <button class="button secondary" onclick="window.close()">Close &amp; Return to App</button>
+    <button class="button secondary" onclick="closeAndReturn()">Close &amp; Return to App</button>
     <button class="button" onclick="window.print()">Print / Save as PDF</button>
   </div>
 

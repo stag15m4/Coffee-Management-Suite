@@ -1,5 +1,6 @@
 import { colors } from '@/lib/colors';
 import { escapeHtml } from '@/lib/escapeHtml';
+import { closeWindowScript } from '@/components/tip-payout/export-helpers';
 import {
   supabase,
   type Equipment,
@@ -401,10 +402,11 @@ export function exportEquipmentListPDF(equipmentList: Equipment[], businessName?
           .page { border: none; box-shadow: none; margin-bottom: 0; }
         }
       </style>
+      <script>${closeWindowScript}</script>
     </head>
     <body>
       <div class="no-print" style="margin-bottom: 20px;">
-        <button class="back-button" onclick="window.close()">Close & Return to App</button>
+        <button class="back-button" onclick="closeAndReturn()">Close & Return to App</button>
         <button class="back-button" onclick="window.print()" style="margin-left: 10px;">Print / Save as PDF</button>
       </div>
 
@@ -579,10 +581,11 @@ export async function exportEquipmentRecords(
           .task-card { break-inside: avoid; }
         }
       </style>
+      <script>${closeWindowScript}</script>
     </head>
     <body>
       <div class="no-print" style="margin-bottom: 20px;">
-        <button class="back-button" onclick="window.close()">
+        <button class="back-button" onclick="closeAndReturn()">
           Close & Return to App
         </button>
         <button class="back-button" onclick="window.print()" style="margin-left: 10px;">

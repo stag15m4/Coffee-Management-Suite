@@ -16,14 +16,20 @@ export function BottomTabBar() {
   const [location, setLocation] = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const needsMoreTab = mobileTabItems.length > MAX_VISIBLE_TABS;
+  // The provider may include a synthetic "more" item (id === 'more', href === '#more').
+  // Strip it out and treat it as a signal to show our own More tab with the sheet.
+  const syntheticMore = mobileTabItems.find((item) => item.id === "more");
+  const realTabItems = mobileTabItems.filter((item) => item.id !== "more");
+
+  const needsMoreTab =
+    syntheticMore != null || realTabItems.length > MAX_VISIBLE_TABS;
   const visibleTabs = needsMoreTab
-    ? mobileTabItems.slice(0, MAX_VISIBLE_TABS - 1)
-    : mobileTabItems.slice(0, MAX_VISIBLE_TABS);
+    ? realTabItems.slice(0, MAX_VISIBLE_TABS - 1)
+    : realTabItems.slice(0, MAX_VISIBLE_TABS);
 
   // Items shown in the "More" sheet: remaining tab items + settings + utility
   const overflowTabItems = needsMoreTab
-    ? mobileTabItems.slice(MAX_VISIBLE_TABS - 1)
+    ? realTabItems.slice(MAX_VISIBLE_TABS - 1)
     : [];
 
   const moreSheetItems = primaryItems.filter(

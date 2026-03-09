@@ -1,9 +1,56 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Banknote, ChevronLeft, ChevronRight, CreditCard, DollarSign } from 'lucide-react';
 import { Colors } from './types';
 import { DAYS, formatCurrency, getMonday } from './utils';
+
+/** Currency input that shows $X.XX when blurred and raw number when focused. */
+function CurrencyCell({
+  value,
+  onChange,
+  onKeyDown,
+  colors,
+  ariaLabel,
+  testId,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  colors: Colors;
+  ariaLabel: string;
+  testId: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  const [editValue, setEditValue] = useState('');
+
+  const displayValue = value ? (focused ? editValue : `$${value.toFixed(2)}`) : (focused ? editValue : '');
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      placeholder="$0"
+      value={displayValue}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^0-9.]/g, '');
+        setEditValue(raw);
+        onChange(parseFloat(raw) || 0);
+      }}
+      onFocus={(e) => {
+        setFocused(true);
+        setEditValue(value ? String(value) : '');
+        requestAnimationFrame(() => e.target.select());
+      }}
+      onBlur={() => setFocused(false)}
+      onKeyDown={onKeyDown}
+      className="text-center text-sm p-1"
+      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+      aria-label={ariaLabel}
+      data-testid={testId}
+    />
+  );
+}
 
 interface DailyTipsEntryProps {
   colors: Colors;
@@ -137,19 +184,14 @@ export function DailyTipsEntry({
             <Banknote className="w-5 h-5 shrink-0" style={{ color: colors.brown }} aria-label="Cash tips" />
             <div className="grid grid-cols-7 gap-1 flex-1">
               {DAYS.map((day, i) => (
-                <Input
+                <CurrencyCell
                   key={`cash-${i}`}
-                  type="number"
-                  step="0.01"
-                  placeholder="0"
-                  inputMode="decimal"
-                  value={cashEntries[i] || ''}
-                  onChange={(e) => onCashEntryChange(i, parseFloat(e.target.value) || 0)}
+                  value={cashEntries[i]}
+                  onChange={(v) => onCashEntryChange(i, v)}
                   onKeyDown={(e) => handleTipTabNav(e, 'cash', i)}
-                  className="text-center text-sm p-1"
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
-                  aria-label={`Cash tips for ${day}`}
-                  data-testid={`input-cash-${day.toLowerCase()}`}
+                  colors={colors}
+                  ariaLabel={`Cash tips for ${day}`}
+                  testId={`input-cash-${day.toLowerCase()}`}
                 />
               ))}
             </div>
@@ -163,19 +205,14 @@ export function DailyTipsEntry({
             <CreditCard className="w-5 h-5 shrink-0" style={{ color: colors.brown }} aria-label="Credit card tips" />
             <div className="grid grid-cols-7 gap-1 flex-1">
               {DAYS.map((day, i) => (
-                <Input
+                <CurrencyCell
                   key={`cc-${i}`}
-                  type="number"
-                  step="0.01"
-                  placeholder="0"
-                  inputMode="decimal"
-                  value={ccEntries[i] || ''}
-                  onChange={(e) => onCcEntryChange(i, parseFloat(e.target.value) || 0)}
+                  value={ccEntries[i]}
+                  onChange={(v) => onCcEntryChange(i, v)}
                   onKeyDown={(e) => handleTipTabNav(e, 'cc', i)}
-                  className="text-center text-sm p-1"
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
-                  aria-label={`Credit card tips for ${day}`}
-                  data-testid={`input-cc-${day.toLowerCase()}`}
+                  colors={colors}
+                  ariaLabel={`Credit card tips for ${day}`}
+                  testId={`input-cc-${day.toLowerCase()}`}
                 />
               ))}
             </div>
