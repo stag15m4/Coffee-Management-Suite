@@ -46,6 +46,7 @@ const AdminRoleSettings = lazy(() => import("@/pages/admin-role-settings"));
 const StoreProfile = lazy(() => import("@/pages/store-profile"));
 const AdminIntegrations = lazy(() => import("@/pages/admin-integrations"));
 const DocumentLibrary = lazy(() => import("@/pages/document-library"));
+const FinancialBudget = lazy(() => import("@/pages/financial-budget"));
 const Kiosk = lazy(() => import("@/pages/kiosk"));
 const ResetPassword = lazy(() => import("@/pages/reset-password"));
 const AdminBusinessAccounts = lazy(() => import("@/pages/admin-business-accounts"));
@@ -171,6 +172,11 @@ function Router() {
       <Route path="/document-library">
         <ProtectedRoute module="document-library">
           <AppLayout><DocumentLibrary /></AppLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/financial-budget">
+        <ProtectedRoute module="financial-budget">
+          <AppLayout><FinancialBudget /></AppLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/billing">

@@ -1,0 +1,480 @@
+import { useState, useRef, useCallback } from 'react';
+import { colors } from '@/lib/colors';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  useChartOfAccounts,
+  useCreateAccount,
+  useUpdateAccount,
+  useDeleteAccount,
+  useImportChartOfAccounts,
+} from '@/hooks/use-budget';
+import { buildAccountTree, ACCOUNT_TYPE_ORDER } from './types';
+import type { ChartOfAccount, AccountType } from './types';
+import {
+  Upload,
+  Plus,
+  Trash2,
+  Edit2,
+  ChevronRight,
+  ChevronDown,
+  FileSpreadsheet,
+  Loader2,
+  Check,
+} from 'lucide-react';
+
+interface Props {
+  tenantId: string;
+}
+
+export default function ChartOfAccountsTab({ tenantId }: Props) {
+  const { toast } = useToast();
+  const { data: accounts = [], isLoading } = useChartOfAccounts(tenantId);
+  const createAccount = useCreateAccount();
+  const updateAccount = useUpdateAccount();
+  const deleteAccount = useDeleteAccount();
+  const importCoa = useImportChartOfAccounts();
+
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set(ACCOUNT_TYPE_ORDER));
+  const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Add form state
+  const [newAccount, setNewAccount] = useState({
+    name: '',
+    account_number: '',
+    account_type: 'Expense' as AccountType,
+    detail_type: '',
+    parent_id: '',
+  });
+
+  // Edit form state
+  const [editValues, setEditValues] = useState({
+    name: '',
+    account_number: '',
+    account_type: '' as AccountType,
+    detail_type: '',
+  });
+
+  const tree = buildAccountTree(accounts);
+
+  // Group by type
+  const grouped = ACCOUNT_TYPE_ORDER.map((type) => ({
+    type,
+    accounts: tree.filter((a) => a.account_type === type),
+  })).filter((g) => g.accounts.length > 0);
+
+  const toggleType = (type: string) => {
+    setExpandedTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  };
+
+  const toggleAccount = (id: string) => {
+    setExpandedAccounts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleAdd = async () => {
+    if (!newAccount.name.trim()) {
+      toast({ title: 'Name is required', variant: 'destructive' });
+      return;
+    }
+    try {
+      await createAccount.mutateAsync({
+        tenant_id: tenantId,
+        name: newAccount.name.trim(),
+        account_number: newAccount.account_number.trim() || null,
+        account_type: newAccount.account_type,
+        detail_type: newAccount.detail_type.trim() || null,
+        parent_id: newAccount.parent_id || null,
+        depth: newAccount.parent_id ? 1 : 0,
+      });
+      setShowAddDialog(false);
+      setNewAccount({ name: '', account_number: '', account_type: 'Expense', detail_type: '', parent_id: '' });
+      toast({ title: 'Account added' });
+    } catch (err: any) {
+      toast({ title: 'Failed to add account', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const startEdit = (acc: ChartOfAccount) => {
+    setEditingId(acc.id);
+    setEditValues({
+      name: acc.name,
+      account_number: acc.account_number || '',
+      account_type: acc.account_type,
+      detail_type: acc.detail_type || '',
+    });
+  };
+
+  const saveEdit = async (acc: ChartOfAccount) => {
+    try {
+      await updateAccount.mutateAsync({
+        id: acc.id,
+        tenant_id: tenantId,
+        name: editValues.name.trim(),
+        account_number: editValues.account_number.trim() || null,
+        account_type: editValues.account_type,
+        detail_type: editValues.detail_type.trim() || null,
+      });
+      setEditingId(null);
+      toast({ title: 'Account updated' });
+    } catch (err: any) {
+      toast({ title: 'Failed to update', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (acc: ChartOfAccount) => {
+    if (!confirm(`Delete "${acc.name}"? This will also remove any sub-accounts.`)) return;
+    try {
+      await deleteAccount.mutateAsync({ id: acc.id, tenant_id: tenantId });
+      toast({ title: 'Account deleted' });
+    } catch (err: any) {
+      toast({ title: 'Failed to delete', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const handleImportFile = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const csv = ev.target?.result as string;
+        try {
+          const result = await importCoa.mutateAsync({
+            csv,
+            tenantId,
+            fileName: file.name,
+          });
+          toast({
+            title: 'Import complete',
+            description: `${result.imported} accounts imported, ${result.skipped} skipped${result.errors?.length ? `, ${result.errors.length} errors` : ''}`,
+          });
+          setShowImportDialog(false);
+        } catch (err: any) {
+          toast({ title: 'Import failed', description: err.message, variant: 'destructive' });
+        }
+      };
+      reader.readAsText(file);
+      // Reset so the same file can be re-imported
+      e.target.value = '';
+    },
+    [tenantId, importCoa, toast]
+  );
+
+  const renderAccountRow = (acc: ChartOfAccount, depth: number = 0) => {
+    const hasChildren = acc.children && acc.children.length > 0;
+    const isExpanded = expandedAccounts.has(acc.id);
+    const isEditing = editingId === acc.id;
+
+    return (
+      <div key={acc.id}>
+        <div
+          className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-black/5 transition-colors group"
+          style={{ paddingLeft: `${12 + depth * 24}px` }}
+        >
+          {/* Expand toggle */}
+          <button
+            onClick={() => hasChildren && toggleAccount(acc.id)}
+            className="w-5 h-5 flex items-center justify-center"
+            style={{ visibility: hasChildren ? 'visible' : 'hidden' }}
+          >
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4" style={{ color: colors.brownLight }} />
+            ) : (
+              <ChevronRight className="w-4 h-4" style={{ color: colors.brownLight }} />
+            )}
+          </button>
+
+          {isEditing ? (
+            <>
+              <Input
+                value={editValues.account_number}
+                onChange={(e) => setEditValues((p) => ({ ...p, account_number: e.target.value }))}
+                placeholder="#"
+                className="w-20 h-8 text-sm"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
+              <Input
+                value={editValues.name}
+                onChange={(e) => setEditValues((p) => ({ ...p, name: e.target.value }))}
+                className="flex-1 h-8 text-sm"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
+              <Button size="sm" variant="ghost" onClick={() => saveEdit(acc)}>
+                <Check className="w-4 h-4" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              {/* Account number */}
+              {acc.account_number && (
+                <span className="text-xs font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
+                  {acc.account_number}
+                </span>
+              )}
+
+              {/* Name */}
+              <span className="flex-1 text-sm font-medium" style={{ color: colors.brown }}>
+                {acc.name}
+              </span>
+
+              {/* Detail type */}
+              {acc.detail_type && (
+                <span className="text-xs" style={{ color: colors.brownLight }}>
+                  {acc.detail_type}
+                </span>
+              )}
+
+              {/* Actions */}
+              <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                <button onClick={() => startEdit(acc)} className="p-1 rounded hover:bg-black/10">
+                  <Edit2 className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />
+                </button>
+                <button onClick={() => handleDelete(acc)} className="p-1 rounded hover:bg-black/10">
+                  <Trash2 className="w-3.5 h-3.5" style={{ color: colors.red }} />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Children */}
+        {hasChildren && isExpanded && acc.children!.map((child) => renderAccountRow(child, depth + 1))}
+      </div>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin" style={{ color: colors.gold }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => setShowImportDialog(true)} style={{ backgroundColor: colors.gold, color: '#fff' }}>
+          <Upload className="w-4 h-4 mr-2" />
+          Import from QBO
+        </Button>
+        <Button variant="outline" onClick={() => setShowAddDialog(true)} style={{ borderColor: colors.gold, color: colors.brown }}>
+          <Plus className="w-4 h-4 mr-2" />
+          Add Account
+        </Button>
+      </div>
+
+      {/* Account count */}
+      <p className="text-sm" style={{ color: colors.brownLight }}>
+        {accounts.length} account{accounts.length !== 1 ? 's' : ''}
+      </p>
+
+      {/* Account groups */}
+      {grouped.length === 0 ? (
+        <div
+          className="rounded-xl p-8 text-center"
+          style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+        >
+          <FileSpreadsheet className="w-10 h-10 mx-auto mb-3" style={{ color: colors.creamDark }} />
+          <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
+            No accounts yet
+          </h3>
+          <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
+            Import your Chart of Accounts from QuickBooks Online or add accounts manually.
+          </p>
+          <Button onClick={() => setShowImportDialog(true)} style={{ backgroundColor: colors.gold, color: '#fff' }}>
+            <Upload className="w-4 h-4 mr-2" />
+            Import from QBO
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {grouped.map(({ type, accounts: typeAccounts }) => (
+            <div
+              key={type}
+              className="rounded-xl overflow-hidden"
+              style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+            >
+              <button
+                onClick={() => toggleType(type)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/5 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  {expandedTypes.has(type) ? (
+                    <ChevronDown className="w-4 h-4" style={{ color: colors.gold }} />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" style={{ color: colors.gold }} />
+                  )}
+                  <span className="font-semibold text-sm" style={{ color: colors.brown }}>
+                    {type}
+                  </span>
+                </div>
+                <span className="text-xs" style={{ color: colors.brownLight }}>
+                  {typeAccounts.length} account{typeAccounts.length !== 1 ? 's' : ''}
+                </span>
+              </button>
+
+              {expandedTypes.has(type) && (
+                <div className="pb-2">
+                  {typeAccounts.map((acc) => renderAccountRow(acc))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Import Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Chart of Accounts from QBO</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              Export your Chart of Accounts from QuickBooks Online as a CSV file, then upload it here.
+            </p>
+            <ol className="text-sm space-y-1 list-decimal list-inside" style={{ color: colors.brownLight }}>
+              <li>In QBO, go to <strong>Settings → Chart of Accounts</strong></li>
+              <li>Click the <strong>Export to Excel</strong> button (top right)</li>
+              <li>Save as CSV if needed</li>
+              <li>Upload the file below</li>
+            </ol>
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleImportFile}
+                className="hidden"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importCoa.isPending}
+                style={{ backgroundColor: colors.gold, color: '#fff' }}
+              >
+                {importCoa.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
+                {importCoa.isPending ? 'Importing...' : 'Choose CSV File'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Account Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Account</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Account Name *</Label>
+              <Input
+                value={newAccount.name}
+                onChange={(e) => setNewAccount((p) => ({ ...p, name: e.target.value }))}
+                placeholder="e.g. Coffee Beans"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
+            </div>
+            <div>
+              <Label>Account Number</Label>
+              <Input
+                value={newAccount.account_number}
+                onChange={(e) => setNewAccount((p) => ({ ...p, account_number: e.target.value }))}
+                placeholder="e.g. 5010"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
+            </div>
+            <div>
+              <Label>Account Type *</Label>
+              <Select
+                value={newAccount.account_type}
+                onValueChange={(v) => setNewAccount((p) => ({ ...p, account_type: v as AccountType }))}
+              >
+                <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACCOUNT_TYPE_ORDER.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Detail Type</Label>
+              <Input
+                value={newAccount.detail_type}
+                onChange={(e) => setNewAccount((p) => ({ ...p, detail_type: e.target.value }))}
+                placeholder="e.g. Supplies & Materials"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
+            </div>
+            <div>
+              <Label>Parent Account</Label>
+              <Select
+                value={newAccount.parent_id}
+                onValueChange={(v) => setNewAccount((p) => ({ ...p, parent_id: v === '_none' ? '' : v }))}
+              >
+                <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                  <SelectValue placeholder="None (top-level)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">None (top-level)</SelectItem>
+                  {accounts
+                    .filter((a) => !a.parent_id)
+                    .map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleAdd} disabled={createAccount.isPending} style={{ backgroundColor: colors.gold, color: '#fff' }}>
+              {createAccount.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+              Add Account
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

@@ -3394,6 +3394,164 @@ export async function registerRoutes(
     }
   }, 60 * 60 * 1000); // check every hour
 
+  // =====================================================
+  // Financial Budget — CSV import endpoint
+  // =====================================================
+
+  const budgetImportRateLimit = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many import attempts. Please try again later.' },
+  });
+
+  app.post('/api/budget/import-coa', budgetImportRateLimit, async (req: Request, res: Response) => {
+    try {
+      const { userId, debug } = await getUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const schema = z.object({
+        csv: z.string().min(1),
+        tenantId: z.string().uuid(),
+        fileName: z.string().min(1),
+      });
+      const { csv, tenantId, fileName } = schema.parse(req.body);
+
+      // Parse CSV
+      const lines = csv.split(/\r?\n/).filter((l) => l.trim());
+      if (lines.length < 2) {
+        return res.status(400).json({ error: 'CSV must have a header row and at least one data row' });
+      }
+
+      // Parse header — handle quoted fields
+      const parseCSVLine = (line: string): string[] => {
+        const fields: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (ch === ',' && !inQuotes) {
+            fields.push(current.trim());
+            current = '';
+          } else {
+            current += ch;
+          }
+        }
+        fields.push(current.trim());
+        return fields;
+      };
+
+      const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+
+      // Find column indices — flexible matching for QBO variations
+      const nameIdx = headers.findIndex((h) => h === 'account' || h === 'accountname' || h === 'name');
+      const typeIdx = headers.findIndex((h) => h === 'type' || h === 'accounttype');
+      const detailIdx = headers.findIndex((h) => h === 'detailtype' || h === 'detail');
+      const numberIdx = headers.findIndex((h) => h === 'number' || h === 'accountnumber' || h === 'acctnum');
+
+      if (nameIdx === -1) {
+        return res.status(400).json({ error: 'CSV must have an "Account" or "Name" column' });
+      }
+
+      // Map QBO types to internal types
+      const mapType = (qboType: string): string => {
+        const t = qboType.toLowerCase().trim();
+        if (t.includes('income') || t.includes('revenue')) return 'Revenue';
+        if (t.includes('cost of goods') || t === 'cogs') return 'COGS';
+        if (t.includes('expense')) return 'Expense';
+        return 'Other';
+      };
+
+      const supabaseAdmin = getSupabaseAdmin();
+      const imported: any[] = [];
+      const errors: Array<{ row: number; message: string }> = [];
+      let skipped = 0;
+
+      // Track parent accounts by name for hierarchy
+      const parentMap = new Map<string, string>(); // fullName → id
+
+      for (let i = 1; i < lines.length; i++) {
+        const fields = parseCSVLine(lines[i]);
+        const rawName = fields[nameIdx];
+        if (!rawName) {
+          skipped++;
+          continue;
+        }
+
+        // Handle QBO sub-account notation (colon-separated: "Cost of Goods Sold:Coffee Beans")
+        const nameParts = rawName.split(':').map((p) => p.trim());
+        const accountName = nameParts[nameParts.length - 1];
+        const parentPath = nameParts.length > 1 ? nameParts.slice(0, -1).join(':') : null;
+
+        const accountType = typeIdx >= 0 && fields[typeIdx] ? mapType(fields[typeIdx]) : 'Expense';
+        const detailType = detailIdx >= 0 ? fields[detailIdx] || null : null;
+        const accountNumber = numberIdx >= 0 ? fields[numberIdx] || null : null;
+        const depth = nameParts.length - 1;
+
+        try {
+          const parentId = parentPath ? parentMap.get(parentPath) || null : null;
+
+          const { data, error } = await supabaseAdmin
+            .from('budget_chart_of_accounts')
+            .insert({
+              tenant_id: tenantId,
+              name: accountName,
+              account_number: accountNumber,
+              account_type: accountType,
+              detail_type: detailType,
+              parent_id: parentId,
+              depth,
+              display_order: i,
+            })
+            .select('id')
+            .single();
+
+          if (error) {
+            errors.push({ row: i + 1, message: error.message });
+          } else {
+            imported.push(data);
+            parentMap.set(rawName, data.id);
+          }
+        } catch (err: any) {
+          errors.push({ row: i + 1, message: err.message });
+        }
+      }
+
+      // Log the import
+      await supabaseAdmin.from('budget_import_logs').insert({
+        tenant_id: tenantId,
+        import_type: 'chart_of_accounts',
+        file_name: fileName,
+        rows_imported: imported.length,
+        rows_skipped: skipped,
+        errors: errors.length > 0 ? errors : null,
+        imported_by: userId,
+      });
+
+      res.json({
+        imported: imported.length,
+        skipped,
+        errors,
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('[budget-import] Error:', error.message);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   return httpServer;
 }
 

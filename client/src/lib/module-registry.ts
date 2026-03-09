@@ -20,6 +20,7 @@ import {
   CalendarDays,
   BarChart3,
   FileText,
+  Landmark,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -39,6 +40,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   CalendarDays,
   BarChart3,
   FileText,
+  Landmark,
 };
 
 export function resolveIcon(key: string): LucideIcon {
@@ -59,6 +61,7 @@ export const MODULE_IDS = [
   'calendar-workforce',
   'reporting',
   'document-library',
+  'financial-budget',
 ] as const;
 
 export type ModuleId = (typeof MODULE_IDS)[number];
@@ -358,6 +361,29 @@ export const MODULE_REGISTRY: Record<ModuleId, ModuleDefinition> = {
     commandLabel: 'Documents',
     commandKeywords: ['documents', 'files', 'policies', 'procedures'],
     showcase: null, // TODO: add showcase data when ready for landing page
+  },
+
+  'financial-budget': {
+    id: 'financial-budget',
+    name: 'Financial Budget',
+    shortName: 'Budget',
+    route: '/financial-budget',
+    tabs: [
+      { id: 'chart-of-accounts', label: 'Chart of Accounts' },
+      { id: 'budget-entry', label: 'Budget Entry' },
+      { id: 'actuals', label: 'Actuals' },
+      { id: 'forecast', label: 'Forecast' },
+      { id: 'dashboard', label: 'Dashboard' },
+    ],
+    iconKey: 'Landmark',
+    category: 'Analytics',
+    mobilePriority: 10,
+    minRole: 'manager',
+    labelKey: '',
+    staticLabel: 'Budget',
+    commandLabel: 'Financial Budget',
+    commandKeywords: ['budget', 'financial', 'forecast', 'actuals', 'chart of accounts', 'P&L', 'quickbooks'],
+    showcase: null, // Internal module — not shown publicly
   },
 };
 
