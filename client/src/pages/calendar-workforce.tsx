@@ -68,6 +68,12 @@ import {
   useEmployeeTimeOffBalances,
   type TimeOffBalance,
 } from '@/hooks/use-time-off-policies';
+import {
+  useMyUnavailability,
+  useCreateUnavailability,
+  useDeleteUnavailability,
+  useTeamUnavailability,
+} from '@/hooks/use-unavailability';
 
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -204,6 +210,9 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   // Blackout dates
   const { data: blackoutDates } = useBlackoutDates();
 
+  // Team unavailability
+  const { data: scheduleUnavailability } = useTeamUnavailability(startDate, endDate);
+
   // Sync FullCalendar when view or date changes
   useEffect(() => {
     const api = calendarRef.current?.getApi();
@@ -266,8 +275,28 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
       }
     }
 
+    // Check unavailability
+    if (scheduleUnavailability) {
+      const emp = employees.find((e) => e.name === employeeName);
+      if (emp?.user_profile_id) {
+        const dateObj = new Date(date + 'T00:00:00');
+        const dayOfWeek = dateObj.getDay();
+        const isUnavail = scheduleUnavailability.find((u) => {
+          if (u.employee_id !== emp.user_profile_id) return false;
+          if (u.is_recurring && u.recurrence_day === dayOfWeek) return true;
+          if (!u.is_recurring && u.start_date <= date && u.end_date >= date) return true;
+          return false;
+        });
+        if (isUnavail) {
+          const reason = isUnavail.reason ? ` (${isUnavail.reason})` : '';
+          setConflictWarning(`${employeeName} is marked unavailable${reason}`);
+          return;
+        }
+      }
+    }
+
     setConflictWarning(null);
-  }, [shifts, timeOffRequests, employees]);
+  }, [shifts, timeOffRequests, scheduleUnavailability, employees]);
 
   // Apply template to current week
   const handleApplyTemplate = useCallback(async () => {
@@ -421,8 +450,61 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
       }
     }
 
-    return [...shiftEvents, ...eventBanners, ...blackoutBanners, ...anniversaryEvents];
-  }, [shifts, calendarEvents, blackoutDates, employeeColorMap, startDate, endDate, employees]);
+    // Unavailability banners
+    const unavailEvents: EventInput[] = [];
+    if (scheduleUnavailability && startDate && endDate) {
+      const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (const u of scheduleUnavailability) {
+        if (u.is_recurring && u.recurrence_day !== null) {
+          // Expand recurring entry into individual dates within the visible range
+          const rangeStart = new Date(startDate + 'T00:00:00');
+          const rangeEnd = new Date(endDate + 'T00:00:00');
+          for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
+            if (d.getDay() === u.recurrence_day) {
+              const dateStr = formatDate(d);
+              unavailEvents.push({
+                id: `unavail-${u.id}-${dateStr}`,
+                title: `🚫 ${u.employee_name || 'Employee'} unavailable`,
+                start: dateStr,
+                allDay: u.all_day,
+                ...((!u.all_day && u.start_time && u.end_time) ? {
+                  start: `${dateStr}T${u.start_time}`,
+                  end: `${dateStr}T${u.end_time}`,
+                  allDay: false,
+                } : {}),
+                backgroundColor: '#9ca3af',
+                borderColor: '#9ca3af',
+                textColor: '#fff',
+                editable: false,
+                extendedProps: { type: 'unavailability', unavailability: u },
+              });
+            }
+          }
+        } else {
+          unavailEvents.push({
+            id: `unavail-${u.id}`,
+            title: `🚫 ${u.employee_name || 'Employee'} unavailable`,
+            start: u.start_date,
+            end: new Date(new Date(u.end_date + 'T00:00:00').getTime() + 86_400_000)
+              .toISOString().split('T')[0],
+            allDay: u.all_day,
+            ...((!u.all_day && u.start_time && u.end_time) ? {
+              start: `${u.start_date}T${u.start_time}`,
+              end: `${u.end_date}T${u.end_time}`,
+              allDay: false,
+            } : {}),
+            backgroundColor: '#9ca3af',
+            borderColor: '#9ca3af',
+            textColor: '#fff',
+            editable: false,
+            extendedProps: { type: 'unavailability', unavailability: u },
+          });
+        }
+      }
+    }
+
+    return [...shiftEvents, ...eventBanners, ...blackoutBanners, ...anniversaryEvents, ...unavailEvents];
+  }, [shifts, calendarEvents, blackoutDates, scheduleUnavailability, employeeColorMap, startDate, endDate, employees]);
 
   const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
     if (!canEdit) return;
@@ -1342,6 +1424,71 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
     return Math.max(0, balance.balance_hours - balance.used_hours - balance.pending_hours);
   }, [allBalances, activePolicies]);
 
+  // Unavailability
+  const { data: myUnavailability } = useMyUnavailability();
+  const { data: teamUnavailability } = useTeamUnavailability();
+  const createUnavail = useCreateUnavailability();
+  const deleteUnavail = useDeleteUnavailability();
+  const [showUnavailForm, setShowUnavailForm] = useState(false);
+  const [unavailForm, setUnavailForm] = useState({
+    start_date: '',
+    end_date: '',
+    all_day: true,
+    start_time: '',
+    end_time: '',
+    reason: '',
+    is_recurring: false,
+    recurrence_day: null as number | null,
+  });
+
+  const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const handleSubmitUnavail = useCallback(async () => {
+    if (unavailForm.is_recurring && unavailForm.recurrence_day !== null) {
+      // For recurring, auto-fill dates to a reference week
+      try {
+        await createUnavail.mutateAsync({
+          start_date: unavailForm.start_date || new Date().toISOString().slice(0, 10),
+          end_date: unavailForm.end_date || new Date().toISOString().slice(0, 10),
+          all_day: unavailForm.all_day,
+          start_time: !unavailForm.all_day && unavailForm.start_time ? unavailForm.start_time : null,
+          end_time: !unavailForm.all_day && unavailForm.end_time ? unavailForm.end_time : null,
+          reason: unavailForm.reason || null,
+          is_recurring: true,
+          recurrence_day: unavailForm.recurrence_day,
+        });
+        toast({ title: 'Recurring unavailability saved' });
+        setShowUnavailForm(false);
+        setUnavailForm({ start_date: '', end_date: '', all_day: true, start_time: '', end_time: '', reason: '', is_recurring: false, recurrence_day: null });
+        return;
+      } catch {
+        toast({ title: 'Error', description: 'Failed to save.', variant: 'destructive' });
+        return;
+      }
+    }
+    if (!unavailForm.start_date || !unavailForm.end_date) {
+      toast({ title: 'Select dates', variant: 'destructive' });
+      return;
+    }
+    try {
+      await createUnavail.mutateAsync({
+        start_date: unavailForm.start_date,
+        end_date: unavailForm.end_date,
+        all_day: unavailForm.all_day,
+        start_time: !unavailForm.all_day && unavailForm.start_time ? unavailForm.start_time : null,
+        end_time: !unavailForm.all_day && unavailForm.end_time ? unavailForm.end_time : null,
+        reason: unavailForm.reason || null,
+        is_recurring: false,
+        recurrence_day: null,
+      });
+      toast({ title: 'Unavailability saved' });
+      setShowUnavailForm(false);
+      setUnavailForm({ start_date: '', end_date: '', all_day: true, start_time: '', end_time: '', reason: '', is_recurring: false, recurrence_day: null });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save.', variant: 'destructive' });
+    }
+  }, [unavailForm, createUnavail, toast]);
+
   // Blackout dates
   const { data: blackoutDates } = useBlackoutDates();
   const createBlackout = useCreateBlackoutDate();
@@ -1414,6 +1561,198 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
 
   return (
     <div className="space-y-6">
+      {/* My Unavailability */}
+      <Card style={{ backgroundColor: colors.white }}>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+            <X className="w-5 h-5" style={{ color: colors.red }} />
+            My Unavailability
+          </CardTitle>
+          <Button size="sm" onClick={() => setShowUnavailForm(!showUnavailForm)}
+            style={{ backgroundColor: colors.gold, color: colors.white }}>
+            <Plus className="w-4 h-4 mr-1" /> Add
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {showUnavailForm && (
+            <Card style={{ backgroundColor: colors.cream }}>
+              <CardContent className="space-y-3 pt-4">
+                {/* Recurring toggle */}
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={unavailForm.is_recurring}
+                      onChange={(e) => setUnavailForm((f) => ({ ...f, is_recurring: e.target.checked }))}
+                      className="rounded border-gray-300" />
+                    <span className="text-sm" style={{ color: colors.brown }}>Recurring weekly</span>
+                  </label>
+                </div>
+
+                {unavailForm.is_recurring ? (
+                  <div className="space-y-1.5">
+                    <Label style={{ color: colors.brown }}>Day of Week</Label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {DAYS_OF_WEEK.map((day, idx) => (
+                        <Badge
+                          key={idx}
+                          variant="outline"
+                          className="cursor-pointer select-none px-3 py-1"
+                          onClick={() => setUnavailForm((f) => ({ ...f, recurrence_day: idx }))}
+                          style={
+                            unavailForm.recurrence_day === idx
+                              ? { backgroundColor: colors.red, color: '#fff', borderColor: colors.red }
+                              : { borderColor: colors.creamDark, color: colors.brownLight }
+                          }
+                        >
+                          {day}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label style={{ color: colors.brown }}>Start Date</Label>
+                      <Input type="date" value={unavailForm.start_date}
+                        onChange={(e) => setUnavailForm((f) => ({ ...f, start_date: e.target.value, end_date: f.end_date || e.target.value }))}
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label style={{ color: colors.brown }}>End Date</Label>
+                      <Input type="date" value={unavailForm.end_date}
+                        onChange={(e) => setUnavailForm((f) => ({ ...f, end_date: e.target.value }))}
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* All day toggle + time range */}
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={unavailForm.all_day}
+                      onChange={(e) => setUnavailForm((f) => ({ ...f, all_day: e.target.checked }))}
+                      className="rounded border-gray-300" />
+                    <span className="text-sm" style={{ color: colors.brown }}>All day</span>
+                  </label>
+                </div>
+                {!unavailForm.all_day && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label style={{ color: colors.brown }}>From</Label>
+                      <Input type="time" value={unavailForm.start_time}
+                        onChange={(e) => setUnavailForm((f) => ({ ...f, start_time: e.target.value }))}
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label style={{ color: colors.brown }}>Until</Label>
+                      <Input type="time" value={unavailForm.end_time}
+                        onChange={(e) => setUnavailForm((f) => ({ ...f, end_time: e.target.value }))}
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label style={{ color: colors.brown }}>Reason (optional)</Label>
+                  <Input value={unavailForm.reason} placeholder="e.g. class, appointment, personal"
+                    onChange={(e) => setUnavailForm((f) => ({ ...f, reason: e.target.value }))}
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button onClick={handleSubmitUnavail} disabled={createUnavail.isPending}
+                    style={{ backgroundColor: colors.gold, color: colors.white }}>
+                    Save
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowUnavailForm(false)}
+                    style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {(!myUnavailability || myUnavailability.length === 0) ? (
+            <p className="text-sm py-4 text-center" style={{ color: colors.brownLight }}>
+              No unavailability set. Add dates or days you can't work.
+            </p>
+          ) : (
+            myUnavailability.map((u) => (
+              <div key={u.id} className="flex items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: colors.cream }}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {u.is_recurring ? (
+                      <Badge variant="outline" style={{ borderColor: colors.orange, color: colors.orange }}>
+                        Every {DAYS_OF_WEEK[u.recurrence_day ?? 0]}
+                      </Badge>
+                    ) : (
+                      <span className="text-sm" style={{ color: colors.brown }}>
+                        {formatDateShort(u.start_date)}{u.start_date !== u.end_date ? ` – ${formatDateShort(u.end_date)}` : ''}
+                      </span>
+                    )}
+                    {!u.all_day && u.start_time && u.end_time && (
+                      <Badge variant="outline" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
+                        {u.start_time.slice(0, 5)} – {u.end_time.slice(0, 5)}
+                      </Badge>
+                    )}
+                  </div>
+                  {u.reason && <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>{u.reason}</p>}
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => deleteUnavail.mutate(u.id)}
+                  disabled={deleteUnavail.isPending} style={{ color: colors.red }}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Team Unavailability (managers) */}
+      {isManager && teamUnavailability && teamUnavailability.length > 0 && (
+        <Card style={{ backgroundColor: colors.white }}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
+              <Users className="w-5 h-5" style={{ color: colors.gold }} />
+              Team Unavailability
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {teamUnavailability
+              .filter((u) => u.employee_id !== currentUserId)
+              .map((u) => (
+                <div key={u.id} className="flex items-center justify-between p-2.5 rounded-lg"
+                  style={{ backgroundColor: colors.cream }}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium" style={{ color: colors.brown }}>{u.employee_name || 'Unknown'}</p>
+                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      {u.is_recurring ? (
+                        <span className="text-xs" style={{ color: colors.orange }}>
+                          Every {DAYS_OF_WEEK[u.recurrence_day ?? 0]}
+                        </span>
+                      ) : (
+                        <span className="text-xs" style={{ color: colors.brownLight }}>
+                          {formatDateShort(u.start_date)}{u.start_date !== u.end_date ? ` – ${formatDateShort(u.end_date)}` : ''}
+                        </span>
+                      )}
+                      {!u.all_day && u.start_time && u.end_time && (
+                        <span className="text-xs" style={{ color: colors.brownLight }}>
+                          {u.start_time.slice(0, 5)} – {u.end_time.slice(0, 5)}
+                        </span>
+                      )}
+                      {u.reason && (
+                        <span className="text-xs italic" style={{ color: colors.brownLight }}>({u.reason})</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            }
+          </CardContent>
+        </Card>
+      )}
+
       {/* My Requests */}
       <Card style={{ backgroundColor: colors.white }}>
         <CardHeader className="flex flex-row items-center justify-between">
