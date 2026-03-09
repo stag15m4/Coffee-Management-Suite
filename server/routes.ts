@@ -1467,8 +1467,8 @@ export async function registerRoutes(
       
       // Get the tenant ID server-side from the user's profile (don't trust client)
       const userProfile = await db.execute(sql`
-        SELECT tenant_id FROM user_profiles 
-        WHERE user_id = ${userId}::uuid
+        SELECT tenant_id FROM user_profiles
+        WHERE id = ${userId}::uuid
         LIMIT 1
       `);
       
