@@ -262,23 +262,23 @@ export function PolicyBuilder() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm" style={{ color: colors.brownLight }}>Earn</span>
                     <Input
-                      type="number"
-                      min={0}
-                      step={0.25}
+                      type="text"
+                      inputMode="decimal"
+                      pattern="[0-9]*\.?[0-9]*"
                       value={formData.accrual_hours ?? 1}
                       onFocus={(e) => e.target.select()}
-                      onChange={(e) => setFormData((f) => ({ ...f, accrual_hours: Number(e.target.value) }))}
+                      onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) setFormData((f) => ({ ...f, accrual_hours: v === '' ? 0 : Number(v) })); }}
                       className="w-20"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                     />
                     <span className="text-sm" style={{ color: colors.brownLight }}>hour(s) for every</span>
                     <Input
-                      type="number"
-                      min={1}
-                      step={1}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={formData.accrual_per_hours_worked ?? 8}
                       onFocus={(e) => e.target.select()}
-                      onChange={(e) => setFormData((f) => ({ ...f, accrual_per_hours_worked: Number(e.target.value) }))}
+                      onChange={(e) => { const v = e.target.value; if (v === '' || /^\d+$/.test(v)) setFormData((f) => ({ ...f, accrual_per_hours_worked: v === '' ? 1 : Number(v) })); }}
                       className="w-20"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                     />
@@ -293,12 +293,12 @@ export function PolicyBuilder() {
                   <p className="text-sm font-medium" style={{ color: colors.brown }}>Annual Grant</p>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Input
-                      type="number"
-                      min={0}
-                      step={1}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={formData.annual_hours ?? 40}
                       onFocus={(e) => e.target.select()}
-                      onChange={(e) => setFormData((f) => ({ ...f, annual_hours: Number(e.target.value) }))}
+                      onChange={(e) => { const v = e.target.value; if (v === '' || /^\d+$/.test(v)) setFormData((f) => ({ ...f, annual_hours: v === '' ? 0 : Number(v) })); }}
                       className="w-24"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                     />
@@ -341,32 +341,34 @@ export function PolicyBuilder() {
                     <div key={idx} className="flex items-center gap-2 flex-wrap p-2 rounded" style={{ backgroundColor: colors.cream }}>
                       <span className="text-xs" style={{ color: colors.brownLight }}>After</span>
                       <Input
-                        type="number"
-                        min={0}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={tier.after_months}
                         onFocus={(e) => e.target.select()}
-                        onChange={(e) => updateMilestoneTier(idx, 'after_months', Number(e.target.value))}
+                        onChange={(e) => { const v = e.target.value; if (v === '' || /^\d+$/.test(v)) updateMilestoneTier(idx, 'after_months', v === '' ? 0 : Number(v)); }}
                         className="w-16 h-8 text-sm"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                       />
                       <span className="text-xs" style={{ color: colors.brownLight }}>months: earn</span>
                       <Input
-                        type="number"
-                        min={0}
-                        step={0.25}
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9]*\.?[0-9]*"
                         value={tier.accrual_hours}
                         onFocus={(e) => e.target.select()}
-                        onChange={(e) => updateMilestoneTier(idx, 'accrual_hours', Number(e.target.value))}
+                        onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) updateMilestoneTier(idx, 'accrual_hours', v === '' ? 0 : Number(v)); }}
                         className="w-16 h-8 text-sm"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                       />
                       <span className="text-xs" style={{ color: colors.brownLight }}>h per</span>
                       <Input
-                        type="number"
-                        min={1}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={tier.accrual_per_hours_worked}
                         onFocus={(e) => e.target.select()}
-                        onChange={(e) => updateMilestoneTier(idx, 'accrual_per_hours_worked', Number(e.target.value))}
+                        onChange={(e) => { const v = e.target.value; if (v === '' || /^\d+$/.test(v)) updateMilestoneTier(idx, 'accrual_per_hours_worked', v === '' ? 1 : Number(v)); }}
                         className="w-16 h-8 text-sm"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                       />
@@ -398,16 +400,13 @@ export function PolicyBuilder() {
                     <Label style={{ color: colors.brown }}>Maximum Balance (hours)</Label>
                     <div className="flex items-center gap-2">
                       <Input
-                        type="number"
-                        min={0}
-                        step={1}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={formData.max_balance_hours ?? ''}
                         placeholder="No cap"
                         onFocus={(e) => e.target.select()}
-                        onChange={(e) => setFormData((f) => ({
-                          ...f,
-                          max_balance_hours: e.target.value ? Number(e.target.value) : null,
-                        }))}
+                        onChange={(e) => { const v = e.target.value; if (v === '' || /^\d+$/.test(v)) setFormData((f) => ({ ...f, max_balance_hours: v === '' ? null : Number(v) })); }}
                         className="w-32"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       />
@@ -435,12 +434,12 @@ export function PolicyBuilder() {
                       <div className="flex items-center gap-2 mt-2">
                         <span className="text-sm" style={{ color: colors.brownLight }}>Max rollover:</span>
                         <Input
-                          type="number"
-                          min={0}
-                          step={1}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           value={formData.carryover_max_hours ?? 0}
                           onFocus={(e) => e.target.select()}
-                          onChange={(e) => setFormData((f) => ({ ...f, carryover_max_hours: Number(e.target.value) }))}
+                          onChange={(e) => { const v = e.target.value; if (v === '' || /^\d+$/.test(v)) setFormData((f) => ({ ...f, carryover_max_hours: v === '' ? 0 : Number(v) })); }}
                           className="w-24"
                           style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                         />
@@ -454,12 +453,12 @@ export function PolicyBuilder() {
                     <Label style={{ color: colors.brown }}>Waiting Period</Label>
                     <div className="flex items-center gap-2">
                       <Input
-                        type="number"
-                        min={0}
-                        step={1}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={formData.waiting_period_days ?? 0}
                         onFocus={(e) => e.target.select()}
-                        onChange={(e) => setFormData((f) => ({ ...f, waiting_period_days: Number(e.target.value) }))}
+                        onChange={(e) => { const v = e.target.value; if (v === '' || /^\d+$/.test(v)) setFormData((f) => ({ ...f, waiting_period_days: v === '' ? 0 : Number(v) })); }}
                         className="w-24"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       />
