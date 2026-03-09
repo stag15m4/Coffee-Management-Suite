@@ -16,6 +16,7 @@ import {
   useApproveTimesheet,
   useRejectTimesheet,
 } from '@/hooks/use-timesheet-approvals';
+import { useRunAccrual } from '@/hooks/use-time-off-policies';
 import { PayPeriodNav } from './PayPeriodNav';
 import { EditRequestDialog } from './EditRequestDialog';
 import type { PayPeriod, WeekGroup } from '@/lib/pay-periods';
@@ -179,6 +180,7 @@ export function EmployeeTimesheetView({
   const { data: approval } = useEmployeeTimesheetApproval(employeeId, period.start, period.end);
   const approveTimesheet = useApproveTimesheet();
   const rejectTimesheet = useRejectTimesheet();
+  const runAccrual = useRunAccrual();
 
   const empEntries = useMemo(() =>
     entries.filter((e) => e.employee_id === employeeId)
@@ -434,12 +436,28 @@ export function EmployeeTimesheetView({
         totalRegularHours: summary.regularHours,
         totalBreakHours: summary.breakHours,
       });
+
+      // Run PTO accrual for the hours worked in this pay period
+      if (summary.regularHours > 0) {
+        try {
+          await runAccrual.mutateAsync({
+            employeeId,
+            hoursWorked: summary.regularHours,
+            periodDescription: `${period.start} to ${period.end}`,
+            employeeStartDate: employee?.start_date ?? undefined,
+          });
+        } catch {
+          // Accrual failure shouldn't block the approval toast
+          console.warn('PTO accrual failed for employee', employeeId);
+        }
+      }
+
       toast({ title: 'Timesheet approved' });
       setApprovalNotes('');
     } catch {
       toast({ title: 'Error', description: 'Failed to approve timesheet.', variant: 'destructive' });
     }
-  }, [approveTimesheet, employeeId, period, approvalNotes, summary, toast]);
+  }, [approveTimesheet, runAccrual, employeeId, period, approvalNotes, summary, employee, toast]);
 
   const handleReject = useCallback(async () => {
     try {

@@ -60,6 +60,14 @@ import {
   type BlackoutDate,
 } from '@/hooks/use-blackout-dates';
 import { TimeClockTab } from '@/components/time-clock/TimeClockTab';
+import { PolicyBuilder } from '@/components/time-off/PolicyBuilder';
+import { MyBalancesCard, TeamBalancesCard } from '@/components/time-off/BalancesCard';
+import {
+  useMyTimeOffBalances,
+  useTimeOffPolicies,
+  useEmployeeTimeOffBalances,
+  type TimeOffBalance,
+} from '@/hooks/use-time-off-policies';
 
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -1283,10 +1291,12 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
 // ─── TIME OFF TAB ────────────────────────────────────────
 
-function TimeOffTab({ tenantId, canApprove, currentUserId }: {
+function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees }: {
   tenantId: string;
   canApprove: boolean;
   currentUserId: string;
+  isManager: boolean;
+  employees: { user_profile_id?: string | null; name: string }[];
 }) {
   const { data: myRequests, isLoading: loadingMine } = useMyTimeOffRequests();
   const { data: allRequests, isLoading: loadingAll } = useTimeOffRequests();
@@ -1303,6 +1313,34 @@ function TimeOffTab({ tenantId, canApprove, currentUserId }: {
     reason: '',
   });
   const [reviewNotes, setReviewNotes] = useState('');
+
+  // PTO balances
+  const { data: myBalances } = useMyTimeOffBalances();
+  const { data: activePolicies } = useTimeOffPolicies();
+  const { data: allBalances } = useTimeOffBalances();
+
+  // Find the relevant balance for the selected category
+  const relevantBalance = useMemo(() => {
+    if (!myBalances || !activePolicies) return null;
+    const policy = activePolicies.find((p) => p.is_active && p.policy_type !== 'none' && p.categories.includes(formData.category));
+    if (!policy) return null;
+    const balance = myBalances.find((b) => b.policy_id === policy.id);
+    if (!balance) return null;
+    return {
+      available: Math.max(0, balance.balance_hours - balance.used_hours - balance.pending_hours),
+      policyName: balance.policy_name || policy.name,
+    };
+  }, [myBalances, activePolicies, formData.category]);
+
+  // Lookup balance for a given employee + category (manager view)
+  const getEmployeeBalance = useCallback((employeeId: string, category: string) => {
+    if (!allBalances || !activePolicies) return null;
+    const policy = activePolicies.find((p) => p.is_active && p.policy_type !== 'none' && p.categories.includes(category as any));
+    if (!policy) return null;
+    const balance = allBalances.find((b) => b.employee_id === employeeId && b.policy_id === policy.id);
+    if (!balance) return null;
+    return Math.max(0, balance.balance_hours - balance.used_hours - balance.pending_hours);
+  }, [allBalances, activePolicies]);
 
   // Blackout dates
   const { data: blackoutDates } = useBlackoutDates();
@@ -1432,6 +1470,11 @@ function TimeOffTab({ tenantId, canApprove, currentUserId }: {
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
+                  {relevantBalance && (
+                    <p className="text-xs mt-1" style={{ color: relevantBalance.available > 0 ? colors.green : colors.red }}>
+                      {relevantBalance.policyName}: {relevantBalance.available.toFixed(1)}h available
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label style={{ color: colors.brown }}>Reason (optional)</Label>
@@ -1491,6 +1534,15 @@ function TimeOffTab({ tenantId, canApprove, currentUserId }: {
           )}
         </CardContent>
       </Card>
+
+      {/* PTO Balances — visible to all employees */}
+      <MyBalancesCard />
+
+      {/* Team Balances — managers only */}
+      {isManager && <TeamBalancesCard employees={employees} />}
+
+      {/* Policy Builder — managers only */}
+      {isManager && <PolicyBuilder />}
 
       {/* Blackout Dates (managers only) */}
       {canApprove && (
@@ -1624,6 +1676,15 @@ function TimeOffTab({ tenantId, canApprove, currentUserId }: {
                         {categoryLabel(r.category)} &middot; {formatDateShort(r.start_date)} – {formatDateShort(r.end_date)}
                       </p>
                       {r.reason && <p className="text-xs" style={{ color: colors.brownLight }}>{r.reason}</p>}
+                      {(() => {
+                        const bal = getEmployeeBalance(r.employee_id, r.category);
+                        if (bal === null) return null;
+                        return (
+                          <p className="text-xs mt-0.5" style={{ color: bal > 0 ? colors.green : colors.red }}>
+                            PTO balance: {bal.toFixed(1)}h available
+                          </p>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1768,6 +1829,8 @@ export default function CalendarWorkforce() {
             tenantId={tenantId}
             canApprove={canApproveTimeOff}
             currentUserId={user?.id ?? ''}
+            isManager={isManager}
+            employees={employees}
           />
         )}
         {activeTab === 'time-clock' && (!isExempt || isManager) && (
