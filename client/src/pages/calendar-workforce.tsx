@@ -1625,6 +1625,33 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                   </div>
                 )}
 
+                {/* Blackout date overlap warning */}
+                {blackoutDates && blackoutDates.length > 0 && (() => {
+                  const overlapping = blackoutDates.filter((bd) => {
+                    if (unavailForm.is_recurring && unavailForm.recurrence_day !== null) {
+                      // Check if any blackout period contains this day of the week
+                      const start = new Date(bd.start_date + 'T00:00:00');
+                      const end = new Date(bd.end_date + 'T00:00:00');
+                      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                        if (d.getDay() === unavailForm.recurrence_day) return true;
+                      }
+                      return false;
+                    }
+                    if (!unavailForm.start_date || !unavailForm.end_date) return false;
+                    return unavailForm.start_date <= bd.end_date && unavailForm.end_date >= bd.start_date;
+                  });
+                  if (overlapping.length === 0) return null;
+                  return overlapping.map((bd) => (
+                    <div key={bd.id} className="flex items-start gap-2 p-2.5 rounded-lg text-sm"
+                      style={{ backgroundColor: '#fef3c7', borderLeft: '3px solid #f59e0b' }}>
+                      <span className="shrink-0">⚠️</span>
+                      <span style={{ color: '#92400e' }}>
+                        <strong>Heads up:</strong> This overlaps with a blackout date — <strong>{bd.label}</strong> ({formatDateShort(bd.start_date)} – {formatDateShort(bd.end_date)}). Your manager has flagged this as an all-hands-on-deck period.
+                      </span>
+                    </div>
+                  ));
+                })()}
+
                 {/* All day toggle + time range */}
                 <div className="flex items-center gap-3">
                   <label className="flex items-center gap-2 cursor-pointer">
