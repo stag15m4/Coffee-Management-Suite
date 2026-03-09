@@ -565,16 +565,19 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
             {/* Cost + Quantity + Unit */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium" style={{ color: colors.brown }}>Cost ($)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={String(formData.cost || '')}
-                  onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 rounded-lg border-2 outline-none text-right"
-                  style={{ borderColor: colors.creamDark, color: colors.brown }}
-                  placeholder="0.00"
-                />
+                <label className="text-sm font-medium" style={{ color: colors.brown }}>Cost</label>
+                <div className="relative mt-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: colors.brownLight }}>$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={String(formData.cost || '')}
+                    onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                    className="w-full pl-7 pr-3 py-2 rounded-lg border-2 outline-none text-right"
+                    style={{ borderColor: colors.creamDark, color: colors.brown }}
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
               <div className="flex gap-2">
                 <div className="flex-1">
