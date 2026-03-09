@@ -57,6 +57,26 @@ async function getUserIdFromRequest(req: Request): Promise<{ userId: string | nu
   }
 }
 
+// Build a trusted base URL from request, preferring APP_URL env var.
+// Falls back to request headers only for known safe domains (Codespaces, localhost).
+function getTrustedBaseUrl(req: Request): string {
+  if (process.env.APP_URL) {
+    return process.env.APP_URL;
+  }
+  const proto = req.get('x-forwarded-proto') || req.protocol;
+  const host = req.get('x-forwarded-host') || req.get('host') || '';
+  // Only trust hosts that match known patterns
+  if (
+    host.startsWith('localhost') ||
+    host.endsWith('.app.github.dev') ||
+    host.endsWith('.preview.app.github.dev')
+  ) {
+    return `${proto}://${host}`;
+  }
+  // Reject unknown hosts — require APP_URL in production
+  throw new Error('APP_URL environment variable must be set for this operation');
+}
+
 // Helper to verify platform admin status
 async function verifyPlatformAdmin(userId: string | undefined): Promise<{ isAdmin: boolean; debug: string }> {
   if (!userId) {
@@ -630,11 +650,8 @@ export async function registerRoutes(
         expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
       });
 
-      // Use X-Forwarded headers (set by Codespace proxy / reverse proxies) to build the real URL
-      const proto = req.get('x-forwarded-proto') || req.protocol;
-      const host = req.get('x-forwarded-host') || req.get('host');
-      // Redirect to server-side callback handler (not the SPA) for instant code exchange
-      const redirectUri = `${proto}://${host}/api/square/oauth/callback`;
+      const baseUrl = getTrustedBaseUrl(req);
+      const redirectUri = `${baseUrl}/api/square/oauth/callback`;
       const url = getSquareOAuthUrl(stateToken, redirectUri);
       res.json({ url });
     } catch (error: any) {
@@ -662,9 +679,8 @@ export async function registerRoutes(
 
     try {
       // Reconstruct the redirect URI that was used in the authorize request (must match exactly)
-      const proto = req.get('x-forwarded-proto') || req.protocol;
-      const host = req.get('x-forwarded-host') || req.get('host');
-      const redirectUri = `${proto}://${host}/api/square/oauth/callback`;
+      const baseUrl = getTrustedBaseUrl(req);
+      const redirectUri = `${baseUrl}/api/square/oauth/callback`;
       const tokens = await squareService.exchangeCodeForTokens(code as string, redirectUri);
       await squareService.saveTenantSquareTokens(
         tenantId,
@@ -1578,8 +1594,8 @@ export async function registerRoutes(
         VALUES (${code}, ${resellerId}, 'beta', ${email}, NOW() + INTERVAL '90 days')
       `);
 
-      // Send invite email — use APP_URL in production so links aren't localhost
-      const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      // Send invite email — use trusted base URL (validates host header)
+      const baseUrl = getTrustedBaseUrl(req);
       const emailResult = await sendBetaInviteEmail({
         recipientEmail: email,
         licenseCode: code,
@@ -2811,6 +2827,18 @@ export async function registerRoutes(
       if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
         return res.status(401).json({ error: 'Invalid or expired kiosk session' });
       }
+      // Verify entry belongs to this employee and tenant
+      const entryCheck = await db.execute(sql`
+        SELECT 1 FROM time_clock_entries
+        WHERE id = ${entryId}::uuid
+        AND tenant_id = ${tenantId}::uuid
+        AND (employee_id = ${employeeId}::uuid OR tip_employee_id = ${employeeId}::uuid)
+        AND clock_out IS NULL
+        LIMIT 1
+      `);
+      if (entryCheck.rows.length === 0) {
+        return res.status(403).json({ error: 'Entry not found' });
+      }
       // Verify no active break
       const activeBreak = await db.execute(sql`
         SELECT 1 FROM time_clock_breaks
@@ -2841,6 +2869,19 @@ export async function registerRoutes(
       }
       if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
         return res.status(401).json({ error: 'Invalid or expired kiosk session' });
+      }
+      // Verify break belongs to an entry owned by this employee
+      const breakCheck = await db.execute(sql`
+        SELECT 1 FROM time_clock_breaks tcb
+        JOIN time_clock_entries tce ON tcb.time_clock_entry_id = tce.id
+        WHERE tcb.id = ${breakId}::uuid
+        AND tcb.tenant_id = ${tenantId}::uuid
+        AND (tce.employee_id = ${employeeId}::uuid OR tce.tip_employee_id = ${employeeId}::uuid)
+        AND tcb.break_end IS NULL
+        LIMIT 1
+      `);
+      if (breakCheck.rows.length === 0) {
+        return res.status(403).json({ error: 'Break not found' });
       }
       const result = await db.execute(sql`
         UPDATE time_clock_breaks
