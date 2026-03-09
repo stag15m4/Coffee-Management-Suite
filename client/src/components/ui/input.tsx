@@ -10,60 +10,17 @@ if (typeof document !== 'undefined') {
   }, { capture: true });
 }
 
-/**
- * Snapshot window.scrollY and install a brief scroll listener that
- * snaps back if Safari moves it. The scroll event fires synchronously
- * with the scroll (before paint), so the user never sees the jump.
- */
-function guardScroll(): void {
-  const scrollY = window.scrollY;
-  const onScroll = () => {
-    if (Math.abs(window.scrollY - scrollY) > 1) {
-      window.scrollTo(0, scrollY);
-    }
-  };
-  window.addEventListener('scroll', onScroll);
-  const cleanup = () => window.removeEventListener('scroll', onScroll);
-  requestAnimationFrame(() => requestAnimationFrame(cleanup));
-  setTimeout(cleanup, 300);
-}
-
-/**
- * Attach a keydown listener that runs guardScroll on every keystroke
- * while the input is focused. Cleans up on blur.
- */
-function attachKeystrokeGuard(input: HTMLElement): void {
-  const onKeyDown = () => guardScroll();
-  input.addEventListener('keydown', onKeyDown);
-  input.addEventListener('blur', () => {
-    input.removeEventListener('keydown', onKeyDown);
-  }, { once: true });
-}
-
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, style, onFocus, ...props }, ref) => {
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
       const input = e.target;
       const isTabFocus = Date.now() - lastTabTime < 200;
 
-      // Guard the focus event FIRST — before select() or parent onFocus
-      // that might call select(). Runs on ALL focus types (tap, Tab,
-      // trackpad) so it catches the 7+ places that use
-      // onFocus={(e) => e.target.select()}.
-      const rect = input.getBoundingClientRect();
-      const vpHeight = window.visualViewport?.height ?? window.innerHeight;
-      if (rect.top >= 0 && rect.bottom <= vpHeight) {
-        guardScroll();
-      }
-
       // Select all text on Tab focus only.
       if (isTabFocus) {
         input.select();
         requestAnimationFrame(() => input.select());
       }
-
-      // Persistent keystroke guard while focused.
-      attachKeystrokeGuard(input);
 
       onFocus?.(e);
     };
