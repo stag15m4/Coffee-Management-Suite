@@ -11,6 +11,7 @@ import ical from "node-ical";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
+import * as qboService from "./qboService";
 
 // Rate limiters for sensitive endpoints
 const authRateLimit = rateLimit({
@@ -3393,6 +3394,169 @@ export async function registerRoutes(
       console.error('[auto-close] Error:', err.message);
     }
   }, 60 * 60 * 1000); // check every hour
+
+  // =====================================================
+  // QuickBooks Online Integration
+  // =====================================================
+
+  // In-memory CSRF state tokens for QBO OAuth (same pattern as Square)
+  const qboOAuthStates = new Map<string, { tenantId: string; expiresAt: number }>();
+
+  const qboRateLimit = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please try again later.' },
+  });
+
+  // Helper: verify user is owner/manager and extract tenantId
+  async function verifyBudgetAdmin(req: Request, res: Response): Promise<{ userId: string; tenantId: string } | null> {
+    const { userId } = await getUserIdFromRequest(req);
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return null;
+    }
+    const tenantId = req.query.tenantId as string || req.params.tenantId || req.body?.tenantId;
+    if (!tenantId) {
+      res.status(400).json({ error: 'tenantId required' });
+      return null;
+    }
+    // Verify user has manager+ role for this tenant
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data: assignment } = await supabaseAdmin
+      .from('user_tenant_assignments')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('tenant_id', tenantId)
+      .single();
+    if (!assignment || !['owner', 'manager'].includes(assignment.role)) {
+      res.status(403).json({ error: 'Manager or owner role required' });
+      return null;
+    }
+    return { userId, tenantId };
+  }
+
+  // GET /api/qbo/auth-url — generate OAuth authorization URL
+  app.get('/api/qbo/auth-url', qboRateLimit, async (req, res) => {
+    try {
+      const auth = await verifyBudgetAdmin(req, res);
+      if (!auth) return;
+
+      const stateToken = crypto.randomUUID();
+      qboOAuthStates.set(stateToken, {
+        tenantId: auth.tenantId,
+        expiresAt: Date.now() + 10 * 60 * 1000,
+      });
+
+      const url = qboService.getQboAuthUrl(stateToken);
+      res.json({ url });
+    } catch (error: any) {
+      console.error('[qbo] Auth URL error:', error.message);
+      res.status(500).json({ error: 'Failed to generate auth URL' });
+    }
+  });
+
+  // GET /api/qbo/oauth/callback — Intuit redirects here after user authorizes
+  app.get('/api/qbo/oauth/callback', async (req, res) => {
+    const frontendUrl = '/financial-budget?tab=chart-of-accounts';
+    const { state: stateToken, realmId } = req.query;
+
+    if (!stateToken) {
+      return res.redirect(`${frontendUrl}&qbo_error=${encodeURIComponent('Missing OAuth state')}`);
+    }
+
+    // Validate CSRF state
+    const stateData = qboOAuthStates.get(stateToken as string);
+    qboOAuthStates.delete(stateToken as string);
+    if (!stateData || Date.now() > stateData.expiresAt) {
+      return res.redirect(`${frontendUrl}&qbo_error=${encodeURIComponent('Invalid or expired OAuth state. Please try again.')}`);
+    }
+
+    try {
+      // intuit-oauth needs the full callback URL to exchange the code
+      const fullUrl = `${getTrustedBaseUrl(req)}${req.originalUrl}`;
+      const tokens = await qboService.exchangeQboCode(fullUrl);
+
+      await qboService.saveQboTokens(
+        stateData.tenantId,
+        tokens.realmId || (realmId as string) || '',
+        tokens.accessToken,
+        tokens.refreshToken,
+        tokens.expiresAt,
+      );
+
+      res.redirect(`${frontendUrl}&qbo_connected=true`);
+    } catch (error: any) {
+      console.error('[qbo] OAuth callback error:', error.message);
+      res.redirect(`${frontendUrl}&qbo_error=${encodeURIComponent('Failed to connect QuickBooks. Please try again.')}`);
+    }
+  });
+
+  // GET /api/qbo/status/:tenantId — connection status
+  app.get('/api/qbo/status/:tenantId', qboRateLimit, async (req, res) => {
+    try {
+      const auth = await verifyBudgetAdmin(req, res);
+      if (!auth) return;
+
+      const status = await qboService.getQboStatus(auth.tenantId);
+      res.json(status);
+    } catch (error: any) {
+      console.error('[qbo] Status error:', error.message);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // POST /api/qbo/disconnect — revoke and clear tokens
+  app.post('/api/qbo/disconnect', qboRateLimit, async (req, res) => {
+    try {
+      const auth = await verifyBudgetAdmin(req, res);
+      if (!auth) return;
+
+      await qboService.disconnectQbo(auth.tenantId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[qbo] Disconnect error:', error.message);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // POST /api/qbo/sync-coa — sync Chart of Accounts from QBO
+  app.post('/api/qbo/sync-coa', qboRateLimit, async (req, res) => {
+    try {
+      const auth = await verifyBudgetAdmin(req, res);
+      if (!auth) return;
+
+      const result = await qboService.syncChartOfAccounts(auth.tenantId);
+      res.json(result);
+    } catch (error: any) {
+      console.error('[qbo] Sync CoA error:', error.message);
+      res.status(500).json({ error: error.message || 'Sync failed' });
+    }
+  });
+
+  // POST /api/qbo/sync-actuals — sync P&L actuals for a fiscal year
+  app.post('/api/qbo/sync-actuals', qboRateLimit, async (req, res) => {
+    try {
+      const auth = await verifyBudgetAdmin(req, res);
+      if (!auth) return;
+
+      const schema = z.object({
+        fiscalYearId: z.string().uuid(),
+        year: z.number().int().min(2000).max(2100),
+      });
+      const { fiscalYearId, year } = schema.parse(req.body);
+
+      const result = await qboService.syncActuals(auth.tenantId, fiscalYearId, year);
+      res.json(result);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data' });
+      }
+      console.error('[qbo] Sync actuals error:', error.message);
+      res.status(500).json({ error: error.message || 'Sync failed' });
+    }
+  });
 
   // =====================================================
   // Financial Budget — CSV import endpoint

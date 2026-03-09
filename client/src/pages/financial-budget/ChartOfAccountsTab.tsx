@@ -23,6 +23,10 @@ import {
   useUpdateAccount,
   useDeleteAccount,
   useImportChartOfAccounts,
+  useQboStatus,
+  useQboConnect,
+  useQboDisconnect,
+  useQboSyncCoa,
 } from '@/hooks/use-budget';
 import { buildAccountTree, ACCOUNT_TYPE_ORDER } from './types';
 import type { ChartOfAccount, AccountType } from './types';
@@ -36,6 +40,10 @@ import {
   FileSpreadsheet,
   Loader2,
   Check,
+  RefreshCw,
+  Link,
+  Unlink,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface Props {
@@ -49,6 +57,51 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
   const importCoa = useImportChartOfAccounts();
+
+  // QBO integration
+  const { data: qboStatus } = useQboStatus(tenantId);
+  const qboConnect = useQboConnect();
+  const qboDisconnect = useQboDisconnect();
+  const qboSyncCoa = useQboSyncCoa();
+
+  // Check for QBO OAuth callback params
+  const params = new URLSearchParams(window.location.search);
+  const qboConnected = params.get('qbo_connected');
+  const qboError = params.get('qbo_error');
+  if (qboConnected === 'true' || qboError) {
+    // Clean URL params after reading
+    const url = new URL(window.location.href);
+    url.searchParams.delete('qbo_connected');
+    url.searchParams.delete('qbo_error');
+    window.history.replaceState({}, '', url.toString());
+    if (qboConnected === 'true') {
+      toast({ title: 'QuickBooks connected successfully' });
+    } else if (qboError) {
+      toast({ title: 'QuickBooks connection failed', description: qboError, variant: 'destructive' });
+    }
+  }
+
+  const handleQboSync = async () => {
+    try {
+      const result = await qboSyncCoa.mutateAsync(tenantId);
+      toast({
+        title: 'Chart of Accounts synced',
+        description: `${result.imported} new, ${result.updated} updated, ${result.skipped} skipped`,
+      });
+    } catch (err: any) {
+      toast({ title: 'Sync failed', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const handleQboDisconnect = async () => {
+    if (!confirm('Disconnect QuickBooks? You can reconnect anytime.')) return;
+    try {
+      await qboDisconnect.mutateAsync(tenantId);
+      toast({ title: 'QuickBooks disconnected' });
+    } catch (err: any) {
+      toast({ title: 'Disconnect failed', description: err.message, variant: 'destructive' });
+    }
+  };
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -286,11 +339,70 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* QBO Connection Card */}
+      <div
+        className="rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"
+        style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: qboStatus?.connected ? colors.green + '20' : colors.cream }}>
+            {qboStatus?.connected ? (
+              <CheckCircle2 className="w-4 h-4" style={{ color: colors.green }} />
+            ) : (
+              <Link className="w-4 h-4" style={{ color: colors.brownLight }} />
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-medium" style={{ color: colors.brown }}>
+              QuickBooks Online {qboStatus?.connected ? '— Connected' : '— Not Connected'}
+            </p>
+            {qboStatus?.connected && qboStatus.realmId && (
+              <p className="text-xs" style={{ color: colors.brownLight }}>Company ID: {qboStatus.realmId}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {qboStatus?.connected ? (
+            <>
+              <Button
+                onClick={handleQboSync}
+                disabled={qboSyncCoa.isPending}
+                size="sm"
+                style={{ backgroundColor: colors.gold, color: '#fff' }}
+              >
+                {qboSyncCoa.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+                Sync Accounts
+              </Button>
+              <Button
+                onClick={handleQboDisconnect}
+                disabled={qboDisconnect.isPending}
+                size="sm"
+                variant="outline"
+                style={{ borderColor: colors.red, color: colors.red }}
+              >
+                <Unlink className="w-4 h-4 mr-1" />
+                Disconnect
+              </Button>
+            </>
+          ) : (
+            <Button
+              onClick={() => qboConnect.mutate(tenantId)}
+              disabled={qboConnect.isPending}
+              size="sm"
+              style={{ backgroundColor: colors.gold, color: '#fff' }}
+            >
+              {qboConnect.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Link className="w-4 h-4 mr-1" />}
+              Connect to QuickBooks
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => setShowImportDialog(true)} style={{ backgroundColor: colors.gold, color: '#fff' }}>
           <Upload className="w-4 h-4 mr-2" />
-          Import from QBO
+          Import CSV
         </Button>
         <Button variant="outline" onClick={() => setShowAddDialog(true)} style={{ borderColor: colors.gold, color: colors.brown }}>
           <Plus className="w-4 h-4 mr-2" />

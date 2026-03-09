@@ -285,3 +285,104 @@ export function useImportChartOfAccounts() {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// QuickBooks Online hooks
+// ---------------------------------------------------------------------------
+
+async function apiFetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  const session = (await supabase.auth.getSession()).data.session;
+  return fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session?.access_token}`,
+      ...options.headers,
+    },
+  });
+}
+
+export function useQboStatus(tenantId?: string) {
+  return useQuery({
+    queryKey: ['qbo-status', tenantId],
+    queryFn: async () => {
+      if (!tenantId) return { connected: false, realmId: null, connectedAt: null, lastSyncAt: null };
+      const res = await apiFetchWithAuth(`/api/qbo/status/${tenantId}?tenantId=${tenantId}`);
+      if (!res.ok) throw new Error('Failed to fetch QBO status');
+      return res.json() as Promise<{
+        connected: boolean;
+        realmId: string | null;
+        connectedAt: string | null;
+        lastSyncAt: string | null;
+      }>;
+    },
+    enabled: !!tenantId,
+  });
+}
+
+export function useQboConnect() {
+  return useMutation({
+    mutationFn: async (tenantId: string) => {
+      const res = await apiFetchWithAuth(`/api/qbo/auth-url?tenantId=${tenantId}`);
+      if (!res.ok) throw new Error('Failed to get QBO auth URL');
+      const { url } = await res.json();
+      window.location.href = url;
+    },
+  });
+}
+
+export function useQboDisconnect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (tenantId: string) => {
+      const res = await apiFetchWithAuth('/api/qbo/disconnect', {
+        method: 'POST',
+        body: JSON.stringify({ tenantId }),
+      });
+      if (!res.ok) throw new Error('Failed to disconnect QBO');
+    },
+    onSuccess: (_data, tenantId) => {
+      qc.invalidateQueries({ queryKey: ['qbo-status', tenantId] });
+    },
+  });
+}
+
+export function useQboSyncCoa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (tenantId: string) => {
+      const res = await apiFetchWithAuth('/api/qbo/sync-coa', {
+        method: 'POST',
+        body: JSON.stringify({ tenantId }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Sync failed');
+      }
+      return res.json() as Promise<{ imported: number; updated: number; skipped: number }>;
+    },
+    onSuccess: (_data, tenantId) => {
+      qc.invalidateQueries({ queryKey: keys.coa(tenantId) });
+    },
+  });
+}
+
+export function useQboSyncActuals() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ tenantId, fiscalYearId, year }: { tenantId: string; fiscalYearId: string; year: number }) => {
+      const res = await apiFetchWithAuth('/api/qbo/sync-actuals', {
+        method: 'POST',
+        body: JSON.stringify({ tenantId, fiscalYearId, year }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Sync failed');
+      }
+      return res.json() as Promise<{ synced: number; errors: string[] }>;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: keys.lineItems(vars.fiscalYearId, vars.tenantId) });
+    },
+  });
+}

@@ -12,11 +12,12 @@ import {
 } from '@/components/ui/select';
 import ChartOfAccountsTab from './ChartOfAccountsTab';
 import BudgetEntryTab from './BudgetEntryTab';
+import ActualsTab from './ActualsTab';
 
 const TABS: Array<{ id: string; label: string; disabled?: boolean }> = [
   { id: 'chart-of-accounts', label: 'Chart of Accounts' },
   { id: 'budget-entry', label: 'Budget Entry' },
-  { id: 'actuals', label: 'Actuals', disabled: true },
+  { id: 'actuals', label: 'Actuals' },
   { id: 'forecast', label: 'Forecast', disabled: true },
   { id: 'dashboard', label: 'Dashboard', disabled: true },
 ];
@@ -110,7 +111,10 @@ export default function FinancialBudgetPage() {
         {activeTab === 'budget-entry' && (
           <BudgetEntryTab tenantId={budgetTenantId} coaTenantId={coaTenantId} />
         )}
-        {(activeTab === 'actuals' || activeTab === 'forecast' || activeTab === 'dashboard') && (
+        {activeTab === 'actuals' && (
+          <ActualsTab tenantId={budgetTenantId} coaTenantId={coaTenantId} />
+        )}
+        {(activeTab === 'forecast' || activeTab === 'dashboard') && (
           <div
             className="rounded-xl p-8 text-center"
             style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
@@ -120,7 +124,6 @@ export default function FinancialBudgetPage() {
               Coming in Phase 2
             </h3>
             <p className="text-sm" style={{ color: colors.brownLight }}>
-              {activeTab === 'actuals' && 'Import actuals from QuickBooks to compare against your budget.'}
               {activeTab === 'forecast' && 'Rolling 12-month forecast with actuals for closed months.'}
               {activeTab === 'dashboard' && 'Company-wide dashboard with charts, variance analysis, and roll-up views.'}
             </p>
