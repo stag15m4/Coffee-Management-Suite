@@ -266,6 +266,7 @@ export function PolicyBuilder() {
                       min={0}
                       step={0.25}
                       value={formData.accrual_hours ?? 1}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => setFormData((f) => ({ ...f, accrual_hours: Number(e.target.value) }))}
                       className="w-20"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
@@ -276,6 +277,7 @@ export function PolicyBuilder() {
                       min={1}
                       step={1}
                       value={formData.accrual_per_hours_worked ?? 8}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => setFormData((f) => ({ ...f, accrual_per_hours_worked: Number(e.target.value) }))}
                       className="w-20"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
@@ -295,6 +297,7 @@ export function PolicyBuilder() {
                       min={0}
                       step={1}
                       value={formData.annual_hours ?? 40}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => setFormData((f) => ({ ...f, annual_hours: Number(e.target.value) }))}
                       className="w-24"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
@@ -341,6 +344,7 @@ export function PolicyBuilder() {
                         type="number"
                         min={0}
                         value={tier.after_months}
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) => updateMilestoneTier(idx, 'after_months', Number(e.target.value))}
                         className="w-16 h-8 text-sm"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
@@ -351,6 +355,7 @@ export function PolicyBuilder() {
                         min={0}
                         step={0.25}
                         value={tier.accrual_hours}
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) => updateMilestoneTier(idx, 'accrual_hours', Number(e.target.value))}
                         className="w-16 h-8 text-sm"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
@@ -360,6 +365,7 @@ export function PolicyBuilder() {
                         type="number"
                         min={1}
                         value={tier.accrual_per_hours_worked}
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) => updateMilestoneTier(idx, 'accrual_per_hours_worked', Number(e.target.value))}
                         className="w-16 h-8 text-sm"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
@@ -397,6 +403,7 @@ export function PolicyBuilder() {
                         step={1}
                         value={formData.max_balance_hours ?? ''}
                         placeholder="No cap"
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) => setFormData((f) => ({
                           ...f,
                           max_balance_hours: e.target.value ? Number(e.target.value) : null,
@@ -432,6 +439,7 @@ export function PolicyBuilder() {
                           min={0}
                           step={1}
                           value={formData.carryover_max_hours ?? 0}
+                          onFocus={(e) => e.target.select()}
                           onChange={(e) => setFormData((f) => ({ ...f, carryover_max_hours: Number(e.target.value) }))}
                           className="w-24"
                           style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
@@ -450,6 +458,7 @@ export function PolicyBuilder() {
                         min={0}
                         step={1}
                         value={formData.waiting_period_days ?? 0}
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) => setFormData((f) => ({ ...f, waiting_period_days: Number(e.target.value) }))}
                         className="w-24"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
