@@ -197,7 +197,7 @@ export function EmployeeTimesheetView({
     queryClient.invalidateQueries({ queryKey: ['time-clock'] });
   }, [queryClient]);
 
-  /* ── build day data ── */
+  /* ── build day data (with overnight split) ── */
   const dayDataMap = useMemo<Map<string, DayData>>(() => {
     const shiftsByDay = new Map<string, Shift[]>();
     for (const s of empShifts) {
@@ -206,27 +206,21 @@ export function EmployeeTimesheetView({
       shiftsByDay.set(s.date, arr);
     }
 
-    const entriesByDay = new Map<string, TimeClockEntry[]>();
+    // Build entry rows per day, splitting overnight entries at midnight
+    const rowsByDay = new Map<string, EntryRow[]>();
+
     for (const e of empEntries) {
-      const day = new Date(e.clock_in).toLocaleDateString('sv-SE');
-      const arr = entriesByDay.get(day) || [];
-      arr.push(e);
-      entriesByDay.set(day, arr);
-    }
+      const inDate = new Date(e.clock_in);
+      const inDay = inDate.toLocaleDateString('sv-SE');
+      const outDate = e.clock_out ? new Date(e.clock_out) : null;
+      const outDay = outDate ? outDate.toLocaleDateString('sv-SE') : null;
+      const brk = (e.breaks ?? [])[0];
 
-    const result = new Map<string, DayData>();
-    for (const day of days) {
-      const dayShifts = shiftsByDay.get(day) || [];
-      const dayEntries = entriesByDay.get(day) || [];
-
-      let scheduledHours = 0;
-      for (const s of dayShifts) scheduledHours += calcShiftHours(s.start_time, s.end_time);
-
-      const entryRows: EntryRow[] = dayEntries.map((e) => {
-        const brk = (e.breaks ?? [])[0];
+      if (!outDay || inDay === outDay) {
+        // Same day or still clocked in — no split needed
         const total = calcHours(e.clock_in, e.clock_out);
         const brkHrs = calcBreakHours(e.breaks ?? []);
-        return {
+        const row: EntryRow = {
           entry: e,
           in1: e.clock_in,
           out1: brk?.break_start ?? null,
@@ -235,7 +229,102 @@ export function EmployeeTimesheetView({
           breakId: brk?.id ?? null,
           netHours: Math.max(0, total - brkHrs),
         };
-      });
+        const arr = rowsByDay.get(inDay) || [];
+        arr.push(row);
+        rowsByDay.set(inDay, arr);
+      } else {
+        // Overnight: split at midnight boundary for each day spanned
+        const midnightAfterIn = new Date(inDate);
+        midnightAfterIn.setDate(midnightAfterIn.getDate() + 1);
+        midnightAfterIn.setHours(0, 0, 0, 0);
+        const midnightISO = midnightAfterIn.toISOString();
+
+        // Helper: calc break hours within a time window
+        const breakHoursInWindow = (windowStart: Date, windowEnd: Date) => {
+          if (!brk?.break_start) return 0;
+          const bs = new Date(brk.break_start);
+          const be = brk.break_end ? new Date(brk.break_end) : null;
+          if (!be) return 0;
+          const overlapStart = Math.max(bs.getTime(), windowStart.getTime());
+          const overlapEnd = Math.min(be.getTime(), windowEnd.getTime());
+          return overlapEnd > overlapStart ? (overlapEnd - overlapStart) / 3_600_000 : 0;
+        };
+
+        // Day A (clock_in day): clock_in to midnight
+        const dayAHours = (midnightAfterIn.getTime() - inDate.getTime()) / 3_600_000;
+        const dayABreak = breakHoursInWindow(inDate, midnightAfterIn);
+        const brkStartDate = brk?.break_start ? new Date(brk.break_start) : null;
+        const brkEndDate = brk?.break_end ? new Date(brk.break_end) : null;
+        const brkOnDayA = brkStartDate && brkStartDate < midnightAfterIn;
+        const rowA: EntryRow = {
+          entry: e,
+          in1: e.clock_in,
+          out1: brkOnDayA ? brk.break_start : null,
+          in2: brkOnDayA && brkEndDate && brkEndDate < midnightAfterIn ? brk.break_end : null,
+          out2: midnightISO,
+          breakId: brkOnDayA ? (brk?.id ?? null) : null,
+          netHours: Math.max(0, dayAHours - dayABreak),
+        };
+        const arrA = rowsByDay.get(inDay) || [];
+        arrA.push(rowA);
+        rowsByDay.set(inDay, arrA);
+
+        // For multi-day spans (rare but possible), fill full-day rows
+        let cursor = new Date(midnightAfterIn);
+        while (true) {
+          const nextMid = new Date(cursor);
+          nextMid.setDate(nextMid.getDate() + 1);
+          nextMid.setHours(0, 0, 0, 0);
+          const curDay = cursor.toLocaleDateString('sv-SE');
+
+          if (outDate <= nextMid) {
+            // Day B (clock_out day): midnight to clock_out
+            const dayBHours = (outDate.getTime() - cursor.getTime()) / 3_600_000;
+            const dayBBreak = breakHoursInWindow(cursor, outDate);
+            const brkOnDayB = brkStartDate && brkStartDate >= cursor && brkStartDate < outDate;
+            const rowB: EntryRow = {
+              entry: e,
+              in1: cursor.toISOString(),
+              out1: brkOnDayB ? brk.break_start : null,
+              in2: brkOnDayB ? (brk?.break_end ?? null) : null,
+              out2: e.clock_out,
+              breakId: brkOnDayB ? (brk?.id ?? null) : null,
+              netHours: Math.max(0, dayBHours - dayBBreak),
+            };
+            const arrB = rowsByDay.get(curDay) || [];
+            arrB.push(rowB);
+            rowsByDay.set(curDay, arrB);
+            break;
+          } else {
+            // Full intermediate day: midnight to midnight
+            const fullDayHours = 24;
+            const fullDayBreak = breakHoursInWindow(cursor, nextMid);
+            const brkOnMid = brkStartDate && brkStartDate >= cursor && brkStartDate < nextMid;
+            const rowM: EntryRow = {
+              entry: e,
+              in1: cursor.toISOString(),
+              out1: brkOnMid ? brk.break_start : null,
+              in2: brkOnMid && brkEndDate && brkEndDate < nextMid ? brk.break_end : null,
+              out2: nextMid.toISOString(),
+              breakId: brkOnMid ? (brk?.id ?? null) : null,
+              netHours: Math.max(0, fullDayHours - fullDayBreak),
+            };
+            const arrM = rowsByDay.get(curDay) || [];
+            arrM.push(rowM);
+            rowsByDay.set(curDay, arrM);
+            cursor = nextMid;
+          }
+        }
+      }
+    }
+
+    const result = new Map<string, DayData>();
+    for (const day of days) {
+      const dayShifts = shiftsByDay.get(day) || [];
+      const entryRows = rowsByDay.get(day) || [];
+
+      let scheduledHours = 0;
+      for (const s of dayShifts) scheduledHours += calcShiftHours(s.start_time, s.end_time);
 
       const totalNetHours = entryRows.reduce((s, r) => s + r.netHours, 0);
       result.set(day, {

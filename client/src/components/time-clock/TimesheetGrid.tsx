@@ -56,15 +56,62 @@ export function TimesheetGrid({
   onEmployeeClick,
 }: TimesheetGridProps) {
   const rows = useMemo<EmployeeTimesheetRow[]>(() => {
-    // Group entries by employee and day
-    const entryMap = new Map<string, Map<string, TimeClockEntry[]>>();
+    // Split entry hours across days (handles overnight shifts)
+    function getHoursPerDay(entry: TimeClockEntry): Map<string, number> {
+      const result = new Map<string, number>();
+      const inDate = new Date(entry.clock_in);
+      const outDate = entry.clock_out ? new Date(entry.clock_out) : null;
+      if (!outDate) return result;
+
+      const inDay = inDate.toLocaleDateString('sv-SE');
+      const outDay = outDate.toLocaleDateString('sv-SE');
+      const totalBreak = calcBreakHours(entry.breaks ?? []);
+
+      if (inDay === outDay) {
+        // Same day — simple case
+        const net = Math.max(0, calcHours(entry.clock_in, entry.clock_out) - totalBreak);
+        result.set(inDay, net);
+        return result;
+      }
+
+      // Overnight: distribute gross hours per day, then subtract breaks proportionally
+      const totalGross = (outDate.getTime() - inDate.getTime()) / 3_600_000;
+      let cursor = new Date(inDate);
+
+      while (true) {
+        const curDay = cursor.toLocaleDateString('sv-SE');
+        const nextMid = new Date(cursor);
+        nextMid.setDate(nextMid.getDate() + 1);
+        nextMid.setHours(0, 0, 0, 0);
+
+        const segEnd = outDate <= nextMid ? outDate : nextMid;
+        const segHours = (segEnd.getTime() - cursor.getTime()) / 3_600_000;
+
+        // Subtract breaks proportionally to this segment's share of gross hours
+        const segBreak = totalGross > 0 ? totalBreak * (segHours / totalGross) : 0;
+        const netHours = Math.max(0, segHours - segBreak);
+        result.set(curDay, (result.get(curDay) || 0) + netHours);
+
+        if (outDate <= nextMid) break;
+        cursor = nextMid;
+      }
+
+      return result;
+    }
+
+    // Group hours by employee and day
+    const hoursMap = new Map<string, Map<string, number>>();
+    const employeesWithEntries = new Set<string>();
+
     for (const entry of entries) {
       const empId = entry.employee_id;
-      const day = new Date(entry.clock_in).toLocaleDateString('sv-SE'); // YYYY-MM-DD
-      if (!entryMap.has(empId)) entryMap.set(empId, new Map());
-      const dayMap = entryMap.get(empId)!;
-      if (!dayMap.has(day)) dayMap.set(day, []);
-      dayMap.get(day)!.push(entry);
+      employeesWithEntries.add(empId);
+      if (!hoursMap.has(empId)) hoursMap.set(empId, new Map());
+      const empDayHours = hoursMap.get(empId)!;
+      const entryDayHours = getHoursPerDay(entry);
+      for (const [day, hrs] of entryDayHours) {
+        empDayHours.set(day, (empDayHours.get(day) || 0) + hrs);
+      }
     }
 
     // Build approval map
@@ -74,7 +121,6 @@ export function TimesheetGrid({
     }
 
     // Build rows for employees who have entries OR are in the employee list with profiles
-    const employeesWithEntries = new Set(entryMap.keys());
     const profileEmployees = employees.filter((e) => e.user_profile_id);
 
     const result: EmployeeTimesheetRow[] = [];
@@ -84,20 +130,14 @@ export function TimesheetGrid({
       const empId = emp.user_profile_id!;
       processedIds.add(empId);
 
-      const dayMap = entryMap.get(empId);
+      const empDayHours = hoursMap.get(empId);
       const dayHours = new Map<string, number>();
       let totalHours = 0;
 
       for (const day of days) {
-        const dayEntries = dayMap?.get(day) || [];
-        let netHours = 0;
-        for (const e of dayEntries) {
-          const total = calcHours(e.clock_in, e.clock_out);
-          const breakH = calcBreakHours(e.breaks ?? []);
-          netHours += Math.max(0, total - breakH);
-        }
-        dayHours.set(day, netHours);
-        totalHours += netHours;
+        const hrs = empDayHours?.get(day) || 0;
+        dayHours.set(day, hrs);
+        totalHours += hrs;
       }
 
       // Skip employees with no hours unless they have entries
@@ -118,19 +158,13 @@ export function TimesheetGrid({
     // Also include any entries from unknown employees (shouldn't normally happen)
     for (const empId of Array.from(employeesWithEntries)) {
       if (processedIds.has(empId)) continue;
-      const dayMap = entryMap.get(empId)!;
+      const empDayHours = hoursMap.get(empId)!;
       const dayHours = new Map<string, number>();
       let totalHours = 0;
       for (const day of days) {
-        const dayEntries = dayMap.get(day) || [];
-        let netHours = 0;
-        for (const e of dayEntries) {
-          const total = calcHours(e.clock_in, e.clock_out);
-          const breakH = calcBreakHours(e.breaks ?? []);
-          netHours += Math.max(0, total - breakH);
-        }
-        dayHours.set(day, netHours);
-        totalHours += netHours;
+        const hrs = empDayHours.get(day) || 0;
+        dayHours.set(day, hrs);
+        totalHours += hrs;
       }
 
       const firstEntry = entries.find((e) => e.employee_id === empId);
