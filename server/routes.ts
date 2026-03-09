@@ -29,6 +29,14 @@ const kioskVerifyRateLimit = rateLimit({
   message: { error: 'Too many verification attempts. Please wait a moment.' },
 });
 
+const licenseValidateRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // 30 attempts per window — generous for legitimate signup flow
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many validation attempts. Please try again later.' },
+});
+
 // Extract user ID from request via Authorization Bearer JWT
 async function getUserIdFromRequest(req: Request): Promise<{ userId: string | null; debug: string }> {
   const authHeader = req.headers['authorization'];
@@ -1416,7 +1424,7 @@ export async function registerRoutes(
   });
 
   // Validate a license code (public endpoint for signup flow)
-  app.get('/api/license-codes/validate/:code', async (req, res) => {
+  app.get('/api/license-codes/validate/:code', licenseValidateRateLimit, async (req, res) => {
     try {
       const code = req.params.code.toUpperCase().replace(/-/g, '');
       
@@ -1440,7 +1448,6 @@ export async function registerRoutes(
         valid: true,
         code: license.code,
         subscriptionPlan: license.subscription_plan,
-        resellerName: license.reseller_name,
         verticalName: license.vertical_name,
         verticalSlug: license.vertical_slug,
       });
