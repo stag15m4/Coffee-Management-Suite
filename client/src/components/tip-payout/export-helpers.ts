@@ -214,10 +214,13 @@ export function buildWeeklyPdfHtml(params: WeeklyPdfParams): string {
 
         <div class="employee-name">${escapeHtml(name)}</div>
 
-        <div class="summary">
-          <div class="summary-item">Total Tip Pool: ${formatCurrency(totalPool)}</div>
-          <div class="summary-item">Total Team Hours: ${formatHoursMinutes(totalTeamHours)} (${totalTeamHours.toFixed(2)}h)</div>
-          <div class="summary-item gold-text">Hourly Rate: ${formatCurrency(hourlyRate)}/hr</div>
+        <div class="summary" style="justify-content: space-between; align-items: center;">
+          <div style="display: flex; flex-wrap: wrap; gap: 10px 40px;">
+            <div class="summary-item">Total Tip Pool: ${formatCurrency(totalPool)}</div>
+            <div class="summary-item">Total Team Hours: ${formatHoursMinutes(totalTeamHours)} (${totalTeamHours.toFixed(2)}h)</div>
+            <div class="summary-item gold-text">Hourly Rate: ${formatCurrency(hourlyRate)}/hr</div>
+          </div>
+          <div style="font-size: 20px; font-weight: bold; color: #4A3728; background-color: #C9A227; padding: 6px 16px; border-radius: 5px; white-space: nowrap;">Your Payout: ${formatCurrency(payout)}</div>
         </div>
 
         <table>
