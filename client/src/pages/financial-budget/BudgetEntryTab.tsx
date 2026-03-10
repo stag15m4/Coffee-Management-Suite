@@ -27,7 +27,8 @@ import {
 } from '@/hooks/use-budget';
 import { ACCOUNT_TYPE_ORDER, MONTH_LABELS } from './types';
 import type { ChartOfAccount, AccountType } from './types';
-import { Plus, Loader2, Copy, FileSpreadsheet } from 'lucide-react';
+import { Plus, Loader2, Copy, FileSpreadsheet, Download } from 'lucide-react';
+import { exportBudgetPdf } from './budget-export';
 
 interface Props {
   tenantId: string;
@@ -296,6 +297,22 @@ export default function BudgetEntryTab({ tenantId, coaTenantId }: Props) {
           >
             <Copy className="w-4 h-4 mr-1" />
             Copy from {selectedFY.year - 1}
+          </Button>
+        )}
+
+        {selectedFY && accounts.length > 0 && (
+          <Button
+            variant="outline"
+            onClick={() => exportBudgetPdf({
+              title: `${selectedFY.year} Annual Budget`,
+              year: selectedFY.year,
+              accounts,
+              cellMap,
+            })}
+            style={{ borderColor: colors.gold, color: colors.brown }}
+          >
+            <Download className="w-4 h-4 mr-1" />
+            Export PDF
           </Button>
         )}
 

@@ -19,7 +19,8 @@ import {
 } from '@/hooks/use-budget';
 import { ACCOUNT_TYPE_ORDER, MONTH_LABELS } from './types';
 import type { AccountType } from './types';
-import { Loader2, RefreshCw, CloudOff, FileSpreadsheet, TrendingUp, TrendingDown } from 'lucide-react';
+import { Loader2, RefreshCw, CloudOff, FileSpreadsheet, TrendingUp, TrendingDown, Download } from 'lucide-react';
+import { exportActualsPdf } from './budget-export';
 
 interface Props {
   tenantId: string;
@@ -184,6 +185,23 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
             <CloudOff className="w-4 h-4" />
             Connect QuickBooks on the Chart of Accounts tab to sync actuals
           </div>
+        )}
+
+        {selectedFY && accounts.length > 0 && (
+          <Button
+            variant="outline"
+            onClick={() => exportActualsPdf({
+              title: `${selectedFY.year} Budget vs Actual`,
+              year: selectedFY.year,
+              accounts,
+              budgetMap: cellMap.budget,
+              actualMap: cellMap.actual,
+            })}
+            style={{ borderColor: colors.gold, color: colors.brown }}
+          >
+            <Download className="w-4 h-4 mr-1" />
+            Export PDF
+          </Button>
         )}
 
         {qboStatus?.lastSyncAt && (

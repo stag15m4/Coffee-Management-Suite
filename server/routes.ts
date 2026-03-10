@@ -3581,12 +3581,18 @@ export async function registerRoutes(
         csv: z.string().min(1),
         tenantId: z.string().uuid(),
         fileName: z.string().min(1),
+        columnMapping: z.object({
+          name: z.number().int().min(0),
+          type: z.number().int().min(0).optional(),
+          detailType: z.number().int().min(0).optional(),
+          number: z.number().int().min(0).optional(),
+        }).optional(),
       });
-      const { csv, tenantId, fileName } = schema.parse(req.body);
+      const { csv, tenantId, fileName, columnMapping } = schema.parse(req.body);
 
       // Parse CSV
-      const lines = csv.split(/\r?\n/).filter((l) => l.trim());
-      if (lines.length < 2) {
+      const allLines = csv.split(/\r?\n/).filter((l) => l.trim());
+      if (allLines.length < 2) {
         return res.status(400).json({ error: 'CSV must have a header row and at least one data row' });
       }
 
@@ -3615,16 +3621,41 @@ export async function registerRoutes(
         return fields;
       };
 
+      // QBO exports have title rows before the real headers (e.g. "Account List,,,,,").
+      // Find the header row: first line where at least 3 fields have non-empty values.
+      let headerIdx = 0;
+      for (let i = 0; i < Math.min(allLines.length, 10); i++) {
+        const fields = parseCSVLine(allLines[i]);
+        const nonEmpty = fields.filter((f: string) => f.length > 0).length;
+        if (nonEmpty >= 3) {
+          headerIdx = i;
+          break;
+        }
+      }
+      const lines = allLines.slice(headerIdx);
+
       const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
 
-      // Find column indices — flexible matching for QBO variations
-      const nameIdx = headers.findIndex((h) => h === 'account' || h === 'accountname' || h === 'name');
-      const typeIdx = headers.findIndex((h) => h === 'type' || h === 'accounttype');
-      const detailIdx = headers.findIndex((h) => h === 'detailtype' || h === 'detail');
-      const numberIdx = headers.findIndex((h) => h === 'number' || h === 'accountnumber' || h === 'acctnum');
+      // Use explicit column mapping if provided, otherwise auto-detect
+      let nameIdx: number, typeIdx: number, detailIdx: number, numberIdx: number;
+
+      if (columnMapping) {
+        nameIdx = columnMapping.name;
+        typeIdx = columnMapping.type ?? -1;
+        detailIdx = columnMapping.detailType ?? -1;
+        numberIdx = columnMapping.number ?? -1;
+      } else {
+        // QBO uses "Account #", "Full name", "Type", "Detail type"
+        numberIdx = headers.findIndex((h) => h === 'account' || h === 'number' || h === 'accountnumber' || h === 'acctnum');
+        nameIdx = headers.findIndex((h, idx) =>
+          idx !== numberIdx && (h === 'fullname' || h === 'accountname' || h === 'name' || h === 'account')
+        );
+        typeIdx = headers.findIndex((h) => h === 'type' || h === 'accounttype');
+        detailIdx = headers.findIndex((h) => h === 'detailtype' || h === 'detail');
+      }
 
       if (nameIdx === -1) {
-        return res.status(400).json({ error: 'CSV must have an "Account" or "Name" column' });
+        return res.status(400).json({ error: 'CSV must have an "Account" or "Name" column. Use column mapping if your headers differ.' });
       }
 
       // Map QBO types to internal types
@@ -3648,6 +3679,12 @@ export async function registerRoutes(
         const fields = parseCSVLine(lines[i]);
         const rawName = fields[nameIdx];
         if (!rawName) {
+          skipped++;
+          continue;
+        }
+
+        // Skip summary/footer rows (e.g. "TOTAL", timestamp lines)
+        if (rawName.toUpperCase() === 'TOTAL' || rawName.startsWith('"') || rawName.startsWith(' ')) {
           skipped++;
           continue;
         }
