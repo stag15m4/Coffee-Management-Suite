@@ -574,7 +574,7 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
         setShowImportDialog(open);
         if (!open) { setImportStep('file'); setCsvData(''); setReplaceExisting(false); }
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className={importStep === 'mapping' ? 'max-w-2xl' : 'max-w-lg'}>
           <DialogHeader>
             <DialogTitle>
               {importStep === 'file' ? 'Import Chart of Accounts' : 'Map CSV Columns'}
@@ -615,36 +615,34 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
                 Match your CSV columns to the expected fields. Only <strong>Account Name</strong> is required.
               </p>
 
-              {/* Column mapping selectors */}
-              <div className="space-y-3">
+              {/* Column mapping selectors — 2x2 grid */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                 {([
                   { key: 'name' as const, label: 'Account Name *', required: true },
+                  { key: 'number' as const, label: 'Account Number', required: false },
                   { key: 'type' as const, label: 'Account Type', required: false },
                   { key: 'detailType' as const, label: 'Detail Type', required: false },
-                  { key: 'number' as const, label: 'Account Number', required: false },
                 ]).map(({ key, label, required }) => (
-                  <div key={key} className="flex items-center gap-3">
-                    <Label className="text-sm w-32 shrink-0" style={{ color: colors.brown }}>
+                  <div key={key}>
+                    <Label className="text-xs font-medium mb-1 block" style={{ color: colors.brownLight }}>
                       {label}
                     </Label>
                     <Select
                       value={colMapping[key] || '_skip'}
                       onValueChange={(v) => setColMapping((p) => ({ ...p, [key]: v === '_skip' ? '' : v }))}
                     >
-                      <SelectTrigger className="flex-1" style={{ backgroundColor: colors.inputBg, borderColor: required && !colMapping[key] ? colors.red : colors.gold }}>
+                      <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: required && !colMapping[key] ? colors.red : colors.gold }}>
                         <SelectValue placeholder="Skip" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="_skip">— Skip —</SelectItem>
                         {csvHeaders.map((h, i) => {
-                          const samples = csvPreview
+                          const sample = csvPreview
                             .map((row) => row[i])
-                            .filter(Boolean)
-                            .slice(0, 2)
-                            .join(', ');
+                            .filter(Boolean)[0];
                           return (
                             <SelectItem key={i} value={String(i)}>
-                              {h}{samples ? ` (${samples})` : ''}
+                              {h}{sample ? ` — ${sample}` : ''}
                             </SelectItem>
                           );
                         })}
@@ -669,38 +667,46 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
                 </label>
               )}
 
-              {/* Preview table */}
-              {csvPreview.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Preview (first {csvPreview.length} rows):</p>
-                  <div className="overflow-x-auto rounded border" style={{ borderColor: colors.creamDark }}>
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr style={{ backgroundColor: colors.cream }}>
-                          {csvHeaders.map((h, i) => (
-                            <th key={i} className="text-left py-1 px-2 font-medium whitespace-nowrap" style={{ color: colors.brown }}>
-                              {h}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {csvPreview.map((row, ri) => (
-                          <tr key={ri} style={{ borderTop: `1px solid ${colors.creamDark}` }}>
-                            {csvHeaders.map((_, ci) => (
-                              <td key={ci} className="py-1 px-2 whitespace-nowrap" style={{ color: colors.brownLight }}>
-                                {row[ci] || ''}
-                              </td>
+              {/* Preview — only show mapped columns */}
+              {csvPreview.length > 0 && (() => {
+                const mappedCols = ([
+                  { key: 'number' as const, label: '#' },
+                  { key: 'name' as const, label: 'Name' },
+                  { key: 'type' as const, label: 'Type' },
+                  { key: 'detailType' as const, label: 'Detail Type' },
+                ] as const).filter(({ key }) => colMapping[key]);
+                return mappedCols.length > 0 ? (
+                  <div>
+                    <p className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Preview (first {csvPreview.length} rows):</p>
+                    <div className="rounded border" style={{ borderColor: colors.creamDark }}>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr style={{ backgroundColor: colors.cream }}>
+                            {mappedCols.map(({ key, label }) => (
+                              <th key={key} className="text-left py-1.5 px-3 font-medium" style={{ color: colors.brown }}>
+                                {label}
+                              </th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {csvPreview.map((row, ri) => (
+                            <tr key={ri} style={{ borderTop: `1px solid ${colors.creamDark}` }}>
+                              {mappedCols.map(({ key }) => (
+                                <td key={key} className="py-1.5 px-3" style={{ color: colors.brownLight }}>
+                                  {row[Number(colMapping[key])] || ''}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : null;
+              })()}
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-1">
                 <Button
                   variant="outline"
                   onClick={() => { setImportStep('file'); setCsvData(''); }}
