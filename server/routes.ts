@@ -3587,8 +3587,9 @@ export async function registerRoutes(
           detailType: z.number().int().min(0).optional(),
           number: z.number().int().min(0).optional(),
         }).optional(),
+        replaceExisting: z.boolean().optional(),
       });
-      const { csv, tenantId, fileName, columnMapping } = schema.parse(req.body);
+      const { csv, tenantId, fileName, columnMapping, replaceExisting } = schema.parse(req.body);
 
       // Parse CSV
       const allLines = csv.split(/\r?\n/).filter((l) => l.trim());
@@ -3668,6 +3669,15 @@ export async function registerRoutes(
       };
 
       const supabaseAdmin = getSupabaseAdmin();
+
+      // Replace existing: delete all current accounts for this tenant first
+      if (replaceExisting) {
+        await supabaseAdmin
+          .from('budget_chart_of_accounts')
+          .delete()
+          .eq('tenant_id', tenantId);
+      }
+
       const imported: any[] = [];
       const errors: Array<{ row: number; message: string }> = [];
       let skipped = 0;

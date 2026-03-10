@@ -222,6 +222,7 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
     name: string; type: string; detailType: string; number: string;
   }>({ name: '', type: '', detailType: '', number: '' });
   const [importStep, setImportStep] = useState<'file' | 'mapping'>('file');
+  const [replaceExisting, setReplaceExisting] = useState(false);
 
   const parseCSVLine = (line: string): string[] => {
     const fields: string[] = [];
@@ -325,6 +326,7 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
         tenantId,
         fileName: csvFileName,
         columnMapping: mapping,
+        replaceExisting,
       });
       toast({
         title: 'Import complete',
@@ -570,7 +572,7 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
       {/* Import Dialog — two-step: file select → column mapping */}
       <Dialog open={showImportDialog} onOpenChange={(open) => {
         setShowImportDialog(open);
-        if (!open) { setImportStep('file'); setCsvData(''); }
+        if (!open) { setImportStep('file'); setCsvData(''); setReplaceExisting(false); }
       }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -651,6 +653,21 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
                   </div>
                 ))}
               </div>
+
+              {/* Replace existing toggle */}
+              {accounts.length > 0 && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={replaceExisting}
+                    onChange={(e) => setReplaceExisting(e.target.checked)}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm" style={{ color: colors.brown }}>
+                    Replace existing accounts ({accounts.length} currently loaded)
+                  </span>
+                </label>
+              )}
 
               {/* Preview table */}
               {csvPreview.length > 0 && (

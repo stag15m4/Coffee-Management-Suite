@@ -262,11 +262,12 @@ export function useImportChartOfAccounts() {
   const qc = useQueryClient();
   const { tenant } = useAuth();
   return useMutation({
-    mutationFn: async ({ csv, tenantId, fileName, columnMapping }: {
+    mutationFn: async ({ csv, tenantId, fileName, columnMapping, replaceExisting }: {
       csv: string;
       tenantId: string;
       fileName: string;
       columnMapping?: { name: number; type?: number; detailType?: number; number?: number };
+      replaceExisting?: boolean;
     }) => {
       const response = await fetch('/api/budget/import-coa', {
         method: 'POST',
@@ -274,7 +275,7 @@ export function useImportChartOfAccounts() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
         },
-        body: JSON.stringify({ csv, tenantId, fileName, columnMapping }),
+        body: JSON.stringify({ csv, tenantId, fileName, columnMapping, replaceExisting }),
       });
       if (!response.ok) {
         const err = await response.json();
