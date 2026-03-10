@@ -70,41 +70,45 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
     return recipe.recipe_ingredients?.some(ri => sizeIds.includes(ri.size_id)) || false;
   };
 
-  // Recipes that have ingredients for food sizes go in the food section
-  const foodRecipes = nonBulkRecipes.filter(r =>
-    hasIngredientsForSizeIds(r, foodSizeIds)
-  );
-
-  // Recipes that have ingredients for merchandise sizes go in the merch section
-  const merchRecipes = nonBulkRecipes.filter(r =>
-    hasIngredientsForSizeIds(r, merchSizeIds)
-  );
-
-  // Recipes that have ingredients for drink sizes go in the drink section
-  // (a recipe can appear in both if it has ingredients for both)
-  const drinkRecipes = nonBulkRecipes.filter(r =>
-    hasIngredientsForSizeIds(r, drinkSizeIds)
-  );
-
-  // Also include recipes with NO ingredients yet — route by category_name
+  // Category name is the primary classifier for section placement.
+  // If a recipe has a food/merch category, it goes in that section regardless of size type.
+  // Only fall back to size-based classification when there's no category match.
   const foodCategoryNames = ['food items', 'grab-n-go'];
   const merchCategoryNames = ['merchandise'];
-  const recipesWithNoIngredients = nonBulkRecipes.filter(r =>
-    !hasIngredientsForSizeIds(r, foodSizeIds) && !hasIngredientsForSizeIds(r, drinkSizeIds) && !hasIngredientsForSizeIds(r, merchSizeIds)
-  );
-  const noIngDrinks = recipesWithNoIngredients.filter(r =>
-    !foodCategoryNames.includes((r.category_name || '').toLowerCase()) &&
-    !merchCategoryNames.includes((r.category_name || '').toLowerCase())
-  );
-  const noIngFood = recipesWithNoIngredients.filter(r =>
-    foodCategoryNames.includes((r.category_name || '').toLowerCase())
-  );
-  const noIngMerch = recipesWithNoIngredients.filter(r =>
-    merchCategoryNames.includes((r.category_name || '').toLowerCase())
-  );
-  const drinkRecipesWithDefaults = [...drinkRecipes, ...noIngDrinks];
-  const foodRecipesWithDefaults = [...foodRecipes, ...noIngFood];
-  const merchRecipesWithDefaults = [...merchRecipes, ...noIngMerch];
+
+  const getRecipeCategory = (r: Recipe): 'food' | 'merch' | 'drink' => {
+    const catName = (r.category_name || '').toLowerCase();
+    if (foodCategoryNames.includes(catName)) return 'food';
+    if (merchCategoryNames.includes(catName)) return 'merch';
+    // No matching category — fall back to size-based classification
+    if (hasIngredientsForSizeIds(r, foodSizeIds)) return 'food';
+    if (hasIngredientsForSizeIds(r, merchSizeIds)) return 'merch';
+    return 'drink';
+  };
+
+  const drinkRecipesWithDefaults = nonBulkRecipes.filter(r => getRecipeCategory(r) === 'drink');
+  const foodRecipesWithDefaults = nonBulkRecipes.filter(r => getRecipeCategory(r) === 'food');
+  const merchRecipesWithDefaults = nonBulkRecipes.filter(r => getRecipeCategory(r) === 'merch');
+
+  // Build size lists per section based on what sizes the section's recipes actually use
+  const allNonBulkSizes = productSizes.filter(s => !s.name.toLowerCase().includes('bulk'));
+  const getSizesUsedByRecipes = (sectionRecipes: Recipe[]): typeof allNonBulkSizes => {
+    const usedSizeIds = new Set<string>();
+    for (const r of sectionRecipes) {
+      for (const ri of r.recipe_ingredients || []) {
+        usedSizeIds.add(ri.size_id);
+      }
+      // Also include sizes with pricing data
+      for (const p of pricingData) {
+        if (p.recipe_id === r.id && p.sale_price > 0) usedSizeIds.add(p.size_id);
+      }
+    }
+    return allNonBulkSizes.filter(s => usedSizeIds.has(s.id));
+  };
+
+  // Override the section size lists with sizes actually used by that section's recipes
+  const foodSizesForSection = getSizesUsedByRecipes(foodRecipesWithDefaults);
+  const merchSizesForSection = getSizesUsedByRecipes(merchRecipesWithDefaults);
 
   const getSizeBaseTemplateId = (recipeId: string, sizeId: string): string | null => {
     const rsb = recipeSizeBases.find(r => r.recipe_id === recipeId && r.size_id === sizeId);
@@ -234,7 +238,7 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
       averages[size.id] = { costs: [], sales: [], profits: [], margins: [] };
     }
 
-    for (const recipe of drinkRecipes) {
+    for (const recipe of drinkRecipesWithDefaults) {
       for (const size of standardDrinkSizes) {
         const hasItems = hasIngredientsForSize(recipe, size.id);
         if (!hasItems) continue;
@@ -272,12 +276,12 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
   const calculateFoodAverages = () => {
     const averages: { [sizeId: string]: { costs: number[], sales: number[], profits: number[], margins: number[] } } = {};
 
-    for (const size of foodSizes) {
+    for (const size of foodSizesForSection) {
       averages[size.id] = { costs: [], sales: [], profits: [], margins: [] };
     }
 
-    for (const recipe of foodRecipes) {
-      for (const size of foodSizes) {
+    for (const recipe of foodRecipesWithDefaults) {
+      for (const size of foodSizesForSection) {
         const hasItems = hasIngredientsForSize(recipe, size.id);
         if (!hasItems) continue;
 
@@ -294,7 +298,7 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
       }
     }
 
-    return foodSizes.map(size => {
+    return foodSizesForSection.map(size => {
       const data = averages[size.id];
       const count = data.costs.length;
       return {
@@ -314,12 +318,12 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
   const calculateMerchAverages = () => {
     const averages: { [sizeId: string]: { costs: number[], sales: number[], profits: number[], margins: number[] } } = {};
 
-    for (const size of merchSizes) {
+    for (const size of merchSizesForSection) {
       averages[size.id] = { costs: [], sales: [], profits: [], margins: [] };
     }
 
-    for (const recipe of merchRecipes) {
-      for (const size of merchSizes) {
+    for (const recipe of merchRecipesWithDefaults) {
+      for (const size of merchSizesForSection) {
         const hasItems = hasIngredientsForSize(recipe, size.id);
         if (!hasItems) continue;
 
@@ -336,7 +340,7 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
       }
     }
 
-    return merchSizes.map(size => {
+    return merchSizesForSection.map(size => {
       const data = averages[size.id];
       const count = data.costs.length;
       return {
@@ -616,14 +620,14 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
       </div>
 
       {/* Food Items Section */}
-      {foodSizes.length > 0 && (
+      {foodSizesForSection.length > 0 && (
         <div className="rounded-2xl overflow-hidden shadow-md" style={{ backgroundColor: colors.white }}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ backgroundColor: colors.brown }}>
                   <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.white }}>Food Items</th>
-                  {foodSizes.map(size => (
+                  {foodSizesForSection.map(size => (
                     <th key={size.id} colSpan={4} className="px-2 py-3 text-center font-semibold" style={{ color: colors.white }}>
                       {size.name}
                     </th>
@@ -632,7 +636,7 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
 
                 <tr style={{ backgroundColor: colors.creamDark }}>
                   <th className="px-4 py-2" style={{ color: colors.brown }}></th>
-                  {foodSizes.map(size => (
+                  {foodSizesForSection.map(size => (
                     <Fragment key={size.id}>
                       <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Cost</th>
                       <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Sale</th>
@@ -645,7 +649,7 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
               <tbody>
                 {foodRecipesWithDefaults.length === 0 ? (
                   <tr style={{ backgroundColor: colors.white }}>
-                    <td colSpan={1 + foodSizes.length * 4} className="px-4 py-6 text-center" style={{ color: colors.brownLight }}>
+                    <td colSpan={1 + foodSizesForSection.length * 4} className="px-4 py-6 text-center" style={{ color: colors.brownLight }}>
                       No food items yet. Create a recipe with a Food base template.
                     </td>
                   </tr>
@@ -668,7 +672,7 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
                           {showCategoryHeader && (
                             <tr style={{ backgroundColor: colors.creamDark }}>
                               <td
-                                colSpan={1 + foodSizes.length * 4}
+                                colSpan={1 + foodSizesForSection.length * 4}
                                 className="px-4 py-2 text-xs font-bold uppercase tracking-wider"
                                 style={{ color: colors.brown }}
                               >
@@ -686,7 +690,7 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
                             <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>
                               <div>{recipe.name}</div>
                             </td>
-                      {foodSizes.map(size => {
+                      {foodSizesForSection.map(size => {
                         const hasItems = hasIngredientsForSize(recipe, size.id);
                         if (!hasItems) {
                           return (
@@ -770,14 +774,14 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
       )}
 
       {/* Merchandise Section */}
-      {merchSizes.length > 0 && (
+      {merchSizesForSection.length > 0 && (
         <div className="rounded-2xl overflow-hidden shadow-md" style={{ backgroundColor: colors.white }}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ backgroundColor: colors.brown }}>
                   <th className="px-4 py-3 text-left font-semibold" style={{ color: colors.white }}>Merchandise</th>
-                  {merchSizes.map(size => (
+                  {merchSizesForSection.map(size => (
                     <th key={size.id} colSpan={4} className="px-2 py-3 text-center font-semibold" style={{ color: colors.white }}>
                       {size.name}
                     </th>
@@ -785,7 +789,7 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
                 </tr>
                 <tr style={{ backgroundColor: colors.creamDark }}>
                   <th className="px-4 py-2" style={{ color: colors.brown }}></th>
-                  {merchSizes.map(size => (
+                  {merchSizesForSection.map(size => (
                     <Fragment key={size.id}>
                       <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Cost</th>
                       <th className="px-2 py-2 text-right text-xs" style={{ color: colors.brown }}>Sale</th>
@@ -798,7 +802,7 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
               <tbody>
                 {merchRecipesWithDefaults.length === 0 ? (
                   <tr style={{ backgroundColor: colors.white }}>
-                    <td colSpan={1 + merchSizes.length * 4} className="px-4 py-6 text-center" style={{ color: colors.brownLight }}>
+                    <td colSpan={1 + merchSizesForSection.length * 4} className="px-4 py-6 text-center" style={{ color: colors.brownLight }}>
                       No merchandise items yet. Create a recipe with a Merchandise base template.
                     </td>
                   </tr>
@@ -817,7 +821,7 @@ export const PricingTab = ({ recipes, ingredients, baseTemplates, productSizes, 
                             <td className="px-4 py-2 font-medium" style={{ color: colors.brown }}>
                               <div>{recipe.name}</div>
                             </td>
-                      {merchSizes.map(size => {
+                      {merchSizesForSection.map(size => {
                         const hasItems = hasIngredientsForSize(recipe, size.id);
                         if (!hasItems) {
                           return (
