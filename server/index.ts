@@ -77,6 +77,8 @@ app.use((req, res, next) => {
 // HTTPS redirect in production (Intuit security requirement)
 if (process.env.NODE_ENV === 'production') {
   app.use((req, res, next) => {
+    // Skip HTTPS redirect for healthcheck (Railway probes over internal HTTP)
+    if (req.path === '/api/health') return next();
     if (req.get('x-forwarded-proto') !== 'https') {
       return res.redirect(301, `https://${req.get('host')}${req.originalUrl}`);
     }
