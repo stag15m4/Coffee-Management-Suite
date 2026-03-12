@@ -135,7 +135,9 @@ export function CommandPalette() {
 
   const accessibleSettings = isManager ? SETTINGS : [];
 
-  const accessibleRecipeTabs = canAccessModule?.('recipe-costing') ? RECIPE_TABS : [];
+  const accessibleRecipeTabs = canAccessModule?.('recipe-costing')
+    ? RECIPE_TABS.filter(t => t.tab !== 'overhead' || hasRole?.('manager'))
+    : [];
 
   const navigate = (href: string) => {
     setLocation(href);

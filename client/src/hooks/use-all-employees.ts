@@ -43,7 +43,7 @@ export function useAllEmployees(tenantId?: string) {
           .eq('is_active', true),
         supabase
           .from('tip_employees')
-          .select('id, name, is_active, schedule_color')
+          .select('id, name, is_active, schedule_color, user_profile_id')
           .eq('tenant_id', tenantId)
           .or('is_active.eq.true,is_active.is.null')
           .order('name'),
@@ -85,46 +85,42 @@ export function useAllEmployees(tenantId?: string) {
 
       const allProfiles = [...profiles, ...assignmentProfiles];
 
-      // Build a map keyed by normalised name
+      // Build unified employee map.
+      // Priority: FK link (user_profile_id on tip_employees) > name-based matching (fallback).
+      const byId = new Map<string, UnifiedEmployee>();
       const byName = new Map<string, UnifiedEmployee>();
 
+      // Index profiles by ID
       for (const p of allProfiles) {
         const name = (p.full_name || p.email || p.id).trim();
-        const key = name.toLowerCase();
-        const existing = byName.get(key);
-        if (existing) {
-          // Merge: prefer profile data, keep tip_employee_id if already set
-          existing.user_profile_id = existing.user_profile_id ?? p.id;
-          existing.avatar_url = existing.avatar_url ?? p.avatar_url;
-          existing.role = existing.role ?? p.role;
-          existing.schedule_color = existing.schedule_color ?? p.schedule_color;
-          existing.start_date = existing.start_date ?? (p as any).start_date ?? null;
-          existing.source = existing.source === 'tip' ? 'both' : existing.source;
-        } else {
-          byName.set(key, {
-            name,
-            user_profile_id: p.id,
-            tip_employee_id: null,
-            avatar_url: p.avatar_url,
-            role: p.role,
-            schedule_color: p.schedule_color ?? null,
-            hourly_rate: (p as any).hourly_rate ?? null,
-            start_date: (p as any).start_date ?? null,
-            source: 'profile',
-          });
-        }
+        const entry: UnifiedEmployee = {
+          name,
+          user_profile_id: p.id,
+          tip_employee_id: null,
+          avatar_url: p.avatar_url,
+          role: p.role,
+          schedule_color: p.schedule_color ?? null,
+          hourly_rate: (p as any).hourly_rate ?? null,
+          start_date: (p as any).start_date ?? null,
+          source: 'profile',
+        };
+        byId.set(p.id, entry);
+        byName.set(name.toLowerCase(), entry);
       }
 
       for (const t of tipEmployees) {
-        const name = t.name.trim();
-        const key = name.toLowerCase();
-        const existing = byName.get(key);
+        const linkedId = (t as any).user_profile_id as string | null;
+
+        // Prefer FK link, then fall back to name match
+        const existing = (linkedId && byId.get(linkedId)) || byName.get(t.name.trim().toLowerCase());
+
         if (existing) {
           existing.tip_employee_id = existing.tip_employee_id ?? t.id;
           existing.schedule_color = existing.schedule_color ?? t.schedule_color;
           existing.source = existing.source === 'profile' ? 'both' : existing.source;
         } else {
-          byName.set(key, {
+          const name = t.name.trim();
+          const entry: UnifiedEmployee = {
             name,
             user_profile_id: null,
             tip_employee_id: t.id,
@@ -134,9 +130,16 @@ export function useAllEmployees(tenantId?: string) {
             hourly_rate: null,
             start_date: null,
             source: 'tip',
-          });
+          };
+          byName.set(name.toLowerCase(), entry);
         }
       }
+
+      // byId entries should already be in byName, but ensure no orphans
+      byId.forEach((val, _id) => {
+        const key = val.name.toLowerCase();
+        if (!byName.has(key)) byName.set(key, val);
+      });
 
       return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
     },

@@ -2357,8 +2357,9 @@ export async function registerRoutes(
       if (redirectTo) {
         try {
           const url = new URL(redirectTo);
-          const appHost = req.get('host');
-          if (appHost && url.host !== appHost) {
+          // Use forwarded host (Codespaces proxy) or fall back to raw host
+          const trustedHost = req.get('x-forwarded-host') || req.get('host') || '';
+          if (trustedHost && url.host !== trustedHost) {
             return res.status(400).json({ error: 'Invalid redirect URL' });
           }
         } catch {
@@ -2431,6 +2432,85 @@ export async function registerRoutes(
       res.status(201).json({ userId, email, isNewUser });
     } catch (error: any) {
       console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ── Change User Email (admin) ─────────────────────────────────
+  app.post('/api/users/change-email', authRateLimit, async (req, res) => {
+    try {
+      const { targetUserId, newEmail } = req.body;
+
+      const { userId: requestingUserId } = await getUserIdFromRequest(req);
+      if (!requestingUserId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      if (!targetUserId || !newEmail) {
+        return res.status(400).json({ error: 'targetUserId and newEmail are required' });
+      }
+
+      // Basic email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newEmail)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+
+      // Load requester's profile
+      const requesterResult = await db.execute(sql`
+        SELECT role, tenant_id FROM user_profiles
+        WHERE id = ${requestingUserId}::uuid AND is_active = true
+        LIMIT 1
+      `);
+      const requester = requesterResult.rows[0] as any;
+      if (!requester || !['owner', 'manager'].includes(requester.role)) {
+        return res.status(403).json({ error: 'Only owners and managers can change user emails' });
+      }
+
+      // Load target user's profile — must be in same tenant
+      const targetResult = await db.execute(sql`
+        SELECT role, tenant_id, email FROM user_profiles
+        WHERE id = ${targetUserId}::uuid AND tenant_id = ${requester.tenant_id}::uuid AND is_active = true
+        LIMIT 1
+      `);
+      const target = targetResult.rows[0] as any;
+      if (!target) {
+        return res.status(404).json({ error: 'User not found in your organization' });
+      }
+
+      // Role hierarchy — cannot change email of someone with higher or equal role (unless owner)
+      const ROLE_HIERARCHY: Record<string, number> = { employee: 0, lead: 1, manager: 2, owner: 3 };
+      if (requester.role !== 'owner' && (ROLE_HIERARCHY[target.role] || 0) >= (ROLE_HIERARCHY[requester.role] || 0)) {
+        return res.status(403).json({ error: 'Cannot change email of a user with equal or higher role' });
+      }
+
+      // Check if new email is already in use
+      const existingUser = await db.execute(sql`
+        SELECT id FROM auth.users WHERE email = ${newEmail} LIMIT 1
+      `);
+      if (existingUser.rows.length > 0 && (existingUser.rows[0] as any).id !== targetUserId) {
+        return res.status(409).json({ error: 'This email is already in use by another account' });
+      }
+
+      // Update email in Supabase Auth
+      const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
+      const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
+        email: newEmail,
+        email_confirm: true,
+      });
+      if (authError) {
+        return res.status(500).json({ error: `Failed to update auth email: ${authError.message}` });
+      }
+
+      // Update email in user_profiles
+      await db.execute(sql`
+        UPDATE user_profiles SET email = ${newEmail}, updated_at = now()
+        WHERE id = ${targetUserId}::uuid AND tenant_id = ${requester.tenant_id}::uuid
+      `);
+
+      res.json({ success: true, oldEmail: target.email, newEmail });
+    } catch (error: any) {
+      console.error('Change email error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });

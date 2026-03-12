@@ -105,7 +105,8 @@ export default function RecipeCostingPage() {
 
   // Settings drawer
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsSection, setSettingsSection] = useState<SettingsSection>('overhead');
+  const isManagerOrOwner = profile?.role === 'owner' || profile?.role === 'manager';
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>(isManagerOrOwner ? 'overhead' : 'bases');
 
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
@@ -793,9 +794,11 @@ export default function RecipeCostingPage() {
             <TabButton active={activeTab === 'vendors'} onClick={() => setActiveTab('vendors')}>
               Vendors
             </TabButton>
-            <TabButton active={activeTab === 'overhead'} onClick={() => setActiveTab('overhead')}>
-              Overhead
-            </TabButton>
+            {isManagerOrOwner && (
+              <TabButton active={activeTab === 'overhead'} onClick={() => setActiveTab('overhead')}>
+                Overhead
+              </TabButton>
+            )}
             <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')}>
               Settings
             </TabButton>
@@ -864,7 +867,7 @@ export default function RecipeCostingPage() {
             onDeleteVendor={async (id) => { await deleteVendorMutation.mutateAsync(id); }}
           />
         )}
-        {activeTab === 'overhead' && (
+        {activeTab === 'overhead' && isManagerOrOwner && (
           <OverheadTab
             overhead={enhancedOverhead}
             overheadItems={overheadItems as OverheadItem[]}
@@ -899,7 +902,7 @@ export default function RecipeCostingPage() {
               Settings
             </SheetTitle>
             <div className="flex gap-1 mt-3 flex-wrap">
-              {SETTINGS_SECTIONS.map(section => (
+              {SETTINGS_SECTIONS.filter(s => s.id !== 'overhead' || profile?.role === 'owner' || profile?.role === 'manager').map(section => (
                 <button
                   key={section.id}
                   onClick={() => setSettingsSection(section.id)}
@@ -916,7 +919,7 @@ export default function RecipeCostingPage() {
           </div>
 
           <div className="p-6">
-            {settingsSection === 'overhead' && (
+            {settingsSection === 'overhead' && isManagerOrOwner && (
               <OverheadTab
                 overhead={enhancedOverhead}
                 overheadItems={overheadItems as OverheadItem[]}

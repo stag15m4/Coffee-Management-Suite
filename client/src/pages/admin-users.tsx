@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Mail, MapPin, Building2, Check, X, Shield, DollarSign, Eye, EyeOff, Clock } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Mail, MapPin, Building2, Check, X, Shield, DollarSign, Eye, EyeOff, Clock, Pencil } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -81,6 +81,12 @@ export default function AdminUsers() {
   // Success dialog
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [createdUserEmail, setCreatedUserEmail] = useState('');
+
+  // Change email dialog
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [emailUser, setEmailUser] = useState<UserProfile | null>(null);
+  const [changedEmail, setChangedEmail] = useState('');
+  const [savingEmail, setSavingEmail] = useState(false);
 
   // Detail sheet (manager assignment + compensation)
   const [showDetailSheet, setShowDetailSheet] = useState(false);
@@ -390,6 +396,58 @@ export default function AdminUsers() {
     }
   };
 
+  const [resendingInvite, setResendingInvite] = useState<string | null>(null);
+
+  const handleResendInvite = async (targetUser: UserProfile) => {
+    if (!profile?.tenant_id || !user?.id) return;
+    setResendingInvite(targetUser.id);
+    try {
+      const { getAuthHeaders } = await import('@/lib/api-helpers');
+      const response = await fetch('/api/users/invite', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({
+          email: targetUser.email,
+          fullName: targetUser.full_name || targetUser.email.split('@')[0],
+          role: targetUser.role,
+          tenantId: profile.tenant_id,
+          redirectTo: `${window.location.origin}/reset-password`,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to resend invite');
+      toast({ title: 'Invite resent', description: `Password reset email sent to ${targetUser.email}` });
+    } catch (error: any) {
+      toast({ title: 'Error resending invite', description: error.message, variant: 'destructive' });
+    } finally {
+      setResendingInvite(null);
+    }
+  };
+
+  const handleChangeEmail = async () => {
+    if (!emailUser || !changedEmail) return;
+    setSavingEmail(true);
+    try {
+      const { getAuthHeaders } = await import('@/lib/api-helpers');
+      const response = await fetch('/api/users/change-email', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ targetUserId: emailUser.id, newEmail: changedEmail }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to change email');
+      toast({ title: 'Email updated', description: `Changed to ${changedEmail}` });
+      setShowEmailDialog(false);
+      setEmailUser(null);
+      setChangedEmail('');
+      loadUsers();
+    } catch (error: any) {
+      toast({ title: 'Error changing email', description: error.message, variant: 'destructive' });
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
   const managerCandidates = (managerData || []).filter(u =>
     (u.role === 'owner' || u.role === 'manager') && u.id !== detailUser?.id
   );
@@ -515,7 +573,22 @@ export default function AdminUsers() {
                           </span>
                         )}
                       </p>
-                      <p className="text-sm" style={{ color: colors.brownLight }}>{user.email}</p>
+                      {user.id !== profile?.id && (user.role !== 'owner' || canEditOwners) ? (
+                        <button
+                          className="text-sm flex items-center gap-1 hover:underline"
+                          style={{ color: colors.brownLight }}
+                          onClick={() => {
+                            setEmailUser(user);
+                            setChangedEmail(user.email);
+                            setShowEmailDialog(true);
+                          }}
+                        >
+                          {user.email}
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      ) : (
+                        <p className="text-sm" style={{ color: colors.brownLight }}>{user.email}</p>
+                      )}
                       {hasMultipleLocations && userAssignments[user.id]?.length > 0 && (
                         <div className="flex items-center gap-1 mt-1 flex-wrap">
                           <MapPin className="w-3 h-3" style={{ color: colors.brownLight }} />
@@ -564,6 +637,25 @@ export default function AdminUsers() {
                             >
                               <DollarSign className="w-4 h-4 mr-1" />
                               Details
+                            </Button>
+                          )}
+
+                          {user.role !== 'owner' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleResendInvite(user)}
+                              disabled={resendingInvite === user.id}
+                              style={{ borderColor: colors.gold, color: colors.gold }}
+                            >
+                              {resendingInvite === user.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Mail className="w-4 h-4 mr-1" />
+                                  Resend Invite
+                                </>
+                              )}
                             </Button>
                           )}
 
@@ -763,6 +855,65 @@ export default function AdminUsers() {
             </div>
           </SheetContent>
         </Sheet>
+
+        {/* Change Email Dialog */}
+        <Dialog open={showEmailDialog} onOpenChange={(open) => { setShowEmailDialog(open); if (!open) { setEmailUser(null); setChangedEmail(''); } }}>
+          <DialogContent style={{ backgroundColor: colors.white }}>
+            <DialogHeader>
+              <DialogTitle style={{ color: colors.brown }}>Change Email Address</DialogTitle>
+              <DialogDescription style={{ color: colors.brownLight }}>
+                Update the email for {emailUser?.full_name || emailUser?.email}. This changes their login email immediately.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 mt-2">
+              <div>
+                <Label style={{ color: colors.brown }}>Current Email</Label>
+                <p className="text-sm mt-1 font-mono" style={{ color: colors.brownLight }}>{emailUser?.email}</p>
+              </div>
+              <div>
+                <Label style={{ color: colors.brown }}>New Email</Label>
+                <Input
+                  type="email"
+                  value={changedEmail}
+                  onChange={(e) => setChangedEmail(e.target.value)}
+                  placeholder="newemail@example.com"
+                  className="mt-1"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                />
+              </div>
+              <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
+                <p className="text-sm" style={{ color: colors.brownLight }}>
+                  This will immediately update the user's login email. They will need to use the new email to sign in.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEmailDialog(false)}
+                  className="flex-1"
+                  style={{ borderColor: colors.creamDark, color: colors.brown }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleChangeEmail}
+                  disabled={savingEmail || !changedEmail || changedEmail === emailUser?.email}
+                  className="flex-1"
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
+                >
+                  {savingEmail ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update Email'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Employee Detail Sheet */}
         <Sheet open={showDetailSheet} onOpenChange={setShowDetailSheet}>

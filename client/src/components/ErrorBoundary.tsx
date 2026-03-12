@@ -63,6 +63,26 @@ export class ErrorBoundary extends React.Component<
           >
             An unexpected error occurred. Please try again.
           </p>
+          {this.state.error && (
+            <pre
+              style={{
+                fontSize: "0.75rem",
+                color: colors.brownLight,
+                marginBottom: "1rem",
+                maxWidth: "600px",
+                textAlign: "left",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                padding: "0.75rem",
+                backgroundColor: "#f5f5f5",
+                borderRadius: "0.375rem",
+              }}
+            >
+              {this.state.error.message}
+              {"\n"}
+              {this.state.error.stack}
+            </pre>
+          )}
           <button
             onClick={this.handleReset}
             style={{
