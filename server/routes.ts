@@ -3511,8 +3511,17 @@ export async function registerRoutes(
       .eq('tenant_id', tenantId)
       .single();
     if (!assignment || !['owner', 'manager'].includes(assignment.role)) {
-      res.status(403).json({ error: 'Manager or owner role required' });
-      return null;
+      // Also allow platform admins
+      const { data: adminCheck } = await supabaseAdmin
+        .from('platform_admins')
+        .select('id')
+        .eq('id', userId)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (!adminCheck) {
+        res.status(403).json({ error: 'Manager or owner role required' });
+        return null;
+      }
     }
     return { userId, tenantId };
   }

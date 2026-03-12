@@ -485,7 +485,13 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
             </>
           ) : (
             <Button
-              onClick={() => qboConnect.mutate(tenantId)}
+              onClick={async () => {
+                try {
+                  await qboConnect.mutateAsync(tenantId);
+                } catch (err: any) {
+                  toast({ title: 'Connection failed', description: err.message, variant: 'destructive' });
+                }
+              }}
               disabled={qboConnect.isPending}
               size="sm"
               style={{ backgroundColor: colors.gold, color: '#fff' }}
