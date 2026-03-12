@@ -58,9 +58,25 @@ export function FooterSection({ productName, displayName, logoUrl, logoFallback,
                 {productName}
               </span>
             </div>
-            <p className="text-sm" style={{ color: 'var(--color-secondary-light)' }}>
-              &copy; {new Date().getFullYear()} {productName}. All rights reserved.
-            </p>
+            <div className="flex items-center gap-4">
+              <p className="text-sm" style={{ color: 'var(--color-secondary-light)' }}>
+                &copy; {new Date().getFullYear()} {productName}. All rights reserved.
+              </p>
+              <button
+                onClick={() => setLocation('/privacy')}
+                className="text-sm underline hover:opacity-80"
+                style={{ color: 'var(--color-secondary-light)' }}
+              >
+                Privacy
+              </button>
+              <button
+                onClick={() => setLocation('/terms')}
+                className="text-sm underline hover:opacity-80"
+                style={{ color: 'var(--color-secondary-light)' }}
+              >
+                Terms
+              </button>
+            </div>
           </div>
         </div>
       </footer>

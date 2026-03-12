@@ -52,6 +52,8 @@ const ResetPassword = lazy(() => import("@/pages/reset-password"));
 const AdminBusinessAccounts = lazy(() => import("@/pages/admin-business-accounts"));
 const BugReports = lazy(() => import("@/pages/bug-reports"));
 const PlatformBugReports = lazy(() => import("@/pages/platform-bug-reports"));
+const PrivacyPolicy = lazy(() => import("@/pages/privacy-policy"));
+const TermsOfService = lazy(() => import("@/pages/terms-of-service"));
 
 function HomePage() {
   const { user, loading } = useAuth();
@@ -78,6 +80,8 @@ function Router() {
     <Suspense fallback={<CoffeeLoader fullScreen />}>
     <Switch>
       <Route path="/kiosk" component={Kiosk} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/terms" component={TermsOfService} />
       <Route path="/login" component={Login} />
       <Route path="/signup/:code?" component={Signup} />
       <Route path="/reset-password" component={ResetPassword} />
