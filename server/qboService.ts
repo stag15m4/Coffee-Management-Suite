@@ -7,6 +7,7 @@ import OAuthClient from 'intuit-oauth';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
 import { getSupabaseAdmin } from './supabaseAdmin';
+import { encrypt, decrypt, isEncrypted } from './crypto';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -70,11 +71,16 @@ export async function saveQboTokens(
   refreshToken: string,
   expiresAt: Date,
 ): Promise<void> {
+  // AES-256-GCM encrypt sensitive fields at rest (Intuit requirement)
+  const encryptedRealmId = encrypt(realmId);
+  const encryptedAccessToken = encrypt(accessToken);
+  const encryptedRefreshToken = encrypt(refreshToken);
+
   await db.execute(sql`
     UPDATE tenants SET
-      qbo_realm_id = ${realmId},
-      qbo_access_token = ${accessToken},
-      qbo_refresh_token = ${refreshToken},
+      qbo_realm_id = ${encryptedRealmId},
+      qbo_access_token = ${encryptedAccessToken},
+      qbo_refresh_token = ${encryptedRefreshToken},
       qbo_token_expires_at = ${expiresAt.toISOString()}::timestamptz,
       qbo_connected_at = COALESCE(qbo_connected_at, NOW())
     WHERE id = ${tenantId}::uuid
@@ -96,10 +102,18 @@ export async function getQboConfig(tenantId: string): Promise<{
   `);
   const row = result.rows[0] as any;
   if (!row) return null;
+
+  // Decrypt tokens — handles both encrypted and legacy plaintext values
+  const decryptField = (val: string | null): string | null => {
+    if (!val) return null;
+    if (isEncrypted(val)) return decrypt(val);
+    return val; // legacy plaintext — will be re-encrypted on next token save/refresh
+  };
+
   return {
-    realmId: row.qbo_realm_id,
-    accessToken: row.qbo_access_token,
-    refreshToken: row.qbo_refresh_token,
+    realmId: decryptField(row.qbo_realm_id),
+    accessToken: decryptField(row.qbo_access_token),
+    refreshToken: decryptField(row.qbo_refresh_token),
     expiresAt: row.qbo_token_expires_at,
     connectedAt: row.qbo_connected_at,
     lastSyncAt: row.qbo_last_sync_at,

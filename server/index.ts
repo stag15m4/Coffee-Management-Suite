@@ -66,6 +66,33 @@ app.use(cors({
   credentials: true,
 }));
 
+// Block TRACE/TRACK HTTP methods (Intuit security requirement)
+app.use((req, res, next) => {
+  if (req.method === 'TRACE' || req.method === 'TRACK') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+  next();
+});
+
+// HTTPS redirect in production (Intuit security requirement)
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.get('x-forwarded-proto') !== 'https') {
+      return res.redirect(301, `https://${req.get('host')}${req.originalUrl}`);
+    }
+    next();
+  });
+}
+
+// Cache-Control: no-store for all API responses (Intuit security requirement —
+// prevent caching of sensitive financial/QBO data)
+app.use('/api', (_req, res, next) => {
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
+
 // Gzip compression for responses
 app.use(compression());
 
