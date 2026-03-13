@@ -248,16 +248,14 @@ export async function syncChartOfAccounts(tenantId: string): Promise<{
   // Build QBO ID → our ID map for parent resolution
   const qboIdToOurId = new Map<string, string>();
 
-  // First pass: fetch existing accounts to check for updates
-  const { data: existing } = await supabaseAdmin
+  // Clear existing accounts and replace with fresh QBO data
+  // Prevents stale/sandbox accounts from lingering after switching environments
+  await supabaseAdmin
     .from('budget_chart_of_accounts')
-    .select('id, account_number, name')
+    .delete()
     .eq('tenant_id', tenantId);
 
   const existingByName = new Map<string, string>();
-  for (const e of existing || []) {
-    existingByName.set(e.name, e.id);
-  }
 
   // Sort so parents come before children
   const sorted = accounts.sort((a, b) => (a.SubAccount ? 1 : 0) - (b.SubAccount ? 1 : 0));
@@ -272,48 +270,26 @@ export async function syncChartOfAccounts(tenantId: string): Promise<{
     const parentId = acc.ParentRef ? qboIdToOurId.get(acc.ParentRef.value) || null : null;
     const depth = acc.SubAccount && parentId ? 1 : 0;
 
-    // Check if account already exists (by name match)
-    const existingId = existingByName.get(acc.Name);
+    const { data: inserted, error } = await supabaseAdmin
+      .from('budget_chart_of_accounts')
+      .insert({
+        tenant_id: tenantId,
+        name: acc.Name,
+        account_number: acc.AcctNum || null,
+        account_type: accountType,
+        detail_type: acc.AccountSubType || null,
+        parent_id: parentId,
+        depth,
+        display_order: parseInt(acc.Id) || 0,
+      })
+      .select('id')
+      .single();
 
-    if (existingId) {
-      // Update existing
-      await supabaseAdmin
-        .from('budget_chart_of_accounts')
-        .update({
-          account_number: acc.AcctNum || null,
-          account_type: accountType,
-          detail_type: acc.AccountSubType || null,
-          parent_id: parentId,
-          depth,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingId);
-      qboIdToOurId.set(acc.Id, existingId);
-      updated++;
+    if (inserted) {
+      qboIdToOurId.set(acc.Id, inserted.id);
+      imported++;
     } else {
-      // Insert new
-      const { data: inserted, error } = await supabaseAdmin
-        .from('budget_chart_of_accounts')
-        .insert({
-          tenant_id: tenantId,
-          name: acc.Name,
-          account_number: acc.AcctNum || null,
-          account_type: accountType,
-          detail_type: acc.AccountSubType || null,
-          parent_id: parentId,
-          depth,
-          display_order: parseInt(acc.Id) || 0,
-        })
-        .select('id')
-        .single();
-
-      if (inserted) {
-        qboIdToOurId.set(acc.Id, inserted.id);
-        existingByName.set(acc.Name, inserted.id);
-        imported++;
-      } else {
-        skipped++;
-      }
+      skipped++;
     }
   }
 
