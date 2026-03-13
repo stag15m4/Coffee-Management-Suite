@@ -3648,6 +3648,119 @@ export async function registerRoutes(
   });
 
   // =====================================================
+  // Financial Budget — Forecast: Apply Drivers
+  // =====================================================
+
+  app.post('/api/budget/forecast/apply-drivers', qboRateLimit, async (req, res) => {
+    try {
+      const auth = await verifyBudgetAdmin(req, res);
+      if (!auth) return;
+
+      const schema = z.object({
+        scenarioId: z.string().uuid(),
+        tenantId: z.string().uuid(),
+      });
+      const { scenarioId, tenantId } = schema.parse(req.body);
+
+      // Verify tenant access
+      if (tenantId !== auth.tenantId) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+
+      const supabaseAdmin = getSupabaseAdmin();
+
+      // Fetch drivers for this scenario
+      const { data: drivers, error: dErr } = await supabaseAdmin
+        .from('budget_forecast_drivers')
+        .select('*')
+        .eq('scenario_id', scenarioId)
+        .eq('is_active', true)
+        .order('priority');
+      if (dErr) throw dErr;
+      if (!drivers || drivers.length === 0) {
+        return res.json({ updated: 0 });
+      }
+
+      // Fetch existing forecast line items for this scenario
+      const { data: existingLines } = await supabaseAdmin
+        .from('budget_forecast_line_items')
+        .select('account_id, month, forecast_amount')
+        .eq('scenario_id', scenarioId)
+        .eq('tenant_id', tenantId);
+
+      const forecastMap = new Map<string, number>();
+      for (const line of existingLines || []) {
+        forecastMap.set(`${line.account_id}-${line.month}`, Number(line.forecast_amount) || 0);
+      }
+
+      // Apply drivers in priority order
+      const upserts: Array<{
+        tenant_id: string;
+        scenario_id: string;
+        account_id: string;
+        month: number;
+        forecast_amount: number;
+      }> = [];
+
+      for (const driver of drivers) {
+        const months = driver.apply_months || [1,2,3,4,5,6,7,8,9,10,11,12];
+        for (const month of months) {
+          let amount = 0;
+          switch (driver.driver_type) {
+            case 'fixed_amount':
+              amount = Number(driver.driver_value);
+              break;
+            case 'percentage_of_account':
+              if (driver.source_account_id) {
+                const sourceVal = forecastMap.get(`${driver.source_account_id}-${month}`) || 0;
+                amount = sourceVal * Number(driver.driver_value);
+              }
+              break;
+            case 'growth_rate':
+              if (month === 1) {
+                amount = forecastMap.get(`${driver.target_account_id}-${month}`) || 0;
+              } else {
+                const prevVal = forecastMap.get(`${driver.target_account_id}-${month - 1}`) || 0;
+                amount = prevVal * (1 + Number(driver.driver_value));
+              }
+              break;
+            case 'per_unit':
+              amount = Number(driver.driver_value);
+              break;
+          }
+
+          const key = `${driver.target_account_id}-${month}`;
+          forecastMap.set(key, amount);
+          upserts.push({
+            tenant_id: tenantId,
+            scenario_id: scenarioId,
+            account_id: driver.target_account_id,
+            month,
+            forecast_amount: Math.round(amount * 100) / 100,
+          });
+        }
+      }
+
+      // Bulk upsert
+      if (upserts.length > 0) {
+        const withTimestamp = upserts.map(u => ({ ...u, updated_at: new Date().toISOString() }));
+        const { error: uErr } = await supabaseAdmin
+          .from('budget_forecast_line_items')
+          .upsert(withTimestamp, { onConflict: 'tenant_id,scenario_id,account_id,month' });
+        if (uErr) throw uErr;
+      }
+
+      res.json({ updated: upserts.length });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data' });
+      }
+      console.error('[forecast] Apply drivers error:', error.message);
+      res.status(500).json({ error: error.message || 'Failed to apply drivers' });
+    }
+  });
+
+  // =====================================================
   // Financial Budget — CSV import endpoint
   // =====================================================
 

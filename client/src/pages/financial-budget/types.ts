@@ -51,6 +51,56 @@ export interface ImportLog {
   created_at: string;
 }
 
+export interface ForecastScenario {
+  id: string;
+  tenant_id: string;
+  fiscal_year_id: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ForecastLineItem {
+  id: string;
+  tenant_id: string;
+  scenario_id: string;
+  account_id: string;
+  month: number;
+  forecast_amount: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type DriverType = 'percentage_of_account' | 'fixed_amount' | 'growth_rate' | 'per_unit';
+
+export interface ForecastDriver {
+  id: string;
+  tenant_id: string;
+  scenario_id: string;
+  target_account_id: string;
+  driver_type: DriverType;
+  source_account_id: string | null;
+  driver_value: number;
+  apply_months: number[];
+  priority: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SeasonalPattern {
+  id: string;
+  tenant_id: string;
+  name: string;
+  month_weights: number[];
+  created_at: string;
+  updated_at: string;
+}
+
 export type AccountType = 'Revenue' | 'COGS' | 'Expense' | 'Other';
 
 export const ACCOUNT_TYPE_ORDER: AccountType[] = ['Revenue', 'COGS', 'Expense', 'Other'];

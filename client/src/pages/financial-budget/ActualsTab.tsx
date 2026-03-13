@@ -101,10 +101,16 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
         fiscalYearId: fyId,
         year: selectedFY.year,
       });
-      toast({
-        title: 'Actuals synced',
-        description: `${result.synced} entries updated${result.errors.length ? `, ${result.errors.length} errors` : ''}`,
-      });
+      if (result.errors.length > 0) {
+        console.warn('[QBO Sync] Unmatched accounts:', result.errors);
+        toast({
+          title: `Synced ${result.synced} entries — ${result.errors.length} unmatched`,
+          description: result.errors.slice(0, 5).join('\n') + (result.errors.length > 5 ? `\n…and ${result.errors.length - 5} more` : ''),
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Actuals synced', description: `${result.synced} entries updated` });
+      }
     } catch (err: any) {
       toast({ title: 'Sync failed', description: err.message, variant: 'destructive' });
     }

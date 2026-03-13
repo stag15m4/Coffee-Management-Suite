@@ -382,9 +382,10 @@ export async function syncActuals(
         }
       }
       if (!accountId) {
-        // Log unmatched for debugging
+        // Log unmatched for debugging (only month 1 to avoid repetition)
         if (month === 1) {
-          errors.push(`Unmatched account: "${row.name}" ($${row.amount})`);
+          console.warn(`[qbo] Unmatched account: "${row.name}" ($${row.amount})`);
+          errors.push(`Unmatched: "${row.name}" ($${row.amount})`);
         }
         continue;
       }

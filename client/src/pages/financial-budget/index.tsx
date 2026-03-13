@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useSearch, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/lib/colors';
-import { Landmark, Lock } from 'lucide-react';
+import { Landmark } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -11,15 +11,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ChartOfAccountsTab from './ChartOfAccountsTab';
-import BudgetEntryTab from './BudgetEntryTab';
-import ActualsTab from './ActualsTab';
+import UnifiedBudgetTab from './UnifiedBudgetTab';
+import ForecastTab from './ForecastTab';
 
-const TABS: Array<{ id: string; label: string; disabled?: boolean }> = [
+const TABS: Array<{ id: string; label: string }> = [
   { id: 'chart-of-accounts', label: 'Chart of Accounts' },
-  { id: 'budget-entry', label: 'Budget Entry' },
-  { id: 'actuals', label: 'Actuals' },
-  { id: 'forecast', label: 'Forecast', disabled: true },
-  { id: 'dashboard', label: 'Dashboard', disabled: true },
+  { id: 'budget', label: 'Budget' },
+  { id: 'forecast', label: 'Forecast' },
 ];
 
 export default function FinancialBudgetPage() {
@@ -86,18 +84,15 @@ export default function FinancialBudgetPage() {
           {TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => !tab.disabled && setActiveTab(tab.id)}
-              disabled={tab.disabled}
+              onClick={() => setActiveTab(tab.id)}
               className="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-1.5"
               style={{
                 backgroundColor: activeTab === tab.id ? colors.gold : 'transparent',
-                color: activeTab === tab.id ? '#fff' : tab.disabled ? colors.creamDark : colors.brown,
-                opacity: tab.disabled ? 0.5 : 1,
-                cursor: tab.disabled ? 'not-allowed' : 'pointer',
+                color: activeTab === tab.id ? '#fff' : colors.brown,
+                cursor: 'pointer',
               }}
             >
               {tab.label}
-              {tab.disabled && <Lock className="w-3 h-3" />}
             </button>
           ))}
         </div>
@@ -108,26 +103,11 @@ export default function FinancialBudgetPage() {
         {activeTab === 'chart-of-accounts' && (
           <ChartOfAccountsTab tenantId={coaTenantId} />
         )}
-        {activeTab === 'budget-entry' && (
-          <BudgetEntryTab tenantId={budgetTenantId} coaTenantId={coaTenantId} />
+        {activeTab === 'budget' && (
+          <UnifiedBudgetTab tenantId={budgetTenantId} coaTenantId={coaTenantId} />
         )}
-        {activeTab === 'actuals' && (
-          <ActualsTab tenantId={budgetTenantId} coaTenantId={coaTenantId} />
-        )}
-        {(activeTab === 'forecast' || activeTab === 'dashboard') && (
-          <div
-            className="rounded-xl p-8 text-center"
-            style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
-          >
-            <Lock className="w-10 h-10 mx-auto mb-3" style={{ color: colors.creamDark }} />
-            <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
-              Coming in Phase 2
-            </h3>
-            <p className="text-sm" style={{ color: colors.brownLight }}>
-              {activeTab === 'forecast' && 'Rolling 12-month forecast with actuals for closed months.'}
-              {activeTab === 'dashboard' && 'Company-wide dashboard with charts, variance analysis, and roll-up views.'}
-            </p>
-          </div>
+        {activeTab === 'forecast' && (
+          <ForecastTab tenantId={budgetTenantId} coaTenantId={coaTenantId} />
         )}
       </div>
     </div>
