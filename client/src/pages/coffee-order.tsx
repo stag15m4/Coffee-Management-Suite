@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
@@ -8,7 +8,7 @@ import { closeWindowScript } from '@/components/tip-payout/export-helpers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Download, FileText, Plus, Trash2, Edit2, Save, X, Coffee, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Plus, Trash2, Edit2, Save, X, Coffee, ShoppingCart, Store } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
@@ -27,6 +27,7 @@ interface CoffeeProduct {
   default_price: number;
   is_active: boolean;
   display_order: number;
+  vendor_id: string | null;
 }
 
 interface CoffeeVendor {
@@ -36,6 +37,7 @@ interface CoffeeVendor {
   cc_email: string;
   logo_url: string;
   notes: string;
+  supports_retail_labels: boolean;
 }
 
 interface OrderHistoryItem {
@@ -47,11 +49,12 @@ interface OrderHistoryItem {
   total_cost: number | null;
   notes?: string;
   sent_to_vendor: boolean;
+  vendor_id?: string | null;
 }
 
 export default function CoffeeOrder() {
   const { tenant, branding, primaryTenant } = useAuth();
-  
+
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
   const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
@@ -61,7 +64,6 @@ export default function CoffeeOrder() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showProductManagement, setShowProductManagement] = useState(false);
   const [orderItems, setOrderItems] = useState<Record<string, number>>({});
   const [retailLabels, setRetailLabels] = useState<Record<string, number>>({});
   const [orderHistory, setOrderHistory] = useState<OrderHistoryItem[]>([]);
@@ -69,14 +71,32 @@ export default function CoffeeOrder() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const [vendor, setVendor] = useState<CoffeeVendor | null>(null);
-  const [products, setProducts] = useState<CoffeeProduct[]>([]);
-  const [editingVendor, setEditingVendor] = useState(false);
-  const [vendorForm, setVendorForm] = useState({ display_name: '', contact_email: '', cc_email: '' });
-  
+  // Multi-vendor state
+  const [vendors, setVendors] = useState<CoffeeVendor[]>([]);
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
+  const [allProducts, setAllProducts] = useState<CoffeeProduct[]>([]);
+
+  // Vendor form state (for add/edit)
+  const [editingVendorId, setEditingVendorId] = useState<string | null>(null);
+  const [vendorForm, setVendorForm] = useState({ display_name: '', contact_email: '', cc_email: '', supports_retail_labels: true });
+  const [addingVendor, setAddingVendor] = useState(false);
+  const [newVendorForm, setNewVendorForm] = useState({ display_name: '', contact_email: '', cc_email: '', supports_retail_labels: true });
+
   const [newProduct, setNewProduct] = useState({ name: '', size: '', category: '', default_price: '' });
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editProductForm, setEditProductForm] = useState({ name: '', size: '', category: '', default_price: '' });
+
+  // Derived: selected vendor object
+  const selectedVendor = useMemo(() => vendors.find(v => v.id === selectedVendorId) || null, [vendors, selectedVendorId]);
+
+  // Derived: products for selected vendor
+  const products = useMemo(() => allProducts.filter(p => p.vendor_id === selectedVendorId), [allProducts, selectedVendorId]);
+
+  // Derived: order history for selected vendor
+  const vendorHistory = useMemo(() => {
+    if (!selectedVendorId) return orderHistory;
+    return orderHistory.filter(o => o.vendor_id === selectedVendorId);
+  }, [orderHistory, selectedVendorId]);
 
   useEffect(() => {
     if (tenant?.id) {
@@ -85,6 +105,7 @@ export default function CoffeeOrder() {
       setLoading(false);
     }
   }, [tenant?.id]);
+
   const loadData = useCallback(async (silent = false) => {
     if (!tenant?.id) {
       setLoading(false);
@@ -97,7 +118,7 @@ export default function CoffeeOrder() {
           .from('tenant_coffee_vendors')
           .select('*')
           .eq('tenant_id', tenant.id)
-          .maybeSingle(),
+          .order('created_at'),
         supabase
           .from('tenant_coffee_products')
           .select('*')
@@ -112,22 +133,28 @@ export default function CoffeeOrder() {
           .limit(50)
       ]);
 
-      // Notify user of query errors
-      if (vendorRes.error) toast({ title: 'Failed to load vendor', description: vendorRes.error.message, variant: 'destructive' });
+      if (vendorRes.error) toast({ title: 'Failed to load vendors', description: vendorRes.error.message, variant: 'destructive' });
       if (productsRes.error) toast({ title: 'Failed to load products', description: productsRes.error.message, variant: 'destructive' });
       if (historyRes.error) toast({ title: 'Failed to load order history', description: historyRes.error.message, variant: 'destructive' });
 
-      if (vendorRes.data) {
-        setVendor(vendorRes.data);
-        setVendorForm({
-          display_name: vendorRes.data.display_name || '',
-          contact_email: vendorRes.data.contact_email || '',
-          cc_email: vendorRes.data.cc_email || ''
+      const loadedVendors: CoffeeVendor[] = (vendorRes.data || []).map((v: any) => ({
+        ...v,
+        supports_retail_labels: v.supports_retail_labels ?? true,
+      }));
+      setVendors(loadedVendors);
+
+      // Auto-select first vendor if none selected or selected no longer exists
+      if (loadedVendors.length > 0) {
+        setSelectedVendorId(prev => {
+          if (prev && loadedVendors.some(v => v.id === prev)) return prev;
+          return loadedVendors[0].id;
         });
+      } else {
+        setSelectedVendorId(null);
       }
 
       if (productsRes.data) {
-        setProducts(productsRes.data.map((p: any) => ({
+        setAllProducts(productsRes.data.map((p: any) => ({
           ...p,
           default_price: parseFloat(String(p.default_price || 0))
         })));
@@ -156,23 +183,38 @@ export default function CoffeeOrder() {
     loadData();
   }, [loadData]);
 
-  const saveVendor = async () => {
+  // Clear order when switching vendors
+  const switchVendor = (vendorId: string) => {
+    if (vendorId === selectedVendorId) return;
+    setOrderItems({});
+    setRetailLabels({});
+    setOrderNotes('');
+    setSelectedVendorId(vendorId);
+  };
+
+  // =====================================================
+  // VENDOR CRUD
+  // =====================================================
+
+  const saveVendor = async (vendorId: string) => {
     if (!tenant?.id) return;
     setSaving(true);
     try {
       const { error } = await supabase
         .from('tenant_coffee_vendors')
-        .upsert({
-          tenant_id: tenant.id,
-          display_name: vendorForm.display_name || 'Coffee Vendor',
+        .update({
+          display_name: vendorForm.display_name || 'Vendor',
           contact_email: vendorForm.contact_email || '',
           cc_email: vendorForm.cc_email || '',
+          supports_retail_labels: vendorForm.supports_retail_labels,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'tenant_id' });
-      
+        })
+        .eq('id', vendorId)
+        .eq('tenant_id', tenant.id);
+
       if (error) throw error;
       toast({ title: 'Vendor settings saved' });
-      setEditingVendor(false);
+      setEditingVendorId(null);
       loadData();
     } catch (error: any) {
       toast({ title: 'Error saving vendor', description: error.message, variant: 'destructive' });
@@ -180,6 +222,84 @@ export default function CoffeeOrder() {
       setSaving(false);
     }
   };
+
+  const addVendor = async () => {
+    if (!tenant?.id) return;
+    if (!newVendorForm.display_name.trim()) {
+      toast({ title: 'Vendor name is required', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from('tenant_coffee_vendors')
+        .insert({
+          tenant_id: tenant.id,
+          display_name: newVendorForm.display_name.trim(),
+          contact_email: newVendorForm.contact_email || '',
+          cc_email: newVendorForm.cc_email || '',
+          supports_retail_labels: newVendorForm.supports_retail_labels,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast({ title: `${newVendorForm.display_name.trim()} added` });
+      setNewVendorForm({ display_name: '', contact_email: '', cc_email: '', supports_retail_labels: true });
+      setAddingVendor(false);
+      // Select the new vendor
+      if (data?.id) setSelectedVendorId(data.id);
+      loadData();
+    } catch (error: any) {
+      toast({ title: 'Error adding vendor', description: error.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteVendor = async (vendorId: string) => {
+    const vendorToDelete = vendors.find(v => v.id === vendorId);
+    const name = vendorToDelete?.display_name || 'this vendor';
+    if (!await confirm({
+      title: `Remove ${name}?`,
+      description: 'This will also remove all products and order history for this vendor. This cannot be undone.',
+      confirmLabel: 'Remove',
+      variant: 'destructive'
+    })) return;
+
+    try {
+      const { error } = await supabase
+        .from('tenant_coffee_vendors')
+        .delete()
+        .eq('id', vendorId)
+        .eq('tenant_id', tenant!.id);
+
+      if (error) throw error;
+      toast({ title: `${name} removed` });
+      if (selectedVendorId === vendorId) {
+        setSelectedVendorId(null);
+        setOrderItems({});
+        setRetailLabels({});
+      }
+      loadData();
+    } catch (error: any) {
+      toast({ title: 'Error removing vendor', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const startEditVendor = (vendor: CoffeeVendor) => {
+    setEditingVendorId(vendor.id);
+    setVendorForm({
+      display_name: vendor.display_name || '',
+      contact_email: vendor.contact_email || '',
+      cc_email: vendor.cc_email || '',
+      supports_retail_labels: vendor.supports_retail_labels,
+    });
+  };
+
+  // =====================================================
+  // PRODUCT CRUD
+  // =====================================================
 
   const normalizeCategory = (cat: string): string => {
     return cat.trim().toLowerCase().replace(/\s+/g, '').replace(/oz$/, 'oz');
@@ -191,7 +311,7 @@ export default function CoffeeOrder() {
   };
 
   const addProduct = async () => {
-    if (!tenant?.id) return;
+    if (!tenant?.id || !selectedVendorId) return;
     if (!newProduct.name.trim()) {
       toast({ title: 'Product name is required', variant: 'destructive' });
       return;
@@ -210,6 +330,7 @@ export default function CoffeeOrder() {
         .from('tenant_coffee_products')
         .insert({
           tenant_id: tenant.id,
+          vendor_id: selectedVendorId,
           sku,
           name: newProduct.name.trim(),
           size: sizeValue,
@@ -217,7 +338,7 @@ export default function CoffeeOrder() {
           default_price: price,
           display_order: products.length
         });
-      
+
       if (error) throw error;
       toast({ title: 'Product added' });
       setNewProduct({ name: '', size: '', category: '', default_price: '' });
@@ -255,7 +376,7 @@ export default function CoffeeOrder() {
         })
         .eq('id', productId)
         .eq('tenant_id', tenant.id);
-      
+
       if (error) throw error;
       toast({ title: 'Product updated' });
       setEditingProductId(null);
@@ -271,14 +392,14 @@ export default function CoffeeOrder() {
     if (!tenant?.id) return;
     const name = products.find(p => p.id === productId)?.name || 'this product';
     if (!await confirm({ title: `Remove ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Remove', variant: 'destructive' })) return;
-    
+
     try {
       const { error } = await supabase
         .from('tenant_coffee_products')
         .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq('id', productId)
         .eq('tenant_id', tenant.id);
-      
+
       if (error) throw error;
       showDeleteUndoToast({
         itemName: name,
@@ -300,6 +421,10 @@ export default function CoffeeOrder() {
       default_price: product.default_price.toString()
     });
   };
+
+  // =====================================================
+  // ORDER LOGIC
+  // =====================================================
 
   const updateQty = (productId: string, delta: number) => {
     setOrderItems(prev => {
@@ -359,7 +484,7 @@ export default function CoffeeOrder() {
   const calculateTotalCost = () => {
     let total = 0;
     for (const [id, qty] of Object.entries(orderItems)) {
-      const product = products.find(p => p.id === id);
+      const product = allProducts.find(p => p.id === id);
       const price = product?.default_price || 0;
       total += price * qty;
     }
@@ -372,11 +497,14 @@ export default function CoffeeOrder() {
   const totalItems = Object.keys(orderItems).length;
   const totalCost = calculateTotalCost();
 
+  // Retail label totals — only relevant when vendor supports them
+  const showRetailLabels = selectedVendor?.supports_retail_labels ?? false;
+
   const totalRetailLabels5lb = Object.entries(retailLabels).reduce((sum, [id, count]) => {
     return sum + (orderItems[id] ? count : 0);
   }, 0);
   const total12ozUnits = Object.entries(orderItems).reduce((sum, [id, qty]) => {
-    const product = products.find(p => p.id === id);
+    const product = allProducts.find(p => p.id === id);
     return sum + (normalizeCategory(product?.category || '') === '12oz' ? qty : 0);
   }, 0);
   const totalRetailLabelsAll = totalRetailLabels5lb + total12ozUnits;
@@ -390,26 +518,27 @@ export default function CoffeeOrder() {
 
   const saveToHistory = async (sentToVendor = false) => {
     if (!tenant?.id || totalItems === 0) return;
-    
+
     setSaving(true);
     try {
-      const retailLabelsToSave = Object.keys(retailLabels).length > 0 ? retailLabels : null;
+      const retailLabelsToSave = showRetailLabels && Object.keys(retailLabels).length > 0 ? retailLabels : null;
 
       const { error } = await supabase
         .from('coffee_order_history')
         .insert({
           tenant_id: tenant.id,
+          vendor_id: selectedVendorId,
           items: orderItems,
           retail_labels: retailLabelsToSave,
           units: totalUnits,
           total_cost: totalCost,
           notes: orderNotes || null,
           sent_to_vendor: sentToVendor,
-          vendor_email: sentToVendor ? vendor?.contact_email : null
+          vendor_email: sentToVendor ? selectedVendor?.contact_email : null
         });
 
       if (error) throw error;
-      
+
       toast({ title: sentToVendor ? 'Order sent and saved!' : 'Order saved to history' });
       clearOrder();
       loadData();
@@ -421,7 +550,7 @@ export default function CoffeeOrder() {
   };
 
   const sendOrder = async () => {
-    if (!vendor?.contact_email) {
+    if (!selectedVendor?.contact_email) {
       toast({ title: 'Please set vendor email in Settings', variant: 'destructive' });
       setShowSettings(true);
       return;
@@ -437,7 +566,7 @@ export default function CoffeeOrder() {
       const orderItemsForEmail = Object.entries(orderItems)
         .filter(([_, qty]) => qty > 0)
         .map(([productId, qty]) => {
-          const product = products.find(p => p.id === productId);
+          const product = allProducts.find(p => p.id === productId);
           const productCategory = normalizeCategory(product?.category || '');
           const is12oz = productCategory === '12oz';
           return {
@@ -445,7 +574,7 @@ export default function CoffeeOrder() {
             size: product?.size || '',
             quantity: qty,
             price: product?.default_price || 0,
-            retailLabels: is12oz ? qty : (retailLabels[productId] || 0),
+            retailLabels: showRetailLabels ? (is12oz ? qty : (retailLabels[productId] || 0)) : undefined,
             category: productCategory,
           };
         });
@@ -455,9 +584,9 @@ export default function CoffeeOrder() {
         method: 'POST',
         headers: await getAuthHeaders(),
         body: JSON.stringify({
-          vendorEmail: vendor.contact_email,
-          ccEmail: vendor.cc_email || '',
-          vendorName: vendor.display_name,
+          vendorEmail: selectedVendor.contact_email,
+          ccEmail: selectedVendor.cc_email || '',
+          vendorName: selectedVendor.display_name,
           orderItems: orderItemsForEmail,
           totalUnits,
           totalCost,
@@ -472,15 +601,15 @@ export default function CoffeeOrder() {
         toast({ title: 'Order sent successfully!' });
         await saveToHistory(true);
       } else {
-        toast({ 
-          title: 'Failed to send email', 
+        toast({
+          title: 'Failed to send email',
           description: result.error || 'Unknown error',
           variant: 'destructive'
         });
       }
     } catch (error: any) {
-      toast({ 
-        title: 'Failed to send order', 
+      toast({
+        title: 'Failed to send order',
         description: error.message,
         variant: 'destructive'
       });
@@ -489,80 +618,94 @@ export default function CoffeeOrder() {
     }
   };
 
-  const loadOrder = (items: Record<string, number>, retail_labels?: Record<string, number> | null) => {
-    setOrderItems(items);
-    setRetailLabels(retail_labels || {});
+  const loadOrder = (order: OrderHistoryItem) => {
+    // If the order belongs to a different vendor, switch to that vendor first
+    if (order.vendor_id && order.vendor_id !== selectedVendorId) {
+      setSelectedVendorId(order.vendor_id);
+    }
+    setOrderItems(order.items);
+    setRetailLabels(order.retail_labels || {});
     setShowHistory(false);
     toast({ title: 'Previous order loaded' });
   };
 
-  const vendorName = vendor?.display_name || 'Coffee Vendor';
+  const vendorName = selectedVendor?.display_name || 'Vendor';
+
+  // =====================================================
+  // EXPORT FUNCTIONS
+  // =====================================================
 
   const exportCSV = () => {
-    if (orderHistory.length === 0) {
+    if (vendorHistory.length === 0) {
       toast({ title: 'No order history to export', variant: 'destructive' });
       return;
     }
 
-    let csv = 'Date,Units,Total Cost,Items,Retail Labels\n';
-    orderHistory.forEach(order => {
+    const hasLabels = showRetailLabels;
+    let csv = hasLabels ? 'Date,Units,Total Cost,Items,Retail Labels\n' : 'Date,Units,Total Cost,Items\n';
+    vendorHistory.forEach(order => {
       const date = new Date(order.order_date).toLocaleDateString('en-US');
       const cost = order.total_cost ? order.total_cost.toFixed(2) : '0.00';
       const orderRetailLabels = order.retail_labels || {};
       const items = Object.entries(order.items).map(([id, qty]) => {
-        const product = products.find(p => p.id === id);
+        const product = allProducts.find(p => p.id === id);
         return product ? `${product.name} ${product.size} x${qty}` : `Unknown x${qty}`;
       }).filter(Boolean).join('; ');
-      const labels = Object.entries(order.items).map(([id, qty]) => {
-        const product = products.find(p => p.id === id);
-        const productCategory = normalizeCategory(product?.category || '');
-        const retailCount = productCategory === '12oz' ? qty : (orderRetailLabels[id] || 0);
-        if (retailCount > 0) {
-          return `${product?.name || 'Unknown'}: ${retailCount} retail`;
-        }
-        return null;
-      }).filter(Boolean).join('; ');
-      csv += `"${date}",${order.units},$${cost},"${items}","${labels || 'none'}"\n`;
+
+      if (hasLabels) {
+        const labels = Object.entries(order.items).map(([id, qty]) => {
+          const product = allProducts.find(p => p.id === id);
+          const productCategory = normalizeCategory(product?.category || '');
+          const retailCount = productCategory === '12oz' ? qty : (orderRetailLabels[id] || 0);
+          if (retailCount > 0) {
+            return `${product?.name || 'Unknown'}: ${retailCount} retail`;
+          }
+          return null;
+        }).filter(Boolean).join('; ');
+        csv += `"${date}",${order.units},$${cost},"${items}","${labels || 'none'}"\n`;
+      } else {
+        csv += `"${date}",${order.units},$${cost},"${items}"\n`;
+      }
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });
     const csvUrl = URL.createObjectURL(blob);
-    
-    const dates = orderHistory.map(o => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
+
+    const dates = vendorHistory.map(o => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
     const startDate = dates[0].toLocaleDateString('en-US');
     const endDate = dates[dates.length - 1].toLocaleDateString('en-US');
-    
+
     const downloadPage = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Coffee Order CSV Export</title>
+        <title>${escapeHtml(vendorName)} Order CSV Export</title>
         <style>
-          body { 
-            font-family: Arial, sans-serif; 
-            padding: 40px; 
-            color: #4A3728; 
-            max-width: 600px; 
-            margin: 0 auto; 
+          body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            color: #4A3728;
+            max-width: 600px;
+            margin: 0 auto;
             text-align: center;
           }
-          .container { 
-            border: 1px solid #C9A227; 
-            border-radius: 12px; 
-            padding: 40px; 
-            background: #FFFDF7; 
+          .container {
+            border: 1px solid #C9A227;
+            border-radius: 12px;
+            padding: 40px;
+            background: #FFFDF7;
           }
           h1 { color: #4A3728; margin-bottom: 10px; }
           p { color: #6B5344; margin: 10px 0; }
-          .button { 
-            display: inline-flex; 
+          .button {
+            display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 12px; 
-            background-color: #C9A227; 
-            color: #4A3728; 
-            text-decoration: none; 
-            border-radius: 8px; 
+            padding: 8px 12px;
+            background-color: #C9A227;
+            color: #4A3728;
+            text-decoration: none;
+            border-radius: 8px;
             font-weight: 600;
             margin: 8px;
             cursor: pointer;
@@ -570,8 +713,8 @@ export default function CoffeeOrder() {
             font-size: 14px;
           }
           .button:hover { background-color: #b8911f; }
-          .button.secondary { 
-            background-color: #f5f5f5; 
+          .button.secondary {
+            background-color: #f5f5f5;
             border: 1px solid #ddd;
           }
           .button.secondary:hover { background-color: #e5e5e5; }
@@ -589,19 +732,20 @@ export default function CoffeeOrder() {
       <body>
         <div class="container">
           <h1>CSV Export Ready</h1>
-          <p>Coffee Order History</p>
-          
+          <p>${escapeHtml(vendorName)} Order History</p>
+
           <div class="info">
+            <p><strong>Vendor:</strong> ${escapeHtml(vendorName)}</p>
             <p><strong>Date Range:</strong> ${startDate} - ${endDate}</p>
-            <p><strong>Total Orders:</strong> ${orderHistory.length}</p>
+            <p><strong>Total Orders:</strong> ${vendorHistory.length}</p>
           </div>
-          
+
           <div style="margin: 30px 0;">
-            <a href="${csvUrl}" download="coffee-orders.csv" class="button">
+            <a href="${csvUrl}" download="${vendorName.toLowerCase().replace(/\s+/g, '-')}-orders.csv" class="button">
               Download CSV File
             </a>
           </div>
-          
+
           <div>
             <button class="button secondary" onclick="closeAndReturn()">
               Close & Return to App
@@ -611,7 +755,7 @@ export default function CoffeeOrder() {
       </body>
       </html>
     `;
-    
+
     const downloadWindow = window.open('', '_blank');
     if (downloadWindow) {
       downloadWindow.document.write(downloadPage);
@@ -621,24 +765,24 @@ export default function CoffeeOrder() {
   };
 
   const exportPDF = () => {
-    if (orderHistory.length === 0) {
+    if (vendorHistory.length === 0) {
       toast({ title: 'No order history to export', variant: 'destructive' });
       return;
     }
 
+    const hasLabels = showRetailLabels;
     let grandTotalUnits = 0;
     let grandTotalCost = 0;
-    
-    // Calculate product totals across all orders
+
     const productTotals: Record<string, { name: string; size: string; qty: number; totalCost: number; unitPrice: number; retailLabels: number; category: string }> = {};
 
-    orderHistory.forEach(order => {
+    vendorHistory.forEach(order => {
       grandTotalUnits += order.units || 0;
       grandTotalCost += order.total_cost || 0;
       const orderRetailLabels = order.retail_labels || {};
 
       Object.entries(order.items).forEach(([id, qty]) => {
-        const product = products.find(p => p.id === id);
+        const product = allProducts.find(p => p.id === id);
         const unitPrice = product?.default_price || 0;
         const lineTotal = unitPrice * (qty as number);
         const productCategory = normalizeCategory(product?.category || '');
@@ -656,39 +800,43 @@ export default function CoffeeOrder() {
         }
         productTotals[id].qty += qty as number;
         productTotals[id].totalCost += lineTotal;
-        if (productCategory === '12oz') {
-          productTotals[id].retailLabels += qty as number;
-        } else {
-          productTotals[id].retailLabels += (orderRetailLabels[id] || 0);
+        if (hasLabels) {
+          if (productCategory === '12oz') {
+            productTotals[id].retailLabels += qty as number;
+          } else {
+            productTotals[id].retailLabels += (orderRetailLabels[id] || 0);
+          }
         }
       });
     });
 
-    const dates = orderHistory.map(o => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
+    const dates = vendorHistory.map(o => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
     const startDate = dates[0].toLocaleDateString('en-US');
     const endDate = dates[dates.length - 1].toLocaleDateString('en-US');
-    
-    // Sort orders by date (newest first)
-    const sortedOrders = [...orderHistory].sort((a, b) => 
+
+    const sortedOrders = [...vendorHistory].sort((a, b) =>
       new Date(b.order_date).getTime() - new Date(a.order_date).getTime()
     );
+
+    const retailLabelHeader = hasLabels ? '<th>Retail Labels</th>' : '';
+    const retailLabelColspan = hasLabels ? 3 : 2;
 
     const printContent = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Coffee Order History</title>
+        <title>${escapeHtml(vendorName)} Order History</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 20px; color: #4A3728; max-width: 800px; margin: 0 auto; }
-          .back-button { 
-            display: inline-flex; 
+          .back-button {
+            display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 12px; 
-            background-color: #C9A227; 
-            color: #4A3728; 
-            text-decoration: none; 
-            border-radius: 8px; 
+            padding: 8px 12px;
+            background-color: #C9A227;
+            color: #4A3728;
+            text-decoration: none;
+            border-radius: 8px;
             font-weight: 600;
             margin-bottom: 20px;
             cursor: pointer;
@@ -697,11 +845,11 @@ export default function CoffeeOrder() {
           }
           .back-button:hover { background-color: #b8911f; }
           @media print { .back-button, .no-print { display: none !important; } }
-          .page { 
-            border: 1px solid #C9A227; 
-            border-radius: 8px; 
-            padding: 25px; 
-            background: #FFFDF7; 
+          .page {
+            border: 1px solid #C9A227;
+            border-radius: 8px;
+            padding: 25px;
+            background: #FFFDF7;
             margin-bottom: 30px;
             page-break-after: always;
           }
@@ -710,22 +858,22 @@ export default function CoffeeOrder() {
           .header h1 { margin: 0; font-size: 24px; color: #4A3728; }
           .header h2 { margin: 5px 0; font-size: 18px; font-weight: normal; color: #6B5344; }
           .header p { margin: 5px 0; font-size: 14px; color: #6B5344; }
-          .summary-grid { 
-            display: grid; 
-            grid-template-columns: repeat(2, 1fr); 
-            gap: 15px; 
-            margin: 20px 0; 
-            padding: 20px; 
-            background: #F5F0E1; 
+          .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #F5F0E1;
             border-radius: 8px;
           }
           .summary-item { font-size: 14px; }
           .summary-item strong { display: block; font-size: 20px; color: #4A3728; }
-          .summary-item.highlight { 
-            grid-column: span 2; 
-            text-align: center; 
-            background: #C9A227; 
-            padding: 15px; 
+          .summary-item.highlight {
+            grid-column: span 2;
+            text-align: center;
+            background: #C9A227;
+            padding: 15px;
             border-radius: 8px;
             font-size: 18px;
           }
@@ -734,21 +882,21 @@ export default function CoffeeOrder() {
           th { background-color: #C9A227; color: #4A3728; padding: 12px 10px; text-align: left; font-weight: bold; }
           td { padding: 10px; border-bottom: 1px solid #E8E0CC; }
           .total-row { background-color: #C9A227; font-weight: bold; }
-          .order-header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
+          .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 15px;
             padding-bottom: 10px;
             border-bottom: 2px solid #C9A227;
           }
           .order-header h3 { margin: 0; font-size: 18px; }
           .order-header .order-total { font-size: 16px; color: #C9A227; font-weight: bold; }
-          .section-title { 
-            font-size: 16px; 
-            font-weight: bold; 
-            color: #C9A227; 
-            margin: 25px 0 15px; 
+          .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #C9A227;
+            margin: 25px 0 15px;
             padding-bottom: 5px;
             border-bottom: 1px solid #E8E0CC;
           }
@@ -768,19 +916,19 @@ export default function CoffeeOrder() {
             Print / Save as PDF
           </button>
         </div>
-        
+
         <!-- SUMMARY PAGE -->
         <div class="page">
           <div class="header">
-            <h1>${escapeHtml(tenant?.name) || 'Coffee Order'}</h1>
-            <h2>Order Summary Report</h2>
+            <h1>${escapeHtml(tenant?.name) || 'Order Report'}</h1>
+            <h2>${escapeHtml(vendorName)} — Order Summary</h2>
             <p>${startDate} - ${endDate}</p>
           </div>
-          
+
           <div class="summary-grid">
             <div class="summary-item">
               Total Orders
-              <strong>${orderHistory.length}</strong>
+              <strong>${vendorHistory.length}</strong>
             </div>
             <div class="summary-item">
               Total Units Ordered
@@ -799,11 +947,11 @@ export default function CoffeeOrder() {
               <strong>${formatCurrency(grandTotalCost)}</strong>
             </div>
           </div>
-          
+
           <div class="section-title">Product Breakdown (All Orders)</div>
           <table>
             <thead>
-              <tr><th>Product</th><th>Size</th><th>Total Qty</th><th>Retail Labels</th><th>Unit Price</th><th>Total Cost</th></tr>
+              <tr><th>Product</th><th>Size</th><th>Total Qty</th>${retailLabelHeader}<th>Unit Price</th><th>Total Cost</th></tr>
             </thead>
             <tbody>
               ${Object.values(productTotals)
@@ -813,48 +961,48 @@ export default function CoffeeOrder() {
                     <td>${p.name}</td>
                     <td>${p.size}</td>
                     <td>${p.qty}</td>
-                    <td>${p.retailLabels > 0 ? (p.category === '12oz' ? `${p.retailLabels} (all)` : p.retailLabels) : '-'}</td>
+                    ${hasLabels ? `<td>${p.retailLabels > 0 ? (p.category === '12oz' ? `${p.retailLabels} (all)` : p.retailLabels) : '-'}</td>` : ''}
                     <td>${p.unitPrice > 0 ? formatCurrency(p.unitPrice) : '-'}</td>
                     <td>${p.totalCost > 0 ? formatCurrency(p.totalCost) : '-'}</td>
                   </tr>
                 `).join('')}
               <tr class="total-row">
-                <td colspan="2">GRAND TOTAL</td>
+                <td colspan="${retailLabelColspan}">GRAND TOTAL</td>
                 <td>${grandTotalUnits}</td>
-                <td></td>
+                ${hasLabels ? '<td></td>' : ''}
                 <td></td>
                 <td>${formatCurrency(grandTotalCost)}</td>
               </tr>
             </tbody>
           </table>
         </div>
-        
+
         <!-- INDIVIDUAL ORDER PAGES -->
         ${sortedOrders.map((order, index) => `
           <div class="page">
             <div class="header">
-              <h1>${escapeHtml(tenant?.name) || 'Coffee Order'}</h1>
-              <h2>Order Details</h2>
-              <p>Order ${index + 1} of ${orderHistory.length}</p>
+              <h1>${escapeHtml(tenant?.name) || 'Order Report'}</h1>
+              <h2>${escapeHtml(vendorName)} — Order Details</h2>
+              <p>Order ${index + 1} of ${vendorHistory.length}</p>
             </div>
-            
+
             <div class="order-header">
-              <h3>Order Date: ${new Date(order.order_date).toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+              <h3>Order Date: ${new Date(order.order_date).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
               })}</h3>
               <div class="order-total">Total: ${order.total_cost ? formatCurrency(order.total_cost) : '-'}</div>
             </div>
-            
+
             <table>
               <thead>
-                <tr><th>Product</th><th>Size</th><th>Qty</th><th>Retail Labels</th><th>Unit Price</th><th>Line Total</th></tr>
+                <tr><th>Product</th><th>Size</th><th>Qty</th>${retailLabelHeader}<th>Unit Price</th><th>Line Total</th></tr>
               </thead>
               <tbody>
                 ${Object.entries(order.items).map(([id, qty]) => {
-                  const product = products.find(p => p.id === id);
+                  const product = allProducts.find(p => p.id === id);
                   const unitPrice = product?.default_price || 0;
                   const lineTotal = unitPrice * (qty as number);
                   const productCategory = normalizeCategory(product?.category || '');
@@ -867,22 +1015,22 @@ export default function CoffeeOrder() {
                       <td>${escapeHtml(product?.name) || 'Unknown Product'}</td>
                       <td>${product?.size || '-'}</td>
                       <td>${qty}</td>
-                      <td>${retailCount > 0 ? (productCategory === '12oz' ? `${retailCount} (all)` : retailCount) : '-'}</td>
+                      ${hasLabels ? `<td>${retailCount > 0 ? (productCategory === '12oz' ? `${retailCount} (all)` : retailCount) : '-'}</td>` : ''}
                       <td>${unitPrice > 0 ? formatCurrency(unitPrice) : '-'}</td>
                       <td>${lineTotal > 0 ? formatCurrency(lineTotal) : '-'}</td>
                     </tr>
                   `;
                 }).join('')}
                 <tr class="total-row">
-                  <td colspan="2">ORDER TOTAL</td>
+                  <td colspan="${retailLabelColspan}">ORDER TOTAL</td>
                   <td>${order.units}</td>
-                  <td></td>
+                  ${hasLabels ? '<td></td>' : ''}
                   <td></td>
                   <td>${order.total_cost ? formatCurrency(order.total_cost) : '-'}</td>
                 </tr>
               </tbody>
             </table>
-            
+
             ${order.notes ? `
               <div class="section-title">Order Notes</div>
               <p style="padding: 15px; background: #FDF8F0; border-radius: 8px; font-style: italic;">
@@ -902,6 +1050,10 @@ export default function CoffeeOrder() {
     }
   };
 
+  // =====================================================
+  // DERIVED UI DATA
+  // =====================================================
+
   const categories = Array.from(new Set(products.map(p => p.category))).sort();
   const productsByCategory = categories.reduce((acc, cat) => {
     acc[cat] = products.filter(p => p.category === cat);
@@ -913,29 +1065,52 @@ export default function CoffeeOrder() {
   }
 
   const hasProducts = products.length > 0;
+  const hasVendors = vendors.length > 0;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
       <header className="px-5 py-4">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-lg font-bold" style={{ color: colors.brown }}>
-            Bulk Coffee Ordering
+            Bulk Ordering
           </h2>
           <p className="text-sm" style={{ color: colors.brownLight }}>
-            Vendor: {vendorName}
+            {hasVendors ? `Vendor: ${vendorName}` : 'No vendors configured'}
             {isChildLocation && orgName ? ` · ${displayName} · ${orgName}` : ''}
           </p>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-5 py-8">
+        {/* VENDOR TABS */}
+        {vendors.length > 1 && (
+          <div className="flex gap-2 mb-5 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {vendors.map(v => (
+              <button
+                key={v.id}
+                onClick={() => switchVendor(v.id)}
+                className="px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2"
+                style={{
+                  backgroundColor: v.id === selectedVendorId ? colors.gold : colors.white,
+                  color: v.id === selectedVendorId ? colors.white : colors.brown,
+                  border: `1px solid ${v.id === selectedVendorId ? colors.gold : colors.creamDark}`,
+                  boxShadow: v.id === selectedVendorId ? `0 2px 8px rgba(201,162,39,0.3)` : 'none',
+                }}
+              >
+                <Store className="w-4 h-4" />
+                {v.display_name}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex gap-3 mb-6 flex-wrap">
           <button
             onClick={() => { setShowSettings(!showSettings); setShowHistory(false); }}
             className="px-5 py-2 rounded-md text-sm font-medium transition-all"
-            style={{ 
+            style={{
               backgroundColor: showSettings ? colors.gold : colors.white,
-              color: colors.brown,
+              color: showSettings ? colors.white : colors.brown,
               border: `1px solid ${colors.creamDark}`
             }}
             data-testid="button-settings"
@@ -945,9 +1120,9 @@ export default function CoffeeOrder() {
           <button
             onClick={() => { setShowHistory(!showHistory); setShowSettings(false); }}
             className="px-5 py-2 rounded-md text-sm font-medium transition-all"
-            style={{ 
+            style={{
               backgroundColor: showHistory ? colors.gold : colors.white,
-              color: colors.brown,
+              color: showHistory ? colors.white : colors.brown,
               border: `1px solid ${colors.creamDark}`
             }}
             data-testid="button-history"
@@ -957,7 +1132,7 @@ export default function CoffeeOrder() {
           <button
             onClick={clearOrder}
             className="ml-auto px-5 py-2 rounded-md text-sm font-medium"
-            style={{ 
+            style={{
               backgroundColor: colors.white,
               color: colors.red,
               border: `1px solid ${colors.red}`
@@ -968,192 +1143,327 @@ export default function CoffeeOrder() {
           </button>
         </div>
 
+        {/* ==================== SETTINGS PANEL ==================== */}
         {showSettings && (
           <div className="rounded-lg p-6 mb-5" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}`, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
             <h2 className="text-lg font-semibold pb-3 mb-5 border-b-2" style={{ color: colors.brown, borderColor: colors.gold }}>
               Settings
             </h2>
-            
-            <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>Vendor Information</h3>
-            <div className="grid gap-4 md:grid-cols-2 mb-6">
-              <div>
-                <label className="block text-sm mb-2 font-medium" style={{ color: colors.brownLight }}>Vendor Name</label>
-                <Input
-                  type="text"
-                  placeholder="e.g., Five Star Coffee Roasters"
-                  value={vendorForm.display_name}
-                  onChange={(e) => setVendorForm(prev => ({ ...prev, display_name: e.target.value }))}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                  data-testid="input-vendor-name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm mb-2 font-medium" style={{ color: colors.brownLight }}>Vendor Email</label>
-                <Input
-                  type="email"
-                  placeholder="orders@vendor.com"
-                  value={vendorForm.contact_email}
-                  onChange={(e) => setVendorForm(prev => ({ ...prev, contact_email: e.target.value }))}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                  data-testid="input-vendor-email"
-                />
-              </div>
-              <div>
-                <label className="block text-sm mb-2 font-medium" style={{ color: colors.brownLight }}>CC Email (optional)</label>
-                <Input
-                  type="email"
-                  placeholder="your@email.com"
-                  value={vendorForm.cc_email}
-                  onChange={(e) => setVendorForm(prev => ({ ...prev, cc_email: e.target.value }))}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                  data-testid="input-cc-email"
-                />
-              </div>
-            </div>
-            <button
-              onClick={saveVendor}
-              disabled={saving}
-              className="px-5 py-2 rounded-md text-sm font-semibold mb-6"
-              style={{ backgroundColor: colors.gold, color: colors.white }}
-              data-testid="button-save-vendor"
-            >
-              Save Vendor Settings
-            </button>
 
-            <h3 className="text-sm font-semibold uppercase tracking-wide mt-6 mb-3" style={{ color: colors.gold }}>Product Catalog</h3>
-            <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
-              Add and manage your coffee products. Set prices for each item.
-            </p>
+            {/* Vendor Management */}
+            <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>Vendors</h3>
 
-            <div className="rounded-lg p-4 mb-4" style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}` }}>
-              <h4 className="text-sm font-medium mb-3" style={{ color: colors.brown }}>Add New Product</h4>
-              <div className="grid gap-3 md:grid-cols-5">
-                <Input
-                  type="text"
-                  placeholder="Product Name"
-                  value={newProduct.name}
-                  onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
-                  style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                  data-testid="input-new-product-name"
-                />
-                <Input
-                  type="text"
-                  placeholder="Size (e.g., 5lb)"
-                  value={newProduct.size}
-                  onChange={(e) => setNewProduct(prev => ({ ...prev, size: e.target.value }))}
-                  style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                  data-testid="input-new-product-size"
-                />
-                <Input
-                  type="text"
-                  placeholder="Category"
-                  value={newProduct.category}
-                  onChange={(e) => setNewProduct(prev => ({ ...prev, category: e.target.value }))}
-                  style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                  data-testid="input-new-product-category"
-                />
-                <Input
-                  type="text"
-                  placeholder="Price"
-                  inputMode="decimal"
-                  value={newProduct.default_price}
-                  onChange={(e) => setNewProduct(prev => ({ ...prev, default_price: e.target.value }))}
-                  style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                  data-testid="input-new-product-price"
-                />
-                <button
-                  onClick={addProduct}
-                  disabled={!newProduct.name || saving}
-                  className="px-4 py-2 rounded-md text-sm font-semibold flex items-center justify-center gap-2"
-                  style={{ backgroundColor: colors.gold, color: colors.white }}
-                  data-testid="button-add-product"
-                >
-                  <Plus className="w-4 h-4" /> Add
-                </button>
-              </div>
+            {/* Existing vendors */}
+            <div className="space-y-3 mb-4">
+              {vendors.map(v => (
+                <div key={v.id} className="rounded-lg p-4" style={{ backgroundColor: v.id === selectedVendorId ? '#FFF8E1' : colors.inputBg, border: `1px solid ${v.id === selectedVendorId ? colors.gold : colors.creamDark}` }}>
+                  {editingVendorId === v.id ? (
+                    <div className="space-y-3">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>Vendor Name</label>
+                          <Input
+                            type="text"
+                            placeholder="e.g., Five Star Coffee"
+                            value={vendorForm.display_name}
+                            onChange={(e) => setVendorForm(prev => ({ ...prev, display_name: e.target.value }))}
+                            style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>Vendor Email</label>
+                          <Input
+                            type="email"
+                            placeholder="orders@vendor.com"
+                            value={vendorForm.contact_email}
+                            onChange={(e) => setVendorForm(prev => ({ ...prev, contact_email: e.target.value }))}
+                            style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>CC Email (optional)</label>
+                          <Input
+                            type="email"
+                            placeholder="your@email.com"
+                            value={vendorForm.cc_email}
+                            onChange={(e) => setVendorForm(prev => ({ ...prev, cc_email: e.target.value }))}
+                            style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-3 pt-5">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={vendorForm.supports_retail_labels}
+                              onChange={(e) => setVendorForm(prev => ({ ...prev, supports_retail_labels: e.target.checked }))}
+                              className="w-4 h-4 rounded"
+                              style={{ accentColor: colors.gold }}
+                            />
+                            <span className="text-sm" style={{ color: colors.brown }}>Retail Labels (CoB)</span>
+                          </label>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => saveVendor(v.id)}
+                          disabled={saving}
+                          className="px-4 py-2 rounded-md text-sm font-semibold"
+                          style={{ backgroundColor: colors.gold, color: colors.white }}
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingVendorId(null)}
+                          className="px-4 py-2 rounded-md text-sm font-medium"
+                          style={{ color: colors.brownLight }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-semibold" style={{ color: colors.brown }}>{v.display_name}</span>
+                        {v.contact_email && (
+                          <span className="ml-2 text-sm" style={{ color: colors.brownLight }}>{v.contact_email}</span>
+                        )}
+                        {v.supports_retail_labels && (
+                          <span className="ml-2 text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: localColors.teal, color: 'white' }}>CoB Labels</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => startEditVendor(v)} style={{ color: localColors.teal }}>
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => deleteVendor(v.id)} style={{ color: colors.red }}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
 
-            {products.length > 0 && (
-              <div className="space-y-2">
-                {products.map(product => (
-                  <div 
-                    key={product.id} 
-                    className="flex items-center justify-between px-4 py-3 rounded-md"
-                    style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}` }}
-                  >
-                    {editingProductId === product.id ? (
-                      <>
-                        <div className="flex gap-2 flex-1 mr-2 flex-wrap">
-                          <Input
-                            type="text"
-                            placeholder="Name"
-                            value={editProductForm.name}
-                            onChange={(e) => setEditProductForm(prev => ({ ...prev, name: e.target.value }))}
-                            className="flex-1 min-w-[100px]"
-                            style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                          />
-                          <Input
-                            type="text"
-                            placeholder="Size"
-                            value={editProductForm.size}
-                            onChange={(e) => setEditProductForm(prev => ({ ...prev, size: e.target.value }))}
-                            className="w-16"
-                            style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                          />
-                          <Input
-                            type="text"
-                            placeholder="Category"
-                            value={editProductForm.category}
-                            onChange={(e) => setEditProductForm(prev => ({ ...prev, category: e.target.value }))}
-                            className="w-16"
-                            style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                          />
-                          <Input
-                            type="text"
-                            placeholder="Price"
-                            inputMode="decimal"
-                            value={editProductForm.default_price}
-                            onChange={(e) => setEditProductForm(prev => ({ ...prev, default_price: e.target.value }))}
-                            className="w-16"
-                            style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => updateProduct(product.id)} style={{ color: localColors.teal }}>
-                            <Save className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setEditingProductId(null)} style={{ color: colors.brownLight }}>
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-medium" style={{ color: colors.brown }}>
-                          {product.name} <span className="font-normal" style={{ color: colors.brownLight }}>{product.size}</span>
-                          <span className="ml-2 text-sm" style={{ color: colors.gold }}>{formatCurrency(product.default_price)}</span>
-                        </span>
-                        <div className="flex gap-2">
-                          <button onClick={() => startEditProduct(product)} style={{ color: localColors.teal }}>
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => deleteProduct(product.id)} style={{ color: colors.red }}>
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </>
-                    )}
+            {/* Add new vendor */}
+            {addingVendor ? (
+              <div className="rounded-lg p-4 mb-6" style={{ backgroundColor: colors.inputBg, border: `1px dashed ${colors.gold}` }}>
+                <h4 className="text-sm font-medium mb-3" style={{ color: colors.brown }}>Add New Vendor</h4>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>Vendor Name</label>
+                    <Input
+                      type="text"
+                      placeholder="e.g., Maola Milk"
+                      value={newVendorForm.display_name}
+                      onChange={(e) => setNewVendorForm(prev => ({ ...prev, display_name: e.target.value }))}
+                      style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                    />
                   </div>
-                ))}
+                  <div>
+                    <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>Vendor Email</label>
+                    <Input
+                      type="email"
+                      placeholder="orders@vendor.com"
+                      value={newVendorForm.contact_email}
+                      onChange={(e) => setNewVendorForm(prev => ({ ...prev, contact_email: e.target.value }))}
+                      style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>CC Email (optional)</label>
+                    <Input
+                      type="email"
+                      placeholder="your@email.com"
+                      value={newVendorForm.cc_email}
+                      onChange={(e) => setNewVendorForm(prev => ({ ...prev, cc_email: e.target.value }))}
+                      style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-3 pt-5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newVendorForm.supports_retail_labels}
+                        onChange={(e) => setNewVendorForm(prev => ({ ...prev, supports_retail_labels: e.target.checked }))}
+                        className="w-4 h-4 rounded"
+                        style={{ accentColor: colors.gold }}
+                      />
+                      <span className="text-sm" style={{ color: colors.brown }}>Retail Labels (CoB)</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={addVendor}
+                    disabled={!newVendorForm.display_name.trim() || saving}
+                    className="px-4 py-2 rounded-md text-sm font-semibold"
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
+                  >
+                    Add Vendor
+                  </button>
+                  <button
+                    onClick={() => { setAddingVendor(false); setNewVendorForm({ display_name: '', contact_email: '', cc_email: '', supports_retail_labels: true }); }}
+                    className="px-4 py-2 rounded-md text-sm font-medium"
+                    style={{ color: colors.brownLight }}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
+            ) : (
+              <button
+                onClick={() => setAddingVendor(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold mb-6"
+                style={{ backgroundColor: colors.gold, color: colors.white }}
+              >
+                <Plus className="w-4 h-4" /> Add Vendor
+              </button>
+            )}
+
+            {/* Product Catalog — scoped to selected vendor */}
+            {selectedVendor && (
+              <>
+                <h3 className="text-sm font-semibold uppercase tracking-wide mt-6 mb-3" style={{ color: colors.gold }}>
+                  {selectedVendor.display_name} — Product Catalog
+                </h3>
+                <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
+                  Add and manage products for {selectedVendor.display_name}. Set prices for each item.
+                </p>
+
+                <div className="rounded-lg p-4 mb-4" style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}` }}>
+                  <h4 className="text-sm font-medium mb-3" style={{ color: colors.brown }}>Add New Product</h4>
+                  <div className="grid gap-3 md:grid-cols-5">
+                    <Input
+                      type="text"
+                      placeholder="Product Name"
+                      value={newProduct.name}
+                      onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
+                      style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                      data-testid="input-new-product-name"
+                    />
+                    <Input
+                      type="text"
+                      placeholder="Size (e.g., 5lb)"
+                      value={newProduct.size}
+                      onChange={(e) => setNewProduct(prev => ({ ...prev, size: e.target.value }))}
+                      style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                      data-testid="input-new-product-size"
+                    />
+                    <Input
+                      type="text"
+                      placeholder="Category"
+                      value={newProduct.category}
+                      onChange={(e) => setNewProduct(prev => ({ ...prev, category: e.target.value }))}
+                      style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                      data-testid="input-new-product-category"
+                    />
+                    <Input
+                      type="text"
+                      placeholder="Price"
+                      inputMode="decimal"
+                      value={newProduct.default_price}
+                      onChange={(e) => setNewProduct(prev => ({ ...prev, default_price: e.target.value }))}
+                      style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                      data-testid="input-new-product-price"
+                    />
+                    <button
+                      onClick={addProduct}
+                      disabled={!newProduct.name || saving}
+                      className="px-4 py-2 rounded-md text-sm font-semibold flex items-center justify-center gap-2"
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                      data-testid="button-add-product"
+                    >
+                      <Plus className="w-4 h-4" /> Add
+                    </button>
+                  </div>
+                </div>
+
+                {products.length > 0 && (
+                  <div className="space-y-2">
+                    {products.map(product => (
+                      <div
+                        key={product.id}
+                        className="flex items-center justify-between px-4 py-3 rounded-md"
+                        style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}` }}
+                      >
+                        {editingProductId === product.id ? (
+                          <>
+                            <div className="flex gap-2 flex-1 mr-2 flex-wrap">
+                              <Input
+                                type="text"
+                                placeholder="Name"
+                                value={editProductForm.name}
+                                onChange={(e) => setEditProductForm(prev => ({ ...prev, name: e.target.value }))}
+                                className="flex-1 min-w-[100px]"
+                                style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                              />
+                              <Input
+                                type="text"
+                                placeholder="Size"
+                                value={editProductForm.size}
+                                onChange={(e) => setEditProductForm(prev => ({ ...prev, size: e.target.value }))}
+                                className="w-16"
+                                style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                              />
+                              <Input
+                                type="text"
+                                placeholder="Category"
+                                value={editProductForm.category}
+                                onChange={(e) => setEditProductForm(prev => ({ ...prev, category: e.target.value }))}
+                                className="w-16"
+                                style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                              />
+                              <Input
+                                type="text"
+                                placeholder="Price"
+                                inputMode="decimal"
+                                value={editProductForm.default_price}
+                                onChange={(e) => setEditProductForm(prev => ({ ...prev, default_price: e.target.value }))}
+                                className="w-16"
+                                style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={() => updateProduct(product.id)} style={{ color: localColors.teal }}>
+                                <Save className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => setEditingProductId(null)} style={{ color: colors.brownLight }}>
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-medium" style={{ color: colors.brown }}>
+                              {product.name} <span className="font-normal" style={{ color: colors.brownLight }}>{product.size}</span>
+                              <span className="ml-2 text-sm" style={{ color: colors.gold }}>{formatCurrency(product.default_price)}</span>
+                            </span>
+                            <div className="flex gap-2">
+                              <button onClick={() => startEditProduct(product)} style={{ color: localColors.teal }}>
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => deleteProduct(product.id)} style={{ color: colors.red }}>
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
 
+        {/* ==================== HISTORY PANEL ==================== */}
         {showHistory && (
           <div className="rounded-lg p-6 mb-5" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}`, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
             <h2 className="text-lg font-semibold pb-3 mb-5 border-b-2" style={{ color: colors.brown, borderColor: colors.gold }}>
-              Order History
+              Order History {selectedVendor ? `— ${selectedVendor.display_name}` : ''}
             </h2>
             <div className="flex gap-3 mb-4">
               <button
@@ -1176,16 +1486,18 @@ export default function CoffeeOrder() {
               </button>
             </div>
 
-            {orderHistory.length === 0 ? (
+            {vendorHistory.length === 0 ? (
               <div className="text-center py-8 space-y-2">
                 <ShoppingCart className="w-8 h-8 mx-auto" style={{ color: colors.brownLight }} />
-                <p className="text-sm" style={{ color: colors.brownLight }}>No previous orders yet. Place your first order below!</p>
+                <p className="text-sm" style={{ color: colors.brownLight }}>
+                  No orders yet{selectedVendor ? ` for ${selectedVendor.display_name}` : ''}. Place your first order below!
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
-                {orderHistory.slice(0, 10).map(order => (
-                  <div 
-                    key={order.id} 
+                {vendorHistory.slice(0, 10).map(order => (
+                  <div
+                    key={order.id}
                     className="flex justify-between items-center px-4 py-3 rounded-md"
                     style={{ backgroundColor: '#F5E6C8', border: `1px solid ${colors.creamDark}` }}
                   >
@@ -1195,13 +1507,13 @@ export default function CoffeeOrder() {
                       </div>
                       <div className="text-sm" style={{ color: colors.brownLight }}>
                         {order.units} units{order.total_cost ? ` - ${formatCurrency(order.total_cost)}` : ''}
-                        {order.retail_labels && Object.keys(order.retail_labels).length > 0 && (
+                        {showRetailLabels && order.retail_labels && Object.keys(order.retail_labels).length > 0 && (
                           <span className="ml-1" style={{ color: localColors.teal }}> (retail labels)</span>
                         )}
                       </div>
                     </div>
                     <button
-                      onClick={() => loadOrder(order.items, order.retail_labels)}
+                      onClick={() => loadOrder(order)}
                       className="px-4 py-2 rounded-md text-sm font-semibold"
                       style={{ backgroundColor: colors.gold, color: colors.white }}
                       data-testid={`button-load-order-${order.id}`}
@@ -1215,17 +1527,33 @@ export default function CoffeeOrder() {
           </div>
         )}
 
+        {/* ==================== ORDER BUILDER ==================== */}
         <div className="rounded-lg p-6" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}`, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
           <h2 className="text-lg font-semibold pb-3 mb-5 border-b-2" style={{ color: colors.brown, borderColor: colors.gold }}>
-            Weekly Order
+            {selectedVendor ? `${selectedVendor.display_name} — Weekly Order` : 'Weekly Order'}
           </h2>
 
-          {!hasProducts ? (
+          {!hasVendors ? (
+            <div className="text-center py-10 space-y-3">
+              <Store className="w-10 h-10 mx-auto" style={{ color: colors.brownLight }} />
+              <h3 className="text-lg font-semibold" style={{ color: colors.brown }}>No vendors configured yet</h3>
+              <p className="text-sm max-w-sm mx-auto" style={{ color: colors.brownLight }}>
+                Add a vendor in Settings to start placing orders.
+              </p>
+              <button
+                onClick={() => { setShowSettings(true); setAddingVendor(true); }}
+                className="px-6 py-3 rounded-lg font-semibold"
+                style={{ backgroundColor: colors.gold, color: colors.white }}
+              >
+                Add Your First Vendor
+              </button>
+            </div>
+          ) : !hasProducts ? (
             <div className="text-center py-10 space-y-3">
               <Coffee className="w-10 h-10 mx-auto" style={{ color: colors.brownLight }} />
               <h3 className="text-lg font-semibold" style={{ color: colors.brown }}>No products configured yet</h3>
               <p className="text-sm max-w-sm mx-auto" style={{ color: colors.brownLight }}>
-                Add your coffee products in Settings to start placing orders.
+                Add products for {vendorName} in Settings to start placing orders.
               </p>
               <button
                 onClick={() => setShowSettings(true)}
@@ -1244,7 +1572,7 @@ export default function CoffeeOrder() {
                   <div className="space-y-3">
                     {productsByCategory[category].map((product: CoffeeProduct) => {
                       const qty = orderItems[product.id] || 0;
-                      const is5lb = normalizeCategory(product.category) === '5lb';
+                      const is5lb = showRetailLabels && normalizeCategory(product.category) === '5lb';
                       const retailCount = retailLabels[product.id] || 0;
                       return (
                         <div key={product.id}>
@@ -1270,10 +1598,16 @@ export default function CoffeeOrder() {
                                 -
                               </button>
                               <input
-                                type="number"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 value={qty || ''}
                                 placeholder="0"
-                                onChange={(e) => setQty(product.id, e.target.value)}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  if (v === '' || /^\d+$/.test(v)) setQty(product.id, v);
+                                }}
+                                onFocus={(e) => e.target.select()}
                                 className="w-12 h-8 text-center text-sm font-medium rounded-md"
                                 style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
                                 data-testid={`input-qty-${product.sku}`}
@@ -1314,12 +1648,16 @@ export default function CoffeeOrder() {
                                   -
                                 </button>
                                 <input
-                                  type="number"
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
                                   value={retailCount || ''}
                                   placeholder="0"
-                                  min={0}
-                                  max={qty}
-                                  onChange={(e) => setRetailLabelCount(product.id, e.target.value)}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    if (v === '' || /^\d+$/.test(v)) setRetailLabelCount(product.id, v);
+                                  }}
+                                  onFocus={(e) => e.target.select()}
                                   className="w-10 h-6 text-center text-xs font-medium rounded"
                                   style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
                                 />
@@ -1363,7 +1701,7 @@ export default function CoffeeOrder() {
                   <span style={{ color: colors.brownLight }}>Total Cost:</span>
                   <span className="font-semibold text-lg" style={{ color: colors.brown }}>{formatCurrency(totalCost)}</span>
                 </div>
-                {totalRetailLabelsAll > 0 && (
+                {showRetailLabels && totalRetailLabelsAll > 0 && (
                   <div className="flex justify-between mt-2 pt-2" style={{ borderTop: `1px solid ${colors.creamDark}` }}>
                     <span style={{ color: colors.brownLight }}>Retail Labels:</span>
                     <span className="font-semibold" style={{ color: colors.brown }}>
@@ -1382,7 +1720,7 @@ export default function CoffeeOrder() {
                 onClick={sendOrder}
                 disabled={totalItems === 0 || saving}
                 className="w-full py-3 rounded-lg text-base font-semibold mb-3 transition-all"
-                style={{ 
+                style={{
                   background: totalItems === 0 ? colors.creamDark : `linear-gradient(135deg, ${colors.gold} 0%, ${colors.goldDark} 100%)`,
                   color: totalItems === 0 ? '#999' : colors.brown,
                   boxShadow: totalItems === 0 ? 'none' : `0 4px 12px rgba(212, 168, 75, 0.4)`,
@@ -1396,7 +1734,7 @@ export default function CoffeeOrder() {
                 onClick={() => saveToHistory(false)}
                 disabled={totalItems === 0 || saving}
                 className="w-full py-3 rounded-lg text-base font-semibold transition-all"
-                style={{ 
+                style={{
                   backgroundColor: totalItems === 0 ? colors.creamDark : '#666',
                   color: totalItems === 0 ? '#999' : colors.white,
                   cursor: totalItems === 0 ? 'not-allowed' : 'pointer'

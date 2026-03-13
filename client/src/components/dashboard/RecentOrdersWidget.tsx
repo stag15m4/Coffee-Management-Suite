@@ -35,9 +35,9 @@ export function RecentOrdersWidget() {
         .select(`
           id,
           order_date,
-          total_amount,
-          order_items,
-          vendor:tenant_coffee_vendors(vendor_name)
+          total_cost,
+          items,
+          vendor:tenant_coffee_vendors(display_name)
         `)
         .eq('tenant_id', tenant.id)
         .order('order_date', { ascending: false })
@@ -46,16 +46,15 @@ export function RecentOrdersWidget() {
       if (ordersError) throw ordersError;
 
       const formattedOrders: Order[] = (orders || []).map((order: any) => {
-        const items = typeof order.order_items === 'string'
-          ? JSON.parse(order.order_items)
-          : order.order_items || [];
+        const orderItems = order.items || {};
+        const itemCount = typeof orderItems === 'object' ? Object.keys(orderItems).length : 0;
 
         return {
           id: order.id,
           order_date: order.order_date,
-          total_amount: Number(order.total_amount) || 0,
-          items_count: Array.isArray(items) ? items.length : 0,
-          vendor_name: order.vendor?.vendor_name || 'Unknown Vendor',
+          total_amount: Number(order.total_cost) || 0,
+          items_count: itemCount,
+          vendor_name: order.vendor?.display_name || 'Vendor',
         };
       });
 

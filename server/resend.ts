@@ -52,7 +52,7 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #5D4037;">Coffee Order from ${escapeHtml(data.tenantName) || 'Customer'}</h2>
+        <h2 style="color: #5D4037;">Order from ${escapeHtml(data.tenantName) || 'Customer'}</h2>
         <p>Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
 
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
@@ -81,7 +81,7 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
         ${data.notes ? `<p style="background-color: #FFF8E1; padding: 10px; border-radius: 4px;"><strong>Notes:</strong> ${escapeHtml(data.notes)}</p>` : ''}
 
         <p style="color: #888; font-size: 12px; margin-top: 30px;">
-          This order was sent via the Erwin Mills Management Suite.
+          This order was sent via the Coffee Management Suite.
         </p>
       </div>
     `;
@@ -89,7 +89,7 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
     const emailOptions: any = {
       from: fromEmail,
       to: data.vendorEmail,
-      subject: `Coffee Order from ${(data.tenantName || 'Customer').replace(/[<>"]/g, '')} - ${new Date().toLocaleDateString()}`,
+      subject: `${(data.vendorName || 'Vendor')} Order from ${(data.tenantName || 'Customer').replace(/[<>"]/g, '')} - ${new Date().toLocaleDateString()}`,
       html
     };
 
