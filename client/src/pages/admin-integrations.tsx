@@ -2,6 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft } from 'lucide-react';
 import { colors } from '@/lib/colors';
 import SquareIntegrationSettings from '@/components/square/SquareIntegrationSettings';
+import QboIntegrationSettings from '@/components/qbo/QboIntegrationSettings';
 
 export default function AdminIntegrations() {
   const { tenant, branding, primaryTenant } = useAuth();
@@ -34,6 +35,11 @@ export default function AdminIntegrations() {
 
         {/* Square Integration */}
         <SquareIntegrationSettings />
+
+        {/* QuickBooks Online Integration */}
+        <div className="mt-6">
+          <QboIntegrationSettings />
+        </div>
       </div>
     </div>
   );

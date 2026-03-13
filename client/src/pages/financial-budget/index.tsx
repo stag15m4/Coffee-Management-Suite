@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useSearch, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/lib/colors';
-import { Landmark } from 'lucide-react';
+import { Landmark, Settings } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -15,7 +15,6 @@ import UnifiedBudgetTab from './UnifiedBudgetTab';
 import ForecastTab from './ForecastTab';
 
 const TABS: Array<{ id: string; label: string }> = [
-  { id: 'chart-of-accounts', label: 'Chart of Accounts' },
   { id: 'budget', label: 'Budget' },
   { id: 'forecast', label: 'Forecast' },
 ];
@@ -25,7 +24,7 @@ export default function FinancialBudgetPage() {
   const search = useSearch();
   const [, setLocation] = useLocation();
 
-  const activeTab = new URLSearchParams(search).get('tab') || 'chart-of-accounts';
+  const activeTab = new URLSearchParams(search).get('tab') || 'budget';
   const setActiveTab = useCallback(
     (tab: string) => setLocation(`/financial-budget?tab=${tab}`),
     [setLocation]
@@ -62,21 +61,38 @@ export default function FinancialBudgetPage() {
             </div>
           </div>
 
-          {/* Location selector */}
-          {isParent && (
-            <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
-              <SelectTrigger className="w-[220px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                {accessibleLocations!.map((loc: any) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Location selector */}
+            {isParent && (
+              <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
+                <SelectTrigger className="w-[220px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accessibleLocations!.map((loc: any) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Chart of Accounts (settings) */}
+            <button
+              onClick={() => setActiveTab('chart-of-accounts')}
+              className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
+              style={{
+                backgroundColor: activeTab === 'chart-of-accounts' ? colors.gold : colors.inputBg,
+                color: activeTab === 'chart-of-accounts' ? '#fff' : colors.brownLight,
+                border: `1px solid ${colors.gold}`,
+                cursor: 'pointer',
+              }}
+              title="Chart of Accounts"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
