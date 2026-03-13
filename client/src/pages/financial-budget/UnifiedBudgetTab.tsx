@@ -31,7 +31,7 @@ import { buildAccountTree, ACCOUNT_TYPE_ORDER, MONTH_LABELS } from './types';
 import type { ChartOfAccount, AccountType } from './types';
 import {
   Plus, Loader2, Copy, RefreshCw, CloudOff, FileSpreadsheet, Download,
-  TrendingUp, TrendingDown, Sparkles,
+  TrendingUp, TrendingDown, Sparkles, Undo2,
 } from 'lucide-react';
 
 interface Props {
@@ -196,6 +196,34 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
   const hasActuals = actualMap.size > 0;
   const hasPY = pyActualMap.size > 0;
 
+  // Undo support — snapshot budget values before bulk operations
+  const [undoSnapshot, setUndoSnapshot] = useState<Array<{
+    tenant_id: string; fiscal_year_id: string; account_id: string; month: number; budget_amount: number;
+  }> | null>(null);
+  const [undoLabel, setUndoLabel] = useState('');
+
+  const snapshotCurrentBudget = (): typeof undoSnapshot => {
+    return lineItems.map((item: any) => ({
+      tenant_id: tenantId,
+      fiscal_year_id: fyId,
+      account_id: item.account_id,
+      month: item.month,
+      budget_amount: Number(item.budget_amount) || 0,
+    }));
+  };
+
+  const handleUndo = async () => {
+    if (!undoSnapshot) return;
+    try {
+      await bulkUpsert.mutateAsync(undoSnapshot);
+      toast({ title: 'Undone', description: `Budget restored to before "${undoLabel}"` });
+      setUndoSnapshot(null);
+      setUndoLabel('');
+    } catch (err: any) {
+      toast({ title: 'Undo failed', description: err.message, variant: 'destructive' });
+    }
+  };
+
   // Actions
   const handleCreateFY = async () => {
     const year = parseInt(newYear);
@@ -220,6 +248,8 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
       return;
     }
     try {
+      const snapshot = snapshotCurrentBudget();
+      const label = `Seed from ${prevFY.year} Actuals`;
       const items = prevLineItems
         .filter((l: any) => l.actual_amount !== null && l.actual_amount !== undefined)
         .map((line: any) => ({
@@ -230,6 +260,8 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
           budget_amount: Number(line.actual_amount),
         }));
       await bulkUpsert.mutateAsync(items);
+      setUndoSnapshot(snapshot);
+      setUndoLabel(label);
       toast({ title: `Seeded ${items.length} entries from ${prevFY.year} actuals` });
     } catch (err: any) {
       toast({ title: 'Seed failed', description: err.message, variant: 'destructive' });
@@ -254,6 +286,8 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
         toast({ title: `${prevBudgetFY.year} budget has no data`, variant: 'destructive' });
         return;
       }
+      const snapshot = snapshotCurrentBudget();
+      const label = `Copy ${prevBudgetFY.year} Budget`;
       const items = prevLines.map((line: any) => ({
         tenant_id: tenantId,
         fiscal_year_id: fyId,
@@ -262,6 +296,8 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
         budget_amount: Number(line.budget_amount),
       }));
       await bulkUpsert.mutateAsync(items);
+      setUndoSnapshot(snapshot);
+      setUndoLabel(label);
       toast({ title: `Copied ${items.length} entries from ${prevBudgetFY.year}` });
     } catch (err: any) {
       toast({ title: 'Copy failed', description: err.message, variant: 'destructive' });
@@ -444,6 +480,12 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
               <Sparkles className="w-4 h-4 mr-1" /> Seed from {selectedFY.year - 1} Actuals
             </Button>
           </>
+        )}
+
+        {undoSnapshot && (
+          <Button variant="outline" onClick={handleUndo} disabled={bulkUpsert.isPending} style={{ borderColor: colors.red, color: colors.red }}>
+            <Undo2 className="w-4 h-4 mr-1" /> Undo {undoLabel}
+          </Button>
         )}
 
         {selectedFY && qboStatus?.connected && (
