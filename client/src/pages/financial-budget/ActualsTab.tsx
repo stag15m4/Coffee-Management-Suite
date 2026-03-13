@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -17,8 +17,8 @@ import {
   useQboStatus,
   useQboSyncActuals,
 } from '@/hooks/use-budget';
-import { ACCOUNT_TYPE_ORDER, MONTH_LABELS } from './types';
-import type { AccountType } from './types';
+import { buildAccountTree, ACCOUNT_TYPE_ORDER, MONTH_LABELS } from './types';
+import type { AccountType, ChartOfAccount } from './types';
 import { Loader2, RefreshCw, CloudOff, FileSpreadsheet, TrendingUp, TrendingDown, Download } from 'lucide-react';
 import { exportActualsPdf } from './budget-export';
 
@@ -86,9 +86,11 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
     };
   };
 
+  const accountTree = useMemo(() => buildAccountTree(accounts), [accounts]);
+
   const grouped = ACCOUNT_TYPE_ORDER.map((type) => ({
     type,
-    accounts: accounts.filter((a) => a.account_type === type && !a.parent_id),
+    accounts: accountTree.filter((a) => a.account_type === type),
   })).filter((g) => g.accounts.length > 0);
 
   const handleSync = async () => {
@@ -120,6 +122,47 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
       <span style={{ color: favorable ? colors.green : colors.red }}>
         {variance >= 0 ? '' : '('}{formatCurrency(Math.abs(variance))}{variance < 0 ? ')' : ''}
       </span>
+    );
+  };
+
+  const renderAccountRows = (acc: ChartOfAccount, depth: number, isRevenue: boolean): React.ReactNode => {
+    const hasChildren = acc.children && acc.children.length > 0;
+    return (
+      <Fragment key={acc.id}>
+        <tr className="hover:bg-black/[0.02]">
+          <td
+            className="py-1 px-3 sticky left-0 z-10 text-sm"
+            style={{
+              backgroundColor: colors.white,
+              color: colors.brown,
+              paddingLeft: `${12 + depth * 20}px`,
+              ...(hasChildren ? { fontWeight: 600 } : {}),
+            }}
+          >
+            {acc.account_number && (
+              <span className="text-xs mr-1.5" style={{ color: colors.brownLight }}>{acc.account_number}</span>
+            )}
+            {acc.name}
+          </td>
+          {MONTH_LABELS.map((_, i) => {
+            const v = getVariance(acc.id, i + 1);
+            return (
+              <Fragment key={i}>
+                <td className="text-right py-1 px-1 text-sm" style={{ color: colors.brown }}>
+                  {v.budget ? formatCurrency(v.budget) : ''}
+                </td>
+                <td className="text-right py-1 px-1 text-sm" style={{ color: colors.brown }}>
+                  {v.actual !== null ? formatCurrency(v.actual) : <span style={{ color: colors.creamDark }}>—</span>}
+                </td>
+                <td className="text-right py-1 px-1 text-sm">
+                  <VarianceCell variance={v.variance} isRevenue={isRevenue} />
+                </td>
+              </Fragment>
+            );
+          })}
+        </tr>
+        {hasChildren && acc.children!.map((child) => renderAccountRows(child, depth + 1, isRevenue))}
+      </Fragment>
     );
   };
 
@@ -252,30 +295,7 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
                         {type}
                       </td>
                     </tr>
-                    {typeAccounts.map((acc) => (
-                      <tr key={acc.id} className="hover:bg-black/[0.02]">
-                        <td className="py-1 px-3 sticky left-0 z-10 text-sm" style={{ backgroundColor: colors.white, color: colors.brown }}>
-                          {acc.name}
-                        </td>
-                        {MONTH_LABELS.map((_, i) => {
-                          const v = getVariance(acc.id, i + 1);
-                          const isRevenue = acc.account_type === 'Revenue';
-                          return (
-                            <Fragment key={i}>
-                              <td className="text-right py-1 px-1 text-sm" style={{ color: colors.brown }}>
-                                {v.budget ? formatCurrency(v.budget) : ''}
-                              </td>
-                              <td className="text-right py-1 px-1 text-sm" style={{ color: colors.brown }}>
-                                {v.actual !== null ? formatCurrency(v.actual) : <span style={{ color: colors.creamDark }}>—</span>}
-                              </td>
-                              <td className="text-right py-1 px-1 text-sm">
-                                <VarianceCell variance={v.variance} isRevenue={isRevenue} />
-                              </td>
-                            </Fragment>
-                          );
-                        })}
-                      </tr>
-                    ))}
+                    {typeAccounts.map((acc) => renderAccountRows(acc, 0, acc.account_type === 'Revenue'))}
                     {/* Subtotal */}
                     <tr style={{ borderTop: `1px solid ${colors.creamDark}` }}>
                       <td className="py-1.5 px-3 text-sm font-semibold sticky left-0 z-10" style={{ backgroundColor: colors.white, color: colors.brownLight }}>

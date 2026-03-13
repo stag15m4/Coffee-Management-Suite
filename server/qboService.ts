@@ -466,9 +466,8 @@ function extractPnLRows(reportData: any): PnLRow[] {
             rows.push({ name, amount: Math.abs(amount) });
           }
         }
-      }
-      // Recurse into nested row groups
-      if (row.Rows) {
+      } else if (row.Rows) {
+        // Recurse into nested row groups (non-Section only to avoid double-walk)
         walkRows(row.Rows);
       }
     }
