@@ -22,6 +22,7 @@ import {
   useCreateAccount,
   useUpdateAccount,
   useDeleteAccount,
+  useBulkHideAccounts,
   useRestoreAccount,
   useHiddenAccounts,
   useImportChartOfAccounts,
@@ -60,10 +61,13 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
+  const bulkHide = useBulkHideAccounts();
   const restoreAccount = useRestoreAccount();
   const { data: hiddenAccounts = [] } = useHiddenAccounts(tenantId);
   const importCoa = useImportChartOfAccounts();
   const [showHidden, setShowHidden] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // QBO integration
   const { data: qboStatus } = useQboStatus(tenantId);
@@ -220,6 +224,37 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
     }
   };
 
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // Collect all leaf account IDs (flatten the tree)
+  const getAllAccountIds = (accs: ChartOfAccount[]): string[] => {
+    const ids: string[] = [];
+    for (const a of accs) {
+      ids.push(a.id);
+      if (a.children) ids.push(...getAllAccountIds(a.children));
+    }
+    return ids;
+  };
+
+  const handleBulkHide = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Hide ${selectedIds.size} account${selectedIds.size !== 1 ? 's' : ''} from your budget?`)) return;
+    try {
+      await bulkHide.mutateAsync({ ids: Array.from(selectedIds), tenant_id: tenantId });
+      toast({ title: `${selectedIds.size} account${selectedIds.size !== 1 ? 's' : ''} hidden` });
+      setSelectedIds(new Set());
+      setSelectMode(false);
+    } catch (err: any) {
+      toast({ title: 'Failed to hide accounts', description: err.message, variant: 'destructive' });
+    }
+  };
+
   const handleRestore = async (acc: ChartOfAccount) => {
     try {
       await restoreAccount.mutateAsync({ id: acc.id, tenant_id: tenantId });
@@ -371,6 +406,16 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
             ...(isParent && hasChildren ? { fontWeight: 600 } : {}),
           }}
         >
+          {/* Select checkbox */}
+          {selectMode && (
+            <input
+              type="checkbox"
+              checked={selectedIds.has(acc.id)}
+              onChange={() => toggleSelected(acc.id)}
+              className="w-4 h-4 rounded shrink-0 cursor-pointer"
+            />
+          )}
+
           {/* Expand toggle */}
           <button
             onClick={() => hasChildren && toggleAccount(acc.id)}
@@ -531,7 +576,7 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
         </Button>
       </div>
 
-      {/* Account count + show hidden toggle */}
+      {/* Account count + select/hide controls */}
       <div className="flex items-center justify-between">
         <p className="text-sm" style={{ color: colors.brownLight }}>
           {accounts.length} account{accounts.length !== 1 ? 's' : ''}
@@ -539,16 +584,59 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
             <span> &middot; {hiddenAccounts.length} hidden</span>
           )}
         </p>
-        {hiddenAccounts.length > 0 && (
-          <button
-            onClick={() => setShowHidden(!showHidden)}
-            className="flex items-center gap-1.5 text-sm px-3 py-1 rounded-lg transition-colors"
-            style={{ color: colors.brown, backgroundColor: showHidden ? colors.creamDark : 'transparent' }}
-          >
-            {showHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-            {showHidden ? 'Hide Hidden' : 'Show Hidden'}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {selectMode ? (
+            <>
+              <button
+                onClick={() => {
+                  const allIds = getAllAccountIds(accounts.flatMap((a) => buildAccountTree([a]) || [a]));
+                  setSelectedIds((prev) => prev.size === allIds.length ? new Set() : new Set(allIds));
+                }}
+                className="text-xs px-2 py-1 rounded hover:bg-black/5"
+                style={{ color: colors.brown }}
+              >
+                {selectedIds.size === accounts.length ? 'Deselect All' : 'Select All'}
+              </button>
+              <Button
+                size="sm"
+                onClick={handleBulkHide}
+                disabled={selectedIds.size === 0 || bulkHide.isPending}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
+              >
+                <EyeOff className="w-3.5 h-3.5 mr-1" />
+                Hide {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+              </Button>
+              <button
+                onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }}
+                className="text-xs px-2 py-1 rounded hover:bg-black/5"
+                style={{ color: colors.brownLight }}
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setSelectMode(true)}
+                className="flex items-center gap-1.5 text-sm px-3 py-1 rounded-lg transition-colors hover:bg-black/5"
+                style={{ color: colors.brown }}
+              >
+                <EyeOff className="w-4 h-4" />
+                Bulk Hide
+              </button>
+              {hiddenAccounts.length > 0 && (
+                <button
+                  onClick={() => setShowHidden(!showHidden)}
+                  className="flex items-center gap-1.5 text-sm px-3 py-1 rounded-lg transition-colors"
+                  style={{ color: colors.brown, backgroundColor: showHidden ? colors.creamDark : 'transparent' }}
+                >
+                  {showHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  {showHidden ? 'Hide Hidden' : 'Show Hidden'}
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Account groups */}

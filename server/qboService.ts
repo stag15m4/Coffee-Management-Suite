@@ -324,16 +324,20 @@ export async function syncActuals(
   let synced = 0;
   const errors: string[] = [];
 
-  // Fetch our CoA to map QBO account names to our account IDs
+  // Fetch ALL CoA (including hidden) to map QBO account names to our account IDs
+  // Hidden accounts still need actuals tracked for reporting accuracy
   const { data: ourAccounts } = await supabaseAdmin
     .from('budget_chart_of_accounts')
-    .select('id, name')
-    .eq('tenant_id', tenantId)
-    .eq('is_active', true);
+    .select('id, name, account_number')
+    .eq('tenant_id', tenantId);
 
   const accountByName = new Map<string, string>();
+  const accountByNumber = new Map<string, string>();
   for (const a of ourAccounts || []) {
     accountByName.set(a.name.toLowerCase(), a.id);
+    if (a.account_number) {
+      accountByNumber.set(a.account_number, a.id);
+    }
   }
 
   // Fetch P&L for each month
@@ -368,8 +372,22 @@ export async function syncActuals(
     }> = [];
 
     for (const row of rows) {
-      const accountId = accountByName.get(row.name.toLowerCase());
-      if (!accountId) continue;
+      // Try matching by name first, then by account number if present in the name
+      let accountId = accountByName.get(row.name.toLowerCase());
+      if (!accountId) {
+        // QBO sometimes prefixes with account number: "601 Marketing Samples"
+        const numMatch = row.name.match(/^(\d+[\.\d]*)\s/);
+        if (numMatch) {
+          accountId = accountByNumber.get(numMatch[1]);
+        }
+      }
+      if (!accountId) {
+        // Log unmatched for debugging
+        if (month === 1) {
+          errors.push(`Unmatched account: "${row.name}" ($${row.amount})`);
+        }
+        continue;
+      }
 
       upserts.push({
         tenant_id: tenantId,
@@ -435,7 +453,21 @@ function extractPnLRows(reportData: any): PnLRow[] {
           rows.push({ name, amount: Math.abs(amount) });
         }
       }
-      // Recurse into sections (Income, COGS, Expenses, etc.)
+      // Section rows (e.g. "Expenses") contain nested Rows and a Summary
+      if (row.type === 'Section') {
+        if (row.Rows) {
+          walkRows(row.Rows);
+        }
+        // Also extract the section header row if it has data (parent account totals)
+        if (row.Header?.ColData) {
+          const name = row.Header.ColData[0]?.value;
+          const amount = parseFloat(row.Header.ColData[1]?.value) || 0;
+          if (name && amount !== 0) {
+            rows.push({ name, amount: Math.abs(amount) });
+          }
+        }
+      }
+      // Recurse into nested row groups
       if (row.Rows) {
         walkRows(row.Rows);
       }

@@ -101,6 +101,23 @@ export function useDeleteAccount() {
   });
 }
 
+export function useBulkHideAccounts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, tenant_id }: { ids: string[]; tenant_id: string }) => {
+      const { error } = await supabase
+        .from('budget_chart_of_accounts')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: keys.coa(vars.tenant_id) });
+      qc.invalidateQueries({ queryKey: ['budget', 'hidden-coa', vars.tenant_id] });
+    },
+  });
+}
+
 export function useRestoreAccount() {
   const qc = useQueryClient();
   return useMutation({
