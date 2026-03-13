@@ -96,7 +96,44 @@ export function useDeleteAccount() {
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: keys.coa(vars.tenant_id) });
+      qc.invalidateQueries({ queryKey: ['budget', 'hidden-coa', vars.tenant_id] });
     },
+  });
+}
+
+export function useRestoreAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, tenant_id }: { id: string; tenant_id: string }) => {
+      const { error } = await supabase
+        .from('budget_chart_of_accounts')
+        .update({ is_active: true, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: keys.coa(vars.tenant_id) });
+      qc.invalidateQueries({ queryKey: ['budget', 'hidden-coa', vars.tenant_id] });
+    },
+  });
+}
+
+export function useHiddenAccounts(tenantId?: string) {
+  return useQuery({
+    queryKey: ['budget', 'hidden-coa', tenantId],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      const { data, error } = await supabase
+        .from('budget_chart_of_accounts')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('is_active', false)
+        .order('account_type')
+        .order('name');
+      if (error) throw error;
+      return (data || []) as ChartOfAccount[];
+    },
+    enabled: !!tenantId,
   });
 }
 

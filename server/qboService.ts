@@ -248,14 +248,25 @@ export async function syncChartOfAccounts(tenantId: string): Promise<{
   // Build QBO ID → our ID map for parent resolution
   const qboIdToOurId = new Map<string, string>();
 
+  // Snapshot hidden accounts before replacing so we can re-apply the flag
+  const { data: existingAccounts } = await supabaseAdmin
+    .from('budget_chart_of_accounts')
+    .select('name, account_number, is_active')
+    .eq('tenant_id', tenantId);
+
+  const hiddenKeys = new Set<string>();
+  for (const row of existingAccounts || []) {
+    if (!row.is_active) {
+      // Key by account_number if available, otherwise by name
+      hiddenKeys.add(row.account_number || row.name);
+    }
+  }
+
   // Clear existing accounts and replace with fresh QBO data
-  // Prevents stale/sandbox accounts from lingering after switching environments
   await supabaseAdmin
     .from('budget_chart_of_accounts')
     .delete()
     .eq('tenant_id', tenantId);
-
-  const existingByName = new Map<string, string>();
 
   // Sort so parents come before children
   const sorted = accounts.sort((a, b) => (a.SubAccount ? 1 : 0) - (b.SubAccount ? 1 : 0));
@@ -270,6 +281,9 @@ export async function syncChartOfAccounts(tenantId: string): Promise<{
     const parentId = acc.ParentRef ? qboIdToOurId.get(acc.ParentRef.value) || null : null;
     const depth = acc.SubAccount && parentId ? 1 : 0;
 
+    // Preserve hidden state: if user previously hid this account, keep it hidden
+    const wasHidden = hiddenKeys.has(acc.AcctNum || acc.Name);
+
     const { data: inserted, error } = await supabaseAdmin
       .from('budget_chart_of_accounts')
       .insert({
@@ -281,6 +295,7 @@ export async function syncChartOfAccounts(tenantId: string): Promise<{
         parent_id: parentId,
         depth,
         display_order: parseInt(acc.Id) || 0,
+        is_active: !wasHidden,
       })
       .select('id')
       .single();

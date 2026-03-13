@@ -22,6 +22,8 @@ import {
   useCreateAccount,
   useUpdateAccount,
   useDeleteAccount,
+  useRestoreAccount,
+  useHiddenAccounts,
   useImportChartOfAccounts,
   useQboStatus,
   useQboConnect,
@@ -33,7 +35,9 @@ import type { ChartOfAccount, AccountType } from './types';
 import {
   Upload,
   Plus,
-  Trash2,
+  EyeOff,
+  Eye,
+  RotateCcw,
   Edit2,
   ChevronRight,
   ChevronDown,
@@ -56,7 +60,10 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
+  const restoreAccount = useRestoreAccount();
+  const { data: hiddenAccounts = [] } = useHiddenAccounts(tenantId);
   const importCoa = useImportChartOfAccounts();
+  const [showHidden, setShowHidden] = useState(false);
 
   // QBO integration
   const { data: qboStatus } = useQboStatus(tenantId);
@@ -203,13 +210,22 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
     }
   };
 
-  const handleDelete = async (acc: ChartOfAccount) => {
-    if (!confirm(`Delete "${acc.name}"? This will also remove any sub-accounts.`)) return;
+  const handleHide = async (acc: ChartOfAccount) => {
+    if (!confirm(`Hide "${acc.name}" from your budget? You can restore it later from the hidden accounts list.`)) return;
     try {
       await deleteAccount.mutateAsync({ id: acc.id, tenant_id: tenantId });
-      toast({ title: 'Account deleted' });
+      toast({ title: `"${acc.name}" hidden` });
     } catch (err: any) {
-      toast({ title: 'Failed to delete', description: err.message, variant: 'destructive' });
+      toast({ title: 'Failed to hide', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const handleRestore = async (acc: ChartOfAccount) => {
+    try {
+      await restoreAccount.mutateAsync({ id: acc.id, tenant_id: tenantId });
+      toast({ title: `"${acc.name}" restored` });
+    } catch (err: any) {
+      toast({ title: 'Failed to restore', description: err.message, variant: 'destructive' });
     }
   };
 
@@ -414,8 +430,8 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
                 <button onClick={() => startEdit(acc)} className="p-1 rounded hover:bg-black/10">
                   <Edit2 className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />
                 </button>
-                <button onClick={() => handleDelete(acc)} className="p-1 rounded hover:bg-black/10">
-                  <Trash2 className="w-3.5 h-3.5" style={{ color: colors.red }} />
+                <button onClick={() => handleHide(acc)} className="p-1 rounded hover:bg-black/10" title="Hide account">
+                  <EyeOff className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />
                 </button>
               </div>
             </>
@@ -515,10 +531,25 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
         </Button>
       </div>
 
-      {/* Account count */}
-      <p className="text-sm" style={{ color: colors.brownLight }}>
-        {accounts.length} account{accounts.length !== 1 ? 's' : ''}
-      </p>
+      {/* Account count + show hidden toggle */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm" style={{ color: colors.brownLight }}>
+          {accounts.length} account{accounts.length !== 1 ? 's' : ''}
+          {hiddenAccounts.length > 0 && (
+            <span> &middot; {hiddenAccounts.length} hidden</span>
+          )}
+        </p>
+        {hiddenAccounts.length > 0 && (
+          <button
+            onClick={() => setShowHidden(!showHidden)}
+            className="flex items-center gap-1.5 text-sm px-3 py-1 rounded-lg transition-colors"
+            style={{ color: colors.brown, backgroundColor: showHidden ? colors.creamDark : 'transparent' }}
+          >
+            {showHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            {showHidden ? 'Hide Hidden' : 'Show Hidden'}
+          </button>
+        )}
+      </div>
 
       {/* Account groups */}
       {grouped.length === 0 ? (
@@ -572,6 +603,52 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Hidden accounts section */}
+      {showHidden && hiddenAccounts.length > 0 && (
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+        >
+          <div className="px-4 py-3" style={{ backgroundColor: colors.cream }}>
+            <span className="font-semibold text-sm" style={{ color: colors.brown }}>
+              Hidden Accounts
+            </span>
+            <span className="text-xs ml-2" style={{ color: colors.brownLight }}>
+              These accounts are excluded from your budget. Click restore to bring them back.
+            </span>
+          </div>
+          <div className="divide-y" style={{ borderColor: colors.creamDark }}>
+            {hiddenAccounts.map((acc) => (
+              <div
+                key={acc.id}
+                className="flex items-center justify-between px-4 py-2 group"
+                style={{ opacity: 0.6 }}
+              >
+                <span className="text-sm" style={{ color: colors.brown }}>
+                  {acc.account_number && (
+                    <span className="font-mono text-xs mr-2" style={{ color: colors.brownLight }}>
+                      {acc.account_number}
+                    </span>
+                  )}
+                  {acc.name}
+                  <span className="text-xs ml-2" style={{ color: colors.brownLight }}>
+                    {acc.account_type}
+                  </span>
+                </span>
+                <button
+                  onClick={() => handleRestore(acc)}
+                  className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-black/5 transition-colors"
+                  style={{ color: colors.gold }}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Restore
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
