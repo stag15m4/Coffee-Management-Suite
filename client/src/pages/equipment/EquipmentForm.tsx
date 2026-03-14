@@ -35,6 +35,8 @@ interface EquipmentFormProps {
   setNewEquipmentLicensePlate: (v: string) => void;
   newEquipmentVin: string;
   setNewEquipmentVin: (v: string) => void;
+  newEquipmentMileage: string;
+  setNewEquipmentMileage: (v: string) => void;
   newEquipmentModel: string;
   setNewEquipmentModel: (v: string) => void;
   newEquipmentSerialNumber: string;
@@ -72,6 +74,8 @@ export function EquipmentForm({
   setNewEquipmentLicensePlate,
   newEquipmentVin,
   setNewEquipmentVin,
+  newEquipmentMileage,
+  setNewEquipmentMileage,
   newEquipmentModel,
   setNewEquipmentModel,
   newEquipmentSerialNumber,
@@ -228,6 +232,23 @@ export function EquipmentForm({
                 data-testid="input-equipment-vin"
               />
             </div>
+            <div>
+              <Label style={{ color: colors.brown }}>Current Mileage</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={newEquipmentMileage}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === '' || /^\d+$/.test(v)) setNewEquipmentMileage(v);
+                }}
+                onFocus={e => e.target.select()}
+                placeholder="e.g., 45000"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                data-testid="input-equipment-mileage"
+              />
+            </div>
           </div>
         )}
 
@@ -309,6 +330,7 @@ export function EquipmentForm({
               setNewEquipmentLicenseState('');
               setNewEquipmentLicensePlate('');
               setNewEquipmentVin('');
+              setNewEquipmentMileage('');
               setNewEquipmentModel('');
               setNewEquipmentSerialNumber('');
             }}

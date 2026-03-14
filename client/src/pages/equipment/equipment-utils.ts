@@ -213,6 +213,7 @@ export function exportEquipmentListCSV(equipmentList: Equipment[]): void {
     'Notes',
     'License Plate',
     'VIN',
+    'Mileage',
     'Date Added',
   ];
 
@@ -235,6 +236,7 @@ export function exportEquipmentListCSV(equipmentList: Equipment[]): void {
         eq.notes || '',
         eq.license_plate ? `${eq.license_state ? eq.license_state + ' ' : ''}${eq.license_plate}` : '',
         eq.vin || '',
+        eq.current_mileage != null ? String(eq.current_mileage) : '',
         new Date(eq.created_at).toLocaleDateString(),
       ];
     });
@@ -281,10 +283,15 @@ export function exportEquipmentListPDF(equipmentList: Equipment[], businessName?
         : wStatus === 'expired'
           ? `<span class="warranty-expired">Expired</span> ${wExpiration ? wExpiration.toLocaleDateString() : ''}`
           : '—';
-    const vehicleInfo =
-      isVehicle(eq.category) && (eq.license_plate || eq.vin)
-        ? `<div class="detail-line">${eq.license_plate ? `Plate: ${eq.license_state ? eq.license_state + ' ' : ''}${esc(eq.license_plate)}` : ''}${eq.license_plate && eq.vin ? ' &nbsp;|&nbsp; ' : ''}${eq.vin ? `VIN: ${esc(eq.vin)}` : ''}</div>`
-        : '';
+    const vehicleParts: string[] = [];
+    if (isVehicle(eq.category)) {
+      if (eq.license_plate) vehicleParts.push(`Plate: ${eq.license_state ? eq.license_state + ' ' : ''}${esc(eq.license_plate)}`);
+      if (eq.vin) vehicleParts.push(`VIN: ${esc(eq.vin)}`);
+      if (eq.current_mileage != null) vehicleParts.push(`Mileage: ${eq.current_mileage.toLocaleString()} mi`);
+    }
+    const vehicleInfo = vehicleParts.length
+      ? `<div class="detail-line">${vehicleParts.join(' &nbsp;|&nbsp; ')}</div>`
+      : '';
     const modelSerial =
       !isVehicle(eq.category) && (eq.model || eq.serial_number)
         ? `<div class="detail-line">${eq.model ? `Model: ${esc(eq.model)}` : ''}${eq.model && eq.serial_number ? ' &nbsp;|&nbsp; ' : ''}${eq.serial_number ? `S/N: ${esc(eq.serial_number)}` : ''}</div>`
@@ -641,6 +648,11 @@ export async function exportEquipmentRecords(
           <span class="info-value">${escapeHtml(equipment.vin)}</span>
           ` : ''}
 
+          ${isVehicle(equipment.category) && equipment.current_mileage != null ? `
+          <span class="info-label">Current Mileage:</span>
+          <span class="info-value">${equipment.current_mileage.toLocaleString()} mi</span>
+          ` : ''}
+
           <span class="info-label">Added:</span>
           <span class="info-value">${new Date(equipment.created_at).toLocaleDateString()}</span>
 
@@ -709,6 +721,7 @@ export async function exportEquipmentRecords(
                 <tr>
                   <th>Date</th>
                   <th>Completed By</th>
+                  ${isVehicle(equipment.category) ? '<th>Mileage</th>' : ''}
                   <th>Notes</th>
                   <th>Cost</th>
                 </tr>
@@ -718,6 +731,7 @@ export async function exportEquipmentRecords(
                   <tr>
                     <td>${new Date(log.completed_at).toLocaleDateString()}</td>
                     <td>${escapeHtml(log.completed_by) || '-'}</td>
+                    ${isVehicle(equipment.category) ? `<td>${log.mileage_at_completion ? Number(log.mileage_at_completion).toLocaleString() + ' mi' : '-'}</td>` : ''}
                     <td>${escapeHtml(log.notes) || '-'}</td>
                     <td style="color: #C9A227; font-weight: bold;">${log.cost ? '$' + Number(log.cost).toFixed(2) : '-'}</td>
                   </tr>

@@ -265,6 +265,25 @@ export function EquipmentList({
                             data-testid="input-edit-equipment-vin"
                           />
                         </div>
+                        <div>
+                          <Label style={{ color: colors.brown }}>Current Mileage</Label>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={editingEquipment.current_mileage != null ? String(editingEquipment.current_mileage) : ''}
+                            onChange={e => {
+                              const v = e.target.value;
+                              if (v === '' || /^\d+$/.test(v)) {
+                                setEditingEquipment({ ...editingEquipment, current_mileage: v ? parseInt(v) : null });
+                              }
+                            }}
+                            onFocus={e => e.target.select()}
+                            placeholder="e.g., 45000"
+                            style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                            data-testid="input-edit-equipment-mileage"
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -394,12 +413,15 @@ export function EquipmentList({
                       {item.notes && (
                         <p className="text-sm mt-2" style={{ color: colors.brownLight }}>{item.notes}</p>
                       )}
-                      {isVehicle(item.category) && (item.license_plate || item.vin) && (
+                      {isVehicle(item.category) && (item.license_plate || item.vin || item.current_mileage != null) && (
                         <div className="mt-2 text-xs space-y-1" style={{ color: colors.brownLight }}>
                           {item.license_plate && (
                             <p>Plate: {item.license_state ? `${item.license_state} ` : ''}{item.license_plate}</p>
                           )}
                           {item.vin && <p>VIN: {item.vin}</p>}
+                          {item.current_mileage != null && (
+                            <p>Mileage: {item.current_mileage.toLocaleString()} mi</p>
+                          )}
                         </div>
                       )}
                       {item.has_warranty && item.purchase_date && (

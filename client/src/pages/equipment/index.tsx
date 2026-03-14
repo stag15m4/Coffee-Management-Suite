@@ -168,7 +168,8 @@ export default function EquipmentMaintenance() {
       editingEquipment.photo_url !== orig.photo_url ||
       editingEquipment.in_service_date !== orig.in_service_date ||
       editingEquipment.model !== orig.model ||
-      editingEquipment.serial_number !== orig.serial_number
+      editingEquipment.serial_number !== orig.serial_number ||
+      editingEquipment.current_mileage !== orig.current_mileage
     );
   }, [editingEquipment]);
 
@@ -198,6 +199,7 @@ export default function EquipmentMaintenance() {
   const [newEquipmentLicenseState, setNewEquipmentLicenseState] = useState('');
   const [newEquipmentLicensePlate, setNewEquipmentLicensePlate] = useState('');
   const [newEquipmentVin, setNewEquipmentVin] = useState('');
+  const [newEquipmentMileage, setNewEquipmentMileage] = useState('');
   const [newEquipmentModel, setNewEquipmentModel] = useState('');
   const [newEquipmentSerialNumber, setNewEquipmentSerialNumber] = useState('');
   const [isUploadingNewPhoto, setIsUploadingNewPhoto] = useState(false);
@@ -297,6 +299,7 @@ export default function EquipmentMaintenance() {
   const [completionNotes, setCompletionNotes] = useState('');
   const [completionUsage, setCompletionUsage] = useState('');
   const [completionCost, setCompletionCost] = useState('');
+  const [completionMileage, setCompletionMileage] = useState('');
   const [completionDate, setCompletionDate] = useState('');
   const [isHistoricalEntry, setIsHistoricalEntry] = useState(false);
 
@@ -357,6 +360,7 @@ export default function EquipmentMaintenance() {
         license_state: isVehicle(newEquipmentCategory) && newEquipmentLicenseState ? newEquipmentLicenseState : undefined,
         license_plate: isVehicle(newEquipmentCategory) && newEquipmentLicensePlate ? newEquipmentLicensePlate : undefined,
         vin: isVehicle(newEquipmentCategory) && newEquipmentVin ? newEquipmentVin : undefined,
+        current_mileage: isVehicle(newEquipmentCategory) && newEquipmentMileage ? parseInt(newEquipmentMileage) : undefined,
         model: !isVehicle(newEquipmentCategory) && newEquipmentModel.trim() ? newEquipmentModel.trim() : undefined,
         serial_number: !isVehicle(newEquipmentCategory) && newEquipmentSerialNumber.trim() ? newEquipmentSerialNumber.trim() : undefined,
       }));
@@ -373,6 +377,7 @@ export default function EquipmentMaintenance() {
       setNewEquipmentLicenseState('');
       setNewEquipmentLicensePlate('');
       setNewEquipmentVin('');
+      setNewEquipmentMileage('');
       setNewEquipmentModel('');
       setNewEquipmentSerialNumber('');
       setShowAddEquipment(false);
@@ -417,6 +422,7 @@ export default function EquipmentMaintenance() {
           license_state: isVehicle(editingEquipment.category) ? editingEquipment.license_state : null,
           license_plate: isVehicle(editingEquipment.category) ? editingEquipment.license_plate : null,
           vin: isVehicle(editingEquipment.category) ? editingEquipment.vin : null,
+          current_mileage: isVehicle(editingEquipment.category) ? editingEquipment.current_mileage : null,
           model: !isVehicle(editingEquipment.category) ? editingEquipment.model : null,
           serial_number: !isVehicle(editingEquipment.category) ? editingEquipment.serial_number : null,
         }
@@ -585,12 +591,14 @@ export default function EquipmentMaintenance() {
           : undefined,
         cost: completionCost ? parseFloat(completionCost) : undefined,
         completedAt: isHistoricalEntry && completionDate ? new Date(completionDate).toISOString() : undefined,
+        mileageAtCompletion: completionMileage ? parseInt(completionMileage) : undefined,
       }));
 
       setCompletingTask(null);
       setCompletionNotes('');
       setCompletionUsage('');
       setCompletionCost('');
+      setCompletionMileage('');
       setCompletionDate('');
       setIsHistoricalEntry(false);
       toast({ title: 'Maintenance logged successfully' });
@@ -911,6 +919,8 @@ export default function EquipmentMaintenance() {
                 setNewEquipmentLicensePlate={setNewEquipmentLicensePlate}
                 newEquipmentVin={newEquipmentVin}
                 setNewEquipmentVin={setNewEquipmentVin}
+                newEquipmentMileage={newEquipmentMileage}
+                setNewEquipmentMileage={setNewEquipmentMileage}
                 newEquipmentModel={newEquipmentModel}
                 setNewEquipmentModel={setNewEquipmentModel}
                 newEquipmentSerialNumber={newEquipmentSerialNumber}
@@ -974,6 +984,8 @@ export default function EquipmentMaintenance() {
             setCompletionCost={setCompletionCost}
             completionNotes={completionNotes}
             setCompletionNotes={setCompletionNotes}
+            completionMileage={completionMileage}
+            setCompletionMileage={setCompletionMileage}
             completionDate={completionDate}
             setCompletionDate={setCompletionDate}
             isHistoricalEntry={isHistoricalEntry}
@@ -985,6 +997,7 @@ export default function EquipmentMaintenance() {
               setCompletionNotes('');
               setCompletionUsage('');
               setCompletionCost('');
+              setCompletionMileage('');
               setCompletionDate('');
               setIsHistoricalEntry(false);
             }}

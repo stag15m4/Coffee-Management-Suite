@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PhotoCapture } from '@/components/PhotoCapture';
 import { colors } from '@/lib/colors';
 import type { MaintenanceTask } from '@/lib/supabase-queries';
+import { isVehicle } from './equipment-utils';
 
 // ── Log Maintenance (mark-as-done) modal ─────────────────────────
 
@@ -18,6 +19,8 @@ interface LogMaintenanceModalProps {
   setCompletionCost: (v: string) => void;
   completionNotes: string;
   setCompletionNotes: (v: string) => void;
+  completionMileage: string;
+  setCompletionMileage: (v: string) => void;
   completionDate: string;
   setCompletionDate: (v: string) => void;
   isHistoricalEntry: boolean;
@@ -35,6 +38,8 @@ export function LogMaintenanceModal({
   setCompletionCost,
   completionNotes,
   setCompletionNotes,
+  completionMileage,
+  setCompletionMileage,
   completionDate,
   setCompletionDate,
   isHistoricalEntry,
@@ -87,6 +92,28 @@ export function LogMaintenanceModal({
               inputMode="decimal"
             />
           </div>
+
+          {isVehicle(completingTask.equipment?.category) && (
+            <div>
+              <Label style={{ color: colors.brown }}>Odometer / Mileage</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={completionMileage}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === '' || /^\d+$/.test(v)) setCompletionMileage(v);
+                }}
+                onFocus={e => e.target.select()}
+                placeholder={completingTask.equipment?.current_mileage
+                  ? `Last: ${completingTask.equipment.current_mileage.toLocaleString()} mi`
+                  : 'e.g., 45000'}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                data-testid="input-completion-mileage"
+              />
+            </div>
+          )}
 
           <div>
             <Label style={{ color: colors.brown }}>Notes (optional)</Label>

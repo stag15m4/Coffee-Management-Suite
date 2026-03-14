@@ -595,6 +595,7 @@ export interface Equipment {
   vin: string | null;
   model: string | null;
   serial_number: string | null;
+  current_mileage: number | null;
 }
 
 export interface MaintenanceTask {
@@ -627,6 +628,7 @@ export interface MaintenanceLog {
   notes: string | null;
   usage_at_completion: number | null;
   cost: number | null;
+  mileage_at_completion: number | null;
   created_at: string;
 }
 
@@ -720,6 +722,7 @@ export function useAddEquipment() {
       vin?: string;
       model?: string;
       serial_number?: string;
+      current_mileage?: number;
     }) => {
       const { data, error } = await supabase
         .from('equipment')
@@ -1016,7 +1019,7 @@ export function useLogMaintenance() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ tenantId, taskId, completedBy, notes, usageAtCompletion, cost, completedAt }: {
+    mutationFn: async ({ tenantId, taskId, completedBy, notes, usageAtCompletion, cost, completedAt, mileageAtCompletion }: {
       tenantId: string;
       taskId: string;
       completedBy?: string;
@@ -1024,6 +1027,7 @@ export function useLogMaintenance() {
       usageAtCompletion?: number;
       cost?: number;
       completedAt?: string;
+      mileageAtCompletion?: number;
     }) => {
       const completionDate = completedAt || new Date().toISOString();
       
@@ -1037,10 +1041,11 @@ export function useLogMaintenance() {
           notes,
           usage_at_completion: usageAtCompletion,
           cost: cost || null,
+          mileage_at_completion: mileageAtCompletion || null,
         })
         .select();
       if (logError) throw logError;
-      
+
       const { data: taskData } = await supabase
         .from('maintenance_tasks')
         .select('*')
@@ -1075,6 +1080,14 @@ export function useLogMaintenance() {
             })
             .eq('id', taskId);
         }
+
+        // Update equipment current_mileage if mileage was recorded
+        if (mileageAtCompletion) {
+          await supabase
+            .from('equipment')
+            .update({ current_mileage: mileageAtCompletion, updated_at: new Date().toISOString() })
+            .eq('id', taskData.equipment_id);
+        }
       }
       
       return logData?.[0] as MaintenanceLog;
@@ -1082,6 +1095,7 @@ export function useLogMaintenance() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.maintenanceTasks });
       queryClient.invalidateQueries({ queryKey: queryKeys.maintenanceLogs });
+      queryClient.invalidateQueries({ queryKey: queryKeys.equipment });
     },
   });
 }
