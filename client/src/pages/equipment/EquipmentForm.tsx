@@ -8,6 +8,14 @@ import { Switch } from '@/components/ui/switch';
 import { PhotoCapture } from '@/components/PhotoCapture';
 import { colors } from '@/lib/colors';
 import { isVehicle } from './equipment-utils';
+import { User } from 'lucide-react';
+
+interface TeamMember {
+  id: string;
+  full_name: string | null;
+  email: string;
+  role: string;
+}
 
 interface EquipmentFormProps {
   categories: string[];
@@ -41,6 +49,9 @@ interface EquipmentFormProps {
   setNewEquipmentModel: (v: string) => void;
   newEquipmentSerialNumber: string;
   setNewEquipmentSerialNumber: (v: string) => void;
+  newEquipmentAssignedTo: string;
+  setNewEquipmentAssignedTo: (v: string) => void;
+  teamMembers: TeamMember[];
   isUploadingNewPhoto: boolean;
   handleEquipmentPhotoUpload: (file: File, mode: 'new' | 'edit') => Promise<void>;
   handleAddEquipment: () => Promise<void>;
@@ -80,6 +91,9 @@ export function EquipmentForm({
   setNewEquipmentModel,
   newEquipmentSerialNumber,
   setNewEquipmentSerialNumber,
+  newEquipmentAssignedTo,
+  setNewEquipmentAssignedTo,
+  teamMembers,
   isUploadingNewPhoto,
   handleEquipmentPhotoUpload,
   handleAddEquipment,
@@ -249,6 +263,34 @@ export function EquipmentForm({
                 data-testid="input-equipment-mileage"
               />
             </div>
+            <div>
+              <Label className="flex items-center gap-1.5" style={{ color: colors.brown }}>
+                <User className="w-3.5 h-3.5" />
+                Assign To
+              </Label>
+              <Select
+                value={newEquipmentAssignedTo}
+                onValueChange={setNewEquipmentAssignedTo}
+              >
+                <SelectTrigger
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                  data-testid="select-equipment-assigned-to"
+                >
+                  <SelectValue placeholder="Unassigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  {teamMembers.map(member => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.full_name || member.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                Assigned person is responsible for this vehicle's maintenance
+              </p>
+            </div>
           </div>
         )}
 
@@ -333,6 +375,7 @@ export function EquipmentForm({
               setNewEquipmentMileage('');
               setNewEquipmentModel('');
               setNewEquipmentSerialNumber('');
+              setNewEquipmentAssignedTo('');
             }}
             style={{ borderColor: colors.creamDark, color: colors.brown }}
             data-testid="button-cancel-equipment"

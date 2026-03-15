@@ -16,7 +16,7 @@ interface MaintenanceTask {
 }
 
 export function UpcomingMaintenanceWidget() {
-  const { tenant } = useAuth();
+  const { tenant, profile } = useAuth();
   const { isMockMode } = useMockData();
 
   const { data, isLoading, error } = useQuery({
@@ -40,17 +40,26 @@ export function UpcomingMaintenanceWidget() {
           id,
           task_type,
           next_due_date,
-          equipment:equipment!inner(id, name)
+          equipment:equipment!inner(id, name, assigned_to, category)
         `)
         .eq('equipment.tenant_id', tenant.id)
         .eq('is_active', true)
         .lte('next_due_date', sevenDaysFromNow)
         .order('next_due_date', { ascending: true })
-        .limit(5);
+        .limit(10);
 
       if (tasksError) throw tasksError;
 
-      const formattedTasks: MaintenanceTask[] = (tasks || []).map((task: any) => ({
+      // Filter out tasks for vehicles assigned to someone else
+      // Owners and managers see all tasks regardless of assignment
+      const isManagerOrAbove = profile?.role === 'owner' || profile?.role === 'manager';
+      const filteredTasks = isManagerOrAbove ? (tasks || []) : (tasks || []).filter((task: any) => {
+        const eq = task.equipment;
+        if (!eq.assigned_to) return true; // unassigned equipment shows for everyone
+        return eq.assigned_to === profile?.id; // assigned vehicles only show for the assignee
+      });
+
+      const formattedTasks: MaintenanceTask[] = filteredTasks.slice(0, 5).map((task: any) => ({
         id: task.id,
         equipment_name: task.equipment.name,
         task_type: task.task_type,

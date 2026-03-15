@@ -596,6 +596,7 @@ export interface Equipment {
   model: string | null;
   serial_number: string | null;
   current_mileage: number | null;
+  assigned_to: string | null;
 }
 
 export interface MaintenanceTask {
@@ -723,6 +724,7 @@ export function useAddEquipment() {
       model?: string;
       serial_number?: string;
       current_mileage?: number;
+      assigned_to?: string;
     }) => {
       const { data, error } = await supabase
         .from('equipment')

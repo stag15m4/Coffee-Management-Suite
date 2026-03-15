@@ -20,6 +20,7 @@ import {
   X,
   Shield,
   ShieldOff,
+  User,
 } from 'lucide-react';
 import type { Equipment, MaintenanceTask } from '@/lib/supabase-queries';
 import { supabase } from '@/lib/supabase-queries';
@@ -50,6 +51,7 @@ interface EquipmentListProps {
   handleDeleteEquipment: (id: string) => Promise<void>;
   updateEquipmentMutation: { isPending: boolean };
   setShowAddEquipment: (show: boolean) => void;
+  teamMembers?: { id: string; full_name: string | null; email: string; role: string }[];
 }
 
 export function EquipmentList({
@@ -68,6 +70,7 @@ export function EquipmentList({
   handleDeleteEquipment,
   updateEquipmentMutation,
   setShowAddEquipment,
+  teamMembers = [],
 }: EquipmentListProps) {
   const { toast } = useToast();
 
@@ -284,6 +287,34 @@ export function EquipmentList({
                             data-testid="input-edit-equipment-mileage"
                           />
                         </div>
+                        <div>
+                          <Label className="flex items-center gap-1.5" style={{ color: colors.brown }}>
+                            <User className="w-3.5 h-3.5" />
+                            Assign To
+                          </Label>
+                          <Select
+                            value={editingEquipment.assigned_to || '__none__'}
+                            onValueChange={(v) => setEditingEquipment({ ...editingEquipment, assigned_to: v === '__none__' ? null : v })}
+                          >
+                            <SelectTrigger
+                              style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                              data-testid="select-edit-equipment-assigned-to"
+                            >
+                              <SelectValue placeholder="Unassigned" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">Unassigned</SelectItem>
+                              {teamMembers.map(member => (
+                                <SelectItem key={member.id} value={member.id}>
+                                  {member.full_name || member.email}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                            Assigned person is responsible for this vehicle's maintenance
+                          </p>
+                        </div>
                       </div>
                     )}
 
@@ -413,7 +444,7 @@ export function EquipmentList({
                       {item.notes && (
                         <p className="text-sm mt-2" style={{ color: colors.brownLight }}>{item.notes}</p>
                       )}
-                      {isVehicle(item.category) && (item.license_plate || item.vin || item.current_mileage != null) && (
+                      {isVehicle(item.category) && (item.license_plate || item.vin || item.current_mileage != null || item.assigned_to) && (
                         <div className="mt-2 text-xs space-y-1" style={{ color: colors.brownLight }}>
                           {item.license_plate && (
                             <p>Plate: {item.license_state ? `${item.license_state} ` : ''}{item.license_plate}</p>
@@ -421,6 +452,12 @@ export function EquipmentList({
                           {item.vin && <p>VIN: {item.vin}</p>}
                           {item.current_mileage != null && (
                             <p>Mileage: {item.current_mileage.toLocaleString()} mi</p>
+                          )}
+                          {item.assigned_to && (
+                            <p className="flex items-center gap-1">
+                              <User className="w-3 h-3" />
+                              Assigned: {teamMembers.find(m => m.id === item.assigned_to)?.full_name || teamMembers.find(m => m.id === item.assigned_to)?.email || 'Unknown'}
+                            </p>
                           )}
                         </div>
                       )}

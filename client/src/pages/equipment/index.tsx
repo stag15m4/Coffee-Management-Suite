@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useRef } from 'react';
 import { useSearch, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, queryKeys } from '@/lib/supabase-queries';
+import { useQuery } from '@tanstack/react-query';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
 import { queryClient } from '@/lib/queryClient';
@@ -53,6 +54,24 @@ export default function EquipmentMaintenance() {
 
   const { data: equipment = [], isLoading: loadingEquipment, error: equipmentError, isError: equipmentHasError } = useEquipment(tenant?.id);
   const { data: tasks = [], isLoading: loadingTasks, error: tasksError, isError: tasksHasError } = useMaintenanceTasks(tenant?.id);
+
+  // Load active team members for vehicle assignment
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['equipment-team-members', tenant?.id],
+    queryFn: async () => {
+      if (!tenant?.id) return [];
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email, role')
+        .eq('tenant_id', tenant.id)
+        .eq('is_active', true)
+        .order('full_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!tenant?.id,
+    staleTime: 300000,
+  });
 
   // Log any query errors for debugging
   if (equipmentError) console.error('Equipment query error:', equipmentError);
@@ -169,7 +188,8 @@ export default function EquipmentMaintenance() {
       editingEquipment.in_service_date !== orig.in_service_date ||
       editingEquipment.model !== orig.model ||
       editingEquipment.serial_number !== orig.serial_number ||
-      editingEquipment.current_mileage !== orig.current_mileage
+      editingEquipment.current_mileage !== orig.current_mileage ||
+      editingEquipment.assigned_to !== orig.assigned_to
     );
   }, [editingEquipment]);
 
@@ -202,6 +222,7 @@ export default function EquipmentMaintenance() {
   const [newEquipmentMileage, setNewEquipmentMileage] = useState('');
   const [newEquipmentModel, setNewEquipmentModel] = useState('');
   const [newEquipmentSerialNumber, setNewEquipmentSerialNumber] = useState('');
+  const [newEquipmentAssignedTo, setNewEquipmentAssignedTo] = useState('');
   const [isUploadingNewPhoto, setIsUploadingNewPhoto] = useState(false);
   const [isUploadingEditPhoto, setIsUploadingEditPhoto] = useState(false);
 
@@ -304,9 +325,21 @@ export default function EquipmentMaintenance() {
   const [isHistoricalEntry, setIsHistoricalEntry] = useState(false);
 
   // Sort tasks: overdue first, then due-soon, then good. Within each group, earlier due dates first.
+  // Filter out tasks for vehicles assigned to someone else (keeps unassigned + mine)
+  // Owners and managers see all tasks regardless of assignment
+  const isManagerOrAbove = profile?.role === 'owner' || profile?.role === 'manager';
+  const myTasks = useMemo(() => {
+    if (isManagerOrAbove) return tasks; // owners/managers see everything
+    return tasks.filter(t => {
+      const assignedTo = t.equipment?.assigned_to;
+      if (!assignedTo) return true; // unassigned equipment → visible to all
+      return assignedTo === profile?.id; // assigned vehicle → only visible to assignee
+    });
+  }, [tasks, profile?.id, isManagerOrAbove]);
+
   const sortedTasks = useMemo(() => {
     const statusPriority: Record<TaskStatus, number> = { 'overdue': 0, 'due-soon': 1, 'good': 2 };
-    return [...tasks].sort((a, b) => {
+    return [...myTasks].sort((a, b) => {
       const aPriority = statusPriority[getTaskStatus(a)];
       const bPriority = statusPriority[getTaskStatus(b)];
       if (aPriority !== bPriority) return aPriority - bPriority;
@@ -316,7 +349,7 @@ export default function EquipmentMaintenance() {
       if (b.next_due_at) return 1;
       return 0;
     });
-  }, [tasks]);
+  }, [myTasks]);
 
   const overdueCount = sortedTasks.filter(t => getTaskStatus(t) === 'overdue').length;
   const dueSoonCount = sortedTasks.filter(t => getTaskStatus(t) === 'due-soon').length;
@@ -363,6 +396,7 @@ export default function EquipmentMaintenance() {
         current_mileage: isVehicle(newEquipmentCategory) && newEquipmentMileage ? parseInt(newEquipmentMileage) : undefined,
         model: !isVehicle(newEquipmentCategory) && newEquipmentModel.trim() ? newEquipmentModel.trim() : undefined,
         serial_number: !isVehicle(newEquipmentCategory) && newEquipmentSerialNumber.trim() ? newEquipmentSerialNumber.trim() : undefined,
+        assigned_to: isVehicle(newEquipmentCategory) && newEquipmentAssignedTo && newEquipmentAssignedTo !== '__none__' ? newEquipmentAssignedTo : undefined,
       }));
 
       setNewEquipmentName('');
@@ -380,6 +414,7 @@ export default function EquipmentMaintenance() {
       setNewEquipmentMileage('');
       setNewEquipmentModel('');
       setNewEquipmentSerialNumber('');
+      setNewEquipmentAssignedTo('');
       setShowAddEquipment(false);
       toast({ title: 'Equipment added successfully' });
     } catch (error: any) {
@@ -925,6 +960,9 @@ export default function EquipmentMaintenance() {
                 setNewEquipmentModel={setNewEquipmentModel}
                 newEquipmentSerialNumber={newEquipmentSerialNumber}
                 setNewEquipmentSerialNumber={setNewEquipmentSerialNumber}
+                newEquipmentAssignedTo={newEquipmentAssignedTo}
+                setNewEquipmentAssignedTo={setNewEquipmentAssignedTo}
+                teamMembers={teamMembers}
                 isUploadingNewPhoto={isUploadingNewPhoto}
                 handleEquipmentPhotoUpload={handleEquipmentPhotoUpload}
                 handleAddEquipment={handleAddEquipment}
@@ -949,6 +987,7 @@ export default function EquipmentMaintenance() {
               handleDeleteEquipment={handleDeleteEquipment}
               updateEquipmentMutation={updateEquipmentMutation}
               setShowAddEquipment={setShowAddEquipment}
+              teamMembers={teamMembers}
             />
           </div>
         )}

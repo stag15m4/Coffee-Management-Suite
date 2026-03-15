@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -45,7 +46,8 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
-  RefreshCw
+  RefreshCw,
+  Lock
 } from 'lucide-react';
 import { colors } from '@/lib/colors';
 import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
@@ -84,6 +86,7 @@ interface AdminTask {
   document_url: string | null;
   document_name: string | null;
   estimated_cost: number | null;
+  is_admin_only: boolean;
   created_at: string;
   updated_at: string;
   category?: TaskCategory;
@@ -207,6 +210,7 @@ export default function AdminTasks() {
     document_url: string;
     document_name: string;
     estimated_cost: string;
+    is_admin_only: boolean;
   }>({
     title: '',
     description: '',
@@ -217,7 +221,8 @@ export default function AdminTasks() {
     recurrence: 'none',
     document_url: '',
     document_name: '',
-    estimated_cost: ''
+    estimated_cost: '',
+    is_admin_only: false
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -379,13 +384,14 @@ export default function AdminTasks() {
         title: taskForm.title.trim(),
         description: taskForm.description.trim() || null,
         category_id: taskForm.category_id || null,
-        assigned_to: taskForm.assigned_to || null,
+        assigned_to: taskForm.is_admin_only ? null : (taskForm.assigned_to || null),
         priority: taskForm.priority,
         due_date: taskForm.due_date || null,
         recurrence: taskForm.recurrence,
         document_url: taskForm.document_url || null,
         document_name: taskForm.document_name || null,
         estimated_cost: taskForm.estimated_cost ? parseFloat(taskForm.estimated_cost) : null,
+        is_admin_only: taskForm.is_admin_only,
         created_by: editingTask ? editingTask.created_by : profile.id
       };
       
@@ -438,12 +444,13 @@ export default function AdminTasks() {
             title: task.title,
             description: task.description,
             category_id: task.category_id,
-            assigned_to: task.assigned_to,
+            assigned_to: task.is_admin_only ? null : task.assigned_to,
             priority: task.priority,
             due_date: nextDate,
             recurrence: task.recurrence,
             parent_task_id: task.id,
-            created_by: task.created_by
+            created_by: task.created_by,
+            is_admin_only: task.is_admin_only
           }));
           if (insertError) console.error('Error creating recurring task:', insertError);
         }
@@ -573,7 +580,8 @@ export default function AdminTasks() {
       recurrence: 'none',
       document_url: '',
       document_name: '',
-      estimated_cost: ''
+      estimated_cost: '',
+      is_admin_only: false
     });
     setEditingTask(null);
     setShowTaskForm(false);
@@ -592,7 +600,8 @@ export default function AdminTasks() {
       recurrence: task.recurrence,
       document_url: task.document_url || '',
       document_name: task.document_name || '',
-      estimated_cost: task.estimated_cost?.toString() || ''
+      estimated_cost: task.estimated_cost?.toString() || '',
+      is_admin_only: task.is_admin_only || false
     });
     setShowTaskForm(true);
     // Auto-expand advanced fields if any have values
@@ -883,6 +892,24 @@ export default function AdminTasks() {
                     />
                   </div>
 
+                  <div className="flex items-center gap-3 md:col-span-2 py-1">
+                    <Switch
+                      checked={taskForm.is_admin_only}
+                      onCheckedChange={(checked) => {
+                        setTaskForm(prev => ({ ...prev, is_admin_only: checked, assigned_to: checked ? '' : prev.assigned_to }));
+                      }}
+                      data-testid="switch-admin-only"
+                    />
+                    <Label className="flex items-center gap-1.5 cursor-pointer" style={{ color: colors.brown }}>
+                      <Lock className="w-3.5 h-3.5" />
+                      Admin Only
+                    </Label>
+                    {taskForm.is_admin_only && (
+                      <span className="text-xs" style={{ color: colors.brownLight }}>This task cannot be delegated</span>
+                    )}
+                  </div>
+
+                  {!taskForm.is_admin_only && (
                   <div>
                     <Label style={{ color: colors.brown }}>Assign To</Label>
                     <Select value={taskForm.assigned_to} onValueChange={(v) => setTaskForm(prev => ({ ...prev, assigned_to: v }))}>
@@ -898,6 +925,7 @@ export default function AdminTasks() {
                       </SelectContent>
                     </Select>
                   </div>
+                  )}
 
                   <div>
                     <Label style={{ color: colors.brown }}>Due Date</Label>
@@ -1183,6 +1211,12 @@ export default function AdminTasks() {
                             >
                               {task.priority}
                             </Badge>
+                            {task.is_admin_only && (
+                              <Badge className="text-xs" style={{ backgroundColor: colors.brown, color: colors.white }}>
+                                <Lock className="w-3 h-3 mr-1" />
+                                Admin Only
+                              </Badge>
+                            )}
                             {task.recurrence !== 'none' && (
                               <Badge variant="secondary" className="text-xs">
                                 <RefreshCw className="w-3 h-3 mr-1" />
@@ -1191,10 +1225,12 @@ export default function AdminTasks() {
                             )}
                           </div>
                           <div className="flex items-center gap-4 mt-1 text-xs" style={{ color: colors.brownLight }}>
+                            {!task.is_admin_only && (
                             <span className="flex items-center gap-1">
                               <Users className="w-3 h-3" />
                               {getUserName(task.assigned_to)}
                             </span>
+                            )}
                             <span className="flex items-center gap-1" style={{ color: getStatusColor(dueStatus) }}>
                               <Calendar className="w-3 h-3" />
                               {formatDueDate(task.due_date)}
@@ -1248,13 +1284,22 @@ export default function AdminTasks() {
                     {selectedTask.status === 'completed' && (
                       <Badge style={{ backgroundColor: colors.green }} className="text-white">Completed</Badge>
                     )}
+                    {selectedTask.is_admin_only && (
+                      <Badge style={{ backgroundColor: colors.brown }} className="text-white text-xs">
+                        <Lock className="w-3 h-3 mr-1" />Admin Only
+                      </Badge>
+                    )}
                   </CardTitle>
                   <div className="flex items-center gap-2 mt-1 text-sm" style={{ color: colors.brownLight }}>
                     <Badge variant="outline" style={{ borderColor: getCategoryColor(selectedTask.category_id) }}>
                       {getCategoryName(selectedTask.category_id)}
                     </Badge>
+                    {!selectedTask.is_admin_only && (
+                    <>
                     <span>|</span>
                     <span>Assigned to: {getUserName(selectedTask.assigned_to)}</span>
+                    </>
+                    )}
                     <span>|</span>
                     <span style={{ color: getStatusColor(getTaskDueStatus(selectedTask)) }}>
                       {formatDueDate(selectedTask.due_date)}
