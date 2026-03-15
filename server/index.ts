@@ -11,7 +11,7 @@ import { SquareWebhookHandlers } from "./squareWebhookHandlers";
 import { startSquareSyncScheduler } from "./squareSync";
 
 const app = express();
-app.set('trust proxy', 1); // Trust first proxy (Railway/reverse proxy) for correct req.protocol
+app.set('trust proxy', 2); // Trust two proxy layers (Cloudflare → Railway) for correct req.protocol/req.ip
 
 // Security headers
 app.use(helmet({
@@ -165,7 +165,9 @@ app.post(
         return res.status(500).json({ error: 'Webhook not configured' });
       }
 
-      const notificationUrl = `${req.protocol}://${req.get('host')}/api/square/webhook`;
+      // Use APP_URL in production for correct webhook verification URL behind Cloudflare
+      const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      const notificationUrl = `${baseUrl}/api/square/webhook`;
 
       await SquareWebhookHandlers.processWebhook(
         req.body.toString(),
