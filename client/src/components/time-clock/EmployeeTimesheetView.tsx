@@ -234,6 +234,8 @@ export function EmployeeTimesheetView({
         rowsByDay.set(inDay, arr);
       } else {
         // Overnight: split at midnight boundary for each day spanned
+        // outDate is guaranteed non-null here (outDay is truthy in this branch)
+        if (!outDate) continue;
         const midnightAfterIn = new Date(inDate);
         midnightAfterIn.setDate(midnightAfterIn.getDate() + 1);
         midnightAfterIn.setHours(0, 0, 0, 0);

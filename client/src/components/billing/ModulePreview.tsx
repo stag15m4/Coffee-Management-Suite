@@ -1,5 +1,5 @@
 import {
-  TrendingUp, Users, Clock, CheckCircle2, AlertTriangle,
+  TrendingUp, Users, Clock, CheckCircle2, AlertTriangle, Coffee,
   type LucideIcon,
 } from 'lucide-react';
 import { getModuleIcon, MODULE_REGISTRY, type ModuleId } from '@/lib/module-registry';

@@ -471,7 +471,7 @@ function ExpandableModule({
   nav,
   isOnModule,
 }: {
-  nav: NavItem;
+  nav: SidebarNavItem;
   isOnModule: boolean;
 }) {
   const [expanded, setExpanded] = useState(isOnModule);
