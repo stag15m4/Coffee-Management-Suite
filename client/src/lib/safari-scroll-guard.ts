@@ -20,6 +20,25 @@
 
 const guarded = new WeakSet<Element>();
 
+/**
+ * Find scrollable ancestors of an element (elements with overflow auto/scroll
+ * that could be scrolled by Safari's auto-scroll-into-view). This catches
+ * Radix Dialog overlays, sheet containers, and other non-window scroll parents.
+ */
+function getScrollableAncestors(el: HTMLElement): HTMLElement[] {
+  const ancestors: HTMLElement[] = [];
+  let current = el.parentElement;
+  while (current && current !== document.documentElement) {
+    const style = getComputedStyle(current);
+    const overflowY = style.overflowY;
+    if (overflowY === 'auto' || overflowY === 'scroll') {
+      ancestors.push(current);
+    }
+    current = current.parentElement;
+  }
+  return ancestors;
+}
+
 function attachScrollGuard(el: HTMLElement): void {
   if (guarded.has(el)) return;
   guarded.add(el);
@@ -27,6 +46,13 @@ function attachScrollGuard(el: HTMLElement): void {
   let expectedScrollY = window.scrollY;
   let userScrolling = false;
   let settleTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Track scroll positions of scrollable ancestor elements (dialogs, sheets).
+  const scrollableAncestors = getScrollableAncestors(el);
+  const expectedAncestorScrolls = new Map<HTMLElement, number>();
+  for (const ancestor of scrollableAncestors) {
+    expectedAncestorScrolls.set(ancestor, ancestor.scrollTop);
+  }
 
   // When the user scrolls intentionally (wheel = trackpad/mouse,
   // touchmove = finger), let the scroll happen and update our anchor.
@@ -36,6 +62,9 @@ function attachScrollGuard(el: HTMLElement): void {
     settleTimer = setTimeout(() => {
       userScrolling = false;
       expectedScrollY = window.scrollY;
+      for (const ancestor of scrollableAncestors) {
+        expectedAncestorScrolls.set(ancestor, ancestor.scrollTop);
+      }
     }, 150);
   };
 
@@ -46,10 +75,27 @@ function attachScrollGuard(el: HTMLElement): void {
     }
   };
 
+  // Guard each scrollable ancestor against Safari's auto-scroll.
+  const ancestorScrollHandlers = new Map<HTMLElement, () => void>();
+  for (const ancestor of scrollableAncestors) {
+    const handler = () => {
+      if (userScrolling) return;
+      const expected = expectedAncestorScrolls.get(ancestor) ?? 0;
+      if (Math.abs(ancestor.scrollTop - expected) > 1) {
+        ancestor.scrollTop = expected;
+      }
+    };
+    ancestor.addEventListener('scroll', handler);
+    ancestorScrollHandlers.set(ancestor, handler);
+  }
+
   // Update anchor on keydown — the user may have scrolled between
   // keystrokes via trackpad, and we want the latest position.
   const onKeyDown = () => {
     expectedScrollY = window.scrollY;
+    for (const ancestor of scrollableAncestors) {
+      expectedAncestorScrolls.set(ancestor, ancestor.scrollTop);
+    }
   };
 
   window.addEventListener('scroll', onScroll);
@@ -62,6 +108,12 @@ function attachScrollGuard(el: HTMLElement): void {
     window.removeEventListener('wheel', markUserScroll);
     window.removeEventListener('touchmove', markUserScroll);
     el.removeEventListener('keydown', onKeyDown);
+    // Clean up ancestor scroll guards
+    for (const [ancestor, handler] of ancestorScrollHandlers) {
+      ancestor.removeEventListener('scroll', handler);
+    }
+    ancestorScrollHandlers.clear();
+    expectedAncestorScrolls.clear();
     if (settleTimer) clearTimeout(settleTimer);
     guarded.delete(el);
   }, { once: true });
