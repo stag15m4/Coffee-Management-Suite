@@ -84,9 +84,8 @@ export default function AdminBranding() {
 
   const { uploadFile, isUploading: uploadingLogo } = useUpload({
     onSuccess: (response) => {
-      // Use the permanent serve path
-      const serveUrl = `${window.location.origin}${response.objectPath}`;
-      setLogoUrl(serveUrl);
+      // Store only the relative path — works across changing origins (e.g. Codespace URLs)
+      setLogoUrl(response.objectPath);
       toast({ title: 'Logo uploaded! Click "Save Changes" to apply.' });
     },
     onError: (error) => {
