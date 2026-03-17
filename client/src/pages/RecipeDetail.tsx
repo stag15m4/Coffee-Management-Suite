@@ -1,33 +1,40 @@
-import { useRoute, Link } from "wouter";
-import { useRecipe, useUpdateRecipe, useDeleteRecipe, useAddRecipeIngredient, useDeleteRecipeIngredient } from "@/hooks/use-recipes";
-import { useIngredients } from "@/hooks/use-ingredients";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { RecipeForm } from "@/components/RecipeForm";
-import { ArrowLeft, Trash2, Plus, DollarSign, Scale, AlertCircle } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useToast } from "@/hooks/use-toast";
-import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
-import { showDeleteUndoToast } from "@/hooks/use-delete-with-undo";
-import { useState } from "react";
-import { CoffeeLoader } from "@/components/CoffeeLoader";
+import { getErrorMessage } from '@/lib/utils';
+import { useRoute, Link } from 'wouter';
+import {
+  useRecipe,
+  useUpdateRecipe,
+  useDeleteRecipe,
+  useAddRecipeIngredient,
+  useDeleteRecipeIngredient,
+} from '@/hooks/use-recipes';
+import { useIngredients } from '@/hooks/use-ingredients';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { RecipeForm } from '@/components/RecipeForm';
+import { ArrowLeft, Trash2, Plus, DollarSign, Scale, AlertCircle } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useToast } from '@/hooks/use-toast';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
+import { useState } from 'react';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
 
 const addIngredientSchema = z.object({
-  quantity: z.coerce.number().positive("Quantity must be positive"),
-  ingredientId: z.string().min(1, "Select an ingredient"),
+  quantity: z.coerce.number().positive('Quantity must be positive'),
+  ingredientId: z.string().min(1, 'Select an ingredient'),
 });
 
 type AddIngredientForm = z.infer<typeof addIngredientSchema>;
 
 export default function RecipeDetail() {
-  const [, params] = useRoute("/recipes/:id");
-  const id = params?.id || "";
+  const [, params] = useRoute('/recipes/:id');
+  const id = params?.id || '';
   const { data: recipe, isLoading } = useRecipe(id);
   const { data: ingredients } = useIngredients();
 
@@ -42,25 +49,34 @@ export default function RecipeDetail() {
 
   const form = useForm<AddIngredientForm>({
     resolver: zodResolver(addIngredientSchema),
-    defaultValues: { quantity: 1, ingredientId: "" },
+    defaultValues: { quantity: 1, ingredientId: '' },
   });
 
   if (isLoading) return <CoffeeLoader fullScreen />;
-  if (!recipe) return <div className="flex flex-col items-center justify-center h-screen gap-4"><h1 className="text-2xl font-bold">Recipe Not Found</h1><Link href="/recipes"><Button>Back to List</Button></Link></div>;
+  if (!recipe)
+    return (
+      <div className="flex flex-col items-center justify-center h-screen gap-4">
+        <h1 className="text-2xl font-bold">Recipe Not Found</h1>
+        <Link href="/recipes">
+          <Button>Back to List</Button>
+        </Link>
+      </div>
+    );
 
   // Calculate totals
-  const totalCost = recipe.ingredients?.reduce((sum, ri) => {
-    const unitCost = Number(ri.ingredient.cost) / Number(ri.ingredient.quantity);
-    return sum + (unitCost * Number(ri.quantity));
-  }, 0) || 0;
+  const totalCost =
+    recipe.ingredients?.reduce((sum, ri) => {
+      const unitCost = Number(ri.ingredient.cost) / Number(ri.ingredient.quantity);
+      return sum + unitCost * Number(ri.quantity);
+    }, 0) || 0;
 
   const onAddIngredient = async (data: AddIngredientForm) => {
     try {
       await addIngredient.mutateAsync({ recipeId: id, ...data });
       form.reset();
-      toast({ title: "Added", description: "Ingredient added to recipe" });
+      toast({ title: 'Added', description: 'Ingredient added to recipe' });
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: (error as Error).message });
+      toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
     }
   };
 
@@ -68,23 +84,33 @@ export default function RecipeDetail() {
     try {
       await updateRecipe.mutateAsync({ id, ...data });
       setIsEditOpen(false);
-      toast({ title: "Updated", description: "Recipe details updated" });
+      toast({ title: 'Updated', description: 'Recipe details updated' });
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: (error as Error).message });
+      toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
     }
   };
 
   const onDeleteRecipe = async () => {
-    if (await confirm({ title: `Delete ${recipe?.name || 'this recipe'}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) {
+    if (
+      await confirm({
+        title: `Delete ${recipe?.name || 'this recipe'}?`,
+        description: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      })
+    ) {
       await deleteRecipe.mutateAsync(id);
       showDeleteUndoToast({ itemName: recipe?.name || 'Recipe', undo: { type: 'none' } });
-      window.location.href = "/recipes";
+      window.location.href = '/recipes';
     }
   };
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-20">
-      <Link href="/recipes" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors mb-4">
+      <Link
+        href="/recipes"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
+      >
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Recipes
       </Link>
 
@@ -99,10 +125,14 @@ export default function RecipeDetail() {
             <div className="flex gap-2">
               <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" className="border-border/50 hover:bg-secondary">Edit</Button>
+                  <Button variant="outline" className="border-border/50 hover:bg-secondary">
+                    Edit
+                  </Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle>Edit Recipe</DialogTitle></DialogHeader>
+                  <DialogHeader>
+                    <DialogTitle>Edit Recipe</DialogTitle>
+                  </DialogHeader>
                   <RecipeForm
                     defaultValues={recipe}
                     onSubmit={onUpdateRecipe}
@@ -111,7 +141,9 @@ export default function RecipeDetail() {
                   />
                 </DialogContent>
               </Dialog>
-              <Button variant="destructive" size="icon" onClick={onDeleteRecipe}><Trash2 className="w-4 h-4" /></Button>
+              <Button variant="destructive" size="icon" onClick={onDeleteRecipe}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
             </div>
           </div>
 
@@ -147,7 +179,8 @@ export default function RecipeDetail() {
                       <TableCell>
                         <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button
-                            variant="ghost" size="icon"
+                            variant="ghost"
+                            size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
                             onClick={() => deleteIngredient.mutate({ recipeId: id, id: ri.id })}
                             data-testid={`button-delete-ingredient-${ri.id}`}
@@ -183,7 +216,7 @@ export default function RecipeDetail() {
                     name="ingredientId"
                     render={({ field }) => (
                       <FormItem className="flex-1">
-                        <Select onValueChange={field.onChange} value={String(field.value || "")}>
+                        <Select onValueChange={field.onChange} value={String(field.value || '')}>
                           <FormControl>
                             <SelectTrigger className="bg-background">
                               <SelectValue placeholder="Select ingredient..." />
@@ -213,7 +246,9 @@ export default function RecipeDetail() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" disabled={addIngredient.isPending}>Add</Button>
+                  <Button type="submit" disabled={addIngredient.isPending}>
+                    Add
+                  </Button>
                 </form>
               </Form>
             </div>

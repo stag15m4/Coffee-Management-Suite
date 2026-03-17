@@ -1,22 +1,12 @@
+import { getErrorMessage } from '@/lib/utils';
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   useChartOfAccounts,
   useFiscalYears,
@@ -30,8 +20,17 @@ import {
 import { buildAccountTree, ACCOUNT_TYPE_ORDER, MONTH_LABELS } from './types';
 import type { ChartOfAccount, AccountType } from './types';
 import {
-  Plus, Loader2, Copy, RefreshCw, CloudOff, FileSpreadsheet, Download,
-  TrendingUp, TrendingDown, Sparkles, Undo2,
+  Plus,
+  Loader2,
+  Copy,
+  RefreshCw,
+  CloudOff,
+  FileSpreadsheet,
+  Download,
+  TrendingUp,
+  TrendingDown,
+  Sparkles,
+  Undo2,
 } from 'lucide-react';
 
 interface Props {
@@ -198,7 +197,11 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
 
   // Undo support — snapshot budget values before bulk operations
   const [undoSnapshot, setUndoSnapshot] = useState<Array<{
-    tenant_id: string; fiscal_year_id: string; account_id: string; month: number; budget_amount: number;
+    tenant_id: string;
+    fiscal_year_id: string;
+    account_id: string;
+    month: number;
+    budget_amount: number;
   }> | null>(null);
   const [undoLabel, setUndoLabel] = useState('');
 
@@ -219,8 +222,8 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
       toast({ title: 'Undone', description: `Budget restored to before "${undoLabel}"` });
       setUndoSnapshot(null);
       setUndoLabel('');
-    } catch (err: any) {
-      toast({ title: 'Undo failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Undo failed', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -236,8 +239,8 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
       setSelectedFYId(fy.id);
       setShowNewFYDialog(false);
       toast({ title: `${year} budget created` });
-    } catch (err: any) {
-      toast({ title: 'Failed to create', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to create', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -263,8 +266,8 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
       setUndoSnapshot(snapshot);
       setUndoLabel(label);
       toast({ title: `Seeded ${items.length} entries from ${prevFY.year} actuals` });
-    } catch (err: any) {
-      toast({ title: 'Seed failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Seed failed', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -299,8 +302,8 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
       setUndoSnapshot(snapshot);
       setUndoLabel(label);
       toast({ title: `Copied ${items.length} entries from ${prevBudgetFY.year}` });
-    } catch (err: any) {
-      toast({ title: 'Copy failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Copy failed', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -315,33 +318,50 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
       if (result.errors.length > 0) {
         toast({
           title: `Synced ${result.synced} entries — ${result.errors.length} unmatched`,
-          description: result.errors.slice(0, 5).join('\n') + (result.errors.length > 5 ? `\n…and ${result.errors.length - 5} more` : ''),
+          description:
+            result.errors.slice(0, 5).join('\n') +
+            (result.errors.length > 5 ? `\n…and ${result.errors.length - 5} more` : ''),
           variant: 'destructive',
         });
       } else {
         toast({ title: 'Actuals synced', description: `${result.synced} entries updated` });
       }
-    } catch (err: any) {
-      toast({ title: 'Sync failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Sync failed', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
   const formatCurrency = (val: number) =>
     val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const VarianceCell = ({ budget, actual, isRevenue }: { budget: number; actual: number | null; isRevenue?: boolean }) => {
+  const VarianceCell = ({
+    budget,
+    actual,
+    isRevenue,
+  }: {
+    budget: number;
+    actual: number | null;
+    isRevenue?: boolean;
+  }) => {
     if (actual === null) return <span style={{ color: colors.creamDark }}>—</span>;
     const variance = budget - actual;
     const favorable = isRevenue ? variance <= 0 : variance >= 0;
     return (
       <span style={{ color: favorable ? colors.green : colors.red, fontSize: '0.75rem' }}>
-        {variance >= 0 ? '' : '('}{formatCurrency(Math.abs(variance))}{variance < 0 ? ')' : ''}
+        {variance >= 0 ? '' : '('}
+        {formatCurrency(Math.abs(variance))}
+        {variance < 0 ? ')' : ''}
       </span>
     );
   };
 
   // Render account rows recursively
-  const renderAccountRows = (acc: ChartOfAccount, depth: number, isRevenue: boolean, isLocked: boolean): React.ReactNode => {
+  const renderAccountRows = (
+    acc: ChartOfAccount,
+    depth: number,
+    isRevenue: boolean,
+    isLocked: boolean
+  ): React.ReactNode => {
     const hasChildren = acc.children && acc.children.length > 0;
     return (
       <Fragment key={acc.id}>
@@ -357,7 +377,9 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
             }}
           >
             {acc.account_number && (
-              <span className="text-xs font-mono mr-1.5" style={{ color: colors.brownLight }}>{acc.account_number}</span>
+              <span className="text-xs font-mono mr-1.5" style={{ color: colors.brownLight }}>
+                {acc.account_number}
+              </span>
             )}
             {acc.name}
           </td>
@@ -372,7 +394,10 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
               <Fragment key={i}>
                 {/* PY Actual */}
                 {hasPY && (
-                  <td className="text-right py-1 px-1 text-xs" style={{ color: colors.brownLight, backgroundColor: colors.cream + '80' }}>
+                  <td
+                    className="text-right py-1 px-1 text-xs"
+                    style={{ color: colors.brownLight, backgroundColor: colors.cream + '80' }}
+                  >
                     {pyVal !== undefined ? formatCurrency(pyVal) : <span style={{ color: colors.creamDark }}>—</span>}
                   </td>
                 )}
@@ -394,8 +419,12 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
                       color: colors.brown,
                       minWidth: '70px',
                     }}
-                    onFocusCapture={(e) => { (e.target as HTMLInputElement).style.borderColor = colors.gold; }}
-                    onBlurCapture={(e) => { (e.target as HTMLInputElement).style.borderColor = 'transparent'; }}
+                    onFocusCapture={(e) => {
+                      (e.target as HTMLInputElement).style.borderColor = colors.gold;
+                    }}
+                    onBlurCapture={(e) => {
+                      (e.target as HTMLInputElement).style.borderColor = 'transparent';
+                    }}
                   />
                 </td>
                 {/* CY Actual */}
@@ -433,7 +462,10 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
 
   if (accounts.length === 0) {
     return (
-      <div className="rounded-xl p-8 text-center" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}>
+      <div
+        className="rounded-xl p-8 text-center"
+        style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+      >
         <FileSpreadsheet className="w-10 h-10 mx-auto mb-3" style={{ color: colors.creamDark }} />
         <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
           Set up your Chart of Accounts first
@@ -467,23 +499,42 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
           </Select>
         </div>
 
-        <Button variant="outline" onClick={() => setShowNewFYDialog(true)} style={{ borderColor: colors.gold, color: colors.brown }}>
+        <Button
+          variant="outline"
+          onClick={() => setShowNewFYDialog(true)}
+          style={{ borderColor: colors.gold, color: colors.brown }}
+        >
           <Plus className="w-4 h-4 mr-1" /> New Year
         </Button>
 
         {selectedFY && prevFY && (
           <>
-            <Button variant="outline" onClick={handleCopyPreviousYear} disabled={bulkUpsert.isPending} style={{ borderColor: colors.gold, color: colors.brown }}>
+            <Button
+              variant="outline"
+              onClick={handleCopyPreviousYear}
+              disabled={bulkUpsert.isPending}
+              style={{ borderColor: colors.gold, color: colors.brown }}
+            >
               <Copy className="w-4 h-4 mr-1" /> Copy {selectedFY.year - 1} Budget
             </Button>
-            <Button variant="outline" onClick={handleSeedFromPY} disabled={bulkUpsert.isPending} style={{ borderColor: colors.gold, color: colors.brown }}>
+            <Button
+              variant="outline"
+              onClick={handleSeedFromPY}
+              disabled={bulkUpsert.isPending}
+              style={{ borderColor: colors.gold, color: colors.brown }}
+            >
               <Sparkles className="w-4 h-4 mr-1" /> Seed from {selectedFY.year - 1} Actuals
             </Button>
           </>
         )}
 
         {undoSnapshot && (
-          <Button variant="outline" onClick={handleUndo} disabled={bulkUpsert.isPending} style={{ borderColor: colors.red, color: colors.red }}>
+          <Button
+            variant="outline"
+            onClick={handleUndo}
+            disabled={bulkUpsert.isPending}
+            style={{ borderColor: colors.red, color: colors.red }}
+          >
             <Undo2 className="w-4 h-4 mr-1" /> Undo {undoLabel}
           </Button>
         )}
@@ -494,7 +545,11 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
             disabled={syncActuals.isPending}
             style={{ backgroundColor: colors.gold, color: '#fff' }}
           >
-            {syncActuals.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+            {syncActuals.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4 mr-2" />
+            )}
             Sync from QBO
           </Button>
         )}
@@ -505,10 +560,23 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
         )}
 
         {selectedFY && (
-          <span className="text-xs ml-auto px-2 py-1 rounded" style={{
-            backgroundColor: selectedFY.status === 'approved' ? colors.green + '20' : selectedFY.status === 'locked' ? colors.red + '20' : colors.cream,
-            color: selectedFY.status === 'approved' ? colors.green : selectedFY.status === 'locked' ? colors.red : colors.brownLight,
-          }}>
+          <span
+            className="text-xs ml-auto px-2 py-1 rounded"
+            style={{
+              backgroundColor:
+                selectedFY.status === 'approved'
+                  ? colors.green + '20'
+                  : selectedFY.status === 'locked'
+                    ? colors.red + '20'
+                    : colors.cream,
+              color:
+                selectedFY.status === 'approved'
+                  ? colors.green
+                  : selectedFY.status === 'locked'
+                    ? colors.red
+                    : colors.brownLight,
+            }}
+          >
             {selectedFY.status.charAt(0).toUpperCase() + selectedFY.status.slice(1)}
           </span>
         )}
@@ -521,26 +589,43 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
       )}
 
       {!selectedFY ? (
-        <div className="rounded-xl p-8 text-center" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}>
+        <div
+          className="rounded-xl p-8 text-center"
+          style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+        >
           <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
             Create a fiscal year to get started
           </h3>
-          <Button onClick={() => setShowNewFYDialog(true)} className="mt-3" style={{ backgroundColor: colors.gold, color: '#fff' }}>
+          <Button
+            onClick={() => setShowNewFYDialog(true)}
+            className="mt-3"
+            style={{ backgroundColor: colors.gold, color: '#fff' }}
+          >
             <Plus className="w-4 h-4 mr-2" /> Create {new Date().getFullYear()} Budget
           </Button>
         </div>
       ) : (
-        <div className="rounded-xl overflow-hidden" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}>
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+        >
           <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full text-sm" style={{ minWidth: `${300 + 12 * subColCount * 80}px` }}>
               <thead>
                 {/* Month headers */}
                 <tr style={{ backgroundColor: colors.gold }}>
-                  <th className="text-left py-2 px-3 font-semibold text-white sticky left-0 z-10" style={{ backgroundColor: colors.gold, minWidth: '200px' }}>
+                  <th
+                    className="text-left py-2 px-3 font-semibold text-white sticky left-0 z-10"
+                    style={{ backgroundColor: colors.gold, minWidth: '200px' }}
+                  >
                     Account
                   </th>
                   {MONTH_LABELS.map((m) => (
-                    <th key={m} colSpan={subColCount} className="text-center py-2 px-1 font-semibold text-white border-l border-white/20">
+                    <th
+                      key={m}
+                      colSpan={subColCount}
+                      className="text-center py-2 px-1 font-semibold text-white border-l border-white/20"
+                    >
                       {m}
                     </th>
                   ))}
@@ -562,14 +647,21 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
                 {grouped.map(({ type, accounts: typeAccounts }) => (
                   <Fragment key={type}>
                     <tr>
-                      <td colSpan={1 + 12 * subColCount} className="py-2 px-3 font-semibold text-xs uppercase tracking-wider sticky left-0 z-10" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
+                      <td
+                        colSpan={1 + 12 * subColCount}
+                        className="py-2 px-3 font-semibold text-xs uppercase tracking-wider sticky left-0 z-10"
+                        style={{ backgroundColor: colors.cream, color: colors.brownLight }}
+                      >
                         {type}
                       </td>
                     </tr>
                     {typeAccounts.map((acc) => renderAccountRows(acc, 0, acc.account_type === 'Revenue', isLocked))}
                     {/* Subtotal */}
                     <tr style={{ borderTop: `1px solid ${colors.creamDark}` }}>
-                      <td className="py-1.5 px-3 text-sm font-semibold sticky left-0 z-10" style={{ backgroundColor: colors.white, color: colors.brownLight }}>
+                      <td
+                        className="py-1.5 px-3 text-sm font-semibold sticky left-0 z-10"
+                        style={{ backgroundColor: colors.white, color: colors.brownLight }}
+                      >
                         Total {type}
                       </td>
                       {MONTH_LABELS.map((_, i) => {
@@ -578,16 +670,29 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
                         return (
                           <Fragment key={i}>
                             {hasPY && (
-                              <td className="text-right py-1.5 px-1 text-xs font-semibold" style={{ color: colors.brownLight, backgroundColor: colors.cream + '80' }}>
+                              <td
+                                className="text-right py-1.5 px-1 text-xs font-semibold"
+                                style={{ color: colors.brownLight, backgroundColor: colors.cream + '80' }}
+                              >
                                 {t.pyActual !== null ? formatCurrency(t.pyActual) : ''}
                               </td>
                             )}
-                            <td className="text-right py-1.5 px-1 text-sm font-semibold" style={{ color: colors.brown }}>
+                            <td
+                              className="text-right py-1.5 px-1 text-sm font-semibold"
+                              style={{ color: colors.brown }}
+                            >
                               {formatCurrency(t.budget)}
                             </td>
                             {hasActuals && (
-                              <td className="text-right py-1.5 px-1 text-sm font-semibold" style={{ color: colors.brown }}>
-                                {t.actual !== null ? formatCurrency(t.actual) : <span style={{ color: colors.creamDark }}>—</span>}
+                              <td
+                                className="text-right py-1.5 px-1 text-sm font-semibold"
+                                style={{ color: colors.brown }}
+                              >
+                                {t.actual !== null ? (
+                                  formatCurrency(t.actual)
+                                ) : (
+                                  <span style={{ color: colors.creamDark }}>—</span>
+                                )}
                               </td>
                             )}
                             {hasActuals && (
@@ -603,47 +708,68 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
                 ))}
 
                 {/* Gross Profit */}
-                {accounts.some((a) => a.account_type === 'Revenue') && accounts.some((a) => a.account_type === 'COGS') && (
-                  <tr style={{ backgroundColor: colors.cream, fontWeight: 600 }}>
-                    <td className="py-2 px-3 sticky left-0 z-10" style={{ backgroundColor: colors.cream, color: colors.brown }}>
-                      Gross Profit
-                    </td>
-                    {MONTH_LABELS.map((_, i) => {
-                      const m = i + 1;
-                      const revT = getColumnTotals('Revenue', m);
-                      const cogsT = getColumnTotals('COGS', m);
-                      const gpBudget = revT.budget - cogsT.budget;
-                      const gpActual = revT.actual !== null && cogsT.actual !== null ? revT.actual - cogsT.actual : null;
-                      const gpPY = revT.pyActual !== null && cogsT.pyActual !== null ? revT.pyActual - cogsT.pyActual : null;
-                      return (
-                        <Fragment key={i}>
-                          {hasPY && (
-                            <td className="text-right py-2 px-1 text-xs" style={{ color: colors.brownLight, backgroundColor: colors.cream }}>
-                              {gpPY !== null ? formatCurrency(gpPY) : ''}
+                {accounts.some((a) => a.account_type === 'Revenue') &&
+                  accounts.some((a) => a.account_type === 'COGS') && (
+                    <tr style={{ backgroundColor: colors.cream, fontWeight: 600 }}>
+                      <td
+                        className="py-2 px-3 sticky left-0 z-10"
+                        style={{ backgroundColor: colors.cream, color: colors.brown }}
+                      >
+                        Gross Profit
+                      </td>
+                      {MONTH_LABELS.map((_, i) => {
+                        const m = i + 1;
+                        const revT = getColumnTotals('Revenue', m);
+                        const cogsT = getColumnTotals('COGS', m);
+                        const gpBudget = revT.budget - cogsT.budget;
+                        const gpActual =
+                          revT.actual !== null && cogsT.actual !== null ? revT.actual - cogsT.actual : null;
+                        const gpPY =
+                          revT.pyActual !== null && cogsT.pyActual !== null ? revT.pyActual - cogsT.pyActual : null;
+                        return (
+                          <Fragment key={i}>
+                            {hasPY && (
+                              <td
+                                className="text-right py-2 px-1 text-xs"
+                                style={{ color: colors.brownLight, backgroundColor: colors.cream }}
+                              >
+                                {gpPY !== null ? formatCurrency(gpPY) : ''}
+                              </td>
+                            )}
+                            <td
+                              className="text-right py-2 px-1"
+                              style={{ color: gpBudget >= 0 ? colors.green : colors.red }}
+                            >
+                              {formatCurrency(gpBudget)}
                             </td>
-                          )}
-                          <td className="text-right py-2 px-1" style={{ color: gpBudget >= 0 ? colors.green : colors.red }}>
-                            {formatCurrency(gpBudget)}
-                          </td>
-                          {hasActuals && (
-                            <td className="text-right py-2 px-1" style={{ color: gpActual !== null ? (gpActual >= 0 ? colors.green : colors.red) : colors.creamDark }}>
-                              {gpActual !== null ? formatCurrency(gpActual) : '—'}
-                            </td>
-                          )}
-                          {hasActuals && (
-                            <td className="text-right py-2 px-1">
-                              <VarianceCell budget={gpBudget} actual={gpActual} isRevenue />
-                            </td>
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </tr>
-                )}
+                            {hasActuals && (
+                              <td
+                                className="text-right py-2 px-1"
+                                style={{
+                                  color:
+                                    gpActual !== null ? (gpActual >= 0 ? colors.green : colors.red) : colors.creamDark,
+                                }}
+                              >
+                                {gpActual !== null ? formatCurrency(gpActual) : '—'}
+                              </td>
+                            )}
+                            {hasActuals && (
+                              <td className="text-right py-2 px-1">
+                                <VarianceCell budget={gpBudget} actual={gpActual} isRevenue />
+                              </td>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </tr>
+                  )}
 
                 {/* Net Income */}
                 <tr style={{ backgroundColor: colors.goldLight, fontWeight: 700 }}>
-                  <td className="py-2 px-3 sticky left-0 z-10" style={{ backgroundColor: colors.goldLight, color: colors.brown }}>
+                  <td
+                    className="py-2 px-3 sticky left-0 z-10"
+                    style={{ backgroundColor: colors.goldLight, color: colors.brown }}
+                  >
                     Net Income
                   </td>
                   {MONTH_LABELS.map((_, i) => {
@@ -653,24 +779,36 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
                     const exp = getColumnTotals('Expense', m);
                     const other = getColumnTotals('Other', m);
                     const netBudget = rev.budget - cogs.budget - exp.budget - other.budget;
-                    const netActual = [rev.actual, cogs.actual, exp.actual, other.actual].every(v => v !== null)
-                      ? (rev.actual! - cogs.actual! - exp.actual! - other.actual!)
+                    const netActual = [rev.actual, cogs.actual, exp.actual, other.actual].every((v) => v !== null)
+                      ? rev.actual! - cogs.actual! - exp.actual! - other.actual!
                       : null;
-                    const netPY = [rev.pyActual, cogs.pyActual, exp.pyActual, other.pyActual].every(v => v !== null)
-                      ? (rev.pyActual! - cogs.pyActual! - exp.pyActual! - other.pyActual!)
+                    const netPY = [rev.pyActual, cogs.pyActual, exp.pyActual, other.pyActual].every((v) => v !== null)
+                      ? rev.pyActual! - cogs.pyActual! - exp.pyActual! - other.pyActual!
                       : null;
                     return (
                       <Fragment key={i}>
                         {hasPY && (
-                          <td className="text-right py-2 px-1 text-xs" style={{ color: colors.brownLight, backgroundColor: colors.goldLight }}>
+                          <td
+                            className="text-right py-2 px-1 text-xs"
+                            style={{ color: colors.brownLight, backgroundColor: colors.goldLight }}
+                          >
                             {netPY !== null ? formatCurrency(netPY) : ''}
                           </td>
                         )}
-                        <td className="text-right py-2 px-1" style={{ color: netBudget >= 0 ? colors.green : colors.red }}>
+                        <td
+                          className="text-right py-2 px-1"
+                          style={{ color: netBudget >= 0 ? colors.green : colors.red }}
+                        >
                           {formatCurrency(netBudget)}
                         </td>
                         {hasActuals && (
-                          <td className="text-right py-2 px-1" style={{ color: netActual !== null ? (netActual >= 0 ? colors.green : colors.red) : colors.creamDark }}>
+                          <td
+                            className="text-right py-2 px-1"
+                            style={{
+                              color:
+                                netActual !== null ? (netActual >= 0 ? colors.green : colors.red) : colors.creamDark,
+                            }}
+                          >
                             {netActual !== null ? formatCurrency(netActual) : '—'}
                           </td>
                         )}
@@ -716,13 +854,23 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
                 inputMode="numeric"
                 pattern="[0-9]*"
                 value={newYear}
-                onChange={(e) => { if (e.target.value === '' || /^\d*$/.test(e.target.value)) setNewYear(e.target.value); }}
+                onChange={(e) => {
+                  if (e.target.value === '' || /^\d*$/.test(e.target.value)) setNewYear(e.target.value);
+                }}
                 onFocus={(e) => e.target.select()}
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
               />
             </div>
-            <Button onClick={handleCreateFY} disabled={createFiscalYear.isPending} style={{ backgroundColor: colors.gold, color: '#fff' }}>
-              {createFiscalYear.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+            <Button
+              onClick={handleCreateFY}
+              disabled={createFiscalYear.isPending}
+              style={{ backgroundColor: colors.gold, color: '#fff' }}
+            >
+              {createFiscalYear.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4 mr-2" />
+              )}
               Create Budget
             </Button>
           </div>

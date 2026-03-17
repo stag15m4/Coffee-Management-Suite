@@ -24,13 +24,17 @@ export function DepositSummary({
       <Card>
         <CardContent className="pt-6">
           <div className="text-sm text-muted-foreground">Days Recorded</div>
-          <div className="text-2xl font-bold" data-testid="text-days-recorded">{daysRecorded}</div>
+          <div className="text-2xl font-bold" data-testid="text-days-recorded">
+            {daysRecorded}
+          </div>
         </CardContent>
       </Card>
       <Card>
         <CardContent className="pt-6">
           <div className="text-sm text-muted-foreground">Total Gross Revenue</div>
-          <div className="text-2xl font-bold text-primary" data-testid="text-total-gross">{formatCurrency(totalGross)}</div>
+          <div className="text-2xl font-bold text-primary" data-testid="text-total-gross">
+            {formatCurrency(totalGross)}
+          </div>
         </CardContent>
       </Card>
       <Card>
@@ -49,13 +53,18 @@ export function DepositSummary({
       <Card>
         <CardContent className="pt-6">
           <div className="text-sm text-muted-foreground">Total Deposits</div>
-          <div className="text-2xl font-bold" data-testid="text-total-deposits">{formatCurrency(totalDeposits)}</div>
+          <div className="text-2xl font-bold" data-testid="text-total-deposits">
+            {formatCurrency(totalDeposits)}
+          </div>
         </CardContent>
       </Card>
       <Card>
         <CardContent className="pt-6">
           <div className="text-sm text-muted-foreground">Total Variance</div>
-          <div className={`text-2xl font-bold ${Math.abs(totalVariance) < 1 ? 'text-green-600' : 'text-red-600'}`} data-testid="text-total-variance">
+          <div
+            className={`text-2xl font-bold ${Math.abs(totalVariance) < 1 ? 'text-green-600' : 'text-red-600'}`}
+            data-testid="text-total-variance"
+          >
             {formatCurrency(totalVariance)}
           </div>
         </CardContent>

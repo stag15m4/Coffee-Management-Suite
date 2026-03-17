@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -40,7 +41,12 @@ function endOfMonth(date: Date): string {
 }
 
 function formatCurrency(val: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(val);
 }
 
 function formatShortDate(dateStr: string): string {
@@ -126,7 +132,9 @@ export default function Reporting() {
         queries.push(
           supabase
             .from('cash_activity')
-            .select('id, drawer_date, gross_revenue, tip_pool, owner_tips, actual_deposit, calculated_deposit, flagged, excluded_from_average')
+            .select(
+              'id, drawer_date, gross_revenue, tip_pool, owner_tips, actual_deposit, calculated_deposit, flagged, excluded_from_average'
+            )
             .eq('tenant_id', tenantId)
             .gte('drawer_date', dateRange.start)
             .lte('drawer_date', dateRange.end)
@@ -137,7 +145,9 @@ export default function Reporting() {
         queries.push(
           supabase
             .from('cash_activity')
-            .select('id, drawer_date, gross_revenue, tip_pool, owner_tips, actual_deposit, calculated_deposit, flagged, excluded_from_average')
+            .select(
+              'id, drawer_date, gross_revenue, tip_pool, owner_tips, actual_deposit, calculated_deposit, flagged, excluded_from_average'
+            )
             .eq('tenant_id', tenantId)
             .gte('drawer_date', prevDateRange.start)
             .lte('drawer_date', prevDateRange.end)
@@ -188,30 +198,36 @@ export default function Reporting() {
     }
   }, [tenantId, dateRange, prevDateRange, canAccessModule]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Revenue metrics
   const revenueMetrics = useMemo(() => {
     const total = cashData.reduce((sum, e) => sum + (Number(e.gross_revenue) || 0), 0);
     const prevTotal = prevCashData.reduce((sum, e) => sum + (Number(e.gross_revenue) || 0), 0);
     const change = prevTotal > 0 ? ((total - prevTotal) / prevTotal) * 100 : 0;
-    const daysWithData = cashData.filter(e => !e.excluded_from_average).length;
-    const avgDaily = daysWithData > 0
-      ? cashData.filter(e => !e.excluded_from_average).reduce((s, e) => s + (Number(e.gross_revenue) || 0), 0) / daysWithData
-      : 0;
+    const daysWithData = cashData.filter((e) => !e.excluded_from_average).length;
+    const avgDaily =
+      daysWithData > 0
+        ? cashData.filter((e) => !e.excluded_from_average).reduce((s, e) => s + (Number(e.gross_revenue) || 0), 0) /
+          daysWithData
+        : 0;
     return { total, prevTotal, change, avgDaily, daysWithData };
   }, [cashData, prevCashData]);
 
   // Cash accuracy
   const cashAccuracy = useMemo(() => {
-    const entries = cashData.filter(e => Number(e.actual_deposit) > 0);
-    const variances = entries.map(e => ({
+    const entries = cashData.filter((e) => Number(e.actual_deposit) > 0);
+    const variances = entries.map((e) => ({
       date: e.drawer_date,
       variance: Number(e.actual_deposit) - Number(e.calculated_deposit),
     }));
-    const flagged = cashData.filter(e => e.flagged).length;
+    const flagged = cashData.filter((e) => e.flagged).length;
     const totalVariance = variances.reduce((s, v) => s + Math.abs(v.variance), 0);
-    const accurate = entries.filter(e => Math.abs(Number(e.actual_deposit) - Number(e.calculated_deposit)) < 1).length;
+    const accurate = entries.filter(
+      (e) => Math.abs(Number(e.actual_deposit) - Number(e.calculated_deposit)) < 1
+    ).length;
     const accuracyPct = entries.length > 0 ? (accurate / entries.length) * 100 : 100;
     return { variances, flagged, totalVariance, accuracyPct, entryCount: entries.length };
   }, [cashData]);
@@ -230,46 +246,68 @@ export default function Reporting() {
   // Task metrics
   const taskMetrics = useMemo(() => {
     const total = tasks.length;
-    const completed = tasks.filter(t => t.status === 'completed').length;
-    const pending = tasks.filter(t => t.status === 'pending').length;
-    const inProgress = tasks.filter(t => t.status === 'in_progress').length;
-    const overdue = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed').length;
+    const completed = tasks.filter((t) => t.status === 'completed').length;
+    const pending = tasks.filter((t) => t.status === 'pending').length;
+    const inProgress = tasks.filter((t) => t.status === 'in_progress').length;
+    const overdue = tasks.filter(
+      (t) => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed'
+    ).length;
     const byPriority = {
-      high: tasks.filter(t => t.priority === 'high' && t.status !== 'completed').length,
-      medium: tasks.filter(t => t.priority === 'medium' && t.status !== 'completed').length,
-      low: tasks.filter(t => (t.priority === 'low' || !t.priority) && t.status !== 'completed').length,
+      high: tasks.filter((t) => t.priority === 'high' && t.status !== 'completed').length,
+      medium: tasks.filter((t) => t.priority === 'medium' && t.status !== 'completed').length,
+      low: tasks.filter((t) => (t.priority === 'low' || !t.priority) && t.status !== 'completed').length,
     };
-    return { total, completed, pending, inProgress, overdue, byPriority, completionRate: total > 0 ? (completed / total) * 100 : 0 };
+    return {
+      total,
+      completed,
+      pending,
+      inProgress,
+      overdue,
+      byPriority,
+      completionRate: total > 0 ? (completed / total) * 100 : 0,
+    };
   }, [tasks]);
 
   // Revenue chart data
-  const revenueChartData = useMemo(() =>
-    cashData.map(e => ({
-      date: formatShortDate(e.drawer_date),
-      revenue: Number(e.gross_revenue) || 0,
-    }))
-  , [cashData]);
+  const revenueChartData = useMemo(
+    () =>
+      cashData.map((e) => ({
+        date: formatShortDate(e.drawer_date),
+        revenue: Number(e.gross_revenue) || 0,
+      })),
+    [cashData]
+  );
 
   // Variance chart data
-  const varianceChartData = useMemo(() =>
-    cashAccuracy.variances.slice(-30).map(v => ({
-      date: formatShortDate(v.date),
-      variance: Number(v.variance.toFixed(2)),
-    }))
-  , [cashAccuracy.variances]);
+  const varianceChartData = useMemo(
+    () =>
+      cashAccuracy.variances.slice(-30).map((v) => ({
+        date: formatShortDate(v.date),
+        variance: Number(v.variance.toFixed(2)),
+      })),
+    [cashAccuracy.variances]
+  );
 
   // Tip breakdown pie
-  const tipPieData = useMemo(() => [
-    { name: 'Cash Tips', value: tipMetrics.totalCash },
-    { name: 'CC Tips', value: tipMetrics.totalCC },
-  ].filter(d => d.value > 0), [tipMetrics]);
+  const tipPieData = useMemo(
+    () =>
+      [
+        { name: 'Cash Tips', value: tipMetrics.totalCash },
+        { name: 'CC Tips', value: tipMetrics.totalCC },
+      ].filter((d) => d.value > 0),
+    [tipMetrics]
+  );
 
   // Task status pie
-  const taskPieData = useMemo(() => [
-    { name: 'Completed', value: taskMetrics.completed },
-    { name: 'In Progress', value: taskMetrics.inProgress },
-    { name: 'Pending', value: taskMetrics.pending },
-  ].filter(d => d.value > 0), [taskMetrics]);
+  const taskPieData = useMemo(
+    () =>
+      [
+        { name: 'Completed', value: taskMetrics.completed },
+        { name: 'In Progress', value: taskMetrics.inProgress },
+        { name: 'Pending', value: taskMetrics.pending },
+      ].filter((d) => d.value > 0),
+    [taskMetrics]
+  );
 
   if (loading) {
     return (
@@ -277,10 +315,12 @@ export default function Reporting() {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3 mb-6">
             <BarChart3 className="w-6 h-6" style={{ color: colors.gold }} />
-            <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>Reporting</h1>
+            <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>
+              Reporting
+            </h1>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => (
+            {[1, 2, 3, 4].map((i) => (
               <Card key={i} style={{ backgroundColor: colors.white }}>
                 <CardContent className="pt-6">
                   <div className="h-20 rounded animate-pulse" style={{ backgroundColor: colors.cream }} />
@@ -300,10 +340,12 @@ export default function Reporting() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <BarChart3 className="w-6 h-6" style={{ color: colors.gold }} />
-            <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>Reporting</h1>
+            <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>
+              Reporting
+            </h1>
           </div>
           <div className="flex gap-2">
-            {(['this-month', 'last-month', 'last-3'] as const).map(p => (
+            {(['this-month', 'last-month', 'last-3'] as const).map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
@@ -327,7 +369,9 @@ export default function Reporting() {
             <Card style={{ backgroundColor: colors.white }}>
               <CardContent className="pt-5 pb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium" style={{ color: colors.brownLight }}>Gross Revenue</span>
+                  <span className="text-sm font-medium" style={{ color: colors.brownLight }}>
+                    Gross Revenue
+                  </span>
                   <DollarSign className="w-4 h-4" style={{ color: colors.gold }} />
                 </div>
                 <div className="text-2xl font-bold" style={{ color: colors.brown }}>
@@ -340,7 +384,10 @@ export default function Reporting() {
                     ) : (
                       <TrendingDown className="w-3 h-3" style={{ color: '#ef4444' }} />
                     )}
-                    <span className="text-xs font-medium" style={{ color: revenueMetrics.change >= 0 ? '#16a34a' : '#ef4444' }}>
+                    <span
+                      className="text-xs font-medium"
+                      style={{ color: revenueMetrics.change >= 0 ? '#16a34a' : '#ef4444' }}
+                    >
                       {Math.abs(revenueMetrics.change).toFixed(1)}% vs prior period
                     </span>
                   </div>
@@ -354,7 +401,9 @@ export default function Reporting() {
             <Card style={{ backgroundColor: colors.white }}>
               <CardContent className="pt-5 pb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium" style={{ color: colors.brownLight }}>Avg Daily Revenue</span>
+                  <span className="text-sm font-medium" style={{ color: colors.brownLight }}>
+                    Avg Daily Revenue
+                  </span>
                   <Calendar className="w-4 h-4" style={{ color: colors.gold }} />
                 </div>
                 <div className="text-2xl font-bold" style={{ color: colors.brown }}>
@@ -372,14 +421,19 @@ export default function Reporting() {
             <Card style={{ backgroundColor: colors.white }}>
               <CardContent className="pt-5 pb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium" style={{ color: colors.brownLight }}>Cash Accuracy</span>
+                  <span className="text-sm font-medium" style={{ color: colors.brownLight }}>
+                    Cash Accuracy
+                  </span>
                   {cashAccuracy.accuracyPct >= 95 ? (
                     <CheckCircle className="w-4 h-4" style={{ color: '#16a34a' }} />
                   ) : (
                     <AlertTriangle className="w-4 h-4" style={{ color: '#ef4444' }} />
                   )}
                 </div>
-                <div className="text-2xl font-bold" style={{ color: cashAccuracy.accuracyPct >= 95 ? colors.brown : '#ef4444' }}>
+                <div
+                  className="text-2xl font-bold"
+                  style={{ color: cashAccuracy.accuracyPct >= 95 ? colors.brown : '#ef4444' }}
+                >
                   {cashAccuracy.accuracyPct.toFixed(0)}%
                 </div>
                 <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
@@ -393,7 +447,9 @@ export default function Reporting() {
           <Card style={{ backgroundColor: colors.white }}>
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium" style={{ color: colors.brownLight }}>Team Size</span>
+                <span className="text-sm font-medium" style={{ color: colors.brownLight }}>
+                  Team Size
+                </span>
                 <Users className="w-4 h-4" style={{ color: colors.gold }} />
               </div>
               <div className="text-2xl font-bold" style={{ color: colors.brown }}>
@@ -412,7 +468,9 @@ export default function Reporting() {
             {/* Revenue Trend */}
             <Card style={{ backgroundColor: colors.white }}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base" style={{ color: colors.brown }}>Revenue Trend</CardTitle>
+                <CardTitle className="text-base" style={{ color: colors.brown }}>
+                  Revenue Trend
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-64">
@@ -464,24 +522,18 @@ export default function Reporting() {
                           tick={{ fontSize: 11, fill: colors.brownLight }}
                           interval="preserveStartEnd"
                         />
-                        <YAxis
-                          tick={{ fontSize: 11, fill: colors.brownLight }}
-                          tickFormatter={(v) => `$${v}`}
-                        />
+                        <YAxis tick={{ fontSize: 11, fill: colors.brownLight }} tickFormatter={(v) => `$${v}`} />
                         <Tooltip
                           formatter={(value: number) => [formatCurrency(value), 'Variance']}
-                          contentStyle={{ backgroundColor: colors.white, borderColor: colors.creamDark, borderRadius: 8 }}
+                          contentStyle={{
+                            backgroundColor: colors.white,
+                            borderColor: colors.creamDark,
+                            borderRadius: 8,
+                          }}
                         />
-                        <Bar
-                          dataKey="variance"
-                          radius={[4, 4, 0, 0]}
-                          fill={colors.gold}
-                        >
+                        <Bar dataKey="variance" radius={[4, 4, 0, 0]} fill={colors.gold}>
                           {varianceChartData.map((entry, index) => (
-                            <Cell
-                              key={index}
-                              fill={entry.variance >= 0 ? '#16a34a' : '#ef4444'}
-                            />
+                            <Cell key={index} fill={entry.variance >= 0 ? '#16a34a' : '#ef4444'} />
                           ))}
                         </Bar>
                       </BarChart>
@@ -499,7 +551,9 @@ export default function Reporting() {
           {canAccessModule('tip-payout') && tipMetrics.total > 0 && (
             <Card style={{ backgroundColor: colors.white }}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base" style={{ color: colors.brown }}>Tip Distribution</CardTitle>
+                <CardTitle className="text-base" style={{ color: colors.brown }}>
+                  Tip Distribution
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-6">
@@ -521,35 +575,52 @@ export default function Reporting() {
                         </Pie>
                         <Tooltip
                           formatter={(value: number) => formatCurrency(value)}
-                          contentStyle={{ backgroundColor: colors.white, borderColor: colors.creamDark, borderRadius: 8 }}
+                          contentStyle={{
+                            backgroundColor: colors.white,
+                            borderColor: colors.creamDark,
+                            borderRadius: 8,
+                          }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
                   <div className="space-y-3 flex-1">
                     <div>
-                      <div className="text-sm" style={{ color: colors.brownLight }}>Total Tips</div>
-                      <div className="text-xl font-bold" style={{ color: colors.brown }}>{formatCurrency(tipMetrics.total)}</div>
+                      <div className="text-sm" style={{ color: colors.brownLight }}>
+                        Total Tips
+                      </div>
+                      <div className="text-xl font-bold" style={{ color: colors.brown }}>
+                        {formatCurrency(tipMetrics.total)}
+                      </div>
                     </div>
                     <div className="flex gap-4">
                       <div>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors.gold }} />
-                          <span className="text-xs" style={{ color: colors.brownLight }}>Cash</span>
+                          <span className="text-xs" style={{ color: colors.brownLight }}>
+                            Cash
+                          </span>
                         </div>
-                        <div className="font-semibold text-sm" style={{ color: colors.brown }}>{formatCurrency(tipMetrics.totalCash)}</div>
+                        <div className="font-semibold text-sm" style={{ color: colors.brown }}>
+                          {formatCurrency(tipMetrics.totalCash)}
+                        </div>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors.brown }} />
-                          <span className="text-xs" style={{ color: colors.brownLight }}>Credit Card</span>
+                          <span className="text-xs" style={{ color: colors.brownLight }}>
+                            Credit Card
+                          </span>
                         </div>
-                        <div className="font-semibold text-sm" style={{ color: colors.brown }}>{formatCurrency(tipMetrics.totalCC)}</div>
+                        <div className="font-semibold text-sm" style={{ color: colors.brown }}>
+                          {formatCurrency(tipMetrics.totalCC)}
+                        </div>
                       </div>
                     </div>
                     {tipMetrics.total > 0 && (
                       <div className="text-xs" style={{ color: colors.brownLight }}>
-                        {((tipMetrics.totalCash / tipMetrics.total) * 100).toFixed(0)}% cash / {((tipMetrics.totalCC / tipMetrics.total) * 100).toFixed(0)}% CC
+                        {((tipMetrics.totalCash / tipMetrics.total) * 100).toFixed(0)}% cash /{' '}
+                        {((tipMetrics.totalCC / tipMetrics.total) * 100).toFixed(0)}% CC
                       </div>
                     )}
                   </div>
@@ -562,7 +633,9 @@ export default function Reporting() {
           {canAccessModule('admin-tasks') && taskMetrics.total > 0 && (
             <Card style={{ backgroundColor: colors.white }}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base" style={{ color: colors.brown }}>Task Overview</CardTitle>
+                <CardTitle className="text-base" style={{ color: colors.brown }}>
+                  Task Overview
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-6">
@@ -583,15 +656,23 @@ export default function Reporting() {
                           ))}
                         </Pie>
                         <Tooltip
-                          contentStyle={{ backgroundColor: colors.white, borderColor: colors.creamDark, borderRadius: 8 }}
+                          contentStyle={{
+                            backgroundColor: colors.white,
+                            borderColor: colors.creamDark,
+                            borderRadius: 8,
+                          }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
                   <div className="space-y-3 flex-1">
                     <div>
-                      <div className="text-sm" style={{ color: colors.brownLight }}>Completion Rate</div>
-                      <div className="text-xl font-bold" style={{ color: colors.brown }}>{taskMetrics.completionRate.toFixed(0)}%</div>
+                      <div className="text-sm" style={{ color: colors.brownLight }}>
+                        Completion Rate
+                      </div>
+                      <div className="text-xl font-bold" style={{ color: colors.brown }}>
+                        {taskMetrics.completionRate.toFixed(0)}%
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2 text-sm">
@@ -607,8 +688,11 @@ export default function Reporting() {
                         <span style={{ color: colors.brown }}>{taskMetrics.overdue} overdue</span>
                       </div>
                     </div>
-                    {(taskMetrics.byPriority.high > 0) && (
-                      <div className="text-xs px-2 py-1 rounded inline-block" style={{ backgroundColor: '#fef2f2', color: '#ef4444' }}>
+                    {taskMetrics.byPriority.high > 0 && (
+                      <div
+                        className="text-xs px-2 py-1 rounded inline-block"
+                        style={{ backgroundColor: '#fef2f2', color: '#ef4444' }}
+                      >
                         {taskMetrics.byPriority.high} high-priority open
                       </div>
                     )}
@@ -624,7 +708,9 @@ export default function Reporting() {
           <Card style={{ backgroundColor: colors.white }}>
             <CardContent className="py-12 text-center">
               <BarChart3 className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
-              <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>No report data available</h3>
+              <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
+                No report data available
+              </h3>
               <p className="text-sm" style={{ color: colors.brownLight }}>
                 Enable modules like Cash Deposit, Tip Payout, or Tasks to see reporting data here.
               </p>

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useLayoutEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,13 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Footer } from '@/components/Footer';
 import { Building2, ChevronRight, Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { colors } from '@/lib/colors';
 
 interface AccessibleLocation {
@@ -44,26 +39,26 @@ export default function Login() {
       toast({ title: 'Please enter your email', variant: 'destructive' });
       return;
     }
-    
+
     setIsResetting(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/reset-password`
+        redirectTo: `${window.location.origin}/reset-password`,
       });
-      
+
       if (error) throw error;
-      
-      toast({ 
-        title: 'Reset email sent', 
-        description: 'Check your email for a link to reset your password.' 
+
+      toast({
+        title: 'Reset email sent',
+        description: 'Check your email for a link to reset your password.',
       });
       setShowResetDialog(false);
       setResetEmail('');
-    } catch (err: any) {
-      toast({ 
-        title: 'Error', 
-        description: err.message || 'Unable to send reset email', 
-        variant: 'destructive' 
+    } catch (err: unknown) {
+      toast({
+        title: 'Error',
+        description: getErrorMessage(err) || 'Unable to send reset email',
+        variant: 'destructive',
       });
     } finally {
       setIsResetting(false);
@@ -72,7 +67,9 @@ export default function Login() {
 
   useLayoutEffect(() => {
     document.title = 'CMS - Login';
-    return () => { document.title = 'Coffee Management Suite'; };
+    return () => {
+      document.title = 'Coffee Management Suite';
+    };
   }, []);
 
   useEffect(() => {
@@ -80,27 +77,29 @@ export default function Login() {
       if (!loading && user) {
         // Reset loading state once auth check is complete
         setIsLoading(false);
-        
+
         if (isPlatformAdmin && !profile) {
           window.location.href = '/platform-admin';
         } else if (profile) {
           // Check if user has multiple accessible locations
-            if (accessibleLocations && accessibleLocations.length > 1 && !showLocationSelector) {
+          if (accessibleLocations && accessibleLocations.length > 1 && !showLocationSelector) {
             // Show location selector for users with multiple locations
             // Fetch branding for each location to get logos
-            const locationIds = accessibleLocations.map(loc => loc.id);
+            const locationIds = accessibleLocations.map((loc) => loc.id);
             const { data: brandingData } = await supabase
               .from('tenant_branding')
               .select('tenant_id, logo_url')
               .in('tenant_id', locationIds);
-            
-            const brandingMap = new Map(brandingData?.map(b => [b.tenant_id, b.logo_url]) || []);
-            
-            setAvailableLocations(accessibleLocations.map(loc => ({ 
-              id: loc.id, 
-              name: loc.name,
-              logo_url: brandingMap.get(loc.id) || null
-            })));
+
+            const brandingMap = new Map(brandingData?.map((b) => [b.tenant_id, b.logo_url]) || []);
+
+            setAvailableLocations(
+              accessibleLocations.map((loc) => ({
+                id: loc.id,
+                name: loc.name,
+                logo_url: brandingMap.get(loc.id) || null,
+              }))
+            );
             setShowLocationSelector(true);
             return;
           }
@@ -122,8 +121,8 @@ export default function Login() {
       await switchLocation(locationId);
       toast({ title: 'Location selected' });
       window.location.href = '/';
-    } catch (error: any) {
-      toast({ title: 'Error selecting location', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error selecting location', description: getErrorMessage(error), variant: 'destructive' });
       setSelectingLocation(false);
     }
   };
@@ -134,18 +133,15 @@ export default function Login() {
 
     try {
       // Add timeout to prevent infinite hang
-      const timeoutPromise = new Promise<{ error: Error }>((_, reject) => 
+      const timeoutPromise = new Promise<{ error: Error }>((_, reject) =>
         setTimeout(() => reject(new Error('Connection timed out')), 15000)
       );
-      
-      const result = await Promise.race([
-        signIn(email, password),
-        timeoutPromise
-      ]);
+
+      const result = await Promise.race([signIn(email, password), timeoutPromise]);
 
       if (result.error) {
         let errorMessage = result.error.message;
-        
+
         if (result.error.message.includes('Invalid login')) {
           errorMessage = 'Invalid email or password. Please try again.';
         } else if (result.error.message.includes('fetch') || result.error.message.includes('network')) {
@@ -153,7 +149,7 @@ export default function Login() {
         } else if (result.error.message.includes('timed out')) {
           errorMessage = 'Connection is slow. Please try again.';
         }
-        
+
         toast({
           title: 'Login Failed',
           description: errorMessage,
@@ -167,14 +163,14 @@ export default function Login() {
         title: 'Welcome back!',
         description: 'You have been logged in successfully.',
       });
-      
+
       // Don't force redirect - let useEffect handle it
       // It will either redirect directly or show location selector
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Connection Error',
-        description: err.message?.includes('timed out') 
-          ? 'Connection is slow. Please try again.' 
+        description: getErrorMessage(err).includes('timed out')
+          ? 'Connection is slow. Please try again.'
           : 'Unable to connect. Please check your internet connection.',
         variant: 'destructive',
       });
@@ -183,18 +179,11 @@ export default function Login() {
   };
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ backgroundColor: colors.cream }}
-    >
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.cream }}>
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }}>
           <CardHeader className="text-center">
-            <img 
-              src="/logo.png" 
-              alt="Erwin Mills"
-              className="mx-auto w-20 h-20 object-contain mb-4"
-            />
+            <img src="/logo.png" alt="Erwin Mills" className="mx-auto w-20 h-20 object-contain mb-4" />
             <CardTitle className="text-2xl" style={{ color: colors.brown }}>
               Welcome Back
             </CardTitle>
@@ -205,7 +194,9 @@ export default function Login() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" style={{ color: colors.brown }}>Email</Label>
+                <Label htmlFor="email" style={{ color: colors.brown }}>
+                  Email
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -218,7 +209,9 @@ export default function Login() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password" style={{ color: colors.brown }}>Password</Label>
+                <Label htmlFor="password" style={{ color: colors.brown }}>
+                  Password
+                </Label>
                 <Input
                   id="password"
                   type="password"
@@ -239,7 +232,7 @@ export default function Login() {
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
-              
+
               <div className="text-center space-y-1">
                 <button
                   type="button"
@@ -266,7 +259,7 @@ export default function Login() {
           </CardContent>
         </Card>
       </div>
-      
+
       {/* Password Reset Dialog */}
       <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
         <DialogContent style={{ backgroundColor: colors.white }}>
@@ -278,7 +271,9 @@ export default function Login() {
           </DialogHeader>
           <form onSubmit={handlePasswordReset} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="reset-email" style={{ color: colors.brown }}>Email</Label>
+              <Label htmlFor="reset-email" style={{ color: colors.brown }}>
+                Email
+              </Label>
               <Input
                 id="reset-email"
                 type="email"
@@ -313,7 +308,7 @@ export default function Login() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 mt-4 max-h-[300px] overflow-y-auto">
-            {availableLocations.map(location => (
+            {availableLocations.map((location) => (
               <button
                 key={location.id}
                 onClick={() => handleLocationSelect(location.id)}
@@ -323,15 +318,13 @@ export default function Login() {
                 data-testid={`button-select-location-${location.id}`}
               >
                 {location.logo_url ? (
-                  <img 
-                    src={location.logo_url} 
-                    alt={location.name} 
-                    className="w-8 h-8 object-contain flex-shrink-0"
-                  />
+                  <img src={location.logo_url} alt={location.name} className="w-8 h-8 object-contain flex-shrink-0" />
                 ) : (
                   <Building2 className="w-5 h-5 flex-shrink-0" style={{ color: colors.gold }} />
                 )}
-                <span className="flex-1 font-medium" style={{ color: colors.brown }}>{location.name}</span>
+                <span className="flex-1 font-medium" style={{ color: colors.brown }}>
+                  {location.name}
+                </span>
                 {selectingLocation ? (
                   <Loader2 className="w-4 h-4 animate-spin" style={{ color: colors.brownLight }} />
                 ) : (
@@ -345,7 +338,7 @@ export default function Login() {
           </p>
         </DialogContent>
       </Dialog>
-      
+
       <Footer />
     </div>
   );

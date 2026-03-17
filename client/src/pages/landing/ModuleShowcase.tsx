@@ -3,18 +3,8 @@ import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Check,
-  ChevronRight,
-  type LucideIcon,
-} from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Check, ChevronRight, type LucideIcon } from 'lucide-react';
 import { getShowcaseModules, getModuleShowcaseIcon } from '@/lib/module-registry';
 
 export interface ModuleInfo {
@@ -28,7 +18,7 @@ export interface ModuleInfo {
 }
 
 // Derive showcase modules from the registry (only modules with showcase data)
-export const DEFAULT_MODULES: ModuleInfo[] = getShowcaseModules().map(def => ({
+export const DEFAULT_MODULES: ModuleInfo[] = getShowcaseModules().map((def) => ({
   id: def.id,
   title: def.showcase!.title,
   description: def.showcase!.description,
@@ -52,16 +42,10 @@ export function ModuleShowcase({ modules = DEFAULT_MODULES, gradient }: ModuleSh
       <section className="py-16 md:py-24" style={{ backgroundColor: 'var(--color-accent)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2
-              className="text-3xl md:text-4xl font-bold mb-4"
-              style={{ color: 'var(--color-secondary)' }}
-            >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: 'var(--color-secondary)' }}>
               Powerful Modules, Your Choice
             </h2>
-            <p
-              className="text-lg max-w-2xl mx-auto"
-              style={{ color: 'var(--color-secondary-light)' }}
-            >
+            <p className="text-lg max-w-2xl mx-auto" style={{ color: 'var(--color-secondary-light)' }}>
               Pick the tools you need, or get them all with Professional.
             </p>
           </div>
@@ -120,9 +104,7 @@ export function ModuleShowcase({ modules = DEFAULT_MODULES, gradient }: ModuleSh
                     <selectedModule.icon className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <DialogTitle style={{ color: 'var(--color-secondary)' }}>
-                      {selectedModule.title}
-                    </DialogTitle>
+                    <DialogTitle style={{ color: 'var(--color-secondary)' }}>{selectedModule.title}</DialogTitle>
                     <Badge style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}>
                       {selectedModule.price}
                     </Badge>
@@ -139,8 +121,8 @@ export function ModuleShowcase({ modules = DEFAULT_MODULES, gradient }: ModuleSh
                     What You Can Do
                   </h4>
                   <ul className="space-y-2">
-                    {selectedModule.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2">
+                    {selectedModule.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2">
                         <Check className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
                         <span className="text-sm" style={{ color: 'var(--color-secondary-light)' }}>
                           {feature}

@@ -2,7 +2,7 @@ import { colors } from '@/lib/colors';
 
 export function Footer() {
   return (
-    <footer 
+    <footer
       className="border-t py-4 px-4 text-center text-sm"
       style={{ backgroundColor: colors.cream, borderColor: colors.creamDark, color: colors.brownLight }}
     >

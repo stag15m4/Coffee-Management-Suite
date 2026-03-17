@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
 import { getModuleIcon, getPublicModuleCount } from '@/lib/module-registry';
@@ -36,9 +37,19 @@ import { ModulePreviewContent } from '@/components/billing/ModulePreview';
 import { colors } from '@/lib/colors';
 
 const MODULE_ICONS: Record<string, LucideIcon> = Object.fromEntries(
-  (['recipe-costing', 'tip-payout', 'cash-deposit', 'bulk-ordering', 'equipment-maintenance', 'admin-tasks', 'calendar-workforce', 'reporting', 'document-library'] as const).map(
-    id => [id, getModuleIcon(id)]
-  )
+  (
+    [
+      'recipe-costing',
+      'tip-payout',
+      'cash-deposit',
+      'bulk-ordering',
+      'equipment-maintenance',
+      'admin-tasks',
+      'calendar-workforce',
+      'reporting',
+      'document-library',
+    ] as const
+  ).map((id) => [id, getModuleIcon(id)])
 );
 
 const PLAN_LABELS: Record<string, string> = {
@@ -257,8 +268,8 @@ export default function Billing() {
       } else {
         throw new Error(data.error || 'Failed to create checkout session');
       }
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setCheckoutLoading(null);
     }
@@ -280,8 +291,8 @@ export default function Billing() {
       } else {
         throw new Error(data.error || 'Failed to open billing portal');
       }
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setPortalLoading(false);
     }
@@ -299,7 +310,7 @@ export default function Billing() {
       });
       const data = await response.json();
       if (data.code) {
-        setReferralData(prev => ({
+        setReferralData((prev) => ({
           ...prev!,
           referral_code: data,
           stats: prev?.stats || { total_referrals: 0, rewards_applied: 0 },
@@ -308,8 +319,8 @@ export default function Billing() {
       } else {
         throw new Error(data.error || 'Failed to generate referral code');
       }
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setReferralLoading(false);
     }
@@ -333,8 +344,8 @@ export default function Billing() {
       } else {
         throw new Error(data.error || 'Failed to redeem license code');
       }
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setLicenseLoading(false);
     }
@@ -358,8 +369,8 @@ export default function Billing() {
       } else {
         throw new Error(data.error || 'Failed to redeem referral code');
       }
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setReferralRedeemLoading(false);
     }
@@ -376,16 +387,18 @@ export default function Billing() {
   const planLabel = PLAN_LABELS[plan] || plan;
   const isTrial = plan === 'free';
   const trialEndsAt = billingDetails?.trial_ends_at ? new Date(billingDetails.trial_ends_at) : null;
-  const trialDaysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
+  const trialDaysLeft = trialEndsAt
+    ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0;
   const trialProgress = trialEndsAt ? Math.max(0, Math.min(100, ((14 - trialDaysLeft) / 14) * 100)) : 0;
   const subStatus = billingDetails?.subscription?.status || billingDetails?.stripe_subscription_status;
   const isPremium = plan === 'premium' || plan === 'beta' || plan === 'professional';
   const isEssential = plan === 'essential';
   const isStarter = plan === 'starter';
-  const professionalProducts = products.filter(p => p.metadata?.plan_id === 'professional');
-  const essentialProducts = products.filter(p => p.metadata?.plan_id === 'essential');
-  const premiumProducts = products.filter(p => p.metadata?.plan_id === 'premium');
-  const alacarteProducts = products.filter(p => p.metadata?.plan_id === 'alacarte');
+  const professionalProducts = products.filter((p) => p.metadata?.plan_id === 'professional');
+  const essentialProducts = products.filter((p) => p.metadata?.plan_id === 'essential');
+  const premiumProducts = products.filter((p) => p.metadata?.plan_id === 'premium');
+  const alacarteProducts = products.filter((p) => p.metadata?.plan_id === 'alacarte');
 
   // Pricing protection: count individually paid modules
   // Trial users have 0 paid modules; premium/professional users won't see buttons
@@ -439,7 +452,6 @@ export default function Billing() {
       </header>
 
       <main className="max-w-4xl mx-auto p-4 space-y-6 flex-1 w-full">
-
         {/* ============================================= */}
         {/* SECTION 1: Subscription Overview */}
         {/* ============================================= */}
@@ -503,9 +515,14 @@ export default function Billing() {
 
             {/* Next payment */}
             {billingDetails?.upcoming_invoice && (
-              <div className="flex items-center justify-between rounded-lg p-3" style={{ backgroundColor: colors.cream }}>
+              <div
+                className="flex items-center justify-between rounded-lg p-3"
+                style={{ backgroundColor: colors.cream }}
+              >
                 <div>
-                  <p className="text-sm font-medium" style={{ color: colors.brown }}>Next payment</p>
+                  <p className="text-sm font-medium" style={{ color: colors.brown }}>
+                    Next payment
+                  </p>
                   <p className="text-sm" style={{ color: colors.brownLight }}>
                     {billingDetails.upcoming_invoice.next_payment_attempt
                       ? formatDate(billingDetails.upcoming_invoice.next_payment_attempt)
@@ -524,8 +541,8 @@ export default function Billing() {
             {billingDetails?.subscription?.cancel_at_period_end && billingDetails.subscription.current_period_end && (
               <div className="rounded-lg p-3" style={{ backgroundColor: '#fef3c7' }}>
                 <p className="text-sm font-medium" style={{ color: '#92400e' }}>
-                  Your subscription will end on {formatDate(billingDetails.subscription.current_period_end)}.
-                  You can resubscribe at any time.
+                  Your subscription will end on {formatDate(billingDetails.subscription.current_period_end)}. You can
+                  resubscribe at any time.
                 </p>
               </div>
             )}
@@ -538,7 +555,11 @@ export default function Billing() {
                     if (professionalPriceId) {
                       handleCheckout(professionalPriceId);
                     } else {
-                      toast({ title: 'Payment not available', description: 'Stripe is not configured yet. Contact support to subscribe.', variant: 'destructive' });
+                      toast({
+                        title: 'Payment not available',
+                        description: 'Stripe is not configured yet. Contact support to subscribe.',
+                        variant: 'destructive',
+                      });
                     }
                   }}
                   disabled={checkoutLoading !== null}
@@ -558,21 +579,26 @@ export default function Billing() {
               <div className="flex items-center gap-2 mb-1">
                 <Package className="h-4 w-4" style={{ color: colors.gold }} />
                 <p className="text-sm font-semibold" style={{ color: colors.brown }}>
-                  {isPremium ? 'All modules included in your plan' :
-                   isEssential ? `Modules (${enabledModules.length}/3 selected)` :
-                   isStarter ? `Modules (${enabledModules.length}/1 selected)` :
-                   'Modules'}
+                  {isPremium
+                    ? 'All modules included in your plan'
+                    : isEssential
+                      ? `Modules (${enabledModules.length}/3 selected)`
+                      : isStarter
+                        ? `Modules (${enabledModules.length}/1 selected)`
+                        : 'Modules'}
                 </p>
               </div>
               {!isPremium && (
                 <p className="text-xs mb-3" style={{ color: colors.brownLight }}>
-                  {isEssential ? 'Pick up to 3 modules — upgrade to Professional for all 6' :
-                   isStarter ? 'Your Starter plan includes 1 module — upgrade for more' :
-                   'Your subscribed modules and available add-ons'}
+                  {isEssential
+                    ? 'Pick up to 3 modules — upgrade to Professional for all 6'
+                    : isStarter
+                      ? 'Your Starter plan includes 1 module — upgrade for more'
+                      : 'Your subscribed modules and available add-ons'}
                 </p>
               )}
               <div className="grid gap-3 sm:grid-cols-2">
-                {modules.map(mod => {
+                {modules.map((mod) => {
                   const isActive = enabledModules.includes(mod.id as ModuleId);
                   const Icon = MODULE_ICONS[mod.id] || Package;
                   const price = parseFloat(mod.monthly_price);
@@ -603,7 +629,10 @@ export default function Billing() {
                               {mod.name}
                             </p>
                             {isActive ? (
-                              <Badge className="text-[10px] px-1.5 py-0" style={{ backgroundColor: colors.green, color: 'white' }}>
+                              <Badge
+                                className="text-[10px] px-1.5 py-0"
+                                style={{ backgroundColor: colors.green, color: 'white' }}
+                              >
                                 Active
                               </Badge>
                             ) : (
@@ -636,7 +665,11 @@ export default function Billing() {
                               if (professionalPriceId) {
                                 handleCheckout(professionalPriceId);
                               } else {
-                                toast({ title: 'Payment not available', description: 'Stripe is not configured yet. Contact support to subscribe.', variant: 'destructive' });
+                                toast({
+                                  title: 'Payment not available',
+                                  description: 'Stripe is not configured yet. Contact support to subscribe.',
+                                  variant: 'destructive',
+                                });
                               }
                             }}
                             disabled={checkoutLoading !== null}
@@ -654,7 +687,11 @@ export default function Billing() {
                               } else if (professionalPriceId) {
                                 handleCheckout(professionalPriceId);
                               } else {
-                                toast({ title: 'Payment not available', description: 'Stripe is not configured yet. Contact support to subscribe.', variant: 'destructive' });
+                                toast({
+                                  title: 'Payment not available',
+                                  description: 'Stripe is not configured yet. Contact support to subscribe.',
+                                  variant: 'destructive',
+                                });
                               }
                             }}
                             disabled={checkoutLoading !== null}
@@ -667,14 +704,19 @@ export default function Billing() {
                             size="sm"
                             className="h-7 text-xs px-3"
                             onClick={() => {
-                              const product = alacarteProducts.find(p =>
-                                p.name.toLowerCase().includes(mod.name.toLowerCase()) ||
-                                p.metadata?.module_id === mod.id
+                              const product = alacarteProducts.find(
+                                (p) =>
+                                  p.name.toLowerCase().includes(mod.name.toLowerCase()) ||
+                                  p.metadata?.module_id === mod.id
                               );
                               if (product?.prices[0]) {
                                 handleCheckout(product.prices[0].id);
                               } else {
-                                toast({ title: 'Payment not available', description: 'Stripe is not configured yet. Contact support to subscribe.', variant: 'destructive' });
+                                toast({
+                                  title: 'Payment not available',
+                                  description: 'Stripe is not configured yet. Contact support to subscribe.',
+                                  variant: 'destructive',
+                                });
                               }
                             }}
                             disabled={checkoutLoading !== null}
@@ -714,8 +756,10 @@ export default function Billing() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-8 rounded flex items-center justify-center text-xs font-bold uppercase"
-                    style={{ backgroundColor: colors.cream, color: colors.brown }}>
+                  <div
+                    className="w-12 h-8 rounded flex items-center justify-center text-xs font-bold uppercase"
+                    style={{ backgroundColor: colors.cream, color: colors.brown }}
+                  >
                     {billingDetails.subscription.payment_method.brand || 'Card'}
                   </div>
                   <div>
@@ -723,7 +767,8 @@ export default function Billing() {
                       •••• {billingDetails.subscription.payment_method.last4}
                     </p>
                     <p className="text-xs" style={{ color: colors.brownLight }}>
-                      Expires {billingDetails.subscription.payment_method.exp_month}/{billingDetails.subscription.payment_method.exp_year}
+                      Expires {billingDetails.subscription.payment_method.exp_month}/
+                      {billingDetails.subscription.payment_method.exp_year}
                     </p>
                   </div>
                 </div>
@@ -750,7 +795,9 @@ export default function Billing() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5" style={{ color: colors.brownLight }} />
-                  <span className="text-sm" style={{ color: colors.brownLight }}>No payment method on file</span>
+                  <span className="text-sm" style={{ color: colors.brownLight }}>
+                    No payment method on file
+                  </span>
                 </div>
                 <Button
                   size="sm"
@@ -785,8 +832,10 @@ export default function Billing() {
             {referralData?.referral_code ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 rounded-lg px-4 py-3 font-mono text-lg text-center tracking-wider"
-                    style={{ backgroundColor: colors.cream, color: colors.brown, border: `1px dashed ${colors.gold}` }}>
+                  <div
+                    className="flex-1 rounded-lg px-4 py-3 font-mono text-lg text-center tracking-wider"
+                    style={{ backgroundColor: colors.cream, color: colors.brown, border: `1px dashed ${colors.gold}` }}
+                  >
                     {referralData.referral_code.code}
                   </div>
                   <Button
@@ -805,12 +854,18 @@ export default function Billing() {
                     readOnly
                     value={`${window.location.origin}/signup?ref=${referralData.referral_code.code}`}
                     className="flex-1 text-xs rounded-lg px-3 py-2"
-                    style={{ backgroundColor: colors.inputBg, color: colors.brownLight, border: `1px solid ${colors.creamDark}` }}
+                    style={{
+                      backgroundColor: colors.inputBg,
+                      color: colors.brownLight,
+                      border: `1px solid ${colors.creamDark}`,
+                    }}
                   />
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => copyToClipboard(`${window.location.origin}/signup?ref=${referralData.referral_code!.code}`)}
+                    onClick={() =>
+                      copyToClipboard(`${window.location.origin}/signup?ref=${referralData.referral_code!.code}`)
+                    }
                     style={{ borderColor: colors.creamDark }}
                   >
                     <Copy className="h-4 w-4" />
@@ -823,13 +878,17 @@ export default function Billing() {
                     <p className="text-2xl font-bold" style={{ color: colors.brown }}>
                       {referralData.stats.total_referrals}
                     </p>
-                    <p className="text-xs" style={{ color: colors.brownLight }}>Referrals</p>
+                    <p className="text-xs" style={{ color: colors.brownLight }}>
+                      Referrals
+                    </p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold" style={{ color: colors.green }}>
                       {referralData.stats.rewards_applied}
                     </p>
-                    <p className="text-xs" style={{ color: colors.brownLight }}>Rewards Earned</p>
+                    <p className="text-xs" style={{ color: colors.brownLight }}>
+                      Rewards Earned
+                    </p>
                   </div>
                 </div>
               </div>
@@ -852,7 +911,9 @@ export default function Billing() {
 
             {/* Redeem a referral code */}
             <div>
-              <p className="text-sm font-medium mb-2" style={{ color: colors.brown }}>Have a referral code?</p>
+              <p className="text-sm font-medium mb-2" style={{ color: colors.brown }}>
+                Have a referral code?
+              </p>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -860,7 +921,11 @@ export default function Billing() {
                   value={referralRedeemCode}
                   onChange={(e) => setReferralRedeemCode(e.target.value.toUpperCase())}
                   className="flex-1 rounded-lg px-3 py-2 text-sm"
-                  style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}`, color: colors.brown }}
+                  style={{
+                    backgroundColor: colors.inputBg,
+                    border: `1px solid ${colors.creamDark}`,
+                    color: colors.brown,
+                  }}
                 />
                 <Button
                   size="sm"
@@ -904,7 +969,9 @@ export default function Billing() {
                   <Badge style={{ backgroundColor: colors.green, color: 'white' }}>Redeemed</Badge>
                 </div>
                 <p className="text-xs" style={{ color: colors.brownLight }}>
-                  Plan: {PLAN_LABELS[billingDetails.license_code.subscription_plan] || billingDetails.license_code.subscription_plan}
+                  Plan:{' '}
+                  {PLAN_LABELS[billingDetails.license_code.subscription_plan] ||
+                    billingDetails.license_code.subscription_plan}
                 </p>
                 {billingDetails.license_code.expires_at && (
                   <p className="text-xs" style={{ color: colors.brownLight }}>
@@ -920,7 +987,11 @@ export default function Billing() {
                   value={licenseCode}
                   onChange={(e) => setLicenseCode(e.target.value.toUpperCase())}
                   className="flex-1 rounded-lg px-3 py-2 text-sm"
-                  style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}`, color: colors.brown }}
+                  style={{
+                    backgroundColor: colors.inputBg,
+                    border: `1px solid ${colors.creamDark}`,
+                    color: colors.brown,
+                  }}
                 />
                 <Button
                   size="sm"
@@ -962,7 +1033,10 @@ export default function Billing() {
                   }}
                 >
                   {(plan === 'starter' || plan === 'free') && (
-                    <Badge className="absolute -top-2 right-4" style={{ backgroundColor: colors.green, color: 'white' }}>
+                    <Badge
+                      className="absolute -top-2 right-4"
+                      style={{ backgroundColor: colors.green, color: 'white' }}
+                    >
                       Current
                     </Badge>
                   )}
@@ -974,11 +1048,15 @@ export default function Billing() {
                   </CardHeader>
                   <CardContent>
                     <div className="mb-4">
-                      <span className="text-2xl font-bold" style={{ color: colors.brown }}>Free</span>
-                      <span className="text-sm ml-1" style={{ color: colors.brownLight }}>forever</span>
+                      <span className="text-2xl font-bold" style={{ color: colors.brown }}>
+                        Free
+                      </span>
+                      <span className="text-sm ml-1" style={{ color: colors.brownLight }}>
+                        forever
+                      </span>
                     </div>
                     <ul className="space-y-2">
-                      {['1 module of choice', '1 location', 'Up to 3 users', '14-day full trial'].map(f => (
+                      {['1 module of choice', '1 location', 'Up to 3 users', '14-day full trial'].map((f) => (
                         <li key={f} className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
                           <Check className="h-4 w-4 shrink-0" style={{ color: colors.green }} />
                           {f}
@@ -998,7 +1076,10 @@ export default function Billing() {
                   }}
                 >
                   {plan === 'essential' && (
-                    <Badge className="absolute -top-2 right-4" style={{ backgroundColor: colors.green, color: 'white' }}>
+                    <Badge
+                      className="absolute -top-2 right-4"
+                      style={{ backgroundColor: colors.green, color: 'white' }}
+                    >
                       Current
                     </Badge>
                   )}
@@ -1010,29 +1091,39 @@ export default function Billing() {
                   </CardHeader>
                   <CardContent>
                     <div className="mb-4">
-                      <span className="text-2xl font-bold" style={{ color: colors.brown }}>$49</span>
-                      <span className="text-sm ml-1" style={{ color: colors.brownLight }}>/mo per location</span>
-                      <p className="text-xs mt-1" style={{ color: colors.gold }}>$39/mo billed annually</p>
+                      <span className="text-2xl font-bold" style={{ color: colors.brown }}>
+                        $49
+                      </span>
+                      <span className="text-sm ml-1" style={{ color: colors.brownLight }}>
+                        /mo per location
+                      </span>
+                      <p className="text-xs mt-1" style={{ color: colors.gold }}>
+                        $39/mo billed annually
+                      </p>
                     </div>
                     <ul className="space-y-2">
-                      {['Up to 3 modules', 'Unlimited users', 'Per-location pricing', 'Email support'].map(f => (
+                      {['Up to 3 modules', 'Unlimited users', 'Per-location pricing', 'Email support'].map((f) => (
                         <li key={f} className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
                           <Check className="h-4 w-4 shrink-0" style={{ color: colors.green }} />
                           {f}
                         </li>
                       ))}
                     </ul>
-                    {plan !== 'essential' && plan !== 'professional' && plan !== 'premium' && isOwner && essentialPriceId && (
-                      <Button
-                        className="w-full mt-4"
-                        onClick={() => handleCheckout(essentialPriceId)}
-                        disabled={checkoutLoading !== null}
-                        style={{ backgroundColor: colors.gold, color: colors.white }}
-                      >
-                        {checkoutLoading === essentialPriceId && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Choose Essential
-                      </Button>
-                    )}
+                    {plan !== 'essential' &&
+                      plan !== 'professional' &&
+                      plan !== 'premium' &&
+                      isOwner &&
+                      essentialPriceId && (
+                        <Button
+                          className="w-full mt-4"
+                          onClick={() => handleCheckout(essentialPriceId)}
+                          disabled={checkoutLoading !== null}
+                          style={{ backgroundColor: colors.gold, color: colors.white }}
+                        >
+                          {checkoutLoading === essentialPriceId && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Choose Essential
+                        </Button>
+                      )}
                   </CardContent>
                 </Card>
 
@@ -1046,11 +1137,17 @@ export default function Billing() {
                   }}
                 >
                   {isPremium ? (
-                    <Badge className="absolute -top-2 right-4" style={{ backgroundColor: colors.green, color: 'white' }}>
+                    <Badge
+                      className="absolute -top-2 right-4"
+                      style={{ backgroundColor: colors.green, color: 'white' }}
+                    >
                       Current
                     </Badge>
                   ) : (
-                    <Badge className="absolute -top-2 right-4" style={{ backgroundColor: colors.gold, color: colors.white }}>
+                    <Badge
+                      className="absolute -top-2 right-4"
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                    >
                       Most Popular
                     </Badge>
                   )}
@@ -1062,12 +1159,24 @@ export default function Billing() {
                   </CardHeader>
                   <CardContent>
                     <div className="mb-4">
-                      <span className="text-2xl font-bold" style={{ color: colors.brown }}>$99</span>
-                      <span className="text-sm ml-1" style={{ color: colors.brownLight }}>/mo per location</span>
-                      <p className="text-xs mt-1" style={{ color: colors.gold }}>$79/mo billed annually</p>
+                      <span className="text-2xl font-bold" style={{ color: colors.brown }}>
+                        $99
+                      </span>
+                      <span className="text-sm ml-1" style={{ color: colors.brownLight }}>
+                        /mo per location
+                      </span>
+                      <p className="text-xs mt-1" style={{ color: colors.gold }}>
+                        $79/mo billed annually
+                      </p>
                     </div>
                     <ul className="space-y-2">
-                      {[`All ${getPublicModuleCount()} modules included`, 'Unlimited users', 'Per-location pricing', 'Custom branding', 'Priority support'].map(f => (
+                      {[
+                        `All ${getPublicModuleCount()} modules included`,
+                        'Unlimited users',
+                        'Per-location pricing',
+                        'Custom branding',
+                        'Priority support',
+                      ].map((f) => (
                         <li key={f} className="flex items-center gap-2 text-sm" style={{ color: colors.brown }}>
                           <Check className="h-4 w-4 shrink-0" style={{ color: colors.green }} />
                           {f}
@@ -1092,14 +1201,18 @@ export default function Billing() {
               {/* A la carte note */}
               <p className="text-sm text-center" style={{ color: colors.brownLight }}>
                 Need just 1–2 modules?{' '}
-                <span style={{ color: colors.gold, fontWeight: 600 }}>A La Carte from $29/mo per module per location.</span>
+                <span style={{ color: colors.gold, fontWeight: 600 }}>
+                  A La Carte from $29/mo per module per location.
+                </span>
               </p>
 
               {/* A la carte modules */}
               {alacarteProducts.length > 0 && (
                 <section className="space-y-3">
                   <div>
-                    <h4 className="text-sm font-semibold" style={{ color: colors.brown }}>Individual Modules</h4>
+                    <h4 className="text-sm font-semibold" style={{ color: colors.brown }}>
+                      Individual Modules
+                    </h4>
                     <p className="text-xs" style={{ color: colors.brownLight }}>
                       Pick and choose modules at $29/month each per location
                     </p>
@@ -1108,8 +1221,12 @@ export default function Billing() {
                     {alacarteProducts.map((product) => (
                       <Card key={product.id} style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
                         <CardContent className="py-3 px-4">
-                          <p className="text-sm font-medium" style={{ color: colors.brown }}>{product.name}</p>
-                          <p className="text-xs mt-0.5 mb-2" style={{ color: colors.brownLight }}>{product.description}</p>
+                          <p className="text-sm font-medium" style={{ color: colors.brown }}>
+                            {product.name}
+                          </p>
+                          <p className="text-xs mt-0.5 mb-2" style={{ color: colors.brownLight }}>
+                            {product.description}
+                          </p>
                           {product.prices[0] && (
                             <div className="flex items-center justify-between">
                               <span className="text-sm font-semibold" style={{ color: colors.brown }}>
@@ -1123,7 +1240,9 @@ export default function Billing() {
                                   disabled={checkoutLoading === product.prices[0].id}
                                   style={{ backgroundColor: colors.gold, color: colors.white }}
                                 >
-                                  {checkoutLoading === product.prices[0].id && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                                  {checkoutLoading === product.prices[0].id && (
+                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                  )}
                                   Add
                                 </Button>
                               )}
@@ -1169,12 +1288,9 @@ export default function Billing() {
       {/* Module Preview Dialog */}
       <Dialog open={!!previewModule} onOpenChange={(open) => !open && setPreviewModule(null)}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" style={{ backgroundColor: colors.white }}>
-          {previewModule && (
-            <ModulePreviewContent moduleId={previewModule.id} moduleName={previewModule.name} />
-          )}
+          {previewModule && <ModulePreviewContent moduleId={previewModule.id} moduleName={previewModule.name} />}
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

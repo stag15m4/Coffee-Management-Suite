@@ -2,7 +2,7 @@ import { useEffect, useRef, DependencyList } from 'react';
 
 export function useLocationChange(callback: (locationId: string) => void, deps: DependencyList = []) {
   const callbackRef = useRef(callback);
-  
+
   useEffect(() => {
     callbackRef.current = callback;
   }, [callback]);

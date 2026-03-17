@@ -19,11 +19,16 @@ function formatTimestamp(ts: string): string {
 
 function statusColor(s: string) {
   switch (s) {
-    case 'approved': return colors.green;
-    case 'denied': return colors.red;
-    case 'pending': return colors.yellow;
-    case 'cancelled': return colors.brownLight;
-    default: return colors.brown;
+    case 'approved':
+      return colors.green;
+    case 'denied':
+      return colors.red;
+    case 'pending':
+      return colors.yellow;
+    case 'cancelled':
+      return colors.brownLight;
+    default:
+      return colors.brown;
   }
 }
 
@@ -50,15 +55,18 @@ export function EditRequestsList({ canApprove, currentUserId }: EditRequestsList
     });
   }, [allEdits, canApprove, currentUserId]);
 
-  const handleReview = useCallback(async (id: string, status: 'approved' | 'denied') => {
-    try {
-      await reviewEdit.mutateAsync({ id, status, review_notes: reviewNotes || undefined });
-      toast({ title: `Edit request ${status}` });
-      setReviewNotes('');
-    } catch {
-      toast({ title: 'Error', description: 'Failed to review edit request.', variant: 'destructive' });
-    }
-  }, [reviewEdit, reviewNotes, toast]);
+  const handleReview = useCallback(
+    async (id: string, status: 'approved' | 'denied') => {
+      try {
+        await reviewEdit.mutateAsync({ id, status, review_notes: reviewNotes || undefined });
+        toast({ title: `Edit request ${status}` });
+        setReviewNotes('');
+      } catch {
+        toast({ title: 'Error', description: 'Failed to review edit request.', variant: 'destructive' });
+      }
+    },
+    [reviewEdit, reviewNotes, toast]
+  );
 
   const hasMyEdits = myEdits && myEdits.length > 0;
   const hasPendingEdits = canApprove;
@@ -78,11 +86,17 @@ export function EditRequestsList({ canApprove, currentUserId }: EditRequestsList
           </CardHeader>
           <CardContent className="space-y-2">
             {myEdits.map((r) => (
-              <div key={r.id} className="flex items-center justify-between p-3 rounded-lg"
-                style={{ backgroundColor: colors.cream }}>
+              <div
+                key={r.id}
+                className="flex items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: colors.cream }}
+              >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" style={{ borderColor: statusColor(r.status), color: statusColor(r.status) }}>
+                    <Badge
+                      variant="outline"
+                      style={{ borderColor: statusColor(r.status), color: statusColor(r.status) }}
+                    >
                       {r.status}
                     </Badge>
                     <span className="text-xs" style={{ color: colors.brownLight }}>
@@ -91,13 +105,21 @@ export function EditRequestsList({ canApprove, currentUserId }: EditRequestsList
                   </div>
                   <div className="text-xs mt-1 space-y-0.5" style={{ color: colors.brown }}>
                     {r.requested_clock_in && (
-                      <p>Clock in: {formatTimestamp(r.original_clock_in)} → <span className="font-medium">{formatTimestamp(r.requested_clock_in)}</span></p>
+                      <p>
+                        Clock in: {formatTimestamp(r.original_clock_in)} →{' '}
+                        <span className="font-medium">{formatTimestamp(r.requested_clock_in)}</span>
+                      </p>
                     )}
                     {r.requested_clock_out && (
-                      <p>Clock out: {r.original_clock_out ? formatTimestamp(r.original_clock_out) : 'Missing'} → <span className="font-medium">{formatTimestamp(r.requested_clock_out)}</span></p>
+                      <p>
+                        Clock out: {r.original_clock_out ? formatTimestamp(r.original_clock_out) : 'Missing'} →{' '}
+                        <span className="font-medium">{formatTimestamp(r.requested_clock_out)}</span>
+                      </p>
                     )}
                   </div>
-                  <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>{r.reason}</p>
+                  <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+                    {r.reason}
+                  </p>
                   {r.review_notes && (
                     <p className="text-xs mt-0.5 italic" style={{ color: colors.brownLight }}>
                       Note: {r.review_notes}
@@ -105,8 +127,12 @@ export function EditRequestsList({ canApprove, currentUserId }: EditRequestsList
                   )}
                 </div>
                 {r.status === 'pending' && (
-                  <Button variant="ghost" size="sm" onClick={() => cancelEdit.mutate(r.id)}
-                    style={{ color: colors.red }}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => cancelEdit.mutate(r.id)}
+                    style={{ color: colors.red }}
+                  >
                     <X className="w-4 h-4" />
                   </Button>
                 )}
@@ -124,9 +150,7 @@ export function EditRequestsList({ canApprove, currentUserId }: EditRequestsList
               <Users className="w-5 h-5" style={{ color: colors.gold }} />
               Pending Edit Requests
               {pendingTeamEdits.length > 0 && (
-                <Badge style={{ backgroundColor: colors.yellow, color: colors.brown }}>
-                  {pendingTeamEdits.length}
-                </Badge>
+                <Badge style={{ backgroundColor: colors.yellow, color: colors.brown }}>{pendingTeamEdits.length}</Badge>
               )}
             </CardTitle>
           </CardHeader>
@@ -143,17 +167,29 @@ export function EditRequestsList({ canApprove, currentUserId }: EditRequestsList
                       {r.employee_name || 'Unknown'}
                     </p>
                     <p className="text-xs" style={{ color: colors.brownLight }}>
-                      {new Date(r.original_clock_in).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+                      {new Date(r.original_clock_in).toLocaleDateString([], {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
                     </p>
                     <div className="text-xs mt-1 space-y-0.5" style={{ color: colors.brown }}>
                       {r.requested_clock_in && (
-                        <p>Clock in: {formatTimestamp(r.original_clock_in)} → <span className="font-medium">{formatTimestamp(r.requested_clock_in)}</span></p>
+                        <p>
+                          Clock in: {formatTimestamp(r.original_clock_in)} →{' '}
+                          <span className="font-medium">{formatTimestamp(r.requested_clock_in)}</span>
+                        </p>
                       )}
                       {r.requested_clock_out && (
-                        <p>Clock out: {r.original_clock_out ? formatTimestamp(r.original_clock_out) : 'Missing'} → <span className="font-medium">{formatTimestamp(r.requested_clock_out)}</span></p>
+                        <p>
+                          Clock out: {r.original_clock_out ? formatTimestamp(r.original_clock_out) : 'Missing'} →{' '}
+                          <span className="font-medium">{formatTimestamp(r.requested_clock_out)}</span>
+                        </p>
                       )}
                     </div>
-                    <p className="text-xs mt-1" style={{ color: colors.brownLight }}>Reason: {r.reason}</p>
+                    <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                      Reason: {r.reason}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Input
@@ -163,14 +199,21 @@ export function EditRequestsList({ canApprove, currentUserId }: EditRequestsList
                       className="text-xs h-8 flex-1"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                     />
-                    <Button size="sm" onClick={() => handleReview(r.id, 'approved')}
+                    <Button
+                      size="sm"
+                      onClick={() => handleReview(r.id, 'approved')}
                       disabled={reviewEdit.isPending}
-                      style={{ backgroundColor: colors.green, color: '#fff' }}>
+                      style={{ backgroundColor: colors.green, color: '#fff' }}
+                    >
                       <Check className="w-3 h-3 mr-1" /> Approve
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleReview(r.id, 'denied')}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleReview(r.id, 'denied')}
                       disabled={reviewEdit.isPending}
-                      style={{ borderColor: colors.red, color: colors.red }}>
+                      style={{ borderColor: colors.red, color: colors.red }}
+                    >
                       <X className="w-3 h-3 mr-1" /> Deny
                     </Button>
                   </div>

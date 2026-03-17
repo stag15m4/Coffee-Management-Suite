@@ -57,9 +57,10 @@ export function getSquareAppClient(): SquareClient {
  * Returns the Square OAuth authorization URL for a tenant to connect their account.
  */
 export function getSquareOAuthUrl(tenantId: string, redirectUri: string): string {
-  const baseUrl = getSquareEnvironment() === SquareEnvironment.Production
-    ? 'https://connect.squareup.com'
-    : 'https://connect.squareupsandbox.com';
+  const baseUrl =
+    getSquareEnvironment() === SquareEnvironment.Production
+      ? 'https://connect.squareup.com'
+      : 'https://connect.squareupsandbox.com';
 
   const params = new URLSearchParams({
     client_id: getSquareAppId(),

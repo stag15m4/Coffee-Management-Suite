@@ -7,9 +7,7 @@ let cachedClient: SupabaseClient | null = null;
 
 export function getSupabaseAdmin() {
   if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error(
-      'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for storage features'
-    );
+    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for storage features');
   }
   if (!cachedClient) {
     cachedClient = createClient(supabaseUrl, supabaseServiceKey);

@@ -23,12 +23,27 @@ export function useManagerAssignments() {
       if (!tenant?.id) return [];
       const { data, error } = await supabase
         .from('user_profiles')
-        .select('id, full_name, email, role, manager_id, is_exempt, hourly_rate, annual_salary, pay_frequency, manager:user_profiles!manager_id(full_name)')
+        .select(
+          'id, full_name, email, role, manager_id, is_exempt, hourly_rate, annual_salary, pay_frequency, manager:user_profiles!manager_id(full_name)'
+        )
         .eq('tenant_id', tenant.id)
         .eq('is_active', true)
         .order('full_name');
       if (error) throw error;
-      return (data || []).map((u: any) => ({
+      interface UserProfileRow {
+        id: string;
+        full_name: string | null;
+        email: string;
+        role: string;
+        manager_id: string | null;
+        is_exempt: boolean;
+        hourly_rate: number | null;
+        annual_salary: number | null;
+        pay_frequency: string | null;
+        manager: { full_name: string | null } | null;
+      }
+
+      return ((data || []) as unknown as UserProfileRow[]).map((u) => ({
         id: u.id,
         full_name: u.full_name,
         email: u.email,
@@ -65,7 +80,10 @@ export function useSetManager() {
 export function useUpdateCompensation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ userId, updates }: {
+    mutationFn: async ({
+      userId,
+      updates,
+    }: {
       userId: string;
       updates: {
         is_exempt?: boolean;

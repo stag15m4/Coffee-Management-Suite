@@ -61,14 +61,7 @@ const NavigationContext = createContext<NavigationContextType | undefined>(undef
 // ---------------------------------------------------------------------------
 
 export function NavigationProvider({ children }: { children: React.ReactNode }) {
-  const {
-    profile,
-    enabledModules,
-    canAccessModule,
-    hasRole,
-    isPlatformAdmin,
-    adminViewingTenant,
-  } = useAuth();
+  const { profile, enabledModules, canAccessModule, hasRole, isPlatformAdmin, adminViewingTenant } = useAuth();
 
   const { termPlural } = useTerm();
   const { getRolloutBadge } = useModuleRollout();
@@ -240,12 +233,10 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
     // Mobile tab items: max 5 (Dashboard + up to 3 modules + More)
     // -----------------------------------------------------------------------
 
-    const accessibleModulesByPriority = MOBILE_MODULE_PRIORITY
-      .filter((moduleId) => {
-        const item = moduleItems.find((mi) => mi.id === moduleId);
-        return item?.isAccessible;
-      })
-      .map((moduleId) => moduleItems.find((mi) => mi.id === moduleId)!);
+    const accessibleModulesByPriority = MOBILE_MODULE_PRIORITY.filter((moduleId) => {
+      const item = moduleItems.find((mi) => mi.id === moduleId);
+      return item?.isAccessible;
+    }).map((moduleId) => moduleItems.find((mi) => mi.id === moduleId)!);
 
     const topModules = accessibleModulesByPriority.slice(0, 3);
     const hasRemainingItems = accessibleModulesByPriority.length > 3;
@@ -280,11 +271,7 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
     getRolloutBadge,
   ]);
 
-  return (
-    <NavigationContext.Provider value={navigation}>
-      {children}
-    </NavigationContext.Provider>
-  );
+  return <NavigationContext.Provider value={navigation}>{children}</NavigationContext.Provider>;
 }
 
 // ---------------------------------------------------------------------------

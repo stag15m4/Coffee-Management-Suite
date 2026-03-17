@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -18,7 +19,7 @@ export default function UserProfile() {
 
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
-  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const displayName = isChildLocation ? tenant?.name : branding?.company_name || tenant?.name || 'Erwin Mills Coffee';
   const orgName = primaryTenant?.name || branding?.company_name || '';
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [email, setEmail] = useState(user?.email || '');
@@ -55,9 +56,7 @@ export default function UserProfile() {
 
         const { error: profileError } = await Promise.race([
           profilePromise,
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Profile update timeout')), TIMEOUT_MS)
-          )
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Profile update timeout')), TIMEOUT_MS)),
         ]);
 
         if (profileError) throw profileError;
@@ -69,9 +68,7 @@ export default function UserProfile() {
 
         const { error: emailError } = await Promise.race([
           emailPromise,
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Email update timeout')), TIMEOUT_MS)
-          )
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Email update timeout')), TIMEOUT_MS)),
         ]);
 
         if (emailError) throw emailError;
@@ -86,10 +83,10 @@ export default function UserProfile() {
 
       // Reload page to refresh profile data
       setTimeout(() => window.location.reload(), 1500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error updating profile',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -123,9 +120,7 @@ export default function UserProfile() {
 
       const { error } = await Promise.race([
         updatePromise,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Password update timeout')), TIMEOUT_MS)
-        )
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Password update timeout')), TIMEOUT_MS)),
       ]);
 
       if (error) throw error;
@@ -133,10 +128,10 @@ export default function UserProfile() {
       toast({ title: 'Password updated successfully' });
       setNewPassword('');
       setConfirmPassword('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error updating password',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -162,26 +157,22 @@ export default function UserProfile() {
       }
 
       // Upload new avatar
-      const uploadPromise = supabase.storage
-        .from('avatars')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      const uploadPromise = supabase.storage.from('avatars').upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
 
       const { data: uploadData, error: uploadError } = await Promise.race([
         uploadPromise,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Upload timeout')), TIMEOUT_MS)
-        )
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Upload timeout')), TIMEOUT_MS)),
       ]);
 
       if (uploadError) throw uploadError;
 
       // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('avatars').getPublicUrl(fileName);
 
       // Update profile with new avatar URL
       const updatePromise = supabase
@@ -191,9 +182,7 @@ export default function UserProfile() {
 
       const { error: updateError } = await Promise.race([
         updatePromise,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Profile update timeout')), TIMEOUT_MS)
-        )
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Profile update timeout')), TIMEOUT_MS)),
       ]);
 
       if (updateError) throw updateError;
@@ -202,10 +191,10 @@ export default function UserProfile() {
 
       // Reload page to refresh avatar
       setTimeout(() => window.location.reload(), 1500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error uploading photo',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -296,7 +285,7 @@ export default function UserProfile() {
           videoRef.current.srcObject = mediaStream;
         }
       }, 100);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Camera access denied',
         description: 'Please allow camera access to take a photo',
@@ -343,21 +332,25 @@ export default function UserProfile() {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     // Convert canvas to blob
-    canvas.toBlob((blob) => {
-      if (!blob) return;
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
 
-      // Create file from blob
-      const file = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        // Create file from blob
+        const file = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
 
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewImage(reader.result as string);
-        setSelectedFile(file);
-        stopCamera();
-      };
-      reader.readAsDataURL(file);
-    }, 'image/jpeg', 0.9);
+        // Create preview URL
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreviewImage(reader.result as string);
+          setSelectedFile(file);
+          stopCamera();
+        };
+        reader.readAsDataURL(file);
+      },
+      'image/jpeg',
+      0.9
+    );
   };
 
   // Cleanup camera on unmount
@@ -422,13 +415,7 @@ export default function UserProfile() {
 
               {/* Upload Buttons */}
               <div className="flex gap-3">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
                 <Button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingAvatar}
@@ -496,7 +483,10 @@ export default function UserProfile() {
 
             <div>
               <Label style={{ color: colors.brown }}>Role</Label>
-              <div className="px-3 py-2 rounded capitalize" style={{ backgroundColor: colors.cream, color: colors.brown }}>
+              <div
+                className="px-3 py-2 rounded capitalize"
+                style={{ backgroundColor: colors.cream, color: colors.brown }}
+              >
                 {profile.role}
               </div>
             </div>
@@ -504,7 +494,10 @@ export default function UserProfile() {
             {profile.kiosk_pin && (
               <div>
                 <Label style={{ color: colors.brown }}>Kiosk PIN</Label>
-                <div className="px-3 py-2 rounded font-mono text-lg tracking-widest" style={{ backgroundColor: colors.cream, color: colors.brown }}>
+                <div
+                  className="px-3 py-2 rounded font-mono text-lg tracking-widest"
+                  style={{ backgroundColor: colors.cream, color: colors.brown }}
+                >
                   {profile.kiosk_pin}
                 </div>
                 <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
@@ -595,7 +588,9 @@ export default function UserProfile() {
           <CardContent className="space-y-2">
             <div className="flex justify-between">
               <span style={{ color: colors.brownLight }}>Account ID:</span>
-              <span className="font-mono text-xs" style={{ color: colors.brown }}>{profile.id.substring(0, 8)}...</span>
+              <span className="font-mono text-xs" style={{ color: colors.brown }}>
+                {profile.id.substring(0, 8)}...
+              </span>
             </div>
             <div className="flex justify-between">
               <span style={{ color: colors.brownLight }}>Organization:</span>
@@ -603,7 +598,10 @@ export default function UserProfile() {
             </div>
             <div className="flex justify-between">
               <span style={{ color: colors.brownLight }}>Status:</span>
-              <span className="px-2 py-0.5 rounded text-sm" style={{ backgroundColor: colors.gold, color: colors.white }}>
+              <span
+                className="px-2 py-0.5 rounded text-sm"
+                style={{ backgroundColor: colors.gold, color: colors.white }}
+              >
                 Active
               </span>
             </div>
@@ -625,10 +623,7 @@ export default function UserProfile() {
 
             {/* Camera Selector */}
             {videoDevices.length > 1 && (
-              <Select
-                value={selectedDeviceId}
-                onValueChange={(deviceId) => startCamera(deviceId)}
-              >
+              <Select value={selectedDeviceId} onValueChange={(deviceId) => startCamera(deviceId)}>
                 <SelectTrigger
                   className="w-full"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
@@ -648,12 +643,7 @@ export default function UserProfile() {
             {/* Camera View with Circular Overlay */}
             <div className="relative flex justify-center">
               <div className="relative w-full max-w-md aspect-square bg-black rounded-lg overflow-hidden">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
+                <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
 
                 {/* Circular overlay to show crop area */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -665,19 +655,11 @@ export default function UserProfile() {
                         <circle cx="50%" cy="50%" r="40%" fill="black" />
                       </mask>
                     </defs>
-                    <rect
-                      width="100%"
-                      height="100%"
-                      fill="rgba(0, 0, 0, 0.6)"
-                      mask="url(#circleMask)"
-                    />
+                    <rect width="100%" height="100%" fill="rgba(0, 0, 0, 0.6)" mask="url(#circleMask)" />
                   </svg>
 
                   {/* Circle border */}
-                  <div
-                    className="w-4/5 aspect-square rounded-full border-4"
-                    style={{ borderColor: colors.gold }}
-                  />
+                  <div className="w-4/5 aspect-square rounded-full border-4" style={{ borderColor: colors.gold }} />
                 </div>
               </div>
 
@@ -703,10 +685,7 @@ export default function UserProfile() {
                   Switch Camera
                 </Button>
               )}
-              <Button
-                onClick={capturePhoto}
-                style={{ backgroundColor: colors.gold, color: colors.white }}
-              >
+              <Button onClick={capturePhoto} style={{ backgroundColor: colors.gold, color: colors.white }}>
                 <Camera className="w-4 h-4 mr-2" />
                 Capture Photo
               </Button>
@@ -734,12 +713,7 @@ export default function UserProfile() {
                 style={{ backgroundColor: colors.cream, border: `3px solid ${colors.gold}` }}
               >
                 {previewImage && (
-                  <img
-                    src={previewImage}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
+                  <img src={previewImage} alt="Preview" className="w-full h-full object-cover" loading="lazy" />
                 )}
               </div>
             </div>
@@ -780,7 +754,6 @@ export default function UserProfile() {
           </div>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

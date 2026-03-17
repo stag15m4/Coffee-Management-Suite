@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -10,13 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,17 +21,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  ArrowLeft,
-  Building2,
-  Plus,
-  Edit2,
-  Trash2,
-  Users,
-  MapPin,
-  Copy
-} from 'lucide-react';
+} from '@/components/ui/alert-dialog';
+import { ArrowLeft, Building2, Plus, Edit2, Trash2, Users, MapPin, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';
 
@@ -65,15 +51,15 @@ export default function AdminLocations() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [userCounts, setUserCounts] = useState<Record<string, number>>({});
   const [locationUsage, setLocationUsage] = useState<LocationUsage | null>(null);
-  
+
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [locationToDelete, setLocationToDelete] = useState<Location | null>(null);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
-    starting_drawer_default: '200.00'
+    starting_drawer_default: '200.00',
   });
 
   const [cloneEnabled, setCloneEnabled] = useState(false);
@@ -83,51 +69,55 @@ export default function AdminLocations() {
 
   const companyName = branding?.company_name || tenant?.name || 'Organization';
 
-  const loadData = useCallback(async (silent = false) => {
-    if (!tenant?.id) return;
-    if (!silent) setLoading(true);
+  const loadData = useCallback(
+    async (silent = false) => {
+      if (!tenant?.id) return;
+      if (!silent) setLoading(true);
 
-    try {
-      // Fetch child locations
-      const { data: childLocations, error: locError } = await supabase
-        .from('tenants')
-        .select('*')
-        .eq('parent_tenant_id', tenant.id)
-        .order('name');
+      try {
+        // Fetch child locations
+        const { data: childLocations, error: locError } = await supabase
+          .from('tenants')
+          .select('*')
+          .eq('parent_tenant_id', tenant.id)
+          .order('name');
 
-      if (locError) throw locError;
-      setLocations(childLocations || []);
+        if (locError) throw locError;
+        setLocations(childLocations || []);
 
-      // Get user counts for each location
-      const counts: Record<string, number> = {};
-      for (const loc of (childLocations || [])) {
-        const { count } = await supabase
-          .from('user_profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', loc.id);
-        counts[loc.id] = count || 0;
+        // Get user counts for each location
+        const counts: Record<string, number> = {};
+        for (const loc of childLocations || []) {
+          const { count } = await supabase
+            .from('user_profiles')
+            .select('*', { count: 'exact', head: true })
+            .eq('tenant_id', loc.id);
+          counts[loc.id] = count || 0;
+        }
+        setUserCounts(counts);
+
+        // Fetch location usage limits
+        const { data: usageData, error: usageError } = await supabase.rpc('get_tenant_location_usage', {
+          p_tenant_id: tenant.id,
+        });
+
+        if (usageError) {
+          console.warn('Could not fetch location usage:', usageError.message);
+          // Default to disabling adds if function doesn't exist - fail safe
+          const currentCount = (childLocations?.filter((l) => l.is_active)?.length || 0) + 1;
+          setLocationUsage({ current_count: currentCount, max_allowed: currentCount, can_add: false, remaining: 0 });
+        } else {
+          setLocationUsage(usageData);
+        }
+      } catch (error: unknown) {
+        console.error('Error loading locations:', error);
+        toast({ title: 'Error loading locations', description: getErrorMessage(error), variant: 'destructive' });
+      } finally {
+        setLoading(false);
       }
-      setUserCounts(counts);
-
-      // Fetch location usage limits
-      const { data: usageData, error: usageError } = await supabase
-        .rpc('get_tenant_location_usage', { p_tenant_id: tenant.id });
-      
-      if (usageError) {
-        console.warn('Could not fetch location usage:', usageError.message);
-        // Default to disabling adds if function doesn't exist - fail safe
-        const currentCount = (childLocations?.filter(l => l.is_active)?.length || 0) + 1;
-        setLocationUsage({ current_count: currentCount, max_allowed: currentCount, can_add: false, remaining: 0 });
-      } else {
-        setLocationUsage(usageData);
-      }
-    } catch (error: any) {
-      console.error('Error loading locations:', error);
-      toast({ title: 'Error loading locations', description: error.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [tenant?.id, toast]);
+    },
+    [tenant?.id, toast]
+  );
 
   useEffect(() => {
     if (tenant?.id) {
@@ -150,10 +140,10 @@ export default function AdminLocations() {
   };
 
   const handleNameChange = (name: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       name,
-      slug: editingLocation ? prev.slug : generateSlug(name)
+      slug: editingLocation ? prev.slug : generateSlug(name),
     }));
   };
 
@@ -179,7 +169,7 @@ export default function AdminLocations() {
             name: formData.name.trim(),
             slug: formData.slug.trim(),
             starting_drawer_default: parseFloat(formData.starting_drawer_default) || 200,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq('id', editingLocation.id);
 
@@ -194,7 +184,7 @@ export default function AdminLocations() {
             slug: formData.slug.trim(),
             starting_drawer_default: parseFloat(formData.starting_drawer_default) || 200,
             parent_tenant_id: tenant.id,
-            is_active: true
+            is_active: true,
           })
           .select()
           .single();
@@ -205,12 +195,14 @@ export default function AdminLocations() {
         if (cloneEnabled && cloneSourceId && newLocation?.id) {
           setCloneLoading(true);
           try {
-            const { data: { session } } = await supabase.auth.getSession();
+            const {
+              data: { session },
+            } = await supabase.auth.getSession();
             const response = await fetch('/api/locations/clone', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session?.access_token}`,
+                Authorization: `Bearer ${session?.access_token}`,
               },
               body: JSON.stringify({
                 sourceTenantId: cloneSourceId,
@@ -228,14 +220,16 @@ export default function AdminLocations() {
               counts.overhead > 0 && `${counts.overhead} overhead items`,
               counts.equipment > 0 && `${counts.equipment} equipment`,
               counts.maintenanceTasks > 0 && `${counts.maintenanceTasks} maintenance tasks`,
-            ].filter(Boolean).join(', ');
+            ]
+              .filter(Boolean)
+              .join(', ');
 
             toast({ title: 'Location created & data copied', description: summary || 'No data found to copy.' });
-          } catch (cloneErr: any) {
+          } catch (cloneErr: unknown) {
             console.error('Clone error:', cloneErr);
             toast({
               title: 'Location created, but data copy failed',
-              description: cloneErr.message,
+              description: getErrorMessage(cloneErr),
               variant: 'destructive',
             });
           } finally {
@@ -253,9 +247,9 @@ export default function AdminLocations() {
       setCloneSourceId('');
       setCloneOptions({ recipes: true, overhead: true, equipment: true });
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving location:', error);
-      toast({ title: 'Error saving location', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error saving location', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -276,9 +270,9 @@ export default function AdminLocations() {
       toast({ title: 'Location deactivated successfully' });
       setLocationToDelete(null);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting location:', error);
-      toast({ title: 'Error deleting location', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error deleting location', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -294,9 +288,9 @@ export default function AdminLocations() {
       if (error) throw error;
       toast({ title: location.is_active ? 'Location deactivated' : 'Location activated' });
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error toggling location:', error);
-      toast({ title: 'Error updating location', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error updating location', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -305,7 +299,7 @@ export default function AdminLocations() {
     setFormData({
       name: location.name,
       slug: location.slug,
-      starting_drawer_default: (location.starting_drawer_default ?? 200).toString()
+      starting_drawer_default: (location.starting_drawer_default ?? 200).toString(),
     });
     setShowAddDialog(true);
   };
@@ -330,7 +324,7 @@ export default function AdminLocations() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
       {/* Header */}
-      <header 
+      <header
         className="sticky top-0 z-50 border-b px-4 py-3"
         style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
       >
@@ -342,8 +336,12 @@ export default function AdminLocations() {
               </Button>
             </Link>
             <div>
-              <h1 className="font-bold" style={{ color: colors.brown }}>Manage Locations</h1>
-              <p className="text-sm" style={{ color: colors.brownLight }}>{companyName}</p>
+              <h1 className="font-bold" style={{ color: colors.brown }}>
+                Manage Locations
+              </h1>
+              <p className="text-sm" style={{ color: colors.brownLight }}>
+                {companyName}
+              </p>
             </div>
           </div>
         </div>
@@ -367,9 +365,7 @@ export default function AdminLocations() {
                   {locationUsage.current_count} of {locationUsage.max_allowed} locations
                 </p>
                 {!locationUsage.can_add && (
-                  <p className="text-xs text-orange-600">
-                    Upgrade your plan for more locations
-                  </p>
+                  <p className="text-xs text-orange-600">Upgrade your plan for more locations</p>
                 )}
               </div>
             )}
@@ -380,9 +376,9 @@ export default function AdminLocations() {
                 setShowAddDialog(true);
               }}
               disabled={locationUsage !== null && !locationUsage.can_add}
-              style={{ 
-                backgroundColor: locationUsage?.can_add !== false ? colors.gold : colors.creamDark, 
-                color: colors.brown 
+              style={{
+                backgroundColor: locationUsage?.can_add !== false ? colors.gold : colors.creamDark,
+                color: colors.brown,
               }}
               data-testid="button-add-location"
             >
@@ -404,7 +400,8 @@ export default function AdminLocations() {
                 No Additional Locations
               </h3>
               <p className="mb-4" style={{ color: colors.brownLight }}>
-                You haven't added any additional locations yet. Add your first location to start managing multiple sites.
+                You haven't added any additional locations yet. Add your first location to start managing multiple
+                sites.
               </p>
               <Button
                 onClick={() => {
@@ -413,9 +410,9 @@ export default function AdminLocations() {
                   setShowAddDialog(true);
                 }}
                 disabled={locationUsage !== null && !locationUsage.can_add}
-                style={{ 
-                  backgroundColor: locationUsage?.can_add !== false ? colors.gold : colors.creamDark, 
-                  color: colors.brown 
+                style={{
+                  backgroundColor: locationUsage?.can_add !== false ? colors.gold : colors.creamDark,
+                  color: colors.brown,
                 }}
                 data-testid="button-add-first-location"
               >
@@ -427,18 +424,18 @@ export default function AdminLocations() {
         ) : (
           <div className="space-y-4">
             {locations.map((location) => (
-              <Card 
+              <Card
                 key={location.id}
-                style={{ 
+                style={{
                   backgroundColor: colors.white,
-                  opacity: location.is_active ? 1 : 0.6
+                  opacity: location.is_active ? 1 : 0.6,
                 }}
                 data-testid={`card-location-${location.slug}`}
               >
                 <CardContent className="py-4">
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-4">
-                      <div 
+                      <div
                         className="w-12 h-12 rounded-lg flex items-center justify-center"
                         style={{ backgroundColor: colors.cream }}
                       >
@@ -449,12 +446,11 @@ export default function AdminLocations() {
                           <h3 className="font-bold" style={{ color: colors.brown }}>
                             {location.name}
                           </h3>
-                          {!location.is_active && (
-                            <Badge variant="secondary">Inactive</Badge>
-                          )}
+                          {!location.is_active && <Badge variant="secondary">Inactive</Badge>}
                         </div>
                         <p className="text-sm" style={{ color: colors.brownLight }}>
-                          {location.slug} • {userCounts[location.id] || 0} team members • Drawer: ${(location.starting_drawer_default ?? 200).toFixed(2)}
+                          {location.slug} • {userCounts[location.id] || 0} team members • Drawer: $
+                          {(location.starting_drawer_default ?? 200).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -501,7 +497,7 @@ export default function AdminLocations() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">
-              <div 
+              <div
                 className="w-12 h-12 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: colors.gold }}
               >
@@ -520,7 +516,6 @@ export default function AdminLocations() {
         </Card>
       </main>
 
-
       {/* Add/Edit Sheet */}
       <Sheet open={showAddDialog} onOpenChange={setShowAddDialog}>
         <SheetContent className="sm:max-w-md overflow-y-auto">
@@ -529,16 +524,15 @@ export default function AdminLocations() {
               {editingLocation ? 'Edit Location' : 'Add New Location'}
             </SheetTitle>
             <SheetDescription style={{ color: colors.brownLight }}>
-              {editingLocation
-                ? 'Update the location details below.'
-                : 'Enter the details for your new location.'
-              }
+              {editingLocation ? 'Update the location details below.' : 'Enter the details for your new location.'}
             </SheetDescription>
           </SheetHeader>
 
           <div className="space-y-4 mt-6">
             <div className="space-y-2">
-              <Label htmlFor="name" style={{ color: colors.brown }}>Location Name</Label>
+              <Label htmlFor="name" style={{ color: colors.brown }}>
+                Location Name
+              </Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -550,7 +544,9 @@ export default function AdminLocations() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="slug" style={{ color: colors.brown }}>URL Slug</Label>
+              <Label htmlFor="slug" style={{ color: colors.brown }}>
+                URL Slug
+              </Label>
               <Input
                 id="slug"
                 value={formData.slug}
@@ -565,7 +561,9 @@ export default function AdminLocations() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="starting-drawer" style={{ color: colors.brown }}>Starting Drawer</Label>
+              <Label htmlFor="starting-drawer" style={{ color: colors.brown }}>
+                Starting Drawer
+              </Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                 <Input
@@ -595,11 +593,7 @@ export default function AdminLocations() {
                     <Copy className="w-4 h-4" style={{ color: colors.gold }} />
                     <Label style={{ color: colors.brown }}>Copy settings from existing location</Label>
                   </div>
-                  <Switch
-                    checked={cloneEnabled}
-                    onCheckedChange={setCloneEnabled}
-                    data-testid="switch-clone-enabled"
-                  />
+                  <Switch checked={cloneEnabled} onCheckedChange={setCloneEnabled} data-testid="switch-clone-enabled" />
                 </div>
 
                 {cloneEnabled && (
@@ -615,7 +609,9 @@ export default function AdminLocations() {
                       >
                         <option value="">Select a location...</option>
                         {locations.map((loc) => (
-                          <option key={loc.id} value={loc.id}>{loc.name}</option>
+                          <option key={loc.id} value={loc.id}>
+                            {loc.name}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -631,12 +627,14 @@ export default function AdminLocations() {
                           <input
                             type="checkbox"
                             checked={cloneOptions[key]}
-                            onChange={(e) => setCloneOptions(prev => ({ ...prev, [key]: e.target.checked }))}
+                            onChange={(e) => setCloneOptions((prev) => ({ ...prev, [key]: e.target.checked }))}
                             className="rounded"
                             style={{ accentColor: colors.gold }}
                             data-testid={`checkbox-clone-${key}`}
                           />
-                          <span className="text-sm" style={{ color: colors.brown }}>{label}</span>
+                          <span className="text-sm" style={{ color: colors.brown }}>
+                            {label}
+                          </span>
                         </label>
                       ))}
                     </div>
@@ -648,12 +646,24 @@ export default function AdminLocations() {
             <div className="flex gap-3 pt-4">
               <Button
                 onClick={handleSave}
-                disabled={saving || cloneLoading || !formData.name.trim() || !formData.slug.trim() || (cloneEnabled && !cloneSourceId)}
+                disabled={
+                  saving ||
+                  cloneLoading ||
+                  !formData.name.trim() ||
+                  !formData.slug.trim() ||
+                  (cloneEnabled && !cloneSourceId)
+                }
                 className="flex-1"
                 style={{ backgroundColor: colors.gold, color: colors.white }}
                 data-testid="button-save-location"
               >
-                {cloneLoading ? 'Copying data...' : saving ? 'Saving...' : editingLocation ? 'Update' : 'Create Location'}
+                {cloneLoading
+                  ? 'Copying data...'
+                  : saving
+                    ? 'Saving...'
+                    : editingLocation
+                      ? 'Update'
+                      : 'Create Location'}
               </Button>
               <Button
                 variant="outline"
@@ -679,17 +689,14 @@ export default function AdminLocations() {
       <AlertDialog open={!!locationToDelete} onOpenChange={() => setLocationToDelete(null)}>
         <AlertDialogContent style={{ backgroundColor: colors.white }}>
           <AlertDialogHeader>
-            <AlertDialogTitle style={{ color: colors.brown }}>
-              Deactivate Location?
-            </AlertDialogTitle>
+            <AlertDialogTitle style={{ color: colors.brown }}>Deactivate Location?</AlertDialogTitle>
             <AlertDialogDescription style={{ color: colors.brownLight }}>
-              Are you sure you want to deactivate "{locationToDelete?.name}"? 
-              The location will be hidden but all data will be preserved.
-              You can reactivate it later.
+              Are you sure you want to deactivate "{locationToDelete?.name}"? The location will be hidden but all data
+              will be preserved. You can reactivate it later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel 
+            <AlertDialogCancel
               style={{ borderColor: colors.creamDark, color: colors.brown }}
               data-testid="button-cancel-delete"
             >

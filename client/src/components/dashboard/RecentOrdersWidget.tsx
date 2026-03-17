@@ -32,20 +32,30 @@ export function RecentOrdersWidget() {
       // Get recent orders
       const { data: orders, error: ordersError } = await supabase
         .from('coffee_order_history')
-        .select(`
+        .select(
+          `
           id,
           order_date,
           total_cost,
           items,
           vendor:tenant_coffee_vendors(display_name)
-        `)
+        `
+        )
         .eq('tenant_id', tenant.id)
         .order('order_date', { ascending: false })
         .limit(5);
 
       if (ordersError) throw ordersError;
 
-      const formattedOrders: Order[] = (orders || []).map((order: any) => {
+      interface OrderRow {
+        id: string;
+        order_date: string;
+        total_cost: number | string | null;
+        items: Record<string, unknown> | null;
+        vendor: { display_name: string } | null;
+      }
+
+      const formattedOrders: Order[] = ((orders || []) as unknown as OrderRow[]).map((order) => {
         const orderItems = order.items || {};
         const itemCount = typeof orderItems === 'object' ? Object.keys(orderItems).length : 0;
 
@@ -62,10 +72,7 @@ export function RecentOrdersWidget() {
         .filter((order) => {
           const orderDate = new Date(order.order_date);
           const now = new Date();
-          return (
-            orderDate.getMonth() === now.getMonth() &&
-            orderDate.getFullYear() === now.getFullYear()
-          );
+          return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
         })
         .reduce((sum, order) => sum + order.total_amount, 0);
 
@@ -131,7 +138,8 @@ export function RecentOrdersWidget() {
                         {order.vendor_name}
                       </p>
                       <p className="text-xs" style={{ color: colors.brownLight }}>
-                        {order.items_count} {order.items_count === 1 ? 'item' : 'items'} · {formatDate(order.order_date)}
+                        {order.items_count} {order.items_count === 1 ? 'item' : 'items'} ·{' '}
+                        {formatDate(order.order_date)}
                       </p>
                     </div>
                     <p className="text-sm font-medium ml-2" style={{ color: colors.brown }}>

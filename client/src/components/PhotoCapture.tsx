@@ -101,7 +101,11 @@ export function PhotoCapture({
         }
       }, 100);
     } catch {
-      toast({ title: 'Camera access denied', description: 'Please allow camera access to take a photo', variant: 'destructive' });
+      toast({
+        title: 'Camera access denied',
+        description: 'Please allow camera access to take a photo',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -141,17 +145,21 @@ export function PhotoCapture({
     canvas.height = minDim;
     context.drawImage(video, sx, sy, minDim, minDim, 0, 0, minDim, minDim);
 
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const file = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewImage(reader.result as string);
-        setSelectedFile(file);
-        stopCamera();
-      };
-      reader.readAsDataURL(file);
-    }, 'image/jpeg', 0.9);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreviewImage(reader.result as string);
+          setSelectedFile(file);
+          stopCamera();
+        };
+        reader.readAsDataURL(file);
+      },
+      'image/jpeg',
+      0.9
+    );
   };
 
   useEffect(() => {
@@ -164,7 +172,11 @@ export function PhotoCapture({
 
   return (
     <div className="space-y-2">
-      {label && <p className="text-sm font-medium" style={{ color: colors.brown }}>{label}</p>}
+      {label && (
+        <p className="text-sm font-medium" style={{ color: colors.brown }}>
+          {label}
+        </p>
+      )}
 
       <div className="flex items-center gap-4">
         {/* Photo display */}
@@ -205,13 +217,7 @@ export function PhotoCapture({
 
         {/* Upload buttons */}
         <div className="flex flex-col gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
           <Button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -252,7 +258,10 @@ export function PhotoCapture({
 
             {videoDevices.length > 1 && (
               <Select value={selectedDeviceId} onValueChange={(deviceId) => startCamera(deviceId)}>
-                <SelectTrigger className="w-full" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
+                <SelectTrigger
+                  className="w-full"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                >
                   <SelectValue placeholder="Select camera" />
                 </SelectTrigger>
                 <SelectContent>
@@ -297,11 +306,19 @@ export function PhotoCapture({
             </div>
 
             <DialogFooter className="flex gap-2 sm:gap-0">
-              <Button variant="outline" onClick={stopCamera} style={{ borderColor: colors.creamDark, color: colors.brown }}>
+              <Button
+                variant="outline"
+                onClick={stopCamera}
+                style={{ borderColor: colors.creamDark, color: colors.brown }}
+              >
                 Cancel
               </Button>
               {videoDevices.length > 1 && (
-                <Button variant="outline" onClick={switchCamera} style={{ borderColor: colors.brown, color: colors.brown }}>
+                <Button
+                  variant="outline"
+                  onClick={switchCamera}
+                  style={{ borderColor: colors.brown, color: colors.brown }}
+                >
                   <SwitchCamera className="w-4 h-4 mr-2" />
                   Switch Camera
                 </Button>

@@ -19,8 +19,7 @@ interface ActualsExportParams {
   actualMap: Map<string, number>;
 }
 
-const fmt = (val: number) =>
-  val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (val: number) => val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function getGrouped(accounts: ChartOfAccount[]) {
   return ACCOUNT_TYPE_ORDER.map((type) => ({
@@ -29,7 +28,12 @@ function getGrouped(accounts: ChartOfAccount[]) {
   })).filter((g) => g.accounts.length > 0);
 }
 
-function getColumnTotal(accounts: ChartOfAccount[], type: AccountType, month: number, cellMap: Map<string, number>): number {
+function getColumnTotal(
+  accounts: ChartOfAccount[],
+  type: AccountType,
+  month: number,
+  cellMap: Map<string, number>
+): number {
   return accounts
     .filter((a) => a.account_type === type)
     .reduce((sum, acc) => sum + (cellMap.get(`${acc.id}-${month}`) || 0), 0);
@@ -132,16 +136,18 @@ export function exportBudgetPdf({ title, year, locationName, accounts, cellMap }
   // Net Income
   rows += `<tr class="net-row"><td class="acct-col">Net Income</td>`;
   for (let m = 1; m <= 12; m++) {
-    const net = getColumnTotal(accounts, 'Revenue', m, cellMap)
-      - getColumnTotal(accounts, 'COGS', m, cellMap)
-      - getColumnTotal(accounts, 'Expense', m, cellMap)
-      - getColumnTotal(accounts, 'Other', m, cellMap);
+    const net =
+      getColumnTotal(accounts, 'Revenue', m, cellMap) -
+      getColumnTotal(accounts, 'COGS', m, cellMap) -
+      getColumnTotal(accounts, 'Expense', m, cellMap) -
+      getColumnTotal(accounts, 'Other', m, cellMap);
     rows += `<td class="num-col ${net >= 0 ? 'green' : 'red'}">${fmt(net)}</td>`;
   }
-  const netTotal = getTypeAnnualTotal(accounts, 'Revenue', cellMap)
-    - getTypeAnnualTotal(accounts, 'COGS', cellMap)
-    - getTypeAnnualTotal(accounts, 'Expense', cellMap)
-    - getTypeAnnualTotal(accounts, 'Other', cellMap);
+  const netTotal =
+    getTypeAnnualTotal(accounts, 'Revenue', cellMap) -
+    getTypeAnnualTotal(accounts, 'COGS', cellMap) -
+    getTypeAnnualTotal(accounts, 'Expense', cellMap) -
+    getTypeAnnualTotal(accounts, 'Other', cellMap);
   rows += `<td class="num-col ${netTotal >= 0 ? 'green' : 'red'}">${fmt(netTotal)}</td></tr>`;
 
   const monthHeaders = MONTH_LABELS.map((m) => `<th class="num-col">${m}</th>`).join('');
@@ -210,11 +216,16 @@ export function exportActualsPdf({ title, year, locationName, accounts, budgetMa
     rows += `<tr class="subtotal"><td class="acct-col">Total ${type}</td>`;
     const isRevType = type === 'Revenue';
     for (let m = 1; m <= 12; m++) {
-      let bTotal = 0, aTotal = 0, hasAny = false;
+      let bTotal = 0,
+        aTotal = 0,
+        hasAny = false;
       for (const acc of accounts.filter((a) => a.account_type === type)) {
         const key = `${acc.id}-${m}`;
         bTotal += budgetMap.get(key) || 0;
-        if (actualMap.has(key)) { aTotal += actualMap.get(key)!; hasAny = true; }
+        if (actualMap.has(key)) {
+          aTotal += actualMap.get(key)!;
+          hasAny = true;
+        }
       }
       const v = hasAny ? bTotal - aTotal : null;
       rows += `<td class="num-col">${fmt(bTotal)}</td>`;
@@ -225,13 +236,15 @@ export function exportActualsPdf({ title, year, locationName, accounts, budgetMa
   }
 
   // Month sub-headers: B | A | V for each month
-  const monthHeaders = MONTH_LABELS.map((m) =>
-    `<th colspan="3" class="num-col" style="text-align:center;border-left:1px solid rgba(255,255,255,0.2)">${m}</th>`
+  const monthHeaders = MONTH_LABELS.map(
+    (m) =>
+      `<th colspan="3" class="num-col" style="text-align:center;border-left:1px solid rgba(255,255,255,0.2)">${m}</th>`
   ).join('');
-  const subHeaders = MONTH_LABELS.map(() =>
-    `<th class="num-col" style="font-size:7px;font-weight:400;opacity:0.8">Bud</th>` +
-    `<th class="num-col" style="font-size:7px;font-weight:400;opacity:0.8">Act</th>` +
-    `<th class="num-col" style="font-size:7px;font-weight:400;opacity:0.8">Var</th>`
+  const subHeaders = MONTH_LABELS.map(
+    () =>
+      `<th class="num-col" style="font-size:7px;font-weight:400;opacity:0.8">Bud</th>` +
+      `<th class="num-col" style="font-size:7px;font-weight:400;opacity:0.8">Act</th>` +
+      `<th class="num-col" style="font-size:7px;font-weight:400;opacity:0.8">Var</th>`
   ).join('');
 
   const actualsStyles = `

@@ -123,12 +123,7 @@ export function useClockOut() {
         updated_at: new Date().toISOString(),
       };
       if (notes !== undefined) updates.notes = notes;
-      const { data, error } = await supabase
-        .from('time_clock_entries')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+      const { data, error } = await supabase.from('time_clock_entries').update(updates).eq('id', id).select().single();
       if (error) throw error;
       return data;
     },
@@ -279,7 +274,17 @@ export function useEditTimeClockEntry() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, clock_in, clock_out, notes }: { id: string; clock_in?: string; clock_out?: string; notes?: string }) => {
+    mutationFn: async ({
+      id,
+      clock_in,
+      clock_out,
+      notes,
+    }: {
+      id: string;
+      clock_in?: string;
+      clock_out?: string;
+      notes?: string;
+    }) => {
       if (!user?.id) throw new Error('No user');
       const updates: any = {
         is_edited: true,
@@ -290,12 +295,7 @@ export function useEditTimeClockEntry() {
       if (clock_in !== undefined) updates.clock_in = clock_in;
       if (clock_out !== undefined) updates.clock_out = clock_out;
       if (notes !== undefined) updates.notes = notes;
-      const { data, error } = await supabase
-        .from('time_clock_entries')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+      const { data, error } = await supabase.from('time_clock_entries').update(updates).eq('id', id).select().single();
       if (error) throw error;
       return data;
     },

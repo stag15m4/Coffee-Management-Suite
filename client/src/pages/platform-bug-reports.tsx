@@ -5,19 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
   Bug,
@@ -96,10 +85,7 @@ export default function PlatformBugReports() {
 
   async function fetchReports() {
     // Fetch bug reports — platform admin RLS policy gives access to all
-    const { data, error } = await supabase
-      .from('bug_reports')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('bug_reports').select('*').order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching bug reports:', error);
@@ -108,19 +94,16 @@ export default function PlatformBugReports() {
     }
 
     // Fetch tenant names for display
-    const tenantIds = Array.from(new Set((data || []).map(r => r.tenant_id)));
+    const tenantIds = Array.from(new Set((data || []).map((r) => r.tenant_id)));
     let tenantMap: Record<string, string> = {};
     if (tenantIds.length > 0) {
-      const { data: tenants } = await supabase
-        .from('tenants')
-        .select('id, name')
-        .in('id', tenantIds);
+      const { data: tenants } = await supabase.from('tenants').select('id, name').in('id', tenantIds);
       if (tenants) {
-        tenantMap = Object.fromEntries(tenants.map(t => [t.id, t.name]));
+        tenantMap = Object.fromEntries(tenants.map((t) => [t.id, t.name]));
       }
     }
 
-    setReports((data || []).map(r => ({ ...r, tenant_name: tenantMap[r.tenant_id] || 'Unknown' })));
+    setReports((data || []).map((r) => ({ ...r, tenant_name: tenantMap[r.tenant_id] || 'Unknown' })));
     setLoading(false);
   }
 
@@ -154,7 +137,7 @@ export default function PlatformBugReports() {
     setSaving(false);
   }
 
-  const filtered = reports.filter(r => {
+  const filtered = reports.filter((r) => {
     if (filterStatus !== 'all' && r.status !== filterStatus) return false;
     if (filterSeverity !== 'all' && r.severity !== filterSeverity) return false;
     return true;
@@ -171,9 +154,9 @@ export default function PlatformBugReports() {
   });
 
   const counts = {
-    open: reports.filter(r => r.status === 'open').length,
-    in_progress: reports.filter(r => r.status === 'in_progress').length,
-    resolved: reports.filter(r => r.status === 'resolved').length,
+    open: reports.filter((r) => r.status === 'open').length,
+    in_progress: reports.filter((r) => r.status === 'in_progress').length,
+    resolved: reports.filter((r) => r.status === 'resolved').length,
     total: reports.length,
   };
 
@@ -189,7 +172,9 @@ export default function PlatformBugReports() {
     <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>Bugs & Feedback</h1>
+        <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>
+          Bugs & Feedback
+        </h1>
         <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
           Triage and manage reports and feedback from all tenants
         </p>
@@ -202,11 +187,15 @@ export default function PlatformBugReports() {
           { label: 'In Progress', value: counts.in_progress, color: colors.orange },
           { label: 'Resolved', value: counts.resolved, color: colors.green },
           { label: 'Total', value: counts.total, color: colors.brown },
-        ].map(s => (
+        ].map((s) => (
           <Card key={s.label} style={{ backgroundColor: colors.white }}>
             <CardContent className="p-3 text-center">
-              <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
-              <p className="text-xs" style={{ color: colors.brownLight }}>{s.label}</p>
+              <p className="text-2xl font-bold" style={{ color: s.color }}>
+                {s.value}
+              </p>
+              <p className="text-xs" style={{ color: colors.brownLight }}>
+                {s.label}
+              </p>
             </CardContent>
           </Card>
         ))}
@@ -260,7 +249,7 @@ export default function PlatformBugReports() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {sorted.map(report => {
+          {sorted.map((report) => {
             const sc = statusConfig[report.status] || statusConfig.open;
             const StatusIcon = sc.icon;
             return (
@@ -290,17 +279,22 @@ export default function PlatformBugReports() {
                           );
                         })()}
                         {report.report_type === 'bug' && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] px-1.5 py-0"
-                          style={{ borderColor: severityColors[report.severity], color: severityColors[report.severity] }}
-                        >
-                          {report.severity}
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0"
+                            style={{
+                              borderColor: severityColors[report.severity],
+                              color: severityColors[report.severity],
+                            }}
+                          >
+                            {report.severity}
+                          </Badge>
                         )}
                         <div className="flex items-center gap-1">
                           <StatusIcon className="w-3 h-3" style={{ color: sc.color }} />
-                          <span className="text-[10px] font-medium" style={{ color: sc.color }}>{sc.label}</span>
+                          <span className="text-[10px] font-medium" style={{ color: sc.color }}>
+                            {sc.label}
+                          </span>
                         </div>
                       </div>
                       <p className="text-xs mt-1 line-clamp-1" style={{ color: colors.brownLight }}>
@@ -333,7 +327,7 @@ export default function PlatformBugReports() {
       )}
 
       {/* Detail / Edit Dialog */}
-      <Dialog open={!!selected} onOpenChange={open => !open && setSelected(null)}>
+      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="max-w-lg" style={{ backgroundColor: colors.white }}>
           {selected && (
             <>
@@ -372,18 +366,23 @@ export default function PlatformBugReports() {
                     );
                   })()}
                   {selected.report_type === 'bug' && (
-                  <Badge
-                    variant="outline"
-                    style={{ borderColor: severityColors[selected.severity], color: severityColors[selected.severity] }}
-                  >
-                    {selected.severity} severity
-                  </Badge>
+                    <Badge
+                      variant="outline"
+                      style={{
+                        borderColor: severityColors[selected.severity],
+                        color: severityColors[selected.severity],
+                      }}
+                    >
+                      {selected.severity} severity
+                    </Badge>
                   )}
                 </div>
 
                 {/* Description */}
                 <div>
-                  <Label className="text-xs font-semibold" style={{ color: colors.brown }}>Description</Label>
+                  <Label className="text-xs font-semibold" style={{ color: colors.brown }}>
+                    Description
+                  </Label>
                   <div
                     className="mt-1 p-3 rounded text-sm whitespace-pre-wrap"
                     style={{ backgroundColor: colors.cream, color: colors.brown }}
@@ -395,7 +394,9 @@ export default function PlatformBugReports() {
                 {/* Screenshot */}
                 {selected.screenshot_url && (
                   <div>
-                    <Label className="text-xs font-semibold" style={{ color: colors.brown }}>Screenshot</Label>
+                    <Label className="text-xs font-semibold" style={{ color: colors.brown }}>
+                      Screenshot
+                    </Label>
                     <a href={selected.screenshot_url} target="_blank" rel="noopener noreferrer">
                       <img
                         src={selected.screenshot_url}
@@ -429,7 +430,7 @@ export default function PlatformBugReports() {
                   <Label style={{ color: colors.brown }}>Admin Notes</Label>
                   <textarea
                     value={editNotes}
-                    onChange={e => setEditNotes(e.target.value)}
+                    onChange={(e) => setEditNotes(e.target.value)}
                     placeholder="Add notes about triage, resolution, or context for the next session with Claude..."
                     className="w-full min-h-[100px] rounded-md border px-3 py-2 text-sm resize-y"
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
@@ -472,7 +473,10 @@ export default function PlatformBugReports() {
                       lines.push('', `Report ID: ${selected.id}`);
                       navigator.clipboard.writeText(lines.join('\n'));
                       setCopied(true);
-                      toast({ title: 'Copied to clipboard', description: 'Paste into a Claude Code session to start fixing.' });
+                      toast({
+                        title: 'Copied to clipboard',
+                        description: 'Paste into a Claude Code session to start fixing.',
+                      });
                       setTimeout(() => setCopied(false), 2000);
                     }}
                     style={{ borderColor: colors.brown, color: colors.brown }}

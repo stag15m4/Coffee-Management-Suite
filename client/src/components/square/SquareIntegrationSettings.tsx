@@ -1,29 +1,14 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAllEmployees, type UnifiedEmployee } from '@/hooks/use-all-employees';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Link2,
-  Unlink,
-  RefreshCw,
-  MapPin,
-  Users,
-  Check,
-  X,
-  Loader2,
-  ExternalLink,
-} from 'lucide-react';
+import { Link2, Unlink, RefreshCw, MapPin, Users, Check, X, Loader2, ExternalLink } from 'lucide-react';
 import { colors } from '@/lib/colors';
 
 interface SquareStatus {
@@ -93,7 +78,14 @@ export default function SquareIntegrationSettings() {
       const s = await apiFetch(`/api/square/status/${tenant.id}`);
       setStatus(s);
     } catch {
-      setStatus({ connected: false, merchantId: null, locationId: null, syncEnabled: false, lastSyncAt: null, mappingStats: { confirmed: 0, suggested: 0, ignored: 0 } });
+      setStatus({
+        connected: false,
+        merchantId: null,
+        locationId: null,
+        syncEnabled: false,
+        lastSyncAt: null,
+        mappingStats: { confirmed: 0, suggested: 0, ignored: 0 },
+      });
     }
   }, [tenant?.id]);
 
@@ -141,8 +133,8 @@ export default function SquareIntegrationSettings() {
     try {
       const result = await apiFetch('/api/square/auth-url');
       window.location.href = result.url;
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -156,8 +148,8 @@ export default function SquareIntegrationSettings() {
       setLocations([]);
       toast({ title: 'Square disconnected' });
       await fetchStatus();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(err), variant: 'destructive' });
     } finally {
       setDisconnecting(false);
     }
@@ -172,8 +164,8 @@ export default function SquareIntegrationSettings() {
       });
       toast({ title: 'Location set' });
       await fetchStatus();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -185,8 +177,8 @@ export default function SquareIntegrationSettings() {
         body: JSON.stringify({ enabled }),
       });
       await fetchStatus();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -195,10 +187,13 @@ export default function SquareIntegrationSettings() {
     setSyncing(true);
     try {
       const result = await apiFetch(`/api/square/sync/${tenant.id}`, { method: 'POST' });
-      toast({ title: 'Sync complete', description: `${result.synced} synced, ${result.skipped} skipped, ${result.errors} errors` });
+      toast({
+        title: 'Sync complete',
+        description: `${result.synced} synced, ${result.skipped} skipped, ${result.errors} errors`,
+      });
       await fetchStatus();
-    } catch (err: any) {
-      toast({ title: 'Sync failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Sync failed', description: getErrorMessage(err), variant: 'destructive' });
     } finally {
       setSyncing(false);
     }
@@ -211,8 +206,8 @@ export default function SquareIntegrationSettings() {
       await apiFetch(`/api/square/suggest-mappings/${tenant.id}`, { method: 'POST' });
       toast({ title: 'Auto-matching complete' });
       await fetchMappings();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(err), variant: 'destructive' });
     } finally {
       setSuggesting(false);
     }
@@ -240,8 +235,8 @@ export default function SquareIntegrationSettings() {
       toast({ title: 'Mapping confirmed' });
       await fetchMappings();
       await fetchStatus();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -253,8 +248,8 @@ export default function SquareIntegrationSettings() {
       });
       await fetchMappings();
       await fetchStatus();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -297,15 +292,10 @@ export default function SquareIntegrationSettings() {
                 </svg>
                 Square Integration
               </CardTitle>
-              <CardDescription>
-                Sync timeclock data from Square's Labor API
-              </CardDescription>
+              <CardDescription>Sync timeclock data from Square's Labor API</CardDescription>
             </div>
             {status?.connected && (
-              <Badge
-                className="text-white"
-                style={{ backgroundColor: colors.green }}
-              >
+              <Badge className="text-white" style={{ backgroundColor: colors.green }}>
                 Connected
               </Badge>
             )}
@@ -335,7 +325,11 @@ export default function SquareIntegrationSettings() {
                   disabled={disconnecting}
                   className="text-red-600 border-red-300 hover:bg-red-50"
                 >
-                  {disconnecting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Unlink className="h-4 w-4 mr-1" />}
+                  {disconnecting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <Unlink className="h-4 w-4 mr-1" />
+                  )}
                   Disconnect
                 </Button>
               </div>
@@ -357,7 +351,9 @@ export default function SquareIntegrationSettings() {
             <CardContent className="space-y-4">
               {/* Location picker */}
               <div className="flex items-center gap-3">
-                <label className="text-sm font-medium" style={{ color: colors.brown }}>Square Location:</label>
+                <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                  Square Location:
+                </label>
                 {status.locationId ? (
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">{status.locationId}</Badge>
@@ -388,7 +384,10 @@ export default function SquareIntegrationSettings() {
               )}
 
               {/* Sync controls */}
-              <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: colors.creamDark }}>
+              <div
+                className="flex items-center justify-between pt-2 border-t"
+                style={{ borderColor: colors.creamDark }}
+              >
                 <div className="flex items-center gap-3">
                   <Switch
                     checked={status.syncEnabled}
@@ -441,7 +440,11 @@ export default function SquareIntegrationSettings() {
                   disabled={suggesting}
                   style={{ borderColor: colors.gold }}
                 >
-                  {suggesting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ExternalLink className="h-4 w-4 mr-1" />}
+                  {suggesting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                  )}
                   Auto-Suggest
                 </Button>
               </div>
@@ -482,9 +485,7 @@ export default function SquareIntegrationSettings() {
                       {mapping.status !== 'ignored' && (
                         <Select
                           value={getEmployeeSelectValue(mapping)}
-                          onValueChange={(val) =>
-                            setLocalSelections((prev) => ({ ...prev, [mapping.id]: val }))
-                          }
+                          onValueChange={(val) => setLocalSelections((prev) => ({ ...prev, [mapping.id]: val }))}
                         >
                           <SelectTrigger
                             className="w-48"
@@ -529,9 +530,7 @@ export default function SquareIntegrationSettings() {
                         </div>
                       )}
 
-                      {mapping.status === 'confirmed' && (
-                        <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                      )}
+                      {mapping.status === 'confirmed' && <Check className="h-4 w-4 text-green-600 flex-shrink-0" />}
                     </div>
                   ))}
                 </div>

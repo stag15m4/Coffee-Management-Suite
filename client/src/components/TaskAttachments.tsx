@@ -3,14 +3,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useUpload } from '@/hooks/use-upload';
-import {
-  useTaskAttachments,
-  useAddTaskAttachment,
-  useDeleteTaskAttachment,
-} from '@/lib/supabase-queries';
+import { useTaskAttachments, useAddTaskAttachment, useDeleteTaskAttachment } from '@/lib/supabase-queries';
 import { colors } from '@/lib/colors';
 import { VideoCapture } from './VideoCapture';
-import { FileText, Globe, Video, Trash2, Plus, Link, Loader2, Paperclip, ExternalLink, Play, X, Eye } from 'lucide-react';
+import {
+  FileText,
+  Globe,
+  Video,
+  Trash2,
+  Plus,
+  Link,
+  Loader2,
+  Paperclip,
+  ExternalLink,
+  Play,
+  X,
+  Eye,
+} from 'lucide-react';
 
 // Local override — delete icons use a darker red than the shared palette
 const deleteRed = '#DC2626';
@@ -31,7 +40,11 @@ export function TaskAttachments({ taskId, tenantId, userName }: TaskAttachmentsP
   const [linkName, setLinkName] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [fullscreenVideoUrl, setFullscreenVideoUrl] = useState<string | null>(null);
-  const [previewAttachment, setPreviewAttachment] = useState<{ name: string; url: string; file_type: string | null } | null>(null);
+  const [previewAttachment, setPreviewAttachment] = useState<{
+    name: string;
+    url: string;
+    file_type: string | null;
+  } | null>(null);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -139,19 +152,12 @@ export function TaskAttachments({ taskId, tenantId, userName }: TaskAttachmentsP
           {attachments.map((att) => (
             <div key={att.id}>
               {att.attachment_type === 'video' ? (
-                <div
-                  className="rounded overflow-hidden"
-                  style={{ backgroundColor: colors.inputBg }}
-                >
+                <div className="rounded overflow-hidden" style={{ backgroundColor: colors.inputBg }}>
                   <div
                     className="relative w-full max-w-md aspect-video bg-black rounded-t cursor-pointer group"
                     onClick={() => setFullscreenVideoUrl(att.url)}
                   >
-                    <video
-                      src={att.url}
-                      preload="metadata"
-                      className="w-full h-full object-cover"
-                    />
+                    <video src={att.url} preload="metadata" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
                       <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
                         <Play className="w-6 h-6 ml-0.5" style={{ color: colors.brown }} />
@@ -161,7 +167,9 @@ export function TaskAttachments({ taskId, tenantId, userName }: TaskAttachmentsP
                   <div className="flex items-center justify-between p-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <Video className="w-4 h-4 flex-shrink-0" style={{ color: colors.brownLight }} />
-                      <span className="text-sm truncate" style={{ color: colors.brown }}>{att.name}</span>
+                      <span className="text-sm truncate" style={{ color: colors.brown }}>
+                        {att.name}
+                      </span>
                     </div>
                     <button
                       type="button"
@@ -174,10 +182,7 @@ export function TaskAttachments({ taskId, tenantId, userName }: TaskAttachmentsP
                   </div>
                 </div>
               ) : (
-                <div
-                  className="flex items-center gap-2 p-2 rounded"
-                  style={{ backgroundColor: colors.inputBg }}
-                >
+                <div className="flex items-center gap-2 p-2 rounded" style={{ backgroundColor: colors.inputBg }}>
                   {att.attachment_type === 'file' ? (
                     <FileText className="w-4 h-4 flex-shrink-0" style={{ color: colors.brownLight }} />
                   ) : (
@@ -186,7 +191,9 @@ export function TaskAttachments({ taskId, tenantId, userName }: TaskAttachmentsP
                   {att.attachment_type === 'file' ? (
                     <button
                       type="button"
-                      onClick={() => setPreviewAttachment({ name: att.name, url: att.url, file_type: att.file_type || null })}
+                      onClick={() =>
+                        setPreviewAttachment({ name: att.name, url: att.url, file_type: att.file_type || null })
+                      }
                       className="text-sm hover:underline truncate flex-1 text-left flex items-center gap-1"
                       style={{ color: colors.brown }}
                     >
@@ -222,11 +229,7 @@ export function TaskAttachments({ taskId, tenantId, userName }: TaskAttachmentsP
 
       {/* Action buttons */}
       <div className="flex gap-2 flex-wrap">
-        <VideoCapture
-          onVideoRecorded={handleVideoRecorded}
-          isUploading={isUploadingVideo}
-          recorderName={userName}
-        />
+        <VideoCapture onVideoRecorded={handleVideoRecorded} isUploading={isUploadingVideo} recorderName={userName} />
         <input
           ref={fileInputRef}
           type="file"

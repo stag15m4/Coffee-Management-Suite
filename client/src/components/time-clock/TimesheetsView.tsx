@@ -1,9 +1,15 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { usePayPeriod } from '@/hooks/use-pay-period';
 import { usePayPeriodTimeClockEntries, type TimeClockEntry } from '@/hooks/use-time-clock';
@@ -57,8 +63,8 @@ export function TimesheetsView({ tenantId, canApprove, canExport, currentUserId,
     try {
       await exportGustoCsv({ tenantId, entries, employees, approvals, weeks, period });
       toast({ title: 'Gusto CSV exported' });
-    } catch (err: any) {
-      toast({ title: 'Export failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Export failed', description: getErrorMessage(err), variant: 'destructive' });
     } finally {
       setGustoExporting(false);
     }
@@ -67,7 +73,16 @@ export function TimesheetsView({ tenantId, canApprove, canExport, currentUserId,
   const handleExport = useCallback(() => {
     if (!entries.length) return;
 
-    const headers = ['Employee', 'Date', 'Clock In', 'Clock Out', 'Total Hours', 'Break Hours', 'Net Hours', 'Position'];
+    const headers = [
+      'Employee',
+      'Date',
+      'Clock In',
+      'Clock Out',
+      'Total Hours',
+      'Break Hours',
+      'Net Hours',
+      'Position',
+    ];
     const rows = entries.map((e) => {
       const totalHrs = calcHours(e.clock_in, e.clock_out);
       const breakHrs = calcBreakHours(e.breaks ?? []);
@@ -123,7 +138,10 @@ export function TimesheetsView({ tenantId, canApprove, canExport, currentUserId,
 
             <div className="flex items-center gap-2 ml-auto flex-wrap">
               <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.brownLight }} />
+                <Search
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4"
+                  style={{ color: colors.brownLight }}
+                />
                 <Input
                   placeholder="Search"
                   value={searchQuery}
@@ -134,7 +152,10 @@ export function TimesheetsView({ tenantId, canApprove, canExport, currentUserId,
               </div>
 
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-8 w-[140px] text-sm" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
+                <SelectTrigger
+                  className="h-8 w-[140px] text-sm"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                >
                   <Filter className="w-3 h-3 mr-1" style={{ color: colors.brownLight }} />
                   <SelectValue placeholder="Status filter" />
                 </SelectTrigger>
@@ -150,8 +171,11 @@ export function TimesheetsView({ tenantId, canApprove, canExport, currentUserId,
               {canExport && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm" disabled={!entries.length || gustoExporting}
-                      style={{ backgroundColor: colors.gold, color: colors.white }}>
+                    <Button
+                      size="sm"
+                      disabled={!entries.length || gustoExporting}
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                    >
                       <Download className="w-4 h-4 mr-1" />
                       {gustoExporting ? 'Exporting...' : 'Export'}
                       <ChevronDown className="w-3 h-3 ml-1" />
@@ -194,9 +218,7 @@ export function TimesheetsView({ tenantId, canApprove, canExport, currentUserId,
       </Card>
 
       {/* Job insights */}
-      {!isLoading && entries.length > 0 && (
-        <JobInsights entries={entries} shifts={shifts} employees={employees} />
-      )}
+      {!isLoading && entries.length > 0 && <JobInsights entries={entries} shifts={shifts} employees={employees} />}
     </div>
   );
 }

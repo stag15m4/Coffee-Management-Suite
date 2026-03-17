@@ -38,9 +38,7 @@ export function usePayPeriod() {
   const periodType = config?.pay_period_type ?? 'biweekly';
   const anchorDate = config?.pay_period_anchor_date ?? '2026-01-05';
 
-  const [period, setPeriod] = useState<PayPeriod>(() =>
-    getCurrentPayPeriod(periodType, anchorDate)
-  );
+  const [period, setPeriod] = useState<PayPeriod>(() => getCurrentPayPeriod(periodType, anchorDate));
 
   // Re-sync when config loads (only on first load)
   const [initialized, setInitialized] = useState(false);

@@ -53,12 +53,8 @@ async function fetchEmployeeCount(tenantId: string): Promise<number> {
 
 async function fetchRevenue(tenantId: string) {
   const now = new Date();
-  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .split('T')[0];
-  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    .toISOString()
-    .split('T')[0];
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
   const { data: currentMonth, error: currentError } = await supabase
     .from('cash_activity')
@@ -70,12 +66,8 @@ async function fetchRevenue(tenantId: string) {
 
   if (currentError) throw currentError;
 
-  const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    .toISOString()
-    .split('T')[0];
-  const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
-    .toISOString()
-    .split('T')[0];
+  const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+  const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
 
   const { data: lastMonth, error: lastError } = await supabase
     .from('cash_activity')
@@ -87,24 +79,15 @@ async function fetchRevenue(tenantId: string) {
 
   if (lastError) throw lastError;
 
-  const currentTotal =
-    currentMonth?.reduce(
-      (sum, entry) => sum + (Number(entry.gross_revenue) || 0),
-      0
-    ) || 0;
-  const lastTotal =
-    lastMonth?.reduce(
-      (sum, entry) => sum + (Number(entry.gross_revenue) || 0),
-      0
-    ) || 0;
+  const currentTotal = currentMonth?.reduce((sum, entry) => sum + (Number(entry.gross_revenue) || 0), 0) || 0;
+  const lastTotal = lastMonth?.reduce((sum, entry) => sum + (Number(entry.gross_revenue) || 0), 0) || 0;
 
   // Don't return revenue data if there's nothing to show
   if (currentTotal === 0 && lastTotal === 0) {
     return null;
   }
 
-  const percentChange =
-    lastTotal > 0 ? ((currentTotal - lastTotal) / lastTotal) * 100 : 0;
+  const percentChange = lastTotal > 0 ? ((currentTotal - lastTotal) / lastTotal) * 100 : 0;
 
   return {
     currentMonth: currentTotal,
@@ -117,9 +100,7 @@ async function fetchRevenue(tenantId: string) {
 async function fetchAdminTasks(tenantId: string): Promise<ActionItem[]> {
   const now = new Date();
   const today = now.toISOString().split('T')[0];
-  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split('T')[0];
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   const { data: tasks, error } = await supabase
     .from('admin_tasks')
@@ -141,7 +122,16 @@ async function fetchAdminTasks(tenantId: string): Promise<ActionItem[]> {
 
   if (error) throw error;
 
-  return (tasks || []).map((task: any) => {
+  interface AdminTaskRow {
+    id: string;
+    title: string;
+    priority: string;
+    due_date: string | null;
+    assigned_to: string | null;
+    assignee: { full_name: string | null } | null;
+  }
+
+  return ((tasks || []) as unknown as AdminTaskRow[]).map((task) => {
     const dueDate = task.due_date || '';
     let urgency: ActionItem['urgency'] = 'this-week';
     if (dueDate < today) urgency = 'overdue';
@@ -163,9 +153,7 @@ async function fetchAdminTasks(tenantId: string): Promise<ActionItem[]> {
 async function fetchMaintenanceTasks(tenantId: string): Promise<ActionItem[]> {
   const now = new Date();
   const today = now.toISOString().split('T')[0];
-  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split('T')[0];
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   const { data: tasks, error } = await supabase
     .from('maintenance_tasks')
@@ -185,7 +173,14 @@ async function fetchMaintenanceTasks(tenantId: string): Promise<ActionItem[]> {
 
   if (error) throw error;
 
-  return (tasks || []).map((task: any) => {
+  interface MaintenanceTaskRow {
+    id: string;
+    name: string;
+    next_due_at: string | null;
+    equipment: { id: string; name: string; tenant_id: string } | null;
+  }
+
+  return ((tasks || []) as unknown as MaintenanceTaskRow[]).map((task) => {
     const dueDate = task.next_due_at ? task.next_due_at.split('T')[0] : '';
     let urgency: ActionItem['urgency'] = 'this-week';
     if (dueDate < today) urgency = 'overdue';
@@ -230,10 +225,7 @@ export function canViewSection(
   }
 }
 
-async function fetchStoreMetrics(
-  tenantId: string,
-  userRole: string | undefined
-): Promise<StoreMetrics> {
+async function fetchStoreMetrics(tenantId: string, userRole: string | undefined): Promise<StoreMetrics> {
   // First fetch enabled modules for this location
   const enabledModules = await fetchEnabledModules(tenantId);
 
@@ -275,15 +267,9 @@ async function fetchStoreMetrics(
   });
 
   // Compute red flags
-  const overdueMaintenanceCount = maintenanceItems.filter(
-    (i) => i.urgency === 'overdue'
-  ).length;
-  const overdueTaskCount = adminItems.filter(
-    (i) => i.urgency === 'overdue'
-  ).length;
-  const unassignedTaskCount = adminItems.filter(
-    (i) => !i.assigneeName
-  ).length;
+  const overdueMaintenanceCount = maintenanceItems.filter((i) => i.urgency === 'overdue').length;
+  const overdueTaskCount = adminItems.filter((i) => i.urgency === 'overdue').length;
+  const unassignedTaskCount = adminItems.filter((i) => !i.assigneeName).length;
 
   return {
     enabledModules,

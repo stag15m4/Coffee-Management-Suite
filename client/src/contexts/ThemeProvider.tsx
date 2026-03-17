@@ -5,15 +5,15 @@ import { useAuth } from '@/contexts/AuthContext';
 // These must be raw hex, NOT the CSS-var-based `colors` from @/lib/colors,
 // because ThemeProvider sets these as CSS custom-property values.
 const RAW = {
-  gold: '#334155',         // Slate-700 — neutral primary for buttons/accents
-  goldLight: '#F1F5F9',    // Slate-100 — very light
-  goldDark: '#1E293B',     // Slate-800 — darker for hover/active
-  brown: '#0F172A',        // Slate-900 — near-black for text
-  brownLight: '#64748B',   // Slate-500 — secondary text
-  cream: '#F1F5F9',        // Slate-100 — light surfaces
-  creamDark: '#CBD5E1',    // Slate-300 — borders
+  gold: '#334155', // Slate-700 — neutral primary for buttons/accents
+  goldLight: '#F1F5F9', // Slate-100 — very light
+  goldDark: '#1E293B', // Slate-800 — darker for hover/active
+  brown: '#0F172A', // Slate-900 — near-black for text
+  brownLight: '#64748B', // Slate-500 — secondary text
+  cream: '#F1F5F9', // Slate-100 — light surfaces
+  creamDark: '#CBD5E1', // Slate-300 — borders
   white: '#FFFFFF',
-  inputBg: '#F8FAFC',      // Slate-50 — subtle input background
+  inputBg: '#F8FAFC', // Slate-50 — subtle input background
 };
 
 // ---------------------------------------------------------------------------
@@ -71,7 +71,7 @@ function hexToRgb(hex: string): [number, number, number] {
  * Convert [r, g, b] back to a hex string.
  */
 function rgbToHex(r: number, g: number, b: number): string {
-  return '#' + [r, g, b].map(c => clamp(c).toString(16).padStart(2, '0')).join('');
+  return '#' + [r, g, b].map((c) => clamp(c).toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -80,11 +80,7 @@ function rgbToHex(r: number, g: number, b: number): string {
  */
 function lighten(hex: string, amount = 0.1): string {
   const [r, g, b] = hexToRgb(hex);
-  return rgbToHex(
-    r + (255 - r) * amount,
-    g + (255 - g) * amount,
-    b + (255 - b) * amount,
-  );
+  return rgbToHex(r + (255 - r) * amount, g + (255 - g) * amount, b + (255 - b) * amount);
 }
 
 /**
@@ -93,11 +89,7 @@ function lighten(hex: string, amount = 0.1): string {
  */
 function darken(hex: string, amount = 0.1): string {
   const [r, g, b] = hexToRgb(hex);
-  return rgbToHex(
-    r * (1 - amount),
-    g * (1 - amount),
-    b * (1 - amount),
-  );
+  return rgbToHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
 }
 
 /**
@@ -105,8 +97,9 @@ function darken(hex: string, amount = 0.1): string {
  * that use the `hsl(var(--name) / alpha)` pattern (space-separated, no commas).
  */
 function hexToHsl(hex: string): string {
-  const [r, g, b] = hexToRgb(hex).map(c => c / 255);
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const [r, g, b] = hexToRgb(hex).map((c) => c / 255);
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b);
   const l = (max + min) / 2;
   if (max === min) return `0 0% ${Math.round(l * 100)}%`;
   const d = max - min;
@@ -256,14 +249,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<ThemeContextType>(
     () => ({ colors: resolvedColors, meta: resolvedMeta }),
-    [resolvedColors, resolvedMeta],
+    [resolvedColors, resolvedMeta]
   );
 
-  return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 // ---------------------------------------------------------------------------

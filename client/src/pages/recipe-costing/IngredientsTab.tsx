@@ -1,14 +1,9 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Pencil, Package, Columns3 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { colors } from '@/lib/colors';
 import { formatCurrency, calculateCostPerUsageUnit, pluralizeType, isOlderThan3Months, formatDate } from './utils';
 import type { Ingredient, Category } from './types';
@@ -21,7 +16,11 @@ interface IngredientsTabProps {
   onUpdate: (id: string, updates: Partial<Ingredient>) => Promise<void>;
   onAdd: (ingredient: Partial<Ingredient>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onCreateRecipeFromIngredients: (data: { name: string; category_id: string; ingredient_ids: string[] }) => Promise<void>;
+  onCreateRecipeFromIngredients: (data: {
+    name: string;
+    category_id: string;
+    ingredient_ids: string[];
+  }) => Promise<void>;
 }
 
 const EMPTY_FORM = {
@@ -37,7 +36,15 @@ const EMPTY_FORM = {
   item_number: '',
 };
 
-export const IngredientsTab = ({ ingredients, categories, productCategories, onUpdate, onAdd, onDelete, onCreateRecipeFromIngredients }: IngredientsTabProps) => {
+export const IngredientsTab = ({
+  ingredients,
+  categories,
+  productCategories,
+  onUpdate,
+  onAdd,
+  onDelete,
+  onCreateRecipeFromIngredients,
+}: IngredientsTabProps) => {
   const { toast } = useToast();
   const [selectedType, setSelectedType] = useState<string>('FOH Ingredient');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -57,8 +64,8 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
   const normalizeType = (type: string | null | undefined) => (type || 'FOH Ingredient').toLowerCase();
 
   const filteredIngredients = ingredients
-    .filter(i => normalizeType(i.ingredient_type) === selectedType.toLowerCase())
-    .filter(i => selectedCategory === 'all' || i.category_id === selectedCategory)
+    .filter((i) => normalizeType(i.ingredient_type) === selectedType.toLowerCase())
+    .filter((i) => selectedCategory === 'all' || i.category_id === selectedCategory)
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const openAddSheet = () => {
@@ -115,7 +122,7 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
     if (selectedItems.size === filteredIngredients.length) {
       setSelectedItems(new Set());
     } else {
-      setSelectedItems(new Set(filteredIngredients.map(i => i.id)));
+      setSelectedItems(new Set(filteredIngredients.map((i) => i.id)));
     }
   };
 
@@ -137,14 +144,18 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
         }
       }
       if (failCount > 0) {
-        toast({ title: 'Transfer issue', description: `${failCount} item(s) failed. This is likely due to Supabase security policies. Please check RLS settings.`, variant: 'destructive' });
+        toast({
+          title: 'Transfer issue',
+          description: `${failCount} item(s) failed. This is likely due to Supabase security policies. Please check RLS settings.`,
+          variant: 'destructive',
+        });
       } else if (successCount > 0) {
         toast({ title: `Successfully transferred ${successCount} item(s) to ${pluralizeType(transferTarget)}` });
       }
       setSelectedItems(new Set());
       setTransferTarget('');
-    } catch (error: any) {
-      toast({ title: 'Transfer failed', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Transfer failed', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -154,7 +165,7 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
     <div className="space-y-4">
       {/* Type sub-tabs */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {INGREDIENT_TYPES.map(type => (
+        {INGREDIENT_TYPES.map((type) => (
           <button
             key={type}
             onClick={() => setSelectedType(type)}
@@ -165,7 +176,8 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
             }}
             data-testid={`tab-${type.toLowerCase().replace(' ', '-')}`}
           >
-            {pluralizeType(type)} ({ingredients.filter(i => normalizeType(i.ingredient_type) === type.toLowerCase()).length})
+            {pluralizeType(type)} (
+            {ingredients.filter((i) => normalizeType(i.ingredient_type) === type.toLowerCase()).length})
           </button>
         ))}
       </div>
@@ -184,8 +196,10 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
             data-testid="select-transfer-target"
           >
             <option value="">Transfer to...</option>
-            {INGREDIENT_TYPES.filter(t => t !== selectedType).map(type => (
-              <option key={type} value={type}>{pluralizeType(type)}</option>
+            {INGREDIENT_TYPES.filter((t) => t !== selectedType).map((type) => (
+              <option key={type} value={type}>
+                {pluralizeType(type)}
+              </option>
             ))}
           </select>
           <button
@@ -224,7 +238,10 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
 
       {/* Create Recipe inline form */}
       {showCreateRecipe && selectedItems.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: colors.cream, border: `2px solid ${colors.gold}` }}>
+        <div
+          className="flex flex-wrap items-center gap-3 p-3 rounded-lg"
+          style={{ backgroundColor: colors.cream, border: `2px solid ${colors.gold}` }}
+        >
           <span className="text-sm font-medium" style={{ color: colors.brown }}>
             New recipe with {selectedItems.size} ingredient{selectedItems.size > 1 ? 's' : ''}:
           </span>
@@ -245,8 +262,10 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
             data-testid="select-create-recipe-category"
           >
             <option value="">Select type...</option>
-            {productCategories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            {productCategories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
             ))}
           </select>
           <button
@@ -295,7 +314,9 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
       <div className="flex flex-wrap items-center gap-4 justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-medium" style={{ color: colors.brown }}>Category:</span>
+            <span className="font-medium" style={{ color: colors.brown }}>
+              Category:
+            </span>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
@@ -304,8 +325,10 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
               data-testid="select-ingredient-category"
             >
               <option value="all">All Categories</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
               ))}
             </select>
           </div>
@@ -366,10 +389,10 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
                     <th className="px-4 py-3 text-right font-semibold text-white">Usage Unit</th>
                   </>
                 )}
-                <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.gold }}>Cost/Usage</th>
-                {showExtraColumns && (
-                  <th className="px-4 py-3 text-left font-semibold text-white">Vendor</th>
-                )}
+                <th className="px-4 py-3 text-right font-semibold" style={{ color: colors.gold }}>
+                  Cost/Usage
+                </th>
+                {showExtraColumns && <th className="px-4 py-3 text-left font-semibold text-white">Vendor</th>}
                 <th className="px-4 py-3 text-center font-semibold text-white">Last Updated</th>
                 <th className="px-4 py-3 text-center font-semibold text-white">Actions</th>
               </tr>
@@ -412,7 +435,8 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
                   {showExtraColumns && (
                     <>
                       <td className="px-4 py-3 text-right font-mono" style={{ color: colors.brownLight }}>
-                        {formatCurrency((Number(ingredient.cost) || 0) / (Number(ingredient.quantity) || 1))}/{ingredient.unit}
+                        {formatCurrency((Number(ingredient.cost) || 0) / (Number(ingredient.quantity) || 1))}/
+                        {ingredient.unit}
                       </td>
                       <td className="px-4 py-3 text-right" style={{ color: colors.brownLight }}>
                         {ingredient.usage_unit || ingredient.unit}
@@ -491,7 +515,9 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
                 <tr>
                   <td colSpan={colCount} className="text-center py-10">
                     <Package className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
-                    <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>No ingredients yet</h3>
+                    <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
+                      No ingredients yet
+                    </h3>
                     <p className="text-sm" style={{ color: colors.brownLight }}>
                       Add your first ingredient to start building recipes and tracking costs.
                     </p>
@@ -520,7 +546,9 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
           <div className="space-y-4 mt-6">
             {/* Name */}
             <div>
-              <label className="text-sm font-medium" style={{ color: colors.brown }}>Name *</label>
+              <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                Name *
+              </label>
               <input
                 type="text"
                 value={String(formData.name || '')}
@@ -533,7 +561,9 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
 
             {/* Category */}
             <div>
-              <label className="text-sm font-medium" style={{ color: colors.brown }}>Category *</label>
+              <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                Category *
+              </label>
               <select
                 value={String(formData.category_id || '')}
                 onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
@@ -541,8 +571,10 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
                 style={{ borderColor: colors.creamDark, color: colors.brown }}
               >
                 <option value="">Select Category</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -550,15 +582,19 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
             {/* Type (edit only — when adding, type is the selected sub-tab) */}
             {sheetMode === 'edit' && (
               <div>
-                <label className="text-sm font-medium" style={{ color: colors.brown }}>Type</label>
+                <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                  Type
+                </label>
                 <select
                   value={String(formData.ingredient_type || 'FOH Ingredient')}
                   onChange={(e) => setFormData({ ...formData, ingredient_type: e.target.value })}
                   className="w-full mt-1 px-3 py-2 rounded-lg border-2 outline-none"
                   style={{ borderColor: colors.creamDark, color: colors.brown }}
                 >
-                  {INGREDIENT_TYPES.map(type => (
-                    <option key={type} value={type}>{type}</option>
+                  {INGREDIENT_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -567,9 +603,16 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
             {/* Cost + Quantity + Unit */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium" style={{ color: colors.brown }}>Cost</label>
+                <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                  Cost
+                </label>
                 <div className="relative mt-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: colors.brownLight }}>$</span>
+                  <span
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium"
+                    style={{ color: colors.brownLight }}
+                  >
+                    $
+                  </span>
                   <input
                     type="number"
                     step="0.01"
@@ -583,7 +626,9 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
               </div>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="text-sm font-medium" style={{ color: colors.brown }}>Quantity</label>
+                  <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                    Quantity
+                  </label>
                   <input
                     type="number"
                     step="0.01"
@@ -595,7 +640,9 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
                   />
                 </div>
                 <div className="w-24">
-                  <label className="text-sm font-medium" style={{ color: colors.brown }}>Unit</label>
+                  <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                    Unit
+                  </label>
                   <select
                     value={String(formData.unit || 'oz')}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
@@ -617,7 +664,9 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
 
             {/* Usage Unit */}
             <div>
-              <label className="text-sm font-medium" style={{ color: colors.brown }}>Usage Unit</label>
+              <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                Usage Unit
+              </label>
               <select
                 value={String(formData.usage_unit || '')}
                 onChange={(e) => setFormData({ ...formData, usage_unit: e.target.value })}
@@ -634,10 +683,14 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
 
             {/* Vendor details — secondary fields */}
             <div className="pt-2 border-t" style={{ borderColor: colors.creamDark }}>
-              <p className="text-xs font-medium mb-3" style={{ color: colors.brownLight }}>Vendor Details</p>
+              <p className="text-xs font-medium mb-3" style={{ color: colors.brownLight }}>
+                Vendor Details
+              </p>
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium" style={{ color: colors.brown }}>Vendor</label>
+                  <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                    Vendor
+                  </label>
                   <input
                     type="text"
                     value={String(formData.vendor || '')}
@@ -648,7 +701,9 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium" style={{ color: colors.brown }}>Manufacturer</label>
+                  <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                    Manufacturer
+                  </label>
                   <input
                     type="text"
                     value={String(formData.manufacturer || '')}
@@ -659,7 +714,9 @@ export const IngredientsTab = ({ ingredients, categories, productCategories, onU
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium" style={{ color: colors.brown }}>Item Number</label>
+                  <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                    Item Number
+                  </label>
                   <input
                     type="text"
                     value={String(formData.item_number || '')}

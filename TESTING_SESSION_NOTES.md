@@ -8,6 +8,7 @@
 **Commit**: a4ed3f4
 
 **The Fix**:
+
 - Added timeout protection to session refresh (5 seconds max)
 - Prevented duplicate resume events with `resumeInProgress` flag
 - Added graceful error handling for network failures
@@ -15,6 +16,7 @@
 - Improved async operation handling for location queries
 
 **Files Changed**:
+
 - `client/src/contexts/AuthContext.tsx` - Main fix
 - `client/src/components/AppResumeIndicator.tsx` - Visual feedback (new)
 - `client/src/App.tsx` - Added resume indicator
@@ -26,10 +28,12 @@
 ## What We Discovered (Issues to Fix)
 
 ### 2. Email Verification Flow Errors ❌
+
 **Status**: Documented, not fixed
 **Priority**: Medium
 
 **Issue**: Clicking email verification links causes:
+
 - `Unhandled Promise Rejection: AbortError`
 - Page becomes unresponsive
 - Need to manually refresh
@@ -39,31 +43,37 @@
 ---
 
 ### 3. Stripe Webhook Configuration Issues ❌
+
 **Status**: Blocking testing
 **Priority**: High (prevents app initialization)
 
 **Error**:
+
 ```
 StripeInvalidRequestError: No such webhook endpoint: 'we_1SwXavIaOvPcP88nFUSPSkAZ'
 ```
 
 **Impact**:
+
 - Server runs but Stripe integration fails
 - May be preventing login
 - May be affecting subscription/module access
 
 **Needs**:
+
 - Reconfigure Stripe webhooks in Replit
 - Or disable Stripe initialization for development testing
 
 ---
 
 ### 4. Password Reset Emails Not Sending ❌
+
 **Status**: Documented
 **Priority**: Medium
 
 **Issue**: Password reset emails don't arrive
 **Possible Causes**:
+
 - Resend API not configured properly in this environment
 - Email service credentials missing/invalid
 - Rate limiting
@@ -71,11 +81,13 @@ StripeInvalidRequestError: No such webhook endpoint: 'we_1SwXavIaOvPcP88nFUSPSkA
 ---
 
 ### 5. Login Issues (Possible Database Sync Issue) ❌
+
 **Status**: Unclear
 **Priority**: High (prevents testing)
 
 **Issue**: "Invalid email or password" error
 **Possible Causes**:
+
 - Credentials don't exist in this database
 - Database not synced between environments
 - Related to Stripe initialization failures
@@ -87,6 +99,7 @@ StripeInvalidRequestError: No such webhook endpoint: 'we_1SwXavIaOvPcP88nFUSPSkA
 Due to environment configuration issues, we could **not** test the iPad resume fix on actual iPad Safari.
 
 **Reason**: Cannot log into the application due to:
+
 1. Login credentials not working
 2. Password reset emails not sending
 3. Stripe initialization blocking app startup
@@ -96,18 +109,21 @@ Due to environment configuration issues, we could **not** test the iPad resume f
 ## Next Steps
 
 ### Option 1: Fix Environment Issues First (Recommended)
+
 1. Fix Stripe webhook configuration
 2. Verify database has user accounts
 3. Fix email service (Resend) configuration
 4. Then test iPad resume fix
 
 ### Option 2: Test with Your Brother
+
 1. Coordinate with your brother
 2. He may know the working credentials
 3. He may have the environment properly configured
 4. Test together on his setup
 
 ### Option 3: Merge and Test in Production
+
 1. Review the code changes together
 2. Create Pull Request
 3. Merge to main branch
@@ -120,6 +136,7 @@ Due to environment configuration issues, we could **not** test the iPad resume f
 Even though we couldn't test, the iPad resume fix is solid based on code logic:
 
 **Before (Bug)**:
+
 ```javascript
 // Session refresh had no timeout
 const { data, error } = await supabase.auth.refreshSession();
@@ -132,6 +149,7 @@ setUser(data.session.user);
 ```
 
 **After (Fixed)**:
+
 ```javascript
 // Prevent duplicate events
 if (resumeInProgress) return;
@@ -140,19 +158,17 @@ if (resumeInProgress) return;
 if (timeSinceHidden < 5000) return;
 
 // Timeout protection (5 seconds max)
-const { data, error } = await Promise.race([
-  supabase.auth.refreshSession(),
-  timeout(5000)
-]);
+const { data, error } = await Promise.race([supabase.auth.refreshSession(), timeout(5000)]);
 
 // Don't trigger fetchUserData cascade
 // Session is refreshed in Supabase, pages work fine
 
 // Visual feedback
-<AppResumeIndicator /> // Shows "Refreshing..." banner
+<AppResumeIndicator />; // Shows "Refreshing..." banner
 ```
 
 **Why This Fixes the Hanging**:
+
 1. **Timeout Protection**: If session refresh takes > 5 seconds, it fails gracefully instead of hanging forever
 2. **Duplicate Prevention**: Multiple app switches don't trigger multiple simultaneous refreshes
 3. **Smart Skipping**: Brief app switches (< 5s) don't trigger any refresh at all
@@ -164,7 +180,9 @@ const { data, error } = await Promise.race([
 ## Environment Issues to Resolve
 
 ### Stripe Webhook Setup
+
 **In Replit**:
+
 1. Go to Stripe Dashboard
 2. Navigate to Developers > Webhooks
 3. Delete old webhook endpoint
@@ -173,13 +191,17 @@ const { data, error } = await Promise.race([
 6. Update `STRIPE_WEBHOOK_SECRET` in Replit Secrets (if needed)
 
 ### Database User Setup
+
 **Verify user accounts exist**:
+
 1. Check Supabase dashboard
 2. Verify user_profiles table has entries
 3. Or create test account via signup
 
 ### Email Service (Resend)
+
 **Verify Resend is configured**:
+
 1. Check `RESEND_API_KEY` in Replit Secrets
 2. Verify API key is valid
 3. Check Resend dashboard for delivery logs

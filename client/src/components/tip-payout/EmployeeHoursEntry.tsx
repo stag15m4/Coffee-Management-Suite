@@ -46,7 +46,7 @@ export function EmployeeHoursEntry({
   onAddNewEmployee,
   onImportFromTimeclock,
 }: EmployeeHoursEntryProps) {
-  const availableEmployees = employees.filter(e => !employeeHours[e.name] || e.name === selectedEmployee);
+  const availableEmployees = employees.filter((e) => !employeeHours[e.name] || e.name === selectedEmployee);
 
   const handleSelectChange = (value: string) => {
     if (value === ADD_NEW_VALUE) {
@@ -118,7 +118,9 @@ export function EmployeeHoursEntry({
             ))}
           <TableRow className="border-b" style={{ borderColor: colors.creamDark }}>
             <TableCell style={{ color: colors.brown }}>
-              <Label htmlFor="employee-select" className="sr-only">Select Employee</Label>
+              <Label htmlFor="employee-select" className="sr-only">
+                Select Employee
+              </Label>
               <Select value={selectedEmployee} onValueChange={handleSelectChange}>
                 <SelectTrigger
                   id="employee-select"
@@ -153,7 +155,12 @@ export function EmployeeHoursEntry({
                   inputMode="numeric"
                   value={hoursInput}
                   onChange={(e) => onHoursInputChange(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddHours(); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      onAddHours();
+                    }
+                  }}
                   className="w-16"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   aria-label="Hours"
@@ -168,7 +175,12 @@ export function EmployeeHoursEntry({
                   inputMode="numeric"
                   value={minutesInput}
                   onChange={(e) => onMinutesInputChange(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddHours(); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      onAddHours();
+                    }
+                  }}
                   className="w-16"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   aria-label="Minutes (0-59)"

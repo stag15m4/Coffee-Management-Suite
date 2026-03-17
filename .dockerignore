@@ -1,7 +1,12 @@
 node_modules
 dist
+.git
 .env
 .env.*
-.git
 *.md
-MOBILE-APP-PLAN.md
+.gitignore
+.dockerignore
+supabase-migrations
+attached_assets
+*.pdf
+*.html

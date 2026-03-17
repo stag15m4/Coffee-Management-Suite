@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,7 +37,7 @@ export default function CashDeposit() {
 
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
-  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const displayName = isChildLocation ? tenant?.name : branding?.company_name || tenant?.name || 'Erwin Mills Coffee';
   const orgName = primaryTenant?.name || branding?.company_name || '';
   const today = new Date().toISOString().split('T')[0];
   const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
@@ -105,7 +106,7 @@ export default function CashDeposit() {
           const val = parseFloat(data.starting_drawer_default);
           setDrawerDefault(val);
           // Update form if it still has the old hardcoded default
-          setFormData(prev => {
+          setFormData((prev) => {
             if (prev.starting_drawer === '200.00' && val !== 200) {
               return { ...prev, starting_drawer: val.toFixed(2) };
             }
@@ -132,14 +133,9 @@ export default function CashDeposit() {
         .limit(1)
         .maybeSingle();
       if (existing?.id) {
-        await supabase
-          .from('overhead_settings')
-          .update({ owner_tips_enabled: newValue })
-          .eq('id', existing.id);
+        await supabase.from('overhead_settings').update({ owner_tips_enabled: newValue }).eq('id', existing.id);
       } else {
-        await supabase
-          .from('overhead_settings')
-          .insert({ tenant_id: tenant.id, owner_tips_enabled: newValue });
+        await supabase.from('overhead_settings').insert({ tenant_id: tenant.id, owner_tips_enabled: newValue });
       }
     } catch (err) {
       console.error('Error saving owner tips setting:', err);
@@ -168,11 +164,11 @@ export default function CashDeposit() {
 
       if (error) throw error;
       setEntries(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading entries:', error);
       toast({
         title: 'Error loading entries',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -204,7 +200,8 @@ export default function CashDeposit() {
       setFormData({
         drawer_date: editingEntry.drawer_date,
         gross_revenue: fmt2(editingEntry.gross_revenue),
-        starting_drawer: editingEntry.starting_drawer != null ? editingEntry.starting_drawer.toFixed(2) : drawerDefault.toFixed(2),
+        starting_drawer:
+          editingEntry.starting_drawer != null ? editingEntry.starting_drawer.toFixed(2) : drawerDefault.toFixed(2),
         actual_deposit: fmt2(editingEntry.actual_deposit),
         cash_sales: fmt2(editingEntry.cash_sales),
         tip_pool: fmt2(editingEntry.tip_pool),
@@ -216,7 +213,8 @@ export default function CashDeposit() {
         flagged: editingEntry.flagged || false,
       });
       // Auto-expand adjustments if any adjustment field has a non-zero value
-      const hasAdjustments = (editingEntry.tip_pool || 0) !== 0 ||
+      const hasAdjustments =
+        (editingEntry.tip_pool || 0) !== 0 ||
         (editingEntry.cash_refund || 0) !== 0 ||
         (editingEntry.pay_in || 0) !== 0 ||
         (editingEntry.pay_out || 0) !== 0 ||
@@ -226,13 +224,13 @@ export default function CashDeposit() {
   }, [editingEntry]);
 
   const updateField = (field: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const calculatedDeposit = () => {
     const cashSales = parseFloat(formData.cash_sales) || 0;
     const tipPool = parseFloat(formData.tip_pool) || 0;
-    const ownerTips = (ownerTipsEnabled && ownerTipsLoaded) ? (parseFloat(formData.owner_tips) || 0) : 0;
+    const ownerTips = ownerTipsEnabled && ownerTipsLoaded ? parseFloat(formData.owner_tips) || 0 : 0;
     const payIn = parseFloat(formData.pay_in) || 0;
     const payOut = parseFloat(formData.pay_out) || 0;
     const cashRefund = parseFloat(formData.cash_refund) || 0;
@@ -265,7 +263,7 @@ export default function CashDeposit() {
       actual_deposit: parseFloat(formData.actual_deposit) || 0,
       cash_sales: parseFloat(formData.cash_sales) || 0,
       tip_pool: parseFloat(formData.tip_pool) || 0,
-      owner_tips: (ownerTipsEnabled && ownerTipsLoaded) ? (parseFloat(formData.owner_tips) || 0) : 0,
+      owner_tips: ownerTipsEnabled && ownerTipsLoaded ? parseFloat(formData.owner_tips) || 0 : 0,
       pay_in: parseFloat(formData.pay_in) || 0,
       pay_out: parseFloat(formData.pay_out) || 0,
       cash_refund: parseFloat(formData.cash_refund) || 0,
@@ -275,16 +273,11 @@ export default function CashDeposit() {
 
     try {
       if (editingEntry) {
-        const { error } = await supabase
-          .from('cash_activity')
-          .update(data)
-          .eq('id', editingEntry.id);
+        const { error } = await supabase.from('cash_activity').update(data).eq('id', editingEntry.id);
         if (error) throw error;
         toast({ title: 'Entry updated successfully' });
       } else {
-        const { error } = await supabase
-          .from('cash_activity')
-          .upsert(data, { onConflict: 'tenant_id,drawer_date' });
+        const { error } = await supabase.from('cash_activity').upsert(data, { onConflict: 'tenant_id,drawer_date' });
         if (error) throw error;
         toast({ title: 'Entry saved successfully' });
       }
@@ -293,10 +286,10 @@ export default function CashDeposit() {
       resetForm(savedDate);
       loadEntries();
       queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error saving entry',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -317,26 +310,34 @@ export default function CashDeposit() {
   };
 
   const handleDelete = async (entry: CashEntry) => {
-    if (!await confirm({ title: `Delete entry for ${formatDate(entry.drawer_date)}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) return;
+    if (
+      !(await confirm({
+        title: `Delete entry for ${formatDate(entry.drawer_date)}?`,
+        description: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      }))
+    )
+      return;
 
     try {
-      const { error } = await supabase
-        .from('cash_activity')
-        .delete()
-        .eq('id', entry.id);
+      const { error } = await supabase.from('cash_activity').delete().eq('id', entry.id);
 
       if (error) throw error;
       showDeleteUndoToast({
         itemName: `Entry for ${formatDate(entry.drawer_date)}`,
         undo: { type: 'reinsert', table: 'cash_activity', data: { ...entry } },
-        onReload: () => { loadEntries(); queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity }); },
+        onReload: () => {
+          loadEntries();
+          queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity });
+        },
       });
       loadEntries();
       queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error deleting entry',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -344,17 +345,14 @@ export default function CashDeposit() {
 
   const handleToggleFlag = async (entry: CashEntry) => {
     try {
-      const { error } = await supabase
-        .from('cash_activity')
-        .update({ flagged: !entry.flagged })
-        .eq('id', entry.id);
+      const { error } = await supabase.from('cash_activity').update({ flagged: !entry.flagged }).eq('id', entry.id);
 
       if (error) throw error;
       loadEntries();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error updating flag',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -370,10 +368,10 @@ export default function CashDeposit() {
       if (error) throw error;
       loadEntries();
       queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error updating exclusion',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -393,14 +391,25 @@ export default function CashDeposit() {
 
   const exportToCSV = () => {
     const headers = [
-      'Date', 'Gross Revenue', 'Starting Drawer', 'Cash Sales', 'Tip Pool',
-      'Owner Tips', 'Pay In', 'Pay Out', 'Cash Refund', 'Actual Deposit', 'Calculated Deposit',
-      'Difference', 'Net Cash', 'Notes',
+      'Date',
+      'Gross Revenue',
+      'Starting Drawer',
+      'Cash Sales',
+      'Tip Pool',
+      'Owner Tips',
+      'Pay In',
+      'Pay Out',
+      'Cash Refund',
+      'Actual Deposit',
+      'Calculated Deposit',
+      'Difference',
+      'Net Cash',
+      'Notes',
     ];
 
     const rows = entries
       .sort((a, b) => a.drawer_date.localeCompare(b.drawer_date))
-      .map(e => [
+      .map((e) => [
         e.drawer_date,
         e.gross_revenue || 0,
         e.starting_drawer || 200,
@@ -422,7 +431,7 @@ export default function CashDeposit() {
       `Date Range: ${dateRange.start} to ${dateRange.end}`,
       '',
       headers.join(','),
-      ...rows.map(r => r.join(',')),
+      ...rows.map((r) => r.join(',')),
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -456,7 +465,10 @@ export default function CashDeposit() {
         const row = jsonData[i];
         if (!row) continue;
         const rowStr = row.map((c: any) => String(c || '').toLowerCase()).join(' ');
-        if (rowStr.includes('date') && (rowStr.includes('gross') || rowStr.includes('cash') || rowStr.includes('deposit'))) {
+        if (
+          rowStr.includes('date') &&
+          (rowStr.includes('gross') || rowStr.includes('cash') || rowStr.includes('deposit'))
+        ) {
           headerIndex = i;
           break;
         }
@@ -466,7 +478,11 @@ export default function CashDeposit() {
         throw new Error('Could not find header row with Date column');
       }
 
-      const headers = jsonData[headerIndex].map((h: any) => String(h || '').toLowerCase().trim());
+      const headers = jsonData[headerIndex].map((h: any) =>
+        String(h || '')
+          .toLowerCase()
+          .trim()
+      );
       const columnIndexes: Record<string, number> = {};
 
       headers.forEach((header: string, idx: number) => {
@@ -546,10 +562,10 @@ export default function CashDeposit() {
       toast({ title: `Imported ${parsedEntries.length} entries` });
       loadEntries();
       queryClient.invalidateQueries({ queryKey: queryKeys.cashActivity });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Import error',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -562,11 +578,12 @@ export default function CashDeposit() {
   const totalDeposits = entries.reduce((sum, e) => sum + (e.actual_deposit || 0), 0);
   const totalVariance = entries.reduce((sum, e) => sum + ((e.actual_deposit || 0) - (e.calculated_deposit || 0)), 0);
 
-  const includedEntries = entries.filter(e => !e.excluded_from_average);
+  const includedEntries = entries.filter((e) => !e.excluded_from_average);
   const excludedCount = entries.length - includedEntries.length;
-  const avgDailyRevenue = includedEntries.length > 0
-    ? includedEntries.reduce((sum, e) => sum + (e.gross_revenue || 0), 0) / includedEntries.length
-    : 0;
+  const avgDailyRevenue =
+    includedEntries.length > 0
+      ? includedEntries.reduce((sum, e) => sum + (e.gross_revenue || 0), 0) / includedEntries.length
+      : 0;
 
   const diff = difference();
 
@@ -590,7 +607,7 @@ export default function CashDeposit() {
       .lte('drawer_date', endDate);
 
     if (error) {
-      toast({ title: 'Error archiving entries', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error archiving entries', description: getErrorMessage(error), variant: 'destructive' });
     } else {
       toast({ title: `Archived all ${year} entries` });
       loadEntries();
@@ -611,7 +628,7 @@ export default function CashDeposit() {
       .lte('drawer_date', endDate);
 
     if (error) {
-      toast({ title: 'Error restoring entries', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error restoring entries', description: getErrorMessage(error), variant: 'destructive' });
     } else {
       toast({ title: `Restored all ${year} entries` });
       loadEntries();
@@ -643,12 +660,13 @@ export default function CashDeposit() {
       </div>
 
       <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4">
-
         {/* Date Range Section */}
         <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
           <CardContent className="py-3 px-4">
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <span style={{ color: colors.brown }} className="font-medium">Date Range:</span>
+              <span style={{ color: colors.brown }} className="font-medium">
+                Date Range:
+              </span>
               <div
                 className="px-4 py-2 rounded-md text-sm font-medium cursor-pointer relative overflow-hidden"
                 style={{ backgroundColor: colors.creamDark, color: colors.brown }}
@@ -657,7 +675,7 @@ export default function CashDeposit() {
                 <input
                   type="date"
                   value={dateRange.start}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  onChange={(e) => setDateRange((prev) => ({ ...prev, start: e.target.value }))}
                   className="absolute inset-0 opacity-0 cursor-pointer"
                   data-testid="input-date-start"
                 />
@@ -671,17 +689,13 @@ export default function CashDeposit() {
                 <input
                   type="date"
                   value={dateRange.end}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  onChange={(e) => setDateRange((prev) => ({ ...prev, end: e.target.value }))}
                   className="absolute inset-0 opacity-0 cursor-pointer"
                   data-testid="input-date-end"
                 />
               </div>
               <label className="relative cursor-pointer" data-testid="button-import">
-                <Button
-                  asChild
-                  className="text-white font-medium"
-                  style={{ backgroundColor: colors.gold }}
-                >
+                <Button asChild className="text-white font-medium" style={{ backgroundColor: colors.gold }}>
                   <span>Import</span>
                 </Button>
                 <input
@@ -709,8 +723,10 @@ export default function CashDeposit() {
         <Card style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
           <CardContent className="py-3 px-4">
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <span style={{ color: colors.brown }} className="font-medium">Archive:</span>
-              {archiveYears.map(year => (
+              <span style={{ color: colors.brown }} className="font-medium">
+                Archive:
+              </span>
+              {archiveYears.map((year) => (
                 <Button
                   key={year}
                   size="sm"
@@ -739,7 +755,9 @@ export default function CashDeposit() {
                   className="rounded"
                   data-testid="checkbox-show-archived"
                 />
-                <span className="text-sm" style={{ color: colors.brown }}>Show Archived</span>
+                <span className="text-sm" style={{ color: colors.brown }}>
+                  Show Archived
+                </span>
               </label>
             </div>
           </CardContent>
@@ -775,10 +793,7 @@ export default function CashDeposit() {
         />
 
         {/* Growth Tracker */}
-        <GrowthTracker
-          expanded={showGrowthTracker}
-          onToggle={() => setShowGrowthTracker(!showGrowthTracker)}
-        />
+        <GrowthTracker expanded={showGrowthTracker} onToggle={() => setShowGrowthTracker(!showGrowthTracker)} />
 
         {/* Transaction History */}
         <DepositHistory

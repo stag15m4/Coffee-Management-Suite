@@ -26,7 +26,9 @@ export function Spotlight() {
       setVisible(false);
       setRect(null);
     };
-    return () => { showSpotlightFn = null; };
+    return () => {
+      showSpotlightFn = null;
+    };
   }, []);
 
   // Find and highlight the target element

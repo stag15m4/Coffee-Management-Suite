@@ -71,21 +71,21 @@
 
 ### What We Keep vs. Rebuild
 
-| Layer | Decision | Rationale |
-|-------|----------|-----------|
-| Supabase DB + 60+ migrations | **KEEP** | Battle-tested multi-tenant schema with RLS |
-| `tenants`, `user_profiles`, `modules`, `subscription_*` tables | **KEEP + EXTEND** | Add `vertical_id` column to tenants |
-| Express API (`server/routes.ts`, `storage.ts`) | **KEEP** | Stripe, email, uploads work fine |
-| Supabase Auth | **KEEP** | Email/password + RLS integration is solid |
-| Reseller/license system | **KEEP + EXTEND** | Already has reseller infra; add vertical awareness |
-| React + Vite | **KEEP** (framework) | Rebuild components, not the toolchain |
-| shadcn/ui components | **KEEP** (library) | Continue using, just compose them differently |
-| Page components (21 routes) | **REBUILD** | Monolithic 2,700-line files → small focused components |
-| Sidebar navigation | **REBUILD** | Desktop sidebar → mobile-first bottom tabs + contextual nav |
-| AuthContext | **EXTEND** | Add `vertical` config to the context |
-| Data hooks (`client/src/hooks/`) | **KEEP + REFACTOR** | Hooks are clean; add vertical-aware term mapping |
-| Landing page | **REBUILD** | Single coffee page → vertical-specific landing pages |
-| Onboarding | **BUILD NEW** | Doesn't exist at all currently |
+| Layer                                                          | Decision             | Rationale                                                   |
+| -------------------------------------------------------------- | -------------------- | ----------------------------------------------------------- |
+| Supabase DB + 60+ migrations                                   | **KEEP**             | Battle-tested multi-tenant schema with RLS                  |
+| `tenants`, `user_profiles`, `modules`, `subscription_*` tables | **KEEP + EXTEND**    | Add `vertical_id` column to tenants                         |
+| Express API (`server/routes.ts`, `storage.ts`)                 | **KEEP**             | Stripe, email, uploads work fine                            |
+| Supabase Auth                                                  | **KEEP**             | Email/password + RLS integration is solid                   |
+| Reseller/license system                                        | **KEEP + EXTEND**    | Already has reseller infra; add vertical awareness          |
+| React + Vite                                                   | **KEEP** (framework) | Rebuild components, not the toolchain                       |
+| shadcn/ui components                                           | **KEEP** (library)   | Continue using, just compose them differently               |
+| Page components (21 routes)                                    | **REBUILD**          | Monolithic 2,700-line files → small focused components      |
+| Sidebar navigation                                             | **REBUILD**          | Desktop sidebar → mobile-first bottom tabs + contextual nav |
+| AuthContext                                                    | **EXTEND**           | Add `vertical` config to the context                        |
+| Data hooks (`client/src/hooks/`)                               | **KEEP + REFACTOR**  | Hooks are clean; add vertical-aware term mapping            |
+| Landing page                                                   | **REBUILD**          | Single coffee page → vertical-specific landing pages        |
+| Onboarding                                                     | **BUILD NEW**        | Doesn't exist at all currently                              |
 
 ---
 
@@ -214,6 +214,7 @@ Create migration: `supabase-migrations/081_seed_coffee_vertical.sql`
 Seed the first vertical with:
 
 **Coffee Shop vertical config:**
+
 - slug: `coffee-shop`
 - product_name: `CoffeeSuite`
 - Theme: current gold/brown colors from `tenant_branding` defaults
@@ -222,6 +223,7 @@ Seed the first vertical with:
 - Suggested modules: `recipe-costing`, `cash-deposit`, `tip-payout`
 
 **Starter templates (coffee):**
+
 - ~15 common ingredients (espresso, whole milk, oat milk, vanilla syrup, chocolate sauce, whipped cream, cups, lids, sleeves, straws, etc.)
 - ~8 common recipes (Latte, Cappuccino, Americano, Mocha, Cold Brew, Drip Coffee, Chai Latte, Hot Chocolate)
 - ~6 common equipment (Espresso machine, Grinder, Blender, Refrigerator, Ice machine, POS terminal)
@@ -292,6 +294,7 @@ interface VerticalConfig {
 ```
 
 **How it loads:**
+
 1. On app init, check the current domain against `verticals.domains`
 2. If matched, load that vertical config
 3. If not matched (e.g., localhost), load the tenant's vertical from `tenants.vertical_id`
@@ -317,19 +320,19 @@ const { term, termPlural } = useTerm();
 
 **Default term map (fallbacks when vertical doesn't override):**
 
-| Term Key | Default Singular | Default Plural |
-|----------|-----------------|----------------|
-| `recipe` | Recipe | Recipes |
-| `ingredient` | Ingredient | Ingredients |
-| `recipeUnit` | item | items |
-| `menuItem` | Menu Item | Menu Items |
-| `vendor` | Vendor | Vendors |
-| `equipment` | Equipment | Equipment |
-| `deposit` | Cash Deposit | Cash Deposits |
-| `tipPayout` | Tip Payout | Tip Payouts |
-| `employee` | Team Member | Team Members |
-| `location` | Location | Locations |
-| `task` | Task | Tasks |
+| Term Key     | Default Singular | Default Plural |
+| ------------ | ---------------- | -------------- |
+| `recipe`     | Recipe           | Recipes        |
+| `ingredient` | Ingredient       | Ingredients    |
+| `recipeUnit` | item             | items          |
+| `menuItem`   | Menu Item        | Menu Items     |
+| `vendor`     | Vendor           | Vendors        |
+| `equipment`  | Equipment        | Equipment      |
+| `deposit`    | Cash Deposit     | Cash Deposits  |
+| `tipPayout`  | Tip Payout       | Tip Payouts    |
+| `employee`   | Team Member      | Team Members   |
+| `location`   | Location         | Locations      |
+| `task`       | Task             | Tasks          |
 
 ### 3.3 Navigation Rebuild
 
@@ -337,6 +340,7 @@ const { term, termPlural } = useTerm();
 **Target:** Adaptive navigation that works for iPad-at-counter AND desktop-in-office
 
 **Mobile/Tablet (< 1024px):**
+
 ```
 ┌─────────────────────────────────────┐
 │  [Content Area]                     │
@@ -347,16 +351,19 @@ const { term, termPlural } = useTerm();
 │ Home Cash Tips Equip More           │
 └─────────────────────────────────────┘
 ```
+
 - Bottom tab bar with 4-5 icons (role-aware — baristas see fewer tabs)
 - "More" opens a sheet with remaining items
 - The tabs shown are the tenant's enabled modules (not hardcoded)
 
 **Desktop (≥ 1024px):**
+
 - Keep a slimmed-down sidebar but reduce categories
 - Collapse settings into a single gear icon → drawer
 - Show breadcrumbs for sub-navigation instead of sidebar sub-tabs
 
 **Implementation:**
+
 - Replace `client/src/components/Sidebar.tsx` (627 lines) with:
   - `client/src/components/navigation/BottomTabBar.tsx` — mobile nav
   - `client/src/components/navigation/DesktopSidebar.tsx` — simplified sidebar
@@ -371,10 +378,10 @@ Reads colors from vertical config (or tenant branding override) and applies them
 
 ```css
 :root {
-  --color-primary: #C9A227;    /* from vertical.theme.primaryColor */
-  --color-secondary: #4A3728;  /* from vertical.theme.secondaryColor */
-  --color-accent: #F5F0E1;
-  --color-background: #FFFDF7;
+  --color-primary: #c9a227; /* from vertical.theme.primaryColor */
+  --color-secondary: #4a3728; /* from vertical.theme.secondaryColor */
+  --color-accent: #f5f0e1;
+  --color-background: #fffdf7;
 }
 ```
 
@@ -384,12 +391,12 @@ This replaces the current approach where colors are hardcoded in `client/src/lib
 
 Replace the current one-size-fits-all dashboard with role-specific views:
 
-| Role | Home Screen Shows |
-|------|------------------|
-| **Owner** | Revenue snapshot, action items across locations, setup progress (if new) |
-| **Manager** | Today's tasks, team schedule, cash deposit reminder |
-| **Lead** | My shift, tip entry reminder, assigned tasks |
-| **Employee** | Time clock (big tap-to-clock-in button), my schedule, my tasks |
+| Role         | Home Screen Shows                                                        |
+| ------------ | ------------------------------------------------------------------------ |
+| **Owner**    | Revenue snapshot, action items across locations, setup progress (if new) |
+| **Manager**  | Today's tasks, team schedule, cash deposit reminder                      |
+| **Lead**     | My shift, tip entry reminder, assigned tasks                             |
+| **Employee** | Time clock (big tap-to-clock-in button), my schedule, my tasks           |
 
 The employee view should be **dead simple** — a barista opening the app on a shared iPad should be able to clock in with one tap.
 
@@ -437,13 +444,13 @@ ALTER TABLE tenants ADD COLUMN IF NOT EXISTS setup_progress JSONB DEFAULT '{}';
 
 **Wizard steps (shown as a checklist on the dashboard):**
 
-| Step | What It Does | Why It Matters |
-|------|-------------|----------------|
-| 1. **Add your team** | Invite 1-3 team members by email | Gets buy-in from staff early |
-| 2. **Stock your pantry** | Load starter ingredients from vertical templates, let them edit/remove | Biggest data entry shortcut |
-| 3. **Build your first {recipe}** | Guided recipe builder using loaded ingredients | Immediate "aha" moment — they see their cost |
-| 4. **Set your drawer** | Enter starting drawer amount for cash deposits | One number, unlocks daily tracking |
-| 5. **You're ready!** | Summary + links to each enabled module | Confidence builder |
+| Step                             | What It Does                                                           | Why It Matters                               |
+| -------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------- |
+| 1. **Add your team**             | Invite 1-3 team members by email                                       | Gets buy-in from staff early                 |
+| 2. **Stock your pantry**         | Load starter ingredients from vertical templates, let them edit/remove | Biggest data entry shortcut                  |
+| 3. **Build your first {recipe}** | Guided recipe builder using loaded ingredients                         | Immediate "aha" moment — they see their cost |
+| 4. **Set your drawer**           | Enter starting drawer amount for cash deposits                         | One number, unlocks daily tracking           |
+| 5. **You're ready!**             | Summary + links to each enabled module                                 | Confidence builder                           |
 
 Each step is optional and skippable. The checklist stays on the dashboard until all steps are done or the user dismisses it.
 
@@ -464,6 +471,7 @@ A reusable component used by every module when no data exists:
 ```
 
 Every module page wraps its content:
+
 ```tsx
 {data.length === 0 ? <EmptyState ... /> : <ActualContent />}
 ```
@@ -471,6 +479,7 @@ Every module page wraps its content:
 ### 4.4 Smart Defaults
 
 During onboarding, pre-fill as much as possible:
+
 - **Starter ingredients** from `vertical_templates` where `template_type = 'ingredient'`
 - **Starter recipes** from `vertical_templates` where `template_type = 'recipe'`
 - **Starter equipment** from `vertical_templates` where `template_type = 'equipment'`
@@ -502,6 +511,7 @@ The user can accept all defaults with one click ("Load suggested ingredients") o
 Onboarding (Phase 3) gets users **in the door**. This phase keeps them from getting **lost inside**. A mom-and-pop owner isn't an accountant — they don't know what "overhead allocation" means or whether their food cost percentage is healthy. The app should teach them as they go, not assume expertise.
 
 Three layers of ongoing guidance:
+
 1. **Contextual help** — explain terms and concepts right where they appear
 2. **Smart suggestions** — proactive insights based on their data
 3. **Nudges & reminders** — keep them engaged with daily habits
@@ -514,13 +524,13 @@ A small `(?)` icon next to any term or concept that might confuse a non-expert. 
 
 ```tsx
 <HelpTip term="overhead">
-  Overhead is the stuff that costs money even when you're not making drinks —
-  rent, electricity, water, insurance. We spread that cost across everything
-  you sell so you can see your true profit.
+  Overhead is the stuff that costs money even when you're not making drinks — rent, electricity, water, insurance. We
+  spread that cost across everything you sell so you can see your true profit.
 </HelpTip>
 ```
 
 **Implementation:**
+
 - Help content is stored in a `help_content` table or a static JSON file per vertical
 - Each entry has: `term_key`, `vertical_id` (nullable for universal tips), `title`, `body`, `learn_more_url` (optional)
 - Content is vertical-aware — a coffee shop gets coffee examples, a pizzeria gets pizza examples
@@ -528,17 +538,17 @@ A small `(?)` icon next to any term or concept that might confuse a non-expert. 
 
 **Where help tips appear (initial set):**
 
-| Location | Term | Explanation |
-|----------|------|-------------|
-| Recipe Costing | Food Cost % | "This is how much of your selling price goes to ingredients. Most coffee shops aim for 15-25%. If yours is over 30%, you're losing money on that item." |
-| Recipe Costing | Overhead | "Monthly costs that aren't ingredients — rent, electric, water, insurance, loan payments. We divide this across your items so you see real profit." |
-| Recipe Costing | Margin | "What's left after ingredients and overhead. This is your actual profit per item. Higher is better." |
-| Recipe Costing | Cost per unit | "How much it costs YOU to make one of these. Compare this to what you charge to see if you're making money." |
-| Cash Deposit | Discrepancy | "The difference between what the register says you should have and what you actually counted. Small differences ($1-5) are normal. Large ones need investigation." |
-| Cash Deposit | Starting Drawer | "The amount of cash you put in the register at the start of the day. This stays the same most days." |
-| Tip Payout | Tip Pool | "All tips combined before splitting. We divide this by total hours worked so everyone gets a fair share based on time worked." |
-| Equipment | Preventive Maintenance | "Cleaning and servicing equipment BEFORE it breaks. Costs less than emergency repairs and keeps you open." |
-| Billing | A La Carte | "Pick only the tools you need. You're not locked in — add or remove anytime." |
+| Location       | Term                   | Explanation                                                                                                                                                        |
+| -------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Recipe Costing | Food Cost %            | "This is how much of your selling price goes to ingredients. Most coffee shops aim for 15-25%. If yours is over 30%, you're losing money on that item."            |
+| Recipe Costing | Overhead               | "Monthly costs that aren't ingredients — rent, electric, water, insurance, loan payments. We divide this across your items so you see real profit."                |
+| Recipe Costing | Margin                 | "What's left after ingredients and overhead. This is your actual profit per item. Higher is better."                                                               |
+| Recipe Costing | Cost per unit          | "How much it costs YOU to make one of these. Compare this to what you charge to see if you're making money."                                                       |
+| Cash Deposit   | Discrepancy            | "The difference between what the register says you should have and what you actually counted. Small differences ($1-5) are normal. Large ones need investigation." |
+| Cash Deposit   | Starting Drawer        | "The amount of cash you put in the register at the start of the day. This stays the same most days."                                                               |
+| Tip Payout     | Tip Pool               | "All tips combined before splitting. We divide this by total hours worked so everyone gets a fair share based on time worked."                                     |
+| Equipment      | Preventive Maintenance | "Cleaning and servicing equipment BEFORE it breaks. Costs less than emergency repairs and keeps you open."                                                         |
+| Billing        | A La Carte             | "Pick only the tools you need. You're not locked in — add or remove anytime."                                                                                      |
 
 ### 5.3 Smart Suggestions Engine
 
@@ -548,28 +558,29 @@ Create: `client/src/components/SmartSuggestion.tsx`
 
 ```tsx
 <SmartSuggestion
-  type="warning"  // or "tip" or "celebration"
+  type="warning" // or "tip" or "celebration"
   title="Your Mocha costs more than you think"
   body="At $1.85 to make and $4.50 selling price, your margin is only 22% after overhead. Most shops aim for 60%+. Consider raising the price to $5.25."
-  action={{ label: "See breakdown", onClick: () => navigateToRecipe(mochaId) }}
+  action={{ label: 'See breakdown', onClick: () => navigateToRecipe(mochaId) }}
   dismissable={true}
 />
 ```
 
 **Suggestion rules (computed from user data):**
 
-| Trigger | Suggestion | Type |
-|---------|-----------|------|
-| Any recipe has food cost > 35% | "Your {recipe} has a high food cost ({x}%). Consider adjusting portion size or price." | warning |
-| Any recipe has margin > 75% | "Nice! Your {recipe} is a high-margin item. Feature it on your menu!" | celebration |
-| No cash deposit logged in 2+ days | "You haven't logged a deposit since {date}. Staying on top of this catches cash issues early." | tip |
-| Ingredient price increased > 10% | "Your {ingredient} cost went up {x}%. This affects {n} recipes — check your Menu Pricing." | warning |
-| First recipe created | "You just built your first recipe! Head to Menu Pricing to see what it costs." | celebration |
-| 7-day streak of cash deposits | "7 days in a row! Consistent tracking is the #1 habit of profitable shops." | celebration |
-| Equipment maintenance overdue > 7 days | "Your {equipment} maintenance is {n} days overdue. Skipping maintenance leads to costly breakdowns." | warning |
-| Tip payout not entered by end of pay period | "Tips for this week haven't been calculated yet. Your team is counting on you!" | tip |
+| Trigger                                     | Suggestion                                                                                           | Type        |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------- |
+| Any recipe has food cost > 35%              | "Your {recipe} has a high food cost ({x}%). Consider adjusting portion size or price."               | warning     |
+| Any recipe has margin > 75%                 | "Nice! Your {recipe} is a high-margin item. Feature it on your menu!"                                | celebration |
+| No cash deposit logged in 2+ days           | "You haven't logged a deposit since {date}. Staying on top of this catches cash issues early."       | tip         |
+| Ingredient price increased > 10%            | "Your {ingredient} cost went up {x}%. This affects {n} recipes — check your Menu Pricing."           | warning     |
+| First recipe created                        | "You just built your first recipe! Head to Menu Pricing to see what it costs."                       | celebration |
+| 7-day streak of cash deposits               | "7 days in a row! Consistent tracking is the #1 habit of profitable shops."                          | celebration |
+| Equipment maintenance overdue > 7 days      | "Your {equipment} maintenance is {n} days overdue. Skipping maintenance leads to costly breakdowns." | warning     |
+| Tip payout not entered by end of pay period | "Tips for this week haven't been calculated yet. Your team is counting on you!"                      | tip         |
 
 **Implementation:**
+
 - Suggestions are computed client-side from existing data (no new API needed)
 - Create `client/src/hooks/use-smart-suggestions.ts` that runs rule checks against cached data
 - Rules are defined as functions: `(data, vertical) => Suggestion | null`
@@ -584,20 +595,22 @@ Keep users engaged with daily/weekly habits through gentle reminders.
 
 **In-app nudges (dashboard cards):**
 
-| When | Nudge |
-|------|-------|
-| Opening the app and no deposit logged today | "Good morning! Don't forget to log yesterday's cash deposit." with a one-tap shortcut |
-| End of pay period (configurable day) | "It's tip day! Calculate this week's payouts." with link to Tip Payout |
-| Equipment maintenance due today | "Maintenance due today: {task} on {equipment}" |
-| New team member added but no shifts scheduled | "{Name} was added but doesn't have any shifts yet." |
+| When                                          | Nudge                                                                                 |
+| --------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Opening the app and no deposit logged today   | "Good morning! Don't forget to log yesterday's cash deposit." with a one-tap shortcut |
+| End of pay period (configurable day)          | "It's tip day! Calculate this week's payouts." with link to Tip Payout                |
+| Equipment maintenance due today               | "Maintenance due today: {task} on {equipment}"                                        |
+| New team member added but no shifts scheduled | "{Name} was added but doesn't have any shifts yet."                                   |
 
 **Push notifications (future enhancement — Phase 3B+):**
+
 - Requires service worker registration for web push or native app wrapper
 - Configurable per user (Settings → Notifications)
 - Default schedule: daily deposit reminder at configurable time, weekly tip reminder on pay day
 - Mark as out of scope for initial build but design the system to support it later
 
 **Implementation:**
+
 - Nudges are computed at dashboard render time from data freshness checks
 - Create `client/src/components/NudgeCard.tsx` — dismissable, time-aware
 - Create `client/src/hooks/use-nudges.ts` — checks last deposit date, last tip payout, overdue maintenance
@@ -607,15 +620,16 @@ Keep users engaged with daily/weekly habits through gentle reminders.
 
 Reduce repetitive data entry by remembering patterns.
 
-| Feature | What It Remembers | Where It Helps |
-|---------|------------------|----------------|
-| **Last drawer amount** | The starting drawer from the most recent deposit | Cash Deposit — pre-fills starting drawer (already exists via `starting_drawer_default`, but should also learn from actual entries) |
-| **Tip team roster** | Which employees were included in the last tip payout | Tip Payout — pre-selects the same team instead of starting from scratch each week |
-| **Typical hours** | Each employee's average weekly hours from last 4 weeks | Tip Payout — suggests hours based on recent patterns, user confirms or adjusts |
-| **Common adjustments** | Whether the shop typically has pay-ins/pay-outs | Cash Deposit — auto-expand adjustments section if they use it regularly |
-| **Ingredient prices** | Last entered price per ingredient | Ingredients — flags when a new price differs significantly from the last one |
+| Feature                | What It Remembers                                      | Where It Helps                                                                                                                     |
+| ---------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Last drawer amount** | The starting drawer from the most recent deposit       | Cash Deposit — pre-fills starting drawer (already exists via `starting_drawer_default`, but should also learn from actual entries) |
+| **Tip team roster**    | Which employees were included in the last tip payout   | Tip Payout — pre-selects the same team instead of starting from scratch each week                                                  |
+| **Typical hours**      | Each employee's average weekly hours from last 4 weeks | Tip Payout — suggests hours based on recent patterns, user confirms or adjusts                                                     |
+| **Common adjustments** | Whether the shop typically has pay-ins/pay-outs        | Cash Deposit — auto-expand adjustments section if they use it regularly                                                            |
+| **Ingredient prices**  | Last entered price per ingredient                      | Ingredients — flags when a new price differs significantly from the last one                                                       |
 
 **Implementation:**
+
 - Most of this is already queryable from existing tables (deposits, tip payouts, time clock entries)
 - Create `client/src/hooks/use-data-memory.ts` — queries recent data to generate smart defaults
 - No new tables needed — computed from existing data at query time
@@ -626,17 +640,20 @@ Reduce repetitive data entry by remembering patterns.
 Full POS integrations (Square API, Toast API) are complex and can come later. For now, provide a **CSV import bridge** that covers the 80% use case.
 
 **Cash Deposit CSV import:**
+
 - Upload daily sales report CSV from Square/Toast/Clover
 - Map columns: date, gross revenue, cash sales, credit card sales
 - Auto-populate deposit form fields
 - Saves the column mapping so subsequent imports are one-click
 
 **Ingredient Price CSV import:**
+
 - Already planned in Phase 4 (Recipe Costing rebuild)
 - Add vendor-specific import templates (US Foods, Sysco, Restaurant Depot formats)
 - "Paste from invoice" — paste a vendor invoice table and we parse it
 
 **Implementation:**
+
 - Create `client/src/components/CsvImport.tsx` — reusable CSV upload + column mapping component
 - Create `client/src/lib/csv-templates.ts` — known CSV formats for common POS systems and vendors
 - Store column mappings per tenant in `tenant_preferences` JSONB so repeat imports are faster
@@ -646,12 +663,14 @@ Full POS integrations (Square API, Toast API) are complex and can come later. Fo
 On the billing/modules page, instead of showing all 8 modules equally, highlight the ones most relevant to the user's vertical and usage patterns.
 
 **Logic:**
+
 1. Start with the vertical's `suggested_modules` list (from vertical config)
 2. Boost modules the user hasn't tried but their vertical commonly uses
 3. Show social proof: "87% of coffee shops use Recipe Costing + Cash Deposit together"
 4. De-emphasize modules less relevant to their vertical (e.g., "Bulk Ordering" for food trucks)
 
 **Implementation:**
+
 - Sort modules on billing page: suggested first, then enabled, then others
 - Add a "Recommended" badge to suggested modules
 - Add one-line "why" text: "Most {vertical.displayName} owners start with this"
@@ -685,17 +704,18 @@ On the billing/modules page, instead of showing all 8 modules equally, highlight
 **Current:** 7 sub-tabs (Pricing Matrix, Ingredients, Recipes, Vendors, Bases, Overhead, Settings)
 **Target:** 3 views
 
-| Current Tab | Action | Rationale |
-|-------------|--------|-----------|
-| Pricing Matrix | **KEEP → rename "Menu Pricing"** | This is the payoff — what things cost |
-| Ingredients | **KEEP** | Core data entry |
-| Recipes | **KEEP** | Core data entry |
-| Vendors | **MERGE into Ingredients** | Vendor is an attribute of an ingredient, not its own entity |
-| Bases | **MERGE into Recipes** | Bases are recipe templates — just flag recipes as "base" |
-| Overhead | **MOVE to Settings** | Set once, rarely changed |
-| Settings | **MOVE to gear icon** | Rarely accessed |
+| Current Tab    | Action                           | Rationale                                                   |
+| -------------- | -------------------------------- | ----------------------------------------------------------- |
+| Pricing Matrix | **KEEP → rename "Menu Pricing"** | This is the payoff — what things cost                       |
+| Ingredients    | **KEEP**                         | Core data entry                                             |
+| Recipes        | **KEEP**                         | Core data entry                                             |
+| Vendors        | **MERGE into Ingredients**       | Vendor is an attribute of an ingredient, not its own entity |
+| Bases          | **MERGE into Recipes**           | Bases are recipe templates — just flag recipes as "base"    |
+| Overhead       | **MOVE to Settings**             | Set once, rarely changed                                    |
+| Settings       | **MOVE to gear icon**            | Rarely accessed                                             |
 
 **New structure:**
+
 ```
 Recipe Costing
 ├── Menu Pricing (read-only cost/margin dashboard — the "wow" screen)
@@ -707,23 +727,27 @@ Recipe Costing
 ### 5.2 Key UX Improvements
 
 **CSV Import for Ingredients:**
+
 - Paste from spreadsheet or upload .csv
 - Map columns (name, cost, quantity, unit, vendor)
 - Preview before import
 - Handles duplicates (update existing by name match)
 
 **Quick Recipe Builder:**
+
 - Visual ingredient picker (grid of ingredient cards, tap to add)
 - Inline quantity entry
 - Running cost total shown as you build
 - Save → immediately shows up in Menu Pricing
 
 **Size Variants (workflow flag: `sizeVariants`):**
+
 - Only shown for verticals that enable it (pizza, some coffee shops)
 - Adds S/M/L multiplier to recipes
 - Each size can have different ingredient quantities
 
 **Batch Scaling (workflow flag: `batchScaling`):**
+
 - Only shown for verticals that enable it (pastry, bakery)
 - "This recipe makes X items" with cost-per-item calculation
 
@@ -773,6 +797,7 @@ Total: ~1,850 lines across 7 files (vs. 2,704 in one file), each focused and tes
 **Target:** 60-second daily workflow
 
 **Key changes:**
+
 - Pre-fill `drawer_date` with today
 - Pre-fill `starting_drawer` from tenant setting (already exists: `starting_drawer_default`)
 - Show only 4 primary fields: Gross Revenue, Cash Sales, Actual Deposit, Notes
@@ -782,6 +807,7 @@ Total: ~1,850 lines across 7 files (vs. 2,704 in one file), each focused and tes
 - History view below the form (already exists, simplify the table)
 
 **Component breakdown:**
+
 ```
 client/src/pages/cash-deposit/
 ├── index.tsx              (~80 lines — page shell)
@@ -797,12 +823,14 @@ client/src/pages/cash-deposit/
 **Target:** Two workflow options
 
 **Option A: "Simple Split" (default for small shops)**
+
 - Enter total tips for the week (cash + CC = 2 fields)
 - Enter hours per employee (auto-populated from time clock if calendar module enabled)
 - Auto-calculate each person's share
 - Done. 3 fields + employee hours.
 
 **Option B: "Daily Breakdown" (opt-in for shops that need it)**
+
 - Current 7-day grid with daily cash + CC
 - Same per-employee hours
 - This is the existing functionality, just cleaned up
@@ -810,6 +838,7 @@ client/src/pages/cash-deposit/
 Let the shop choose their preference in settings. Default to Simple Split.
 
 **Component breakdown:**
+
 ```
 client/src/pages/tip-payout/
 ├── index.tsx              (~80 lines — page shell)
@@ -854,17 +883,20 @@ Mom and pop owners don't want to catalog their equipment. They want to know: **"
 **Two views instead of complex tabs:**
 
 **View 1: "Maintenance Due" (default view)**
+
 - Shows overdue items in red, due-today in yellow, upcoming in gray
 - Big tap targets — tap to mark as done
 - One-tap "Done" with optional photo/notes
 - Most-used view, optimized for speed
 
 **View 2: "My Equipment" (setup/reference)**
+
 - List of equipment with simplified entry (name, category, photo — that's it for the basics)
 - Expandable details (brand, model, serial, warranty) for those who want it
 - Maintenance schedule setup (what task, how often)
 
 **Drop or defer:**
+
 - Manual URL tracking → not critical for MVP
 - Google Calendar export → nice-to-have, not essential
 - Complex file attachments → keep photo capture, drop document uploads for now
@@ -943,6 +975,7 @@ client/src/pages/equipment/
 ### 8.3 Validation Criteria
 
 The pizzeria vertical is **successful** if:
+
 - [ ] Creating it requires ONLY database inserts (vertical config + templates) — no code changes
 - [ ] All terminology renders correctly ("Menu Items" not "Drinks")
 - [ ] Size variants appear in recipe builder (workflow flag works)
@@ -974,6 +1007,7 @@ client/src/pages/landing/
 ```
 
 **Domain routing:**
+
 - `coffeesuite.com` → loads coffee vertical → renders coffee landing page
 - `pizzasuite.com` → loads pizza vertical → renders pizza landing page
 - `app.yourdomain.com/signup?v=coffee-shop` → fallback for verticals without custom domains
@@ -1102,36 +1136,36 @@ Phase 2 (Frontend Shell) ───┤                            ├──→ Ph
 
 ## Appendix A: Term Map by Vertical
 
-| Term Key | Coffee Shop | Pizzeria | Pastry Shop | Food Truck |
-|----------|------------|----------|-------------|------------|
-| recipe | Drink | Menu Item | Pastry | Dish |
-| recipe (plural) | Drinks | Menu Items | Pastries | Dishes |
-| ingredient | Ingredient | Ingredient | Ingredient | Ingredient |
-| recipeUnit | drink | pie | batch | serving |
-| equipment | Machine | Equipment | Equipment | Equipment |
-| menuItem | Menu Item | Menu Item | Display Item | Menu Item |
-| vendor | Supplier | Supplier | Supplier | Supplier |
+| Term Key        | Coffee Shop | Pizzeria   | Pastry Shop  | Food Truck |
+| --------------- | ----------- | ---------- | ------------ | ---------- |
+| recipe          | Drink       | Menu Item  | Pastry       | Dish       |
+| recipe (plural) | Drinks      | Menu Items | Pastries     | Dishes     |
+| ingredient      | Ingredient  | Ingredient | Ingredient   | Ingredient |
+| recipeUnit      | drink       | pie        | batch        | serving    |
+| equipment       | Machine     | Equipment  | Equipment    | Equipment  |
+| menuItem        | Menu Item   | Menu Item  | Display Item | Menu Item  |
+| vendor          | Supplier    | Supplier   | Supplier     | Supplier   |
 
 ## Appendix B: Workflow Flags by Vertical
 
-| Flag | Coffee | Pizza | Pastry | Food Truck |
-|------|--------|-------|--------|------------|
-| sizeVariants | ❌ | ✅ | ❌ | ❌ |
-| batchScaling | ❌ | ✅ | ✅ | ❌ |
-| locationTracking | ❌ | ❌ | ❌ | ✅ |
-| prepStations | ❌ | ✅ | ❌ | ❌ |
-| dailySpecials | ❌ | ❌ | ❌ | ✅ |
-| displayCase | ❌ | ❌ | ✅ | ❌ |
+| Flag             | Coffee | Pizza | Pastry | Food Truck |
+| ---------------- | ------ | ----- | ------ | ---------- |
+| sizeVariants     | ❌     | ✅    | ❌     | ❌         |
+| batchScaling     | ❌     | ✅    | ✅     | ❌         |
+| locationTracking | ❌     | ❌    | ❌     | ✅         |
+| prepStations     | ❌     | ✅    | ❌     | ❌         |
+| dailySpecials    | ❌     | ❌    | ❌     | ✅         |
+| displayCase      | ❌     | ❌    | ✅     | ❌         |
 
 ## Appendix C: Module Relevance by Vertical
 
-| Module | Coffee | Pizza | Pastry | Food Truck |
-|--------|--------|-------|--------|------------|
-| Recipe Costing | ⭐ Core | ⭐ Core | ⭐ Core | ⭐ Core |
-| Cash Deposit | ⭐ Core | ⭐ Core | ⭐ Core | ⭐ Core |
-| Tip Payout | ⭐ Core | ⭐ Core | ✅ Useful | ⭐ Core |
-| Equipment Maint | ✅ Useful | ⭐ Core | ✅ Useful | ⭐ Core |
-| Bulk Ordering | ✅ Useful | ✅ Useful | ✅ Useful | ❌ Less relevant |
-| Calendar/Schedule | ✅ Useful | ✅ Useful | ✅ Useful | ✅ Useful |
-| Admin Tasks | ✅ Useful | ✅ Useful | ✅ Useful | ✅ Useful |
-| Reporting | ✅ Useful | ✅ Useful | ✅ Useful | ✅ Useful |
+| Module            | Coffee    | Pizza     | Pastry    | Food Truck       |
+| ----------------- | --------- | --------- | --------- | ---------------- |
+| Recipe Costing    | ⭐ Core   | ⭐ Core   | ⭐ Core   | ⭐ Core          |
+| Cash Deposit      | ⭐ Core   | ⭐ Core   | ⭐ Core   | ⭐ Core          |
+| Tip Payout        | ⭐ Core   | ⭐ Core   | ✅ Useful | ⭐ Core          |
+| Equipment Maint   | ✅ Useful | ⭐ Core   | ✅ Useful | ⭐ Core          |
+| Bulk Ordering     | ✅ Useful | ✅ Useful | ✅ Useful | ❌ Less relevant |
+| Calendar/Schedule | ✅ Useful | ✅ Useful | ✅ Useful | ✅ Useful        |
+| Admin Tasks       | ✅ Useful | ✅ Useful | ✅ Useful | ✅ Useful        |
+| Reporting         | ✅ Useful | ✅ Useful | ✅ Useful | ✅ Useful        |

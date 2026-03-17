@@ -23,12 +23,14 @@ This document tracks architectural improvements, code quality enhancements, and 
 ## High Priority (Quick Wins)
 
 ### ✅ 1. Add Unit Tests for Calculation Functions
+
 **Status**: Not Started
 **Priority**: CRITICAL
 **Effort**: Medium
 **Impact**: High - Prevents bugs in financial calculations
 
 **Tasks**:
+
 - [ ] Set up Vitest testing framework
 - [ ] Add tests for cash deposit calculations (`calculatedDeposit`, `difference`, `netCash`)
 - [ ] Add tests for tip payout distribution logic
@@ -36,23 +38,27 @@ This document tracks architectural improvements, code quality enhancements, and 
 - [ ] Set up CI/CD to run tests on PR
 
 **Files to Test**:
+
 - `client/src/pages/cash-deposit.tsx` (lines 182-201)
 - Tip payout calculation logic
 - Recipe costing calculations
 
 **Acceptance Criteria**:
+
 - 80%+ coverage on calculation functions
 - All edge cases tested (negative numbers, zero values, etc.)
 
 ---
 
 ### ✅ 2. Standardize Error Handling
+
 **Status**: Not Started
 **Priority**: HIGH
 **Effort**: Medium
 **Impact**: High - Better user experience
 
 **Tasks**:
+
 - [ ] Create error handling middleware (`server/middleware/errorHandler.ts`)
 - [ ] Define standard error response format
 - [ ] Replace all `any` error types with proper Error types
@@ -60,6 +66,7 @@ This document tracks architectural improvements, code quality enhancements, and 
 - [ ] Implement retry logic for transient failures
 
 **Standard Response Format**:
+
 ```typescript
 // Success
 { success: true, data: T }
@@ -69,11 +76,13 @@ This document tracks architectural improvements, code quality enhancements, and 
 ```
 
 **Files to Update**:
+
 - `server/index.ts` (error middleware)
 - All API route handlers
 - `client/src/contexts/AuthContext.tsx` (error handling)
 
 **Acceptance Criteria**:
+
 - All API endpoints return consistent error format
 - User-friendly error messages displayed
 - No `any` types in error handling
@@ -81,12 +90,14 @@ This document tracks architectural improvements, code quality enhancements, and 
 ---
 
 ### ✅ 3. Add Empty States
+
 **Status**: Not Started
 **Priority**: HIGH
 **Effort**: Low
 **Impact**: Medium - Polished feel
 
 **Tasks**:
+
 - [ ] Create reusable `<EmptyState>` component
 - [ ] Update Cash Deposit empty state
 - [ ] Update Tip Payout empty state
@@ -96,6 +107,7 @@ This document tracks architectural improvements, code quality enhancements, and 
 - [ ] Add illustrations/icons to empty states
 
 **Component Design**:
+
 ```tsx
 <EmptyState
   icon={<ReceiptIcon />}
@@ -106,6 +118,7 @@ This document tracks architectural improvements, code quality enhancements, and 
 ```
 
 **Acceptance Criteria**:
+
 - All modules have actionable empty states
 - Consistent design across modules
 - Clear call-to-action buttons
@@ -113,12 +126,14 @@ This document tracks architectural improvements, code quality enhancements, and 
 ---
 
 ### ✅ 4. Loading Skeletons
+
 **Status**: Not Started
 **Priority**: HIGH
 **Effort**: Low
 **Impact**: Medium - Professional feel
 
 **Tasks**:
+
 - [ ] Create `<Skeleton>` component
 - [ ] Create `<TableSkeleton>` component
 - [ ] Create `<CardSkeleton>` component
@@ -129,6 +144,7 @@ This document tracks architectural improvements, code quality enhancements, and 
 **Component Location**: `client/src/components/ui/skeleton.tsx`
 
 **Acceptance Criteria**:
+
 - No blank screens during loading
 - Skeleton matches actual content layout
 - Smooth transition from skeleton to content
@@ -136,12 +152,14 @@ This document tracks architectural improvements, code quality enhancements, and 
 ---
 
 ### ✅ 5. Dashboard Analytics Widgets
+
 **Status**: Not Started
 **Priority**: HIGH
 **Effort**: Medium
 **Impact**: High - Immediate value
 
 **Tasks**:
+
 - [ ] Design dashboard widget layout
 - [ ] Create "Revenue This Month" widget (from cash deposits)
 - [ ] Create "Upcoming Maintenance" widget (next 7 days)
@@ -151,15 +169,18 @@ This document tracks architectural improvements, code quality enhancements, and 
 - [ ] Make widgets responsive
 
 **Data Sources**:
+
 - Cash Deposit: Total gross revenue (current month)
 - Equipment: Maintenance tasks due in next 7 days
 - Orders: Last 5 coffee orders
 - Tasks: Active tasks assigned to current user
 
 **Files to Update**:
+
 - `client/src/pages/dashboard.tsx`
 
 **Acceptance Criteria**:
+
 - Dashboard shows 4-6 insight widgets
 - Data loads efficiently (parallel queries)
 - Widgets link to respective modules
@@ -167,12 +188,14 @@ This document tracks architectural improvements, code quality enhancements, and 
 ---
 
 ### ✅ 6. Auto-Save Drafts
+
 **Status**: Not Started
 **Priority**: HIGH
 **Effort**: Medium
 **Impact**: High - Prevents data loss
 
 **Tasks**:
+
 - [ ] Create `useAutoSave` hook
 - [ ] Implement localStorage draft storage
 - [ ] Add "Draft saved" indicator
@@ -182,16 +205,19 @@ This document tracks architectural improvements, code quality enhancements, and 
 - [ ] Implement for Tip Payout form
 
 **Hook Design**:
+
 ```typescript
 const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-deposit', formData);
 ```
 
 **Files to Update**:
+
 - `client/src/hooks/use-auto-save.ts` (new)
 - `client/src/pages/cash-deposit.tsx`
 - `client/src/pages/tip-payout.tsx`
 
 **Acceptance Criteria**:
+
 - Drafts saved every 30 seconds
 - User prompted to restore on page reload
 - Drafts cleared after successful submission
@@ -199,12 +225,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### ✅ 7. Environment Variable Validation
+
 **Status**: Not Started
 **Priority**: HIGH
 **Effort**: Low
 **Impact**: Medium - Catch config errors early
 
 **Tasks**:
+
 - [ ] Create Zod schema for environment variables
 - [ ] Validate on server startup
 - [ ] Provide helpful error messages for missing vars
@@ -214,6 +242,7 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 **File Location**: `server/config/env.ts` (new)
 
 **Required Variables**:
+
 - DATABASE_URL
 - STRIPE_SECRET_KEY
 - RESEND_API_KEY
@@ -221,6 +250,7 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - NODE_ENV
 
 **Acceptance Criteria**:
+
 - Server fails fast with clear error if env vars missing
 - .env.example has all required variables documented
 
@@ -229,12 +259,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ## Medium Priority (High Impact)
 
 ### ✅ 8. Global Search/Command Palette
+
 **Status**: Not Started
 **Priority**: MEDIUM
 **Effort**: Medium
 **Impact**: Very High - Major productivity boost
 
 **Tasks**:
+
 - [ ] Implement command palette using `cmdk` library
 - [ ] Add keyboard shortcut (Cmd/Ctrl + K)
 - [ ] Add navigation commands (go to modules)
@@ -244,6 +276,7 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] Style to match branding
 
 **Features**:
+
 - Navigate to any module
 - Search cash deposits by date
 - Search tasks by title
@@ -252,9 +285,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - Location switcher
 
 **Files to Create**:
+
 - `client/src/components/CommandPalette.tsx`
 
 **Acceptance Criteria**:
+
 - Cmd+K opens palette
 - Fuzzy search works
 - Recent items shown by default
@@ -263,12 +298,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### ✅ 9. Mobile Bottom Navigation
+
 **Status**: Not Started
 **Priority**: MEDIUM
 **Effort**: Medium
 **Impact**: High - Better mobile UX
 
 **Tasks**:
+
 - [ ] Create bottom tab bar component
 - [ ] Show on mobile, hide on desktop (media query)
 - [ ] Add icons for main modules
@@ -277,6 +314,7 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] Ensure doesn't interfere with input keyboards
 
 **Navigation Items**:
+
 - Dashboard (Home icon)
 - Cash Deposit (Receipt icon)
 - Tips (DollarSign icon)
@@ -284,9 +322,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - More (Menu icon)
 
 **Files to Create**:
+
 - `client/src/components/MobileBottomNav.tsx`
 
 **Acceptance Criteria**:
+
 - Shows on screens < 768px
 - Hides on desktop
 - Active tab highlighted
@@ -295,12 +335,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### ✅ 10. Cash Deposit Trend Charts
+
 **Status**: Not Started
 **Priority**: MEDIUM
 **Effort**: Medium
 **Impact**: High - Visual insights
 
 **Tasks**:
+
 - [ ] Add recharts visualization section
 - [ ] Create "Revenue Over Time" line chart
 - [ ] Create "Weekly Comparison" bar chart
@@ -312,9 +354,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 **Chart Placement**: After stats cards, before transaction history
 
 **Files to Update**:
+
 - `client/src/pages/cash-deposit.tsx`
 
 **Acceptance Criteria**:
+
 - Charts load efficiently
 - Responsive on mobile
 - Color-coded for clarity
@@ -323,12 +367,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### ✅ 11. Onboarding Flow
+
 **Status**: Not Started
 **Priority**: MEDIUM
 **Effort**: High
 **Impact**: High - Reduce friction for new users
 
 **Tasks**:
+
 - [ ] Create welcome modal for first login
 - [ ] Add interactive tour of dashboard
 - [ ] Create "Getting Started" checklist
@@ -337,6 +383,7 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] Allow skip/dismiss of tour
 
 **Checklist Items**:
+
 - [ ] Explore available modules
 - [ ] Set up your first cash deposit
 - [ ] Add team members
@@ -344,10 +391,12 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] Review subscription plan
 
 **Files to Create**:
+
 - `client/src/components/OnboardingModal.tsx`
 - `client/src/components/OnboardingTour.tsx`
 
 **Acceptance Criteria**:
+
 - Shows only on first login
 - Can be dismissed
 - Can be re-triggered from settings
@@ -356,12 +405,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### ✅ 12. Bulk Actions
+
 **Status**: Not Started
 **Priority**: MEDIUM
 **Effort**: Medium
 **Impact**: Medium - Power user efficiency
 
 **Tasks**:
+
 - [ ] Add checkbox selection to tables
 - [ ] Create bulk action toolbar
 - [ ] Implement bulk archive (cash deposits)
@@ -371,11 +422,13 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] Add confirmation dialogs for destructive actions
 
 **Modules to Update**:
+
 - Cash Deposit (bulk archive)
 - Admin Tasks (bulk complete, bulk delete)
 - Equipment Maintenance (bulk log maintenance)
 
 **Acceptance Criteria**:
+
 - Checkboxes in table headers and rows
 - Action bar appears when items selected
 - Confirmation for destructive actions
@@ -383,12 +436,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### ✅ 13. Real-time Notifications
+
 **Status**: Not Started
 **Priority**: MEDIUM
 **Effort**: High
 **Impact**: High - Leverage Supabase
 
 **Tasks**:
+
 - [ ] Set up Supabase real-time subscriptions
 - [ ] Create notification center component
 - [ ] Add bell icon in header with badge
@@ -399,6 +454,7 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] Mark notifications as read
 
 **Notification Types**:
+
 - Task assigned to you
 - Task completed
 - Maintenance due soon
@@ -406,10 +462,12 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - New team member added
 
 **Files to Create**:
+
 - `client/src/components/NotificationCenter.tsx`
 - `client/src/hooks/use-notifications.ts`
 
 **Acceptance Criteria**:
+
 - Real-time updates without page refresh
 - Unread count badge on bell icon
 - Notification list with timestamps
@@ -418,12 +476,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### ✅ 14. API Documentation
+
 **Status**: Not Started
 **Priority**: MEDIUM
 **Effort**: Medium
 **Impact**: Medium - Developer experience
 
 **Tasks**:
+
 - [ ] Install swagger-jsdoc and swagger-ui-express
 - [ ] Add JSDoc comments to all routes
 - [ ] Generate OpenAPI spec
@@ -433,6 +493,7 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] Include example requests
 
 **Endpoint Groups**:
+
 - Authentication
 - Cash Deposits
 - Tip Payouts
@@ -443,9 +504,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - Billing
 
 **Files to Create**:
+
 - `server/swagger.ts`
 
 **Acceptance Criteria**:
+
 - All endpoints documented
 - Interactive API explorer available
 - Request/response examples included
@@ -453,12 +516,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### ✅ 15. Rate Limiting
+
 **Status**: Not Started
 **Priority**: MEDIUM
 **Effort**: Low
 **Impact**: Medium - Security hardening
 
 **Tasks**:
+
 - [ ] Install express-rate-limit
 - [ ] Add rate limiting to login endpoint
 - [ ] Add rate limiting to all POST endpoints
@@ -467,16 +532,19 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] Log rate limit violations
 
 **Rate Limits**:
+
 - Login: 5 attempts per 15 minutes
 - Data mutations: 100 per 15 minutes
 - Exports: 10 per hour
 - Feedback: 5 per hour (already implemented)
 
 **Files to Update**:
+
 - `server/index.ts`
 - `server/routes.ts`
 
 **Acceptance Criteria**:
+
 - Rate limits enforced
 - Clear error messages when limited
 - Different limits per endpoint type
@@ -486,12 +554,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ## Long-term (Strategic)
 
 ### ✅ 16. PWA/Offline Support
+
 **Status**: Not Started
 **Priority**: LOW
 **Effort**: High
 **Impact**: Very High - Game changer
 
 **Tasks**:
+
 - [ ] Add service worker
 - [ ] Create offline page
 - [ ] Cache static assets
@@ -502,6 +572,7 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] Add offline indicators
 
 **Acceptance Criteria**:
+
 - App works offline
 - Queued actions sync when online
 - User notified of offline status
@@ -510,12 +581,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### ✅ 17. Advanced Report Builder
+
 **Status**: Not Started
 **Priority**: LOW
 **Effort**: Very High
 **Impact**: High - Premium differentiator
 
 **Tasks**:
+
 - [ ] Design report builder UI
 - [ ] Create drag-and-drop metric selector
 - [ ] Add filter options (date, location, employee)
@@ -526,6 +599,7 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] PDF generation with branding
 
 **Acceptance Criteria**:
+
 - Visual builder interface
 - Save and reuse templates
 - Scheduled email delivery
@@ -534,12 +608,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### ✅ 18. White-Label/Custom Domains
+
 **Status**: Not Started
 **Priority**: LOW
 **Effort**: Very High
 **Impact**: High - Enterprise feature
 
 **Tasks**:
+
 - [ ] Add custom domain support
 - [ ] SSL certificate management
 - [ ] Remove "Powered by" footer (premium)
@@ -548,6 +624,7 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] Pricing tier for white-label
 
 **Acceptance Criteria**:
+
 - Premium customers can use custom domains
 - No branding references for white-label
 - SSL automatically provisioned
@@ -555,12 +632,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### ✅ 19. Cross-Location Insights Dashboard
+
 **Status**: Not Started
 **Priority**: LOW
 **Effort**: High
 **Impact**: High - Multi-location value
 
 **Tasks**:
+
 - [ ] Create organization-level dashboard
 - [ ] Compare revenue across locations
 - [ ] Equipment status across all sites
@@ -569,9 +648,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] Location ranking/leaderboards
 
 **Files to Create**:
+
 - `client/src/pages/organization-insights.tsx`
 
 **Acceptance Criteria**:
+
 - Owner-only access
 - View all child locations at once
 - Export consolidated reports
@@ -579,12 +660,14 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### ✅ 20. Equipment QR Codes
+
 **Status**: Not Started
 **Priority**: LOW
 **Effort**: Medium
 **Impact**: Medium - Innovation
 
 **Tasks**:
+
 - [ ] Generate QR codes for equipment
 - [ ] Print QR code labels
 - [ ] Scan QR to log maintenance
@@ -592,6 +675,7 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 - [ ] Link to equipment details
 
 **Acceptance Criteria**:
+
 - Each equipment has unique QR code
 - Scan to quickly log maintenance
 - Works on mobile devices
@@ -601,39 +685,47 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ## Architecture & Code Quality
 
 ### Type Safety Improvements
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Replace all `any` types with proper types
 - [ ] Create shared API types in `/shared`
 - [ ] Add strict TypeScript settings
 - [ ] Fix type errors in error handlers
 
 **Priority Fixes**:
+
 - `server/index.ts:71` (error handling)
 - `client/src/pages/cash-deposit.tsx:242` (error catch)
 
 ---
 
 ### Code Organization
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Extract business logic from large components
 - [ ] Create domain-specific component folders
 - [ ] Create custom hooks for modules
 - [ ] Split 1000+ line components
 
 **Large Components to Refactor**:
+
 - `client/src/pages/cash-deposit.tsx` (1092 lines)
 - Other module pages if similar size
 
 ---
 
 ### Shared Types Between Frontend/Backend
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Move API request/response types to `/shared`
 - [ ] Create shared validation schemas
 - [ ] Import shared types in both client and server
@@ -644,9 +736,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ## Performance Optimizations
 
 ### Query Optimization
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Add pagination to transaction history
 - [ ] Add pagination to task lists
 - [ ] Add infinite scroll where appropriate
@@ -655,9 +749,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Database Indexing
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Audit slow queries
 - [ ] Add index: `cash_activity(tenant_id, drawer_date)`
 - [ ] Add index: `admin_tasks(tenant_id, status, due_date)`
@@ -667,9 +763,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### React Query Cache Tuning
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Increase stale times for static data (modules, branding)
 - [ ] Optimize refetch settings
 - [ ] Review cache invalidation logic
@@ -680,9 +778,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ## Security Enhancements
 
 ### Input Sanitization
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Add sanitization for text fields
 - [ ] Sanitize notes, comments, descriptions
 - [ ] Add XSS protection middleware
@@ -691,9 +791,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### CSRF Protection
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Install csurf middleware
 - [ ] Add CSRF tokens to forms
 - [ ] Configure CSRF exemptions (API endpoints)
@@ -702,9 +804,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Audit Logging
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Expand audit logging to critical operations
 - [ ] Log user role changes
 - [ ] Log module subscription changes
@@ -717,9 +821,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ## UI/UX Improvements
 
 ### Responsive Table Design
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Card view on mobile for cash deposits
 - [ ] Card view on mobile for tip payouts
 - [ ] Card view on mobile for tasks
@@ -729,9 +835,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Inline Validation
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Real-time email validation
 - [ ] Real-time date range validation
 - [ ] Real-time number validation (positive only)
@@ -741,9 +849,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Keyboard Shortcuts
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Document keyboard shortcuts
 - [ ] Add Ctrl+S to save entries
 - [ ] Add Ctrl+Enter to submit forms
@@ -753,9 +863,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Toast Improvements
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Add action buttons to toasts (Undo, View, etc.)
 - [ ] Add toast queue management
 - [ ] Add different toast types (info, warning, success, error)
@@ -764,9 +876,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Accessibility (A11y)
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Audit keyboard navigation
 - [ ] Add skip links for forms
 - [ ] Add ARIA labels to icon-only buttons
@@ -780,9 +894,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ## Module-Specific Enhancements
 
 ### Recipe Costing
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Add recipe search/filter
 - [ ] Visual recipe cards with photos
 - [ ] Cost history tracking
@@ -792,9 +908,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Tip Payout
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Export to PDF per employee
 - [ ] Historical tip trends
 - [ ] Shift-based tip entry
@@ -803,9 +921,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Cash Deposit
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Quick entry mode
 - [ ] Photo attachment for deposit slips
 - [ ] Bank reconciliation matching
@@ -814,9 +934,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Coffee Orders
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Favorite orders
 - [ ] Order templates
 - [ ] Inventory deduction
@@ -825,9 +947,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Equipment Maintenance
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] QR codes for equipment
 - [ ] Photo attachments
 - [ ] Maintenance cost tracking
@@ -836,9 +960,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Admin Tasks
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Kanban board view
 - [ ] Task dependencies
 - [ ] Time tracking
@@ -849,9 +975,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ## Testing Infrastructure
 
 ### Unit Tests
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Set up Vitest
 - [ ] Test calculation functions
 - [ ] Test auth context logic
@@ -861,9 +989,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Integration Tests
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Test user registration flow
 - [ ] Test multi-location switching
 - [ ] Test subscription checkout flow
@@ -872,9 +1002,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### E2E Tests
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Set up Playwright
 - [ ] Test cash deposit entry
 - [ ] Test tip payout calculation
@@ -886,9 +1018,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ## Developer Experience
 
 ### Development Scripts
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Add `test` script
 - [ ] Add `test:e2e` script
 - [ ] Add `db:seed` script
@@ -899,9 +1033,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Environment Documentation
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Create `.env.example`
 - [ ] Document all environment variables
 - [ ] Add README section on setup
@@ -912,9 +1048,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ## Migration and Schema
 
 ### Migration Organization
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Consolidate older migrations
 - [ ] Create baseline migration
 - [ ] Document migration process
@@ -922,9 +1060,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### Soft Delete Standardization
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Standardize on `deleted_at` pattern
 - [ ] Update all tables to use `deleted_at`
 - [ ] Update queries to filter deleted records
@@ -933,9 +1073,11 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ---
 
 ### User Tracking
+
 **Status**: Not Started
 
 **Tasks**:
+
 - [ ] Add `created_by_user_id` to tables
 - [ ] Add `updated_by_user_id` to tables
 - [ ] Update insert/update logic
@@ -946,32 +1088,38 @@ const { saveDraft, restoreDraft, clearDraft, lastSaved } = useAutoSave('cash-dep
 ## Notes
 
 ### Completed Items
+
 - None yet
 
 ### Blocked Items
+
 - None yet
 
 ### Newly Discovered Issues
 
 #### Email Verification Flow Error Handling
+
 **Status**: Not Started
 **Priority**: MEDIUM
 **Discovered**: 2026-02-02
 
 **Issue**: Clicking email verification links causes AbortError and page freeze
 **Steps to Reproduce**:
+
 1. Receive verification email
 2. Click verification link
 3. Page loads but throws "Unhandled Promise Rejection: AbortError"
 4. Page becomes unresponsive
 
 **Suggested Fix**:
+
 - Add proper error handling for email verification flow
 - Add loading state during verification
 - Show user-friendly error messages if verification fails
 - Implement timeout protection for verification requests
 
 ### Questions/Decisions Needed
+
 - Theme builder scope - how customizable?
 - White-label pricing model?
 - Report builder complexity level?

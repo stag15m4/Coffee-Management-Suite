@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useMemo, useCallback, Fragment } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,11 +12,7 @@ import { useEditTimeClockEntry } from '@/hooks/use-time-clock';
 import type { TimeClockEntry } from '@/hooks/use-time-clock';
 import type { Shift } from '@/hooks/use-shifts';
 import type { UnifiedEmployee } from '@/hooks/use-all-employees';
-import {
-  useEmployeeTimesheetApproval,
-  useApproveTimesheet,
-  useRejectTimesheet,
-} from '@/hooks/use-timesheet-approvals';
+import { useEmployeeTimesheetApproval, useApproveTimesheet, useRejectTimesheet } from '@/hooks/use-timesheet-approvals';
 import { useRunAccrual } from '@/hooks/use-time-off-policies';
 import { PayPeriodNav } from './PayPeriodNav';
 import { EditRequestDialog } from './EditRequestDialog';
@@ -40,7 +37,7 @@ function calcBreakHours(breaks: { break_start: string; break_end: string | null 
 function calcShiftHours(start: string, end: string): number {
   const [sh, sm] = start.split(':').map(Number);
   const [eh, em] = end.split(':').map(Number);
-  let mins = (eh * 60 + em) - (sh * 60 + sm);
+  let mins = eh * 60 + em - (sh * 60 + sm);
   if (mins < 0) mins += 24 * 60;
   return mins / 60;
 }
@@ -170,7 +167,9 @@ export function EmployeeTimesheetView({
 
   const [approvalNotes, setApprovalNotes] = useState('');
   const [editingDay, setEditingDay] = useState<string | null>(null);
-  const [dayEditValues, setDayEditValues] = useState<Record<string, { in1: string; out1: string; in2: string; out2: string }>>({});
+  const [dayEditValues, setDayEditValues] = useState<
+    Record<string, { in1: string; out1: string; in2: string; out2: string }>
+  >({});
   const [editEntry, setEditEntry] = useState<TimeClockEntry | null>(null); // employee edit-request
 
   const employee = employees.find((e) => e.user_profile_id === employeeId);
@@ -182,16 +181,15 @@ export function EmployeeTimesheetView({
   const rejectTimesheet = useRejectTimesheet();
   const runAccrual = useRunAccrual();
 
-  const empEntries = useMemo(() =>
-    entries.filter((e) => e.employee_id === employeeId)
-      .sort((a, b) => new Date(a.clock_in).getTime() - new Date(b.clock_in).getTime()),
-    [entries, employeeId],
+  const empEntries = useMemo(
+    () =>
+      entries
+        .filter((e) => e.employee_id === employeeId)
+        .sort((a, b) => new Date(a.clock_in).getTime() - new Date(b.clock_in).getTime()),
+    [entries, employeeId]
   );
 
-  const empShifts = useMemo(() =>
-    shifts.filter((s) => s.employee_id === employeeId),
-    [shifts, employeeId],
-  );
+  const empShifts = useMemo(() => shifts.filter((s) => s.employee_id === employeeId), [shifts, employeeId]);
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['time-clock'] });
@@ -398,14 +396,18 @@ export function EmployeeTimesheetView({
         const in1 = parseTimeInput(newVals.in1);
         if (in1) {
           const out2 = parseTimeInput(newVals.out2);
-          const { data: created, error } = await supabase.from('time_clock_entries').insert({
-            tenant_id: tenant?.id,
-            employee_id: employeeId,
-            clock_in: toISO(editingDay, in1),
-            clock_out: out2 ? toISO(editingDay, out2) : null,
-            employee_name: employeeName,
-            source: 'manual',
-          }).select().single();
+          const { data: created, error } = await supabase
+            .from('time_clock_entries')
+            .insert({
+              tenant_id: tenant?.id,
+              employee_id: employeeId,
+              clock_in: toISO(editingDay, in1),
+              clock_out: out2 ? toISO(editingDay, out2) : null,
+              employee_name: employeeName,
+              source: 'manual',
+            })
+            .select()
+            .single();
           if (error) throw error;
           const out1 = parseTimeInput(newVals.out1);
           const in2 = parseTimeInput(newVals.in2);
@@ -453,7 +455,10 @@ export function EmployeeTimesheetView({
             });
             // If clearing clock_out, do it directly since the hook doesn't accept null
             if (hasClockOutChange && !newOut2) {
-              await supabase.from('time_clock_entries').update({ clock_out: null, updated_at: new Date().toISOString() }).eq('id', row.entry.id);
+              await supabase
+                .from('time_clock_entries')
+                .update({ clock_out: null, updated_at: new Date().toISOString() })
+                .eq('id', row.entry.id);
             }
           }
 
@@ -489,32 +494,46 @@ export function EmployeeTimesheetView({
 
       invalidate();
       toast({ title: 'Saved' });
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message || 'Failed to save', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(err) || 'Failed to save', variant: 'destructive' });
     }
     cancelDayEdit();
-  }, [editingDay, dayEditValues, dayDataMap, tenant, employeeId, employeeName, editTimeClockEntry, invalidate, cancelDayEdit, toast]);
+  }, [
+    editingDay,
+    dayEditValues,
+    dayDataMap,
+    tenant,
+    employeeId,
+    employeeName,
+    editTimeClockEntry,
+    invalidate,
+    cancelDayEdit,
+    toast,
+  ]);
 
   /* ── delete entry ── */
-  const handleDeleteEntry = useCallback(async (entryId: string) => {
-    if (!confirm('Delete this time entry?')) return;
-    try {
-      const { error } = await supabase.from('time_clock_entries').delete().eq('id', entryId);
-      if (error) throw error;
-      // Remove from edit state if currently editing
-      if (editingDay) {
-        setDayEditValues(prev => {
-          const next = { ...prev };
-          delete next[entryId];
-          return next;
-        });
+  const handleDeleteEntry = useCallback(
+    async (entryId: string) => {
+      if (!confirm('Delete this time entry?')) return;
+      try {
+        const { error } = await supabase.from('time_clock_entries').delete().eq('id', entryId);
+        if (error) throw error;
+        // Remove from edit state if currently editing
+        if (editingDay) {
+          setDayEditValues((prev) => {
+            const next = { ...prev };
+            delete next[entryId];
+            return next;
+          });
+        }
+        invalidate();
+        toast({ title: 'Entry deleted' });
+      } catch (err: unknown) {
+        toast({ title: 'Error', description: getErrorMessage(err) || 'Failed to delete', variant: 'destructive' });
       }
-      invalidate();
-      toast({ title: 'Entry deleted' });
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message || 'Failed to delete', variant: 'destructive' });
-    }
-  }, [editingDay, invalidate, toast]);
+    },
+    [editingDay, invalidate, toast]
+  );
 
   /* ── approval ── */
   const handleApprove = useCallback(async () => {
@@ -607,10 +626,12 @@ export function EmployeeTimesheetView({
         <input
           type="text"
           value={vals[field]}
-          onChange={(e) => setDayEditValues(prev => ({
-            ...prev,
-            [entryKey]: { ...prev[entryKey], [field]: e.target.value }
-          }))}
+          onChange={(e) =>
+            setDayEditValues((prev) => ({
+              ...prev,
+              [entryKey]: { ...prev[entryKey], [field]: e.target.value },
+            }))
+          }
           placeholder="0:00 AM"
           className="w-[5.5rem] px-1 py-0.5 text-xs rounded border"
           style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
@@ -634,7 +655,9 @@ export function EmployeeTimesheetView({
             <Button variant="ghost" size="sm" onClick={onBack} className="h-8 px-2" style={{ color: colors.brown }}>
               <ChevronLeft className="w-4 h-4 mr-1" /> Back
             </Button>
-            <span className="text-lg font-bold" style={{ color: colors.brown }}>{employeeName}</span>
+            <span className="text-lg font-bold" style={{ color: colors.brown }}>
+              {employeeName}
+            </span>
             <div className="ml-auto">
               <PayPeriodNav period={period} onPrev={goPrev} onNext={goNext} />
             </div>
@@ -646,20 +669,32 @@ export function EmployeeTimesheetView({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card style={{ backgroundColor: colors.white }}>
           <CardContent className="pt-3 pb-3 text-center">
-            <p className="text-lg font-bold" style={{ color: colors.brown }}>{formatHM(summary.regularHours)}</p>
-            <p className="text-[10px]" style={{ color: colors.brownLight }}>Total Paid Hours</p>
+            <p className="text-lg font-bold" style={{ color: colors.brown }}>
+              {formatHM(summary.regularHours)}
+            </p>
+            <p className="text-[10px]" style={{ color: colors.brownLight }}>
+              Total Paid Hours
+            </p>
           </CardContent>
         </Card>
         <Card style={{ backgroundColor: colors.white }}>
           <CardContent className="pt-3 pb-3 text-center">
-            <p className="text-lg font-bold" style={{ color: colors.brown }}>{summary.workedDays}</p>
-            <p className="text-[10px]" style={{ color: colors.brownLight }}>Worked Days</p>
+            <p className="text-lg font-bold" style={{ color: colors.brown }}>
+              {summary.workedDays}
+            </p>
+            <p className="text-[10px]" style={{ color: colors.brownLight }}>
+              Worked Days
+            </p>
           </CardContent>
         </Card>
         <Card style={{ backgroundColor: colors.white }}>
           <CardContent className="pt-3 pb-3 text-center">
-            <p className="text-lg font-bold" style={{ color: colors.brown }}>{formatHM(summary.breakHours)}</p>
-            <p className="text-[10px]" style={{ color: colors.brownLight }}>Breaks</p>
+            <p className="text-lg font-bold" style={{ color: colors.brown }}>
+              {formatHM(summary.breakHours)}
+            </p>
+            <p className="text-[10px]" style={{ color: colors.brownLight }}>
+              Breaks
+            </p>
           </CardContent>
         </Card>
         <Card style={{ backgroundColor: colors.white }}>
@@ -667,7 +702,9 @@ export function EmployeeTimesheetView({
             <p className="text-lg font-bold" style={{ color: summary.totalPay ? colors.brown : colors.brownLight }}>
               {summary.totalPay !== null ? `$${summary.totalPay.toFixed(2)}` : '--'}
             </p>
-            <p className="text-[10px]" style={{ color: colors.brownLight }}>Est. Pay</p>
+            <p className="text-[10px]" style={{ color: colors.brownLight }}>
+              Est. Pay
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -684,11 +721,21 @@ export function EmployeeTimesheetView({
           </>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={handleExport} style={{ borderColor: colors.creamDark, color: colors.brown }}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExport}
+            style={{ borderColor: colors.creamDark, color: colors.brown }}
+          >
             <Download className="w-4 h-4 mr-1" /> Export
           </Button>
           {canApprove && approval?.status !== 'approved' && (
-            <Button size="sm" onClick={handleApprove} disabled={approveTimesheet.isPending} style={{ backgroundColor: colors.green, color: '#fff' }}>
+            <Button
+              size="sm"
+              onClick={handleApprove}
+              disabled={approveTimesheet.isPending}
+              style={{ backgroundColor: colors.green, color: '#fff' }}
+            >
               <Check className="w-4 h-4 mr-1" /> Approve
             </Button>
           )}
@@ -715,14 +762,30 @@ export function EmployeeTimesheetView({
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${colors.creamDark}` }}>
-                      <th className="text-left py-1.5 px-2 text-xs" style={{ color: colors.brownLight }}>Date</th>
-                      <th className="text-left py-1.5 px-1 text-xs" style={{ color: colors.brownLight }}>In</th>
-                      <th className="text-left py-1.5 px-1 text-xs" style={{ color: colors.brownLight }}>Break</th>
-                      <th className="text-left py-1.5 px-1 text-xs" style={{ color: colors.brownLight }}>Return</th>
-                      <th className="text-left py-1.5 px-1 text-xs" style={{ color: colors.brownLight }}>Out</th>
-                      <th className="text-right py-1.5 px-2 text-xs" style={{ color: colors.brownLight }}>Hours</th>
-                      <th className="text-right py-1.5 px-2 text-xs" style={{ color: colors.brownLight }}>Sched.</th>
-                      <th className="text-right py-1.5 px-2 text-xs" style={{ color: colors.brownLight }}>Diff</th>
+                      <th className="text-left py-1.5 px-2 text-xs" style={{ color: colors.brownLight }}>
+                        Date
+                      </th>
+                      <th className="text-left py-1.5 px-1 text-xs" style={{ color: colors.brownLight }}>
+                        In
+                      </th>
+                      <th className="text-left py-1.5 px-1 text-xs" style={{ color: colors.brownLight }}>
+                        Break
+                      </th>
+                      <th className="text-left py-1.5 px-1 text-xs" style={{ color: colors.brownLight }}>
+                        Return
+                      </th>
+                      <th className="text-left py-1.5 px-1 text-xs" style={{ color: colors.brownLight }}>
+                        Out
+                      </th>
+                      <th className="text-right py-1.5 px-2 text-xs" style={{ color: colors.brownLight }}>
+                        Hours
+                      </th>
+                      <th className="text-right py-1.5 px-2 text-xs" style={{ color: colors.brownLight }}>
+                        Sched.
+                      </th>
+                      <th className="text-right py-1.5 px-2 text-xs" style={{ color: colors.brownLight }}>
+                        Diff
+                      </th>
                       <th className="py-1.5 px-1 text-xs" style={{ width: 28 }} />
                     </tr>
                   </thead>
@@ -741,27 +804,79 @@ export function EmployeeTimesheetView({
                               <td className="py-1.5 px-2 font-medium" style={{ color: colors.brown }}>
                                 {data.dayLabel}
                                 {canApprove && !isDayEditing && (
-                                  <button onClick={() => startDayEdit(day, [])} className="ml-1.5 align-middle opacity-40 hover:opacity-100" style={{ color: colors.gold }}>
+                                  <button
+                                    onClick={() => startDayEdit(day, [])}
+                                    className="ml-1.5 align-middle opacity-40 hover:opacity-100"
+                                    style={{ color: colors.gold }}
+                                  >
                                     <Edit2 className="w-3 h-3 inline" />
                                   </button>
                                 )}
                               </td>
-                              <td className="py-1.5 px-1">{isDayEditing ? renderPunchCell(`new:${day}`, 'in1', null) : <span className="text-xs" style={{ color: colors.brownLight }}>--</span>}</td>
-                              <td className="py-1.5 px-1">{isDayEditing ? renderPunchCell(`new:${day}`, 'out1', null) : <span className="text-xs" style={{ color: colors.brownLight }}>--</span>}</td>
-                              <td className="py-1.5 px-1">{isDayEditing ? renderPunchCell(`new:${day}`, 'in2', null) : <span className="text-xs" style={{ color: colors.brownLight }}>--</span>}</td>
-                              <td className="py-1.5 px-1">{isDayEditing ? renderPunchCell(`new:${day}`, 'out2', null) : <span className="text-xs" style={{ color: colors.brownLight }}>--</span>}</td>
-                              <td className="text-right py-1.5 px-2" style={{ color: colors.brownLight }}>--</td>
+                              <td className="py-1.5 px-1">
+                                {isDayEditing ? (
+                                  renderPunchCell(`new:${day}`, 'in1', null)
+                                ) : (
+                                  <span className="text-xs" style={{ color: colors.brownLight }}>
+                                    --
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-1.5 px-1">
+                                {isDayEditing ? (
+                                  renderPunchCell(`new:${day}`, 'out1', null)
+                                ) : (
+                                  <span className="text-xs" style={{ color: colors.brownLight }}>
+                                    --
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-1.5 px-1">
+                                {isDayEditing ? (
+                                  renderPunchCell(`new:${day}`, 'in2', null)
+                                ) : (
+                                  <span className="text-xs" style={{ color: colors.brownLight }}>
+                                    --
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-1.5 px-1">
+                                {isDayEditing ? (
+                                  renderPunchCell(`new:${day}`, 'out2', null)
+                                ) : (
+                                  <span className="text-xs" style={{ color: colors.brownLight }}>
+                                    --
+                                  </span>
+                                )}
+                              </td>
+                              <td className="text-right py-1.5 px-2" style={{ color: colors.brownLight }}>
+                                --
+                              </td>
                               <td className="text-right py-1.5 px-2" style={{ color: colors.brownLight }}>
                                 {data.scheduledHours > 0 ? formatHM(data.scheduledHours) : '--'}
                               </td>
-                              <td className="text-right py-1.5 px-2" style={{ color: colors.brownLight }}>--</td>
+                              <td className="text-right py-1.5 px-2" style={{ color: colors.brownLight }}>
+                                --
+                              </td>
                               <td />
                             </tr>
                             {isDayEditing && (
                               <tr style={{ borderBottom: `1px solid ${colors.cream}` }}>
                                 <td colSpan={9} className="py-1.5 px-2 text-right">
-                                  <button onClick={handleSaveDay} className="text-xs font-semibold mr-3 px-3 py-1 rounded" style={{ backgroundColor: colors.green, color: '#fff' }}>Save</button>
-                                  <button onClick={cancelDayEdit} className="text-xs px-3 py-1 rounded border" style={{ color: colors.brownLight, borderColor: colors.creamDark }}>Cancel</button>
+                                  <button
+                                    onClick={handleSaveDay}
+                                    className="text-xs font-semibold mr-3 px-3 py-1 rounded"
+                                    style={{ backgroundColor: colors.green, color: '#fff' }}
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={cancelDayEdit}
+                                    className="text-xs px-3 py-1 rounded border"
+                                    style={{ color: colors.brownLight, borderColor: colors.creamDark }}
+                                  >
+                                    Cancel
+                                  </button>
                                 </td>
                               </tr>
                             )}
@@ -778,30 +893,47 @@ export function EmployeeTimesheetView({
                             const isLast = idx === data.entryRows.length - 1;
 
                             return (
-                              <tr key={eid} style={{ borderBottom: isLast && !isDayEditing ? `1px solid ${colors.cream}` : undefined }}>
+                              <tr
+                                key={eid}
+                                style={{
+                                  borderBottom: isLast && !isDayEditing ? `1px solid ${colors.cream}` : undefined,
+                                }}
+                              >
                                 <td className="py-1.5 px-2 font-medium" style={{ color: colors.brown }}>
                                   {isFirst ? (
                                     <>
                                       {data.dayLabel}
                                       {canApprove && !isDayEditing && (
-                                        <button onClick={() => startDayEdit(day, data.entryRows)} className="ml-1.5 align-middle opacity-40 hover:opacity-100" style={{ color: colors.gold }}>
+                                        <button
+                                          onClick={() => startDayEdit(day, data.entryRows)}
+                                          className="ml-1.5 align-middle opacity-40 hover:opacity-100"
+                                          style={{ color: colors.gold }}
+                                        >
                                           <Edit2 className="w-3 h-3 inline" />
                                         </button>
                                       )}
                                     </>
-                                  ) : ''}
+                                  ) : (
+                                    ''
+                                  )}
                                 </td>
                                 <td className="py-1.5 px-1">{renderPunchCell(eid, 'in1', row.in1)}</td>
                                 <td className="py-1.5 px-1">{renderPunchCell(eid, 'out1', row.out1)}</td>
                                 <td className="py-1.5 px-1">{renderPunchCell(eid, 'in2', row.in2)}</td>
                                 <td className="py-1.5 px-1">{renderPunchCell(eid, 'out2', row.out2)}</td>
-                                <td className="text-right py-1.5 px-2 font-medium" style={{ color: row.netHours > 0 ? colors.brown : colors.brownLight }}>
+                                <td
+                                  className="text-right py-1.5 px-2 font-medium"
+                                  style={{ color: row.netHours > 0 ? colors.brown : colors.brownLight }}
+                                >
                                   {row.netHours > 0 ? formatHM(row.netHours) : '--'}
                                 </td>
                                 <td className="text-right py-1.5 px-2" style={{ color: colors.brownLight }}>
                                   {isFirst && data.scheduledHours > 0 ? formatHM(data.scheduledHours) : '--'}
                                 </td>
-                                <td className="text-right py-1.5 px-2" style={{ color: isFirst ? diff.color : colors.brownLight }}>
+                                <td
+                                  className="text-right py-1.5 px-2"
+                                  style={{ color: isFirst ? diff.color : colors.brownLight }}
+                                >
                                   {isFirst && data.scheduledHours > 0 ? diff.text : '--'}
                                 </td>
                                 <td className="py-1.5 px-1 text-center">
@@ -837,8 +969,20 @@ export function EmployeeTimesheetView({
                           {isDayEditing && (
                             <tr style={{ borderBottom: `1px solid ${colors.cream}` }}>
                               <td colSpan={9} className="py-1.5 px-2 text-right">
-                                <button onClick={handleSaveDay} className="text-xs font-semibold mr-3 px-3 py-1 rounded" style={{ backgroundColor: colors.green, color: '#fff' }}>Save</button>
-                                <button onClick={cancelDayEdit} className="text-xs px-3 py-1 rounded border" style={{ color: colors.brownLight, borderColor: colors.creamDark }}>Cancel</button>
+                                <button
+                                  onClick={handleSaveDay}
+                                  className="text-xs font-semibold mr-3 px-3 py-1 rounded"
+                                  style={{ backgroundColor: colors.green, color: '#fff' }}
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={cancelDayEdit}
+                                  className="text-xs px-3 py-1 rounded border"
+                                  style={{ color: colors.brownLight, borderColor: colors.creamDark }}
+                                >
+                                  Cancel
+                                </button>
                               </td>
                             </tr>
                           )}
@@ -847,7 +991,11 @@ export function EmployeeTimesheetView({
                     })}
                     {/* Weekly total */}
                     <tr style={{ borderTop: `2px solid ${colors.creamDark}` }}>
-                      <td colSpan={5} className="py-1.5 px-2 text-right text-xs font-medium" style={{ color: colors.brownLight }}>
+                      <td
+                        colSpan={5}
+                        className="py-1.5 px-2 text-right text-xs font-medium"
+                        style={{ color: colors.brownLight }}
+                      >
                         Weekly total
                       </td>
                       <td className="text-right py-1.5 px-2 font-bold" style={{ color: colors.brown }}>
@@ -875,10 +1023,19 @@ export function EmployeeTimesheetView({
               style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
             />
             <div className="flex gap-2">
-              <Button onClick={handleApprove} disabled={approveTimesheet.isPending} style={{ backgroundColor: colors.green, color: '#fff' }}>
+              <Button
+                onClick={handleApprove}
+                disabled={approveTimesheet.isPending}
+                style={{ backgroundColor: colors.green, color: '#fff' }}
+              >
                 <Check className="w-4 h-4 mr-1" /> Approve Timesheet
               </Button>
-              <Button variant="outline" onClick={handleReject} disabled={rejectTimesheet.isPending} style={{ borderColor: colors.red, color: colors.red }}>
+              <Button
+                variant="outline"
+                onClick={handleReject}
+                disabled={rejectTimesheet.isPending}
+                style={{ borderColor: colors.red, color: colors.red }}
+              >
                 <X className="w-4 h-4 mr-1" /> Reject
               </Button>
             </div>
@@ -887,9 +1044,7 @@ export function EmployeeTimesheetView({
       )}
 
       {/* Employee edit-request dialog */}
-      {editEntry && !canApprove && (
-        <EditRequestDialog entry={editEntry} onClose={() => setEditEntry(null)} />
-      )}
+      {editEntry && !canApprove && <EditRequestDialog entry={editEntry} onClose={() => setEditEntry(null)} />}
     </div>
   );
 }

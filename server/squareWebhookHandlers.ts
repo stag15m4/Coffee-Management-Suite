@@ -63,10 +63,7 @@ export class SquareWebhookHandlers {
     }
   }
 
-  private static async handleTimecardEvent(
-    tenantId: string,
-    event: SquareWebhookEvent
-  ): Promise<void> {
+  private static async handleTimecardEvent(tenantId: string, event: SquareWebhookEvent): Promise<void> {
     const timecardData = event.data?.object?.timecard;
     if (!timecardData) {
       log('No timecard data in webhook payload', 'square');

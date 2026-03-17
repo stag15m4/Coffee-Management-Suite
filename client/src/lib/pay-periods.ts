@@ -7,13 +7,13 @@ export type PayPeriodType = 'weekly' | 'biweekly' | 'semi_monthly' | 'monthly';
 
 export interface PayPeriod {
   start: string; // YYYY-MM-DD
-  end: string;   // YYYY-MM-DD
+  end: string; // YYYY-MM-DD
   label: string; // e.g. "02/09 - 02/22"
 }
 
 export interface WeekGroup {
-  label: string;     // e.g. "Feb 09 - Feb 15"
-  days: string[];    // YYYY-MM-DD[]
+  label: string; // e.g. "Feb 09 - Feb 15"
+  days: string[]; // YYYY-MM-DD[]
 }
 
 /** Parse a YYYY-MM-DD string into a local-midnight Date. */
@@ -179,8 +179,7 @@ export function getWeekGroupsInPeriod(period: PayPeriod): WeekGroup[] {
 function formatWeekLabel(start: string, end: string): string {
   const s = parseDate(start);
   const e = parseDate(end);
-  const fmtShort = (d: Date) =>
-    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const fmtShort = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   return `${fmtShort(s)} - ${fmtShort(e)}`;
 }
 

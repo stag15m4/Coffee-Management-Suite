@@ -1,11 +1,7 @@
 import { colors } from '@/lib/colors';
 import { escapeHtml } from '@/lib/escapeHtml';
 import { closeWindowScript } from '@/components/tip-payout/export-helpers';
-import {
-  supabase,
-  type Equipment,
-  type MaintenanceTask,
-} from '@/lib/supabase-queries';
+import { supabase, type Equipment, type MaintenanceTask } from '@/lib/supabase-queries';
 
 // ── Vehicle helpers ──────────────────────────────────────────────
 
@@ -41,17 +37,23 @@ export function getTaskStatus(task: MaintenanceTask): TaskStatus {
 
 export function getStatusColor(status: TaskStatus) {
   switch (status) {
-    case 'overdue': return colors.red;
-    case 'due-soon': return colors.yellow;
-    case 'good': return colors.green;
+    case 'overdue':
+      return colors.red;
+    case 'due-soon':
+      return colors.yellow;
+    case 'good':
+      return colors.green;
   }
 }
 
 export function getStatusLabel(status: TaskStatus) {
   switch (status) {
-    case 'overdue': return 'Overdue';
-    case 'due-soon': return 'Due Soon';
-    case 'good': return 'Good';
+    case 'overdue':
+      return 'Overdue';
+    case 'due-soon':
+      return 'Due Soon';
+    case 'good':
+      return 'Good';
   }
 }
 
@@ -182,7 +184,7 @@ export function downloadICalFile(task: MaintenanceTask, equipmentName: string): 
     `SUMMARY:${title}`,
     `DESCRIPTION:${description}`,
     'END:VEVENT',
-    'END:VCALENDAR'
+    'END:VCALENDAR',
   ].join('\r\n');
 
   const blob = new Blob([icalContent], { type: 'text/calendar;charset=utf-8' });
@@ -259,7 +261,7 @@ export function exportEquipmentListCSV(equipmentList: Equipment[]): void {
 
 export function exportEquipmentListPDF(equipmentList: Equipment[], businessName?: string): void {
   const sorted = [...equipmentList].sort(
-    (a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name),
+    (a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name)
   );
 
   // Group by category
@@ -285,7 +287,8 @@ export function exportEquipmentListPDF(equipmentList: Equipment[], businessName?
           : '—';
     const vehicleParts: string[] = [];
     if (isVehicle(eq.category)) {
-      if (eq.license_plate) vehicleParts.push(`Plate: ${eq.license_state ? eq.license_state + ' ' : ''}${esc(eq.license_plate)}`);
+      if (eq.license_plate)
+        vehicleParts.push(`Plate: ${eq.license_state ? eq.license_state + ' ' : ''}${esc(eq.license_plate)}`);
       if (eq.vin) vehicleParts.push(`VIN: ${esc(eq.vin)}`);
       if (eq.current_mileage != null) vehicleParts.push(`Mileage: ${eq.current_mileage.toLocaleString()} mi`);
     }
@@ -297,7 +300,9 @@ export function exportEquipmentListPDF(equipmentList: Equipment[], businessName?
         ? `<div class="detail-line">${eq.model ? `Model: ${esc(eq.model)}` : ''}${eq.model && eq.serial_number ? ' &nbsp;|&nbsp; ' : ''}${eq.serial_number ? `S/N: ${esc(eq.serial_number)}` : ''}</div>`
         : '';
     const notesLine = eq.notes ? `<div class="detail-line">${esc(eq.notes)}</div>` : '';
-    const warrantyNotesLine = eq.warranty_notes ? `<div class="detail-line" style="font-style:italic;">${esc(eq.warranty_notes)}</div>` : '';
+    const warrantyNotesLine = eq.warranty_notes
+      ? `<div class="detail-line" style="font-style:italic;">${esc(eq.warranty_notes)}</div>`
+      : '';
 
     return `
       <div class="eq-card">
@@ -460,10 +465,7 @@ export function exportEquipmentListPDF(equipmentList: Equipment[], businessName?
 
 // ── Equipment record export ──────────────────────────────────────
 
-export async function exportEquipmentRecords(
-  equipment: Equipment,
-  supabaseClient: typeof supabase
-): Promise<void> {
+export async function exportEquipmentRecords(equipment: Equipment, supabaseClient: typeof supabase): Promise<void> {
   // Open the window FIRST before async calls to avoid popup blocker
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
@@ -509,7 +511,7 @@ export async function exportEquipmentRecords(
   // Calculate total maintenance costs
   let totalCost = 0;
   taskLogs.forEach(({ logs }) => {
-    logs.forEach(log => {
+    logs.forEach((log) => {
       if (log.cost) totalCost += Number(log.cost);
     });
   });
@@ -607,62 +609,100 @@ export async function exportEquipmentRecords(
           <p>Exported: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
         </div>
 
-      ${equipment.photo_url ? `
+      ${
+        equipment.photo_url
+          ? `
       <div style="margin-bottom: 15px;">
         <img src="${escapeHtml(equipment.photo_url)}" alt="${escapeHtml(equipment.name)}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #E8E0CC;" />
       </div>
-      ` : ''}
+      `
+          : ''
+      }
 
       <div class="section-title">Equipment Information</div>
         <div class="info-grid">
           <span class="info-label">Name:</span>
           <span class="info-value">${escapeHtml(equipment.name)}</span>
 
-          ${equipment.category ? `
+          ${
+            equipment.category
+              ? `
           <span class="info-label">Category:</span>
           <span class="info-value">${escapeHtml(equipment.category)}</span>
-          ` : ''}
+          `
+              : ''
+          }
 
-          ${!isVehicle(equipment.category) && equipment.model ? `
+          ${
+            !isVehicle(equipment.category) && equipment.model
+              ? `
           <span class="info-label">Model:</span>
           <span class="info-value">${escapeHtml(equipment.model)}</span>
-          ` : ''}
+          `
+              : ''
+          }
 
-          ${!isVehicle(equipment.category) && equipment.serial_number ? `
+          ${
+            !isVehicle(equipment.category) && equipment.serial_number
+              ? `
           <span class="info-label">Serial Number:</span>
           <span class="info-value">${escapeHtml(equipment.serial_number)}</span>
-          ` : ''}
+          `
+              : ''
+          }
 
-          ${equipment.notes ? `
+          ${
+            equipment.notes
+              ? `
           <span class="info-label">Notes:</span>
           <span class="info-value">${escapeHtml(equipment.notes)}</span>
-          ` : ''}
+          `
+              : ''
+          }
 
-          ${isVehicle(equipment.category) && equipment.license_plate ? `
+          ${
+            isVehicle(equipment.category) && equipment.license_plate
+              ? `
           <span class="info-label">License Plate:</span>
           <span class="info-value">${equipment.license_state ? escapeHtml(equipment.license_state) + ' ' : ''}${escapeHtml(equipment.license_plate)}</span>
-          ` : ''}
+          `
+              : ''
+          }
 
-          ${isVehicle(equipment.category) && equipment.vin ? `
+          ${
+            isVehicle(equipment.category) && equipment.vin
+              ? `
           <span class="info-label">VIN:</span>
           <span class="info-value">${escapeHtml(equipment.vin)}</span>
-          ` : ''}
+          `
+              : ''
+          }
 
-          ${isVehicle(equipment.category) && equipment.current_mileage != null ? `
+          ${
+            isVehicle(equipment.category) && equipment.current_mileage != null
+              ? `
           <span class="info-label">Current Mileage:</span>
           <span class="info-value">${equipment.current_mileage.toLocaleString()} mi</span>
-          ` : ''}
+          `
+              : ''
+          }
 
           <span class="info-label">Added:</span>
           <span class="info-value">${new Date(equipment.created_at).toLocaleDateString()}</span>
 
-          ${equipment.in_service_date && !equipment.has_warranty ? `
+          ${
+            equipment.in_service_date && !equipment.has_warranty
+              ? `
           <span class="info-label">In Service:</span>
           <span class="info-value">${parseLocalDate(equipment.in_service_date).toLocaleDateString()}</span>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
 
-        ${equipment.has_warranty ? `
+        ${
+          equipment.has_warranty
+            ? `
         <div class="section-title">Warranty Information</div>
         <div class="info-grid">
           <span class="info-label">Status:</span>
@@ -684,38 +724,54 @@ export async function exportEquipmentRecords(
           <span class="info-label">Expiration:</span>
           <span class="info-value">${warrantyExpiration ? warrantyExpiration.toLocaleDateString() : 'N/A'}</span>
 
-          ${equipment.warranty_notes ? `
+          ${
+            equipment.warranty_notes
+              ? `
           <span class="info-label">Warranty Notes:</span>
           <span class="info-value">${escapeHtml(equipment.warranty_notes)}</span>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
         <div class="section-title">Maintenance Tasks (${allTasks.length})</div>
         ${taskLogs.length === 0 ? '<p class="no-logs">No maintenance tasks configured.</p>' : ''}
 
-        ${taskLogs.map(({ task, logs }) => `
+        ${taskLogs
+          .map(
+            ({ task, logs }) => `
           <div class="task-card">
             <h3>${escapeHtml(task.name)}</h3>
             ${task.description ? `<p style="color: #666; margin: 0 0 10px 0; font-size: 14px;">${escapeHtml(task.description)}</p>` : ''}
             <div class="info-grid">
               <span class="info-label">Type:</span>
-              <span class="info-value">${task.interval_type === 'time' ?
-                `Every ${task.interval_days} days` :
-                `Every ${task.interval_units} ${escapeHtml(task.usage_unit_label) || 'units'}`
+              <span class="info-value">${
+                task.interval_type === 'time'
+                  ? `Every ${task.interval_days} days`
+                  : `Every ${task.interval_units} ${escapeHtml(task.usage_unit_label) || 'units'}`
               }</span>
 
-              ${task.estimated_cost ? `
+              ${
+                task.estimated_cost
+                  ? `
               <span class="info-label">Est. Cost:</span>
               <span class="info-value">$${Number(task.estimated_cost).toFixed(2)}</span>
-              ` : ''}
+              `
+                  : ''
+              }
 
               <span class="info-label">Last Serviced:</span>
               <span class="info-value">${task.last_completed_at ? new Date(task.last_completed_at).toLocaleDateString() : 'Never'}</span>
             </div>
 
             <div style="font-weight: bold; margin-top: 15px; color: #C9A227;">Service History (${logs.length} entries)</div>
-            ${logs.length === 0 ? '<p class="no-logs">No service records yet.</p>' : `
+            ${
+              logs.length === 0
+                ? '<p class="no-logs">No service records yet.</p>'
+                : `
             <table>
               <thead>
                 <tr>
@@ -727,7 +783,9 @@ export async function exportEquipmentRecords(
                 </tr>
               </thead>
               <tbody>
-                ${logs.map(log => `
+                ${logs
+                  .map(
+                    (log) => `
                   <tr>
                     <td>${new Date(log.completed_at).toLocaleDateString()}</td>
                     <td>${escapeHtml(log.completed_by) || '-'}</td>
@@ -735,12 +793,17 @@ export async function exportEquipmentRecords(
                     <td>${escapeHtml(log.notes) || '-'}</td>
                     <td style="color: #C9A227; font-weight: bold;">${log.cost ? '$' + Number(log.cost).toFixed(2) : '-'}</td>
                   </tr>
-                `).join('')}
+                `
+                  )
+                  .join('')}
               </tbody>
           </table>
-          `}
+          `
+            }
         </div>
-      `).join('')}
+      `
+          )
+          .join('')}
 
       <div class="summary-box">
           <h2>Maintenance Summary</h2>

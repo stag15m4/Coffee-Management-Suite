@@ -43,12 +43,12 @@ function buildModuleNav(id: ModuleId): SidebarNavItem {
     href: def.route,
     label: def.shortName,
     icon: getModuleIcon(id),
-    tabs: def.tabs?.map(t => ({ key: t.id, label: t.label })),
+    tabs: def.tabs?.map((t) => ({ key: t.id, label: t.label })),
   };
 }
 
 const MODULE_NAV: Record<ModuleId, SidebarNavItem> = Object.fromEntries(
-  getAllModuleIds().map(id => [id, buildModuleNav(id)])
+  getAllModuleIds().map((id) => [id, buildModuleNav(id)])
 ) as Record<ModuleId, SidebarNavItem>;
 
 const NAV_CATEGORIES = getModulesByCategory();
@@ -56,7 +56,20 @@ const ALL_MODULE_IDS = getAllModuleIds();
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { profile, branding, tenant, accessibleLocations, switchLocation, enabledModules, canAccessModule, signOut, hasRole, isPlatformAdmin, adminViewingTenant, exitTenantView } = useAuth();
+  const {
+    profile,
+    branding,
+    tenant,
+    accessibleLocations,
+    switchLocation,
+    enabledModules,
+    canAccessModule,
+    signOut,
+    hasRole,
+    isPlatformAdmin,
+    adminViewingTenant,
+    exitTenantView,
+  } = useAuth();
   const [, setLocation] = useLocation();
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
   const [settingsExpanded, setSettingsExpanded] = useState(() => {
@@ -70,7 +83,11 @@ export function Sidebar() {
   useEffect(() => {
     if (!locationDropdownOpen && !userMenuOpen) return;
     const handleClick = (e: MouseEvent) => {
-      if (locationDropdownOpen && locationDropdownRef.current && !locationDropdownRef.current.contains(e.target as Node)) {
+      if (
+        locationDropdownOpen &&
+        locationDropdownRef.current &&
+        !locationDropdownRef.current.contains(e.target as Node)
+      ) {
         setLocationDropdownOpen(false);
       }
       if (userMenuOpen && userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
@@ -104,7 +121,9 @@ export function Sidebar() {
   // Trial countdown
   const isTrial = tenant?.subscription_plan === 'free' || !tenant?.subscription_plan;
   const trialEndsAt = tenant?.trial_ends_at ? new Date(tenant.trial_ends_at) : null;
-  const trialDaysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
+  const trialDaysLeft = trialEndsAt
+    ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
 
   // Check if settings section has an active page
   const isSettingsActive = location.startsWith('/admin') || location === '/billing' || location === '/organization';
@@ -209,9 +228,7 @@ export function Sidebar() {
               }}
             >
               <Sparkles className="w-3 h-3" />
-              {trialDaysLeft > 0
-                ? `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`
-                : 'Trial expired'}
+              {trialDaysLeft > 0 ? `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left` : 'Trial expired'}
             </button>
           </Link>
         )}
@@ -245,12 +262,7 @@ export function Sidebar() {
         </button>
 
         {/* My Team — free, not module-gated */}
-        <SidebarLink
-          href="/my-team"
-          label="My Team"
-          icon={Users}
-          isActive={location === '/my-team'}
-        />
+        <SidebarLink href="/my-team" label="My Team" icon={Users} isActive={location === '/my-team'} />
 
         {/* Module categories */}
         {NAV_CATEGORIES.map((category) => {
@@ -274,13 +286,7 @@ export function Sidebar() {
                 const isOnModule = location === nav.href;
 
                 if (nav.tabs && accessible) {
-                  return (
-                    <ExpandableModule
-                      key={moduleId}
-                      nav={nav}
-                      isOnModule={isOnModule}
-                    />
-                  );
+                  return <ExpandableModule key={moduleId} nav={nav} isOnModule={isOnModule} />;
                 }
 
                 return (
@@ -343,12 +349,7 @@ export function Sidebar() {
                     isActive={location === '/organization' || location === '/admin/locations'}
                   />
                 )}
-                <SidebarLink
-                  href="/admin/users"
-                  label="Users"
-                  icon={Users}
-                  isActive={location === '/admin/users'}
-                />
+                <SidebarLink href="/admin/users" label="Users" icon={Users} isActive={location === '/admin/users'} />
                 {isOwner && (
                   <SidebarLink
                     href="/admin/branding"
@@ -358,12 +359,7 @@ export function Sidebar() {
                   />
                 )}
                 {isOwner && (
-                  <SidebarLink
-                    href="/billing"
-                    label="Billing"
-                    icon={CreditCard}
-                    isActive={location === '/billing'}
-                  />
+                  <SidebarLink href="/billing" label="Billing" icon={CreditCard} isActive={location === '/billing'} />
                 )}
                 <SidebarLink
                   href="/bug-reports"
@@ -425,9 +421,7 @@ export function Sidebar() {
             >
               <User className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />
             </div>
-            <span className="truncate text-sm font-medium">
-              {profile?.full_name?.split(' ')[0] || 'Profile'}
-            </span>
+            <span className="truncate text-sm font-medium">{profile?.full_name?.split(' ')[0] || 'Profile'}</span>
             <ChevronDown
               className={`w-3 h-3 ml-auto flex-shrink-0 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
               style={{ color: colors.brownLight }}
@@ -467,27 +461,17 @@ export function Sidebar() {
   );
 }
 
-function ExpandableModule({
-  nav,
-  isOnModule,
-}: {
-  nav: SidebarNavItem;
-  isOnModule: boolean;
-}) {
+function ExpandableModule({ nav, isOnModule }: { nav: SidebarNavItem; isOnModule: boolean }) {
   const [expanded, setExpanded] = useState(isOnModule);
   const Icon = nav.icon;
   const searchString = useSearch();
   const { adminViewingTenant } = useAuth();
 
   // Hide recipes tab from platform admins to protect proprietary recipes
-  const visibleTabs = adminViewingTenant
-    ? nav.tabs?.filter((tab) => tab.key !== 'recipes')
-    : nav.tabs;
+  const visibleTabs = adminViewingTenant ? nav.tabs?.filter((tab) => tab.key !== 'recipes') : nav.tabs;
 
   // Get the active tab from the URL search params
-  const activeTab = isOnModule
-    ? new URLSearchParams(searchString).get('tab') || visibleTabs![0].key
-    : null;
+  const activeTab = isOnModule ? new URLSearchParams(searchString).get('tab') || visibleTabs![0].key : null;
 
   return (
     <div>
@@ -511,9 +495,7 @@ function ExpandableModule({
           onClick={() => setExpanded(!expanded)}
           style={{ color: colors.brownLight }}
         >
-          <ChevronDown
-            className={`w-3.5 h-3.5 transition-transform ${expanded ? '' : '-rotate-90'}`}
-          />
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? '' : '-rotate-90'}`} />
         </button>
       </div>
       {expanded && visibleTabs && (

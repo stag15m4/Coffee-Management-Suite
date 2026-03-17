@@ -50,31 +50,37 @@ export function LogMaintenanceModal({
 }: LogMaintenanceModalProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }} className="w-full max-w-md">
+      <Card
+        style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }}
+        className="w-full max-w-md"
+      >
         <CardHeader>
           <CardTitle style={{ color: colors.brown }}>Log Maintenance</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <p className="font-medium" style={{ color: colors.brown }}>{completingTask.name}</p>
-            <p className="text-sm" style={{ color: colors.brownLight }}>{completingTask.equipment?.name}</p>
+            <p className="font-medium" style={{ color: colors.brown }}>
+              {completingTask.name}
+            </p>
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              {completingTask.equipment?.name}
+            </p>
           </div>
 
           {completingTask.interval_type === 'usage' && (
             <div>
-              <Label style={{ color: colors.brown }}>
-                Current Usage ({completingTask.usage_unit_label})
-              </Label>
+              <Label style={{ color: colors.brown }}>Current Usage ({completingTask.usage_unit_label})</Label>
               <Input
                 type="number"
                 value={completionUsage}
-                onChange={e => setCompletionUsage(e.target.value)}
+                onChange={(e) => setCompletionUsage(e.target.value)}
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-completion-usage"
                 inputMode="numeric"
               />
               <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
-                Update the current usage counter (resets at {completingTask.interval_units} {completingTask.usage_unit_label})
+                Update the current usage counter (resets at {completingTask.interval_units}{' '}
+                {completingTask.usage_unit_label})
               </p>
             </div>
           )}
@@ -85,7 +91,7 @@ export function LogMaintenanceModal({
               type="number"
               step="0.01"
               value={completionCost}
-              onChange={e => setCompletionCost(e.target.value)}
+              onChange={(e) => setCompletionCost(e.target.value)}
               placeholder="0.00"
               style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
               data-testid="input-completion-cost"
@@ -101,14 +107,16 @@ export function LogMaintenanceModal({
                 inputMode="numeric"
                 pattern="[0-9]*"
                 value={completionMileage}
-                onChange={e => {
+                onChange={(e) => {
                   const v = e.target.value;
                   if (v === '' || /^\d+$/.test(v)) setCompletionMileage(v);
                 }}
-                onFocus={e => e.target.select()}
-                placeholder={completingTask.equipment?.current_mileage
-                  ? `Last: ${completingTask.equipment.current_mileage.toLocaleString()} mi`
-                  : 'e.g., 45000'}
+                onFocus={(e) => e.target.select()}
+                placeholder={
+                  completingTask.equipment?.current_mileage
+                    ? `Last: ${completingTask.equipment.current_mileage.toLocaleString()} mi`
+                    : 'e.g., 45000'
+                }
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-completion-mileage"
               />
@@ -119,7 +127,7 @@ export function LogMaintenanceModal({
             <Label style={{ color: colors.brown }}>Notes (optional)</Label>
             <Textarea
               value={completionNotes}
-              onChange={e => setCompletionNotes(e.target.value)}
+              onChange={(e) => setCompletionNotes(e.target.value)}
               placeholder="Any notes about this maintenance"
               style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
               data-testid="input-completion-notes"
@@ -131,7 +139,7 @@ export function LogMaintenanceModal({
               type="checkbox"
               id="historical-entry"
               checked={isHistoricalEntry}
-              onChange={e => setIsHistoricalEntry(e.target.checked)}
+              onChange={(e) => setIsHistoricalEntry(e.target.checked)}
               className="w-4 h-4"
               data-testid="checkbox-historical-entry"
             />
@@ -146,7 +154,7 @@ export function LogMaintenanceModal({
               <Input
                 type="date"
                 value={completionDate}
-                onChange={e => setCompletionDate(e.target.value)}
+                onChange={(e) => setCompletionDate(e.target.value)}
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                 data-testid="input-completion-date"
               />
@@ -198,14 +206,21 @@ export function EditLastServicedModal({
 }: EditLastServicedModalProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }} className="w-full max-w-md">
+      <Card
+        style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }}
+        className="w-full max-w-md"
+      >
         <CardHeader>
           <CardTitle style={{ color: colors.brown }}>Edit Last Serviced Date</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <p className="font-medium" style={{ color: colors.brown }}>{editingTaskLastServiced.name}</p>
-            <p className="text-sm" style={{ color: colors.brownLight }}>{editingTaskLastServiced.equipment?.name}</p>
+            <p className="font-medium" style={{ color: colors.brown }}>
+              {editingTaskLastServiced.name}
+            </p>
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              {editingTaskLastServiced.equipment?.name}
+            </p>
           </div>
 
           <div>
@@ -213,7 +228,7 @@ export function EditLastServicedModal({
             <Input
               type="date"
               value={editLastServicedDate}
-              onChange={e => setEditLastServicedDate(e.target.value)}
+              onChange={(e) => setEditLastServicedDate(e.target.value)}
               style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
               data-testid="input-edit-last-serviced-date"
             />
@@ -313,7 +328,10 @@ export function EditTaskModal({
 }: EditTaskModalProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }} className="w-full max-w-md">
+      <Card
+        style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }}
+        className="w-full max-w-md"
+      >
         <CardHeader>
           <CardTitle style={{ color: colors.brown }}>Edit Maintenance Task</CardTitle>
         </CardHeader>
@@ -328,7 +346,7 @@ export function EditTaskModal({
             <Label style={{ color: colors.brown }}>Task Name *</Label>
             <Input
               value={editTaskName}
-              onChange={e => setEditTaskName(e.target.value)}
+              onChange={(e) => setEditTaskName(e.target.value)}
               placeholder="e.g., Clean burrs, Descale"
               style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
               data-testid="input-edit-task-name"
@@ -339,7 +357,7 @@ export function EditTaskModal({
             <Label style={{ color: colors.brown }}>Description</Label>
             <Input
               value={editTaskDescription}
-              onChange={e => setEditTaskDescription(e.target.value)}
+              onChange={(e) => setEditTaskDescription(e.target.value)}
               placeholder="Optional details"
               style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
               data-testid="input-edit-task-description"
@@ -348,7 +366,9 @@ export function EditTaskModal({
 
           <div>
             <Label style={{ color: colors.brown }}>Task Photo</Label>
-            <p className="text-xs mb-1" style={{ color: colors.brownLight }}>Optional — use a specific photo for this task instead of the equipment photo</p>
+            <p className="text-xs mb-1" style={{ color: colors.brownLight }}>
+              Optional — use a specific photo for this task instead of the equipment photo
+            </p>
             <PhotoCapture
               currentPhotoUrl={editTaskImageUrl}
               onPhotoSelected={async (file) => handleTaskPhotoUpload(file, 'edit')}
@@ -362,7 +382,10 @@ export function EditTaskModal({
           <div>
             <Label style={{ color: colors.brown }}>Interval Type</Label>
             <Select value={editTaskIntervalType} onValueChange={(v: 'time' | 'usage') => setEditTaskIntervalType(v)}>
-              <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} data-testid="select-edit-task-interval-type">
+              <SelectTrigger
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                data-testid="select-edit-task-interval-type"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -378,7 +401,7 @@ export function EditTaskModal({
               <Input
                 type="number"
                 value={editTaskIntervalDays}
-                onChange={e => setEditTaskIntervalDays(e.target.value)}
+                onChange={(e) => setEditTaskIntervalDays(e.target.value)}
                 placeholder="e.g., 14"
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-edit-task-interval-days"
@@ -391,7 +414,7 @@ export function EditTaskModal({
                 <Label style={{ color: colors.brown }}>Unit Label *</Label>
                 <Input
                   value={editTaskUsageLabel}
-                  onChange={e => setEditTaskUsageLabel(e.target.value)}
+                  onChange={(e) => setEditTaskUsageLabel(e.target.value)}
                   placeholder="e.g., lbs, shots"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                   data-testid="input-edit-task-usage-label"
@@ -402,7 +425,7 @@ export function EditTaskModal({
                 <Input
                   type="number"
                   value={editTaskIntervalUnits}
-                  onChange={e => setEditTaskIntervalUnits(e.target.value)}
+                  onChange={(e) => setEditTaskIntervalUnits(e.target.value)}
                   placeholder="e.g., 1000"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                   data-testid="input-edit-task-interval-units"
@@ -418,7 +441,7 @@ export function EditTaskModal({
               type="number"
               step="0.01"
               value={editTaskEstimatedCost}
-              onChange={e => setEditTaskEstimatedCost(e.target.value)}
+              onChange={(e) => setEditTaskEstimatedCost(e.target.value)}
               placeholder="e.g., 25.00"
               style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
               data-testid="input-edit-task-estimated-cost"

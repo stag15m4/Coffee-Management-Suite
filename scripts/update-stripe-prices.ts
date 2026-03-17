@@ -13,70 +13,70 @@ async function updatePrices() {
 
   for (const product of products.data) {
     const prices = await stripe.prices.list({ product: product.id, active: true });
-    
+
     let newAmount: number | null = null;
-    
+
     if (product.name === 'Cash Deposit Record') {
       newAmount = 999; // $9.99
     } else if (product.name === 'Bulk Coffee Ordering') {
       newAmount = 999; // $9.99
     }
-    
+
     if (newAmount !== null) {
       for (const price of prices.data) {
         if (price.recurring?.interval === 'month') {
           await stripe.prices.update(price.id, { active: false });
-          
+
           const newPrice = await stripe.prices.create({
             product: product.id,
             unit_amount: newAmount,
             currency: 'usd',
-            recurring: { interval: 'month' }
+            recurring: { interval: 'month' },
           });
-          
+
           console.log(`Updated ${product.name}: $${(newAmount / 100).toFixed(2)}/mo (new price: ${newPrice.id})`);
         }
       }
     }
   }
 
-  const existingRecipe = products.data.find(p => p.name === 'Recipe Cost Manager');
-  
+  const existingRecipe = products.data.find((p) => p.name === 'Recipe Cost Manager');
+
   if (!existingRecipe) {
     const recipeProduct = await stripe.products.create({
       name: 'Recipe Cost Manager',
       description: 'Track ingredients, create recipes, and calculate food costs.',
       metadata: {
         plan_id: 'alacarte',
-        module_id: 'recipe-costing'
-      }
+        module_id: 'recipe-costing',
+      },
     });
 
     const recipePrice = await stripe.prices.create({
       product: recipeProduct.id,
       unit_amount: 3999, // $39.99
       currency: 'usd',
-      recurring: { interval: 'month' }
+      recurring: { interval: 'month' },
     });
 
     console.log(`Created Recipe Cost Manager: $39.99/mo (${recipePrice.id})`);
   } else {
     console.log('Recipe Cost Manager already exists, updating price...');
     const prices = await stripe.prices.list({ product: existingRecipe.id, active: true });
-    
+
     for (const price of prices.data) {
       if (price.recurring?.interval === 'month') {
         await stripe.prices.update(price.id, { active: false });
       }
     }
-    
+
     const newPrice = await stripe.prices.create({
       product: existingRecipe.id,
       unit_amount: 3999,
       currency: 'usd',
-      recurring: { interval: 'month' }
+      recurring: { interval: 'month' },
     });
-    
+
     console.log(`Updated Recipe Cost Manager: $39.99/mo (${newPrice.id})`);
   }
 

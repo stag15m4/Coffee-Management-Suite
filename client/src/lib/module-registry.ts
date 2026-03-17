@@ -155,7 +155,8 @@ export const MODULE_REGISTRY: Record<ModuleId, ModuleDefinition> = {
         'Organize ingredients by category',
         'Export recipe cards and cost breakdowns',
       ],
-      example: 'Enter your recipe with ingredients and quantities. See instantly what it costs to make and your exact margin.',
+      example:
+        'Enter your recipe with ingredients and quantities. See instantly what it costs to make and your exact margin.',
     },
     previewTagline: 'Know your costs. Protect your margins.',
   },
@@ -184,7 +185,8 @@ export const MODULE_REGISTRY: Record<ModuleId, ModuleDefinition> = {
         'Generate detailed payout summaries',
         'Export reports for payroll and W2 tracking',
       ],
-      example: "Enter weekly tips across your team. The system calculates each person's share based on their hours and shows exact payout amounts.",
+      example:
+        "Enter weekly tips across your team. The system calculates each person's share based on their hours and shows exact payout amounts.",
     },
     previewTagline: 'Fair tips, calculated in seconds.',
   },
@@ -214,7 +216,8 @@ export const MODULE_REGISTRY: Record<ModuleId, ModuleDefinition> = {
         'Complete audit trail of all entries',
         'Export deposit history to CSV',
       ],
-      example: 'Staff counts the drawer at close, logs it, and any discrepancies are flagged. No spreadsheets necessary.',
+      example:
+        'Staff counts the drawer at close, logs it, and any discrepancies are flagged. No spreadsheets necessary.',
     },
     previewTagline: 'Every dollar tracked. Every deposit verified.',
   },
@@ -331,7 +334,7 @@ export const MODULE_REGISTRY: Record<ModuleId, ModuleDefinition> = {
     showcase: null, // Internal module — not shown publicly
   },
 
-  'reporting': {
+  reporting: {
     id: 'reporting',
     name: 'Reporting',
     shortName: 'Reports',
@@ -434,14 +437,12 @@ export function getModulesByCategory(): { label: string; modules: ModuleId[] }[]
     grouped.get(mod.category)!.push(mod.id);
   }
 
-  return categoryOrder
-    .filter(cat => grouped.has(cat))
-    .map(cat => ({ label: cat, modules: grouped.get(cat)! }));
+  return categoryOrder.filter((cat) => grouped.has(cat)).map((cat) => ({ label: cat, modules: grouped.get(cat)! }));
 }
 
 /** Get modules sorted by mobile priority */
 export function getMobileModulePriority(): ModuleId[] {
   return Object.values(MODULE_REGISTRY)
     .sort((a, b) => a.mobilePriority - b.mobilePriority)
-    .map(m => m.id);
+    .map((m) => m.id);
 }

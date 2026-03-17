@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -9,9 +10,29 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users } from 'lucide-react';
 
-import { CC_FEE_RATE, TipEmployee, ImportedHours, UnmatchedEntry, isEmployeeTipEligible } from '@/components/tip-payout/types';
-import { formatHoursMinutes, getMonday, getWeekRange, calcNetHoursFromEntry, TimeclockEntry } from '@/components/tip-payout/utils';
-import { buildCsvContent, buildWeeklyPdfHtml, buildHistoricalGroupHtml, buildHistoricalIndividualHtml, buildLoadingHtml } from '@/components/tip-payout/export-helpers';
+import {
+  CC_FEE_RATE,
+  TipEmployee,
+  ImportedHours,
+  UnmatchedEntry,
+  ServerCalculationResult,
+  PayoutApprovalResult,
+  isEmployeeTipEligible,
+} from '@/components/tip-payout/types';
+import {
+  formatHoursMinutes,
+  getMonday,
+  getWeekRange,
+  calcNetHoursFromEntry,
+  TimeclockEntry,
+} from '@/components/tip-payout/utils';
+import {
+  buildCsvContent,
+  buildWeeklyPdfHtml,
+  buildHistoricalGroupHtml,
+  buildHistoricalIndividualHtml,
+  buildLoadingHtml,
+} from '@/components/tip-payout/export-helpers';
 import { TipPayoutHeader } from '@/components/tip-payout/TipPayoutHeader';
 import { DailyTipsEntry } from '@/components/tip-payout/DailyTipsEntry';
 import { EmployeeHoursEntry } from '@/components/tip-payout/EmployeeHoursEntry';
@@ -21,24 +42,25 @@ import { HistoricalExport } from '@/components/tip-payout/HistoricalExport';
 import { TimeclockImportDialog } from '@/components/tip-payout/TimeclockImportDialog';
 import { colors } from '@/lib/colors';
 import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
+import { getAuthHeaders } from '@/lib/api-helpers';
 
 export default function TipPayout() {
-  const { tenant, branding, primaryTenant } = useAuth();
+  const { tenant, branding, primaryTenant, profile } = useAuth();
   const { toast } = useToast();
 
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
-  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const displayName = isChildLocation ? tenant?.name : branding?.company_name || tenant?.name || 'Erwin Mills Coffee';
   const orgName = primaryTenant?.name || branding?.company_name || '';
   const companyName = branding?.company_name || displayName || 'Coffee Co.';
 
   // Core data state
   const [employees, setEmployees] = useState<TipEmployee[]>([]);
   const [weekKey, setWeekKeyRaw] = useState(() => {
-    return sessionStorage.getItem('tip-payout-weekKey') || getMonday();
+    return (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('tip-payout-weekKey')) || getMonday();
   });
   const setWeekKey = useCallback((key: string) => {
-    sessionStorage.setItem('tip-payout-weekKey', key);
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('tip-payout-weekKey', key);
     setWeekKeyRaw(key);
   }, []);
   const [employeeHours, setEmployeeHours] = useState<Record<string, number>>({});
@@ -82,6 +104,13 @@ export default function TipPayout() {
   const [historySelectedEmployee, setHistorySelectedEmployee] = useState('');
   const [exportingHistory, setExportingHistory] = useState(false);
 
+  // Server-side validation
+  const [serverResult, setServerResult] = useState<ServerCalculationResult | null>(null);
+  const [approvalResult, setApprovalResult] = useState<PayoutApprovalResult | null>(null);
+  const [validating, setValidating] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   // --- Data loading ---
 
   const loadEmployees = useCallback(async () => {
@@ -95,70 +124,71 @@ export default function TipPayout() {
         .order('name');
       if (error) throw error;
       setEmployees(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading employees:', error);
+      toast({ title: 'Error loading employees', description: getErrorMessage(error), variant: 'destructive' });
     }
-  }, [tenant?.id]);
+  }, [tenant?.id, toast]);
 
   const loadAllEmployees = useCallback(async () => {
     if (!tenant?.id) return;
     try {
-      const { data, error } = await supabase
-        .from('tip_employees')
-        .select('*')
-        .eq('tenant_id', tenant.id)
-        .order('name');
+      const { data, error } = await supabase.from('tip_employees').select('*').eq('tenant_id', tenant.id).order('name');
       if (error) throw error;
       setAllEmployees(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading all employees:', error);
+      toast({ title: 'Error loading employees', description: getErrorMessage(error), variant: 'destructive' });
     }
-  }, [tenant?.id]);
+  }, [tenant?.id, toast]);
 
-  const loadWeekData = useCallback(async (silent = false) => {
-    if (!tenant?.id) {
-      setLoading(false);
-      return;
-    }
-    if (!silent) setLoading(true);
-    try {
-      const { data: weekData, error: weekError } = await supabase
-        .from('tip_weekly_data')
-        .select('*')
-        .eq('tenant_id', tenant.id)
-        .eq('week_key', weekKey)
-        .maybeSingle();
-      if (weekError) throw weekError;
-
-      if (weekData) {
-        setCashEntries(weekData.cash_entries || [0, 0, 0, 0, 0, 0, 0]);
-        setCcEntries(weekData.cc_entries || [0, 0, 0, 0, 0, 0, 0]);
-      } else {
-        setCashEntries([0, 0, 0, 0, 0, 0, 0]);
-        setCcEntries([0, 0, 0, 0, 0, 0, 0]);
+  const loadWeekData = useCallback(
+    async (silent = false) => {
+      if (!tenant?.id) {
+        setLoading(false);
+        return;
       }
+      if (!silent) setLoading(true);
+      try {
+        const { data: weekData, error: weekError } = await supabase
+          .from('tip_weekly_data')
+          .select('*')
+          .eq('tenant_id', tenant.id)
+          .eq('week_key', weekKey)
+          .maybeSingle();
+        if (weekError) throw weekError;
 
-      const { data: hoursData, error: hoursError } = await supabase
-        .from('tip_employee_hours')
-        .select('*, tip_employees(name)')
-        .eq('tenant_id', tenant.id)
-        .eq('week_key', weekKey);
-      if (hoursError) throw hoursError;
-
-      const hoursMap: Record<string, number> = {};
-      (hoursData || []).forEach((h: any) => {
-        if (h.tip_employees?.name) {
-          hoursMap[h.tip_employees.name] = parseFloat(h.hours) || 0;
+        if (weekData) {
+          setCashEntries(weekData.cash_entries || [0, 0, 0, 0, 0, 0, 0]);
+          setCcEntries(weekData.cc_entries || [0, 0, 0, 0, 0, 0, 0]);
+        } else {
+          setCashEntries([0, 0, 0, 0, 0, 0, 0]);
+          setCcEntries([0, 0, 0, 0, 0, 0, 0]);
         }
-      });
-      setEmployeeHours(hoursMap);
-    } catch (error: any) {
-      console.error('Error loading week data:', error);
-      toast({ title: 'Error loading data', description: error.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [tenant?.id, weekKey, toast]);
+
+        const { data: hoursData, error: hoursError } = await supabase
+          .from('tip_employee_hours')
+          .select('*, tip_employees(name)')
+          .eq('tenant_id', tenant.id)
+          .eq('week_key', weekKey);
+        if (hoursError) throw hoursError;
+
+        const hoursMap: Record<string, number> = {};
+        (hoursData || []).forEach((h: any) => {
+          if (h.tip_employees?.name) {
+            hoursMap[h.tip_employees.name] = parseFloat(h.hours) || 0;
+          }
+        });
+        setEmployeeHours(hoursMap);
+      } catch (error: unknown) {
+        console.error('Error loading week data:', error);
+        toast({ title: 'Error loading data', description: getErrorMessage(error), variant: 'destructive' });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [tenant?.id, weekKey, toast]
+  );
 
   useEffect(() => {
     if (tenant?.id) {
@@ -208,8 +238,8 @@ export default function TipPayout() {
         setNewEmployeeName('');
         loadEmployees();
       }
-    } catch (error: any) {
-      toast({ title: 'Error adding employee', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error adding employee', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setAddingEmployee(false);
     }
@@ -232,8 +262,8 @@ export default function TipPayout() {
       });
       loadEmployees();
       loadAllEmployees();
-    } catch (error: any) {
-      toast({ title: 'Error updating employee', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating employee', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -251,8 +281,8 @@ export default function TipPayout() {
       });
       loadEmployees();
       loadAllEmployees();
-    } catch (error: any) {
-      toast({ title: 'Error updating eligibility', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating eligibility', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -266,9 +296,8 @@ export default function TipPayout() {
     }
     setSavingTips(true);
     try {
-      const { error } = await supabase
-        .from('tip_weekly_data')
-        .upsert({
+      const { error } = await supabase.from('tip_weekly_data').upsert(
+        {
           tenant_id: tenant.id,
           week_key: weekKey,
           cash_tips: cashTotal,
@@ -276,12 +305,14 @@ export default function TipPayout() {
           cash_entries: cashEntries,
           cc_entries: ccEntries,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'tenant_id,week_key' });
+        },
+        { onConflict: 'tenant_id,week_key' }
+      );
       if (error) throw error;
       toast({ title: 'Tips saved!' });
       loadWeekData();
-    } catch (error: any) {
-      toast({ title: 'Error saving tips', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error saving tips', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSavingTips(false);
     }
@@ -299,7 +330,7 @@ export default function TipPayout() {
       toast({ title: 'Please enter hours', variant: 'destructive' });
       return;
     }
-    const employee = employees.find(e => e.name === selectedEmployee);
+    const employee = employees.find((e) => e.name === selectedEmployee);
     if (!employee) return;
 
     setSavingHours(true);
@@ -328,8 +359,8 @@ export default function TipPayout() {
       setHoursInput('');
       setMinutesInput('');
       loadWeekData();
-    } catch (error: any) {
-      toast({ title: 'Error saving hours', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error saving hours', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSavingHours(false);
     }
@@ -337,7 +368,7 @@ export default function TipPayout() {
 
   const deleteHours = async (employeeName: string) => {
     if (!tenant?.id) return;
-    const employee = employees.find(e => e.name === employeeName);
+    const employee = employees.find((e) => e.name === employeeName);
     if (!employee) return;
     try {
       const { error } = await supabase
@@ -349,8 +380,8 @@ export default function TipPayout() {
       if (error) throw error;
       toast({ title: `${employeeName}'s hours removed` });
       loadWeekData();
-    } catch (error: any) {
-      toast({ title: 'Error deleting hours', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error deleting hours', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -378,6 +409,94 @@ export default function TipPayout() {
     }
   };
 
+  // --- Server-side validation ---
+
+  const handleServerValidate = async () => {
+    if (!tenant?.id) return;
+    setValidating(true);
+    setValidationError(null);
+    setServerResult(null);
+    setApprovalResult(null);
+
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/tip-payouts/calculate', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          tenantId: tenant.id,
+          weekKey,
+          distributionMethod: 'hours',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setValidationError(errorData.error || 'Server validation failed');
+        return;
+      }
+
+      const result: ServerCalculationResult = await response.json();
+      setServerResult(result);
+    } catch (error: unknown) {
+      setValidationError(getErrorMessage(error) || 'Network error during validation');
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!tenant?.id || !serverResult) return;
+    setApproving(true);
+    setValidationError(null);
+
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/tip-payouts/approve', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          tenantId: tenant.id,
+          weekKey,
+          distributionMethod: serverResult.distributionMethod,
+          cashTips: serverResult.cashTips,
+          ccTips: serverResult.ccTips,
+          totalPool: serverResult.totalPool,
+          totalHours: serverResult.totalHours,
+          hourlyRate: serverResult.hourlyRate,
+          employees: serverResult.employees,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setValidationError(errorData.error || 'Approval failed');
+        return;
+      }
+
+      const result: PayoutApprovalResult = await response.json();
+      setApprovalResult(result);
+      toast({ title: 'Payout approved and recorded!' });
+    } catch (error: unknown) {
+      setValidationError(getErrorMessage(error) || 'Network error during approval');
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  // Clear server validation when inputs change (use derived scalars for stable deps)
+  const cashEntriesKey = cashEntries.join(',');
+  const ccEntriesKey = ccEntries.join(',');
+  const employeeHoursKey = Object.entries(employeeHours)
+    .sort()
+    .map(([k, v]) => `${k}:${v}`)
+    .join(',');
+  useEffect(() => {
+    setServerResult(null);
+    setApprovalResult(null);
+    setValidationError(null);
+  }, [weekKey, cashEntriesKey, ccEntriesKey, employeeHoursKey]);
+
   // --- Timeclock import ---
 
   const handleImportClick = async () => {
@@ -397,7 +516,9 @@ export default function TipPayout() {
 
       const { data: entries, error } = await supabase
         .from('time_clock_entries')
-        .select('id, employee_id, tip_employee_id, employee_name, clock_in, clock_out, time_clock_breaks(id, break_start, break_end, is_paid)')
+        .select(
+          'id, employee_id, tip_employee_id, employee_name, clock_in, clock_out, time_clock_breaks(id, break_start, break_end, is_paid)'
+        )
         .eq('tenant_id', tenant.id)
         .gte('clock_in', mondayStart)
         .lt('clock_in', nextMondayStr)
@@ -407,8 +528,8 @@ export default function TipPayout() {
 
       // Build lookup maps for tip-eligible employees only
       const eligible = employees.filter(isEmployeeTipEligible);
-      const byTipId = new Map(eligible.map(e => [e.id, e]));
-      const byNameLower = new Map(eligible.map(e => [e.name.trim().toLowerCase(), e]));
+      const byTipId = new Map(eligible.map((e) => [e.id, e]));
+      const byNameLower = new Map(eligible.map((e) => [e.name.trim().toLowerCase(), e]));
 
       const hoursMap = new Map<string, ImportedHours>();
       const unmatchedMap = new Map<string, UnmatchedEntry>();
@@ -460,8 +581,8 @@ export default function TipPayout() {
       setImportPreviewData(Array.from(hoursMap.values()));
       setImportUnmatched(Array.from(unmatchedMap.values()));
       setImportSkippedCount(skipped);
-    } catch (error: any) {
-      toast({ title: 'Error loading timeclock data', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error loading timeclock data', description: getErrorMessage(error), variant: 'destructive' });
       setImportDialogOpen(false);
     } finally {
       setImportLoading(false);
@@ -470,7 +591,7 @@ export default function TipPayout() {
 
   const confirmImport = async () => {
     if (!tenant?.id) return;
-    const matched = importPreviewData.filter(d => d.matched);
+    const matched = importPreviewData.filter((d) => d.matched);
     if (matched.length === 0) return;
 
     setImportConfirming(true);
@@ -492,14 +613,12 @@ export default function TipPayout() {
             .eq('tenant_id', tenant.id);
           if (error) throw error;
         } else {
-          const { error } = await supabase
-            .from('tip_employee_hours')
-            .insert({
-              tenant_id: tenant.id,
-              employee_id: item.tipEmployeeId,
-              week_key: weekKey,
-              hours: item.totalHours,
-            });
+          const { error } = await supabase.from('tip_employee_hours').insert({
+            tenant_id: tenant.id,
+            employee_id: item.tipEmployeeId,
+            week_key: weekKey,
+            hours: item.totalHours,
+          });
           if (error) throw error;
         }
       }
@@ -507,8 +626,8 @@ export default function TipPayout() {
       toast({ title: `Imported hours for ${matched.length} ${matched.length === 1 ? 'employee' : 'employees'}` });
       setImportDialogOpen(false);
       loadWeekData();
-    } catch (error: any) {
-      toast({ title: 'Error importing hours', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error importing hours', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setImportConfirming(false);
     }
@@ -573,7 +692,9 @@ export default function TipPayout() {
         .order('week_key');
       const { data: weeklyData, error: weeklyError } = await Promise.race([
         weeklyPromise,
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Query timeout - please try again')), QUERY_TIMEOUT)),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Query timeout - please try again')), QUERY_TIMEOUT)
+        ),
       ]);
       if (weeklyError) throw weeklyError;
 
@@ -586,7 +707,9 @@ export default function TipPayout() {
         .order('week_key');
       const { data: hoursData, error: hoursError } = await Promise.race([
         hoursPromise,
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Query timeout - please try again')), QUERY_TIMEOUT)),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Query timeout - please try again')), QUERY_TIMEOUT)
+        ),
       ]);
       if (hoursError) throw hoursError;
 
@@ -613,7 +736,7 @@ export default function TipPayout() {
           setExportingHistory(false);
           return;
         }
-        const employee = allEmployees.find(e => e.id === historySelectedEmployee);
+        const employee = allEmployees.find((e) => e.id === historySelectedEmployee);
         const html = buildHistoricalIndividualHtml({
           employeeName: employee?.name || 'Employee',
           startRange,
@@ -627,10 +750,10 @@ export default function TipPayout() {
         exportWindow.document.close();
         toast({ title: `${employee?.name}'s history ready!` });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Export error:', error);
       exportWindow.close();
-      toast({ title: 'Error exporting history', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error exporting history', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setExportingHistory(false);
     }
@@ -757,6 +880,14 @@ export default function TipPayout() {
                   hasData={Object.keys(employeeHours).length > 0}
                   onExportCSV={exportCSV}
                   onExportPDF={exportPDF}
+                  onServerValidate={handleServerValidate}
+                  onApprove={handleApprove}
+                  validating={validating}
+                  approving={approving}
+                  serverResult={serverResult}
+                  approvalResult={approvalResult}
+                  validationError={validationError}
+                  userRole={profile?.role ?? null}
                 />
 
                 <TeamHoursVerify

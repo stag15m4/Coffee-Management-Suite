@@ -83,12 +83,15 @@ export const getDefaultFormData = (today: string, drawerDefault: number): FormDa
 });
 
 export const groupEntriesByWeek = (entries: CashEntry[]) => {
-  return entries.reduce((acc, entry) => {
-    const weekStart = getWeekStart(entry.drawer_date);
-    if (!acc[weekStart]) acc[weekStart] = [];
-    acc[weekStart].push(entry);
-    return acc;
-  }, {} as Record<string, CashEntry[]>);
+  return entries.reduce(
+    (acc, entry) => {
+      const weekStart = getWeekStart(entry.drawer_date);
+      if (!acc[weekStart]) acc[weekStart] = [];
+      acc[weekStart].push(entry);
+      return acc;
+    },
+    {} as Record<string, CashEntry[]>
+  );
 };
 
 // --- PDF Export for single-day cash deposit ---
@@ -297,7 +300,7 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
     <div class="field-grid">
       <div class="field">
         <div class="label">Date</div>
-        <div class="value" style="font-family:Arial,sans-serif; font-size:13px;">${displayDate.split(',').slice(0,2).join(',')}</div>
+        <div class="value" style="font-family:Arial,sans-serif; font-size:13px;">${displayDate.split(',').slice(0, 2).join(',')}</div>
       </div>
       <div class="field">
         <div class="label">Gross Revenue</div>
@@ -332,12 +335,16 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
         <div class="label">Pay Out</div>
         <div class="value">${fmt(entry.pay_out || 0)}</div>
       </div>
-      ${ownerTipsEnabled ? `
+      ${
+        ownerTipsEnabled
+          ? `
       <div class="field">
         <div class="label">Owner Tips</div>
         <div class="value">${fmt(entry.owner_tips || 0)}</div>
       </div>
-      ` : ''}
+      `
+          : ''
+      }
     </div>
 
     <!-- Calculated Fields: Actual Deposit, Calculated Deposit, Difference, Net Cash -->
@@ -371,7 +378,10 @@ export function buildCashDepositDayPdfHtml(params: CashDepositPdfParams): string
     <div class="followup-section">
       <div class="label">Follow-up Notes</div>
       <div class="write-lines">
-        ${Array(8).fill(0).map(() => '<div class="line"></div>').join('')}
+        ${Array(8)
+          .fill(0)
+          .map(() => '<div class="line"></div>')
+          .join('')}
       </div>
     </div>
   </div>

@@ -1,12 +1,32 @@
 import { sql } from 'drizzle-orm';
 import { db } from './db';
-import {
-  getSquareClient,
-  getSquareAppClient,
-  getSquareAppId,
-  getSquareAppSecret,
-} from './squareClient';
+import { getSquareClient, getSquareAppClient, getSquareAppId, getSquareAppSecret } from './squareClient';
 import { log } from './index';
+import { encrypt, decrypt, isEncrypted } from './crypto';
+
+// ---------------------------------------------------------------------------
+// Token helpers — encrypt before writing, decrypt after reading.
+// During the migration period tokens may still be stored in plaintext;
+// safeDecrypt handles that gracefully.
+// ---------------------------------------------------------------------------
+
+function encryptToken(token: string): string {
+  return encrypt(token);
+}
+
+function safeDecrypt(token: string): string {
+  if (!isEncrypted(token)) {
+    // Legacy plaintext token — return as-is during migration period
+    return token;
+  }
+  const decrypted = decrypt(token);
+  if (decrypted === null) {
+    // Decryption failed but format looked encrypted — fall back to raw value
+    log('Warning: Square token decryption failed, using raw value', 'square');
+    return token;
+  }
+  return decrypted;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,7 +112,10 @@ export class SquareService {
   // OAuth
   // -------------------------------------------------------------------------
 
-  async exchangeCodeForTokens(code: string, redirectUri: string): Promise<{
+  async exchangeCodeForTokens(
+    code: string,
+    redirectUri: string
+  ): Promise<{
     accessToken: string;
     refreshToken: string;
     expiresAt: Date;
@@ -111,9 +134,7 @@ export class SquareService {
       throw new Error('Incomplete OAuth response from Square');
     }
 
-    const expiresAt = result.expiresAt
-      ? new Date(result.expiresAt)
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // default 30 days
+    const expiresAt = result.expiresAt ? new Date(result.expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // default 30 days
 
     return {
       accessToken: result.accessToken,
@@ -141,14 +162,16 @@ export class SquareService {
       throw new Error('Failed to refresh Square access token');
     }
 
-    const expiresAt = result.expiresAt
-      ? new Date(result.expiresAt)
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const expiresAt = result.expiresAt ? new Date(result.expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Encrypt the new tokens before persisting
+    const encAccessToken = encryptToken(result.accessToken);
+    const encRefreshToken = encryptToken(result.refreshToken || tenant.square_refresh_token);
 
     await db.execute(sql`
       UPDATE tenants SET
-        square_access_token = ${result.accessToken},
-        square_refresh_token = ${result.refreshToken || tenant.square_refresh_token},
+        square_access_token = ${encAccessToken},
+        square_refresh_token = ${encRefreshToken},
         square_token_expires_at = ${expiresAt.toISOString()}::timestamptz,
         updated_at = NOW()
       WHERE id = ${tenantId}::uuid
@@ -168,7 +191,17 @@ export class SquareService {
       WHERE id = ${tenantId}::uuid
     `);
     if (!result.rows.length) return null;
-    return result.rows[0] as unknown as SquareTenantConfig;
+    const row = result.rows[0] as unknown as SquareTenantConfig;
+
+    // Decrypt tokens (handles legacy plaintext gracefully)
+    if (row.square_access_token) {
+      row.square_access_token = safeDecrypt(row.square_access_token);
+    }
+    if (row.square_refresh_token) {
+      row.square_refresh_token = safeDecrypt(row.square_refresh_token);
+    }
+
+    return row;
   }
 
   async saveTenantSquareTokens(
@@ -178,11 +211,14 @@ export class SquareService {
     refreshToken: string,
     expiresAt: Date
   ): Promise<void> {
+    const encAccessToken = encryptToken(accessToken);
+    const encRefreshToken = encryptToken(refreshToken);
+
     await db.execute(sql`
       UPDATE tenants SET
         square_merchant_id = ${merchantId},
-        square_access_token = ${accessToken},
-        square_refresh_token = ${refreshToken},
+        square_access_token = ${encAccessToken},
+        square_refresh_token = ${encRefreshToken},
         square_token_expires_at = ${expiresAt.toISOString()}::timestamptz,
         updated_at = NOW()
       WHERE id = ${tenantId}::uuid
@@ -297,11 +333,7 @@ export class SquareService {
     return members;
   }
 
-  async searchTimecards(
-    tenantId: string,
-    startDate?: string,
-    endDate?: string
-  ): Promise<SquareTimecard[]> {
+  async searchTimecards(tenantId: string, startDate?: string, endDate?: string): Promise<SquareTimecard[]> {
     const { client, tenant } = await this.getAuthenticatedClient(tenantId);
 
     if (!tenant.square_location_id) {
@@ -357,10 +389,7 @@ export class SquareService {
   // Sync logic
   // -------------------------------------------------------------------------
 
-  async syncShiftsForTenant(
-    tenantId: string,
-    options?: { startDate?: string; endDate?: string }
-  ): Promise<SyncResult> {
+  async syncShiftsForTenant(tenantId: string, options?: { startDate?: string; endDate?: string }): Promise<SyncResult> {
     const tenant = await this.getTenantSquareConfig(tenantId);
     if (!tenant?.square_access_token || !tenant.square_location_id) {
       throw new Error('Square not fully configured for this tenant');

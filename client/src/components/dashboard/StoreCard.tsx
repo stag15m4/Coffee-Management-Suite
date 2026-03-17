@@ -43,13 +43,7 @@ interface StoreCardProps {
 
 const MAX_FACES = 6;
 
-export function StoreCard({
-  location,
-  metrics,
-  isLoading,
-  isError,
-  isParent,
-}: StoreCardProps) {
+export function StoreCard({ location, metrics, isLoading, isError, isParent }: StoreCardProps) {
   const { profile, switchLocation, tenant } = useAuth();
   const [, setLocation] = useLocation();
 
@@ -78,21 +72,19 @@ export function StoreCard({
   };
 
   // Group action items by urgency
-  const overdueItems =
-    metrics?.actionItems.filter((i) => i.urgency === 'overdue') || [];
-  const todayItems =
-    metrics?.actionItems.filter((i) => i.urgency === 'today') || [];
-  const weekItems =
-    metrics?.actionItems.filter((i) => i.urgency === 'this-week') || [];
+  const overdueItems = metrics?.actionItems.filter((i) => i.urgency === 'overdue') || [];
+  const todayItems = metrics?.actionItems.filter((i) => i.urgency === 'today') || [];
+  const weekItems = metrics?.actionItems.filter((i) => i.urgency === 'this-week') || [];
 
   const visibleMembers = teamMembers?.slice(0, MAX_FACES) || [];
   const overflowCount = (teamMembers?.length || 0) - MAX_FACES;
 
-  const lastTeamLogin = teamMembers?.reduce<string | null>((latest, m) => {
-    if (!m.last_login_at) return latest;
-    if (!latest) return m.last_login_at;
-    return m.last_login_at > latest ? m.last_login_at : latest;
-  }, null) ?? null;
+  const lastTeamLogin =
+    teamMembers?.reduce<string | null>((latest, m) => {
+      if (!m.last_login_at) return latest;
+      if (!latest) return m.last_login_at;
+      return m.last_login_at > latest ? m.last_login_at : latest;
+    }, null) ?? null;
 
   // --- Clock-in status & running late detection ---
   const clockedInIds = new Set((activeClockedIn || []).map((e) => e.employee_id));
@@ -127,10 +119,7 @@ export function StoreCard({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3
-                  className="font-bold text-lg"
-                  style={{ color: colors.brown }}
-                >
+                <h3 className="font-bold text-lg" style={{ color: colors.brown }}>
                   {location.name}
                 </h3>
                 {isParent && (
@@ -140,10 +129,7 @@ export function StoreCard({
                 )}
               </div>
               {todayHoursStr && (
-                <div
-                  className="flex items-center gap-1 text-sm"
-                  style={{ color: colors.brownLight }}
-                >
+                <div className="flex items-center gap-1 text-sm" style={{ color: colors.brownLight }}>
                   <Clock className="w-3.5 h-3.5" />
                   <span>{todayHoursStr}</span>
                 </div>
@@ -159,20 +145,14 @@ export function StoreCard({
                   className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
                   onClick={(e) => handleItemClick(e, '/cash-deposit')}
                 >
-                  <span
-                    className="text-lg font-bold"
-                    style={{ color: colors.brown }}
-                  >
+                  <span className="text-lg font-bold" style={{ color: colors.brown }}>
                     {formatCurrency(metrics.revenue.currentMonth)}
                   </span>
                   {metrics.revenue.lastMonth > 0 && (
                     <span
                       className="flex items-center gap-0.5 text-xs font-medium"
                       style={{
-                        color:
-                          metrics.revenue.trend === 'up'
-                            ? colors.green
-                            : colors.red,
+                        color: metrics.revenue.trend === 'up' ? colors.green : colors.red,
                       }}
                     >
                       {metrics.revenue.trend === 'up' ? (
@@ -188,9 +168,7 @@ export function StoreCard({
               {metrics.redFlags.overdueMaintenanceCount > 0 && (
                 <div className="flex items-center gap-1 text-red-600">
                   <AlertTriangle className="w-3.5 h-3.5" />
-                  <span className="text-xs font-medium">
-                    {metrics.redFlags.overdueMaintenanceCount} overdue maint.
-                  </span>
+                  <span className="text-xs font-medium">{metrics.redFlags.overdueMaintenanceCount} overdue maint.</span>
                 </div>
               )}
               {metrics.redFlags.overdueTaskCount > 0 && (
@@ -203,14 +181,9 @@ export function StoreCard({
                 </div>
               )}
               {metrics.redFlags.unassignedTaskCount > 0 && (
-                <div
-                  className="flex items-center gap-1"
-                  style={{ color: colors.orange }}
-                >
+                <div className="flex items-center gap-1" style={{ color: colors.orange }}>
                   <AlertTriangle className="w-3.5 h-3.5" />
-                  <span className="text-xs font-medium">
-                    {metrics.redFlags.unassignedTaskCount} unassigned
-                  </span>
+                  <span className="text-xs font-medium">{metrics.redFlags.unassignedTaskCount} unassigned</span>
                 </div>
               )}
             </div>
@@ -236,17 +209,9 @@ export function StoreCard({
                   title={member.full_name || member.email}
                 >
                   {member.avatar_url ? (
-                    <img
-                      src={member.avatar_url}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
+                    <img src={member.avatar_url} alt="" className="w-full h-full object-cover" loading="lazy" />
                   ) : (
-                    <User
-                      className="w-4 h-4"
-                      style={{ color: colors.brownLight }}
-                    />
+                    <User className="w-4 h-4" style={{ color: colors.brownLight }} />
                   )}
                 </div>
               ))}
@@ -265,16 +230,10 @@ export function StoreCard({
               )}
             </div>
             <div className="flex flex-col">
-              <span
-                className="text-sm"
-                style={{ color: colors.brownLight }}
-              >
+              <span className="text-sm" style={{ color: colors.brownLight }}>
                 {teamMembers?.length} team member{teamMembers?.length !== 1 ? 's' : ''}
               </span>
-              <span
-                className="text-xs"
-                style={{ color: getActivityColor(lastTeamLogin) }}
-              >
+              <span className="text-xs" style={{ color: getActivityColor(lastTeamLogin) }}>
                 Last active: {formatRelativeTime(lastTeamLogin)}
               </span>
             </div>
@@ -283,10 +242,7 @@ export function StoreCard({
 
         {/* Clocked In Now */}
         {activeClockedIn && activeClockedIn.length > 0 && (
-          <div
-            className="flex items-center gap-2 py-2 mt-1"
-            style={{ borderTop: `1px solid ${colors.cream}` }}
-          >
+          <div className="flex items-center gap-2 py-2 mt-1" style={{ borderTop: `1px solid ${colors.cream}` }}>
             <Play className="w-4 h-4 flex-shrink-0" style={{ color: colors.green }} />
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-medium" style={{ color: colors.brown }}>
@@ -304,10 +260,7 @@ export function StoreCard({
 
         {/* Running Late — scheduled but not clocked in */}
         {runningLate.length > 0 && (
-          <div
-            className="flex items-center gap-2 py-2 mt-1"
-            style={{ borderTop: `1px solid ${colors.cream}` }}
-          >
+          <div className="flex items-center gap-2 py-2 mt-1" style={{ borderTop: `1px solid ${colors.cream}` }}>
             <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: colors.red }} />
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-medium" style={{ color: colors.red }}>
@@ -329,10 +282,7 @@ export function StoreCard({
 
         {/* Scheduled Today */}
         {todayShifts && todayShifts.length > 0 && (
-          <div
-            className="flex items-center gap-2 py-2 mt-1"
-            style={{ borderTop: `1px solid ${colors.cream}` }}
-          >
+          <div className="flex items-center gap-2 py-2 mt-1" style={{ borderTop: `1px solid ${colors.cream}` }}>
             <CalendarDays className="w-4 h-4 flex-shrink-0" style={{ color: colors.gold }} />
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-medium" style={{ color: colors.brown }}>
@@ -359,9 +309,7 @@ export function StoreCard({
 
         {/* Error state */}
         {isError && !isLoading && (
-          <p className="text-sm text-red-600 py-2">
-            Unable to load metrics for this location.
-          </p>
+          <p className="text-sm text-red-600 py-2">Unable to load metrics for this location.</p>
         )}
 
         {/* Action Items — grouped by urgency */}
@@ -395,10 +343,7 @@ export function StoreCard({
                 )}
               </div>
             ) : (
-              <p
-                className="text-sm py-2"
-                style={{ color: colors.brownLight }}
-              >
+              <p className="text-sm py-2" style={{ color: colors.brownLight }}>
                 No upcoming tasks or maintenance due
               </p>
             )}
@@ -429,19 +374,12 @@ function UrgencyGroup({
 
   return (
     <div>
-      <p
-        className="text-xs font-semibold uppercase tracking-wide mb-1"
-        style={{ color: labelColor }}
-      >
+      <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: labelColor }}>
         {label}
       </p>
       <div className="space-y-1">
         {shown.map((item) => (
-          <ActionItemRow
-            key={item.id}
-            item={item}
-            onClick={(e) => onItemClick(e, item.moduleHref)}
-          />
+          <ActionItemRow key={item.id} item={item} onClick={(e) => onItemClick(e, item.moduleHref)} />
         ))}
         {remaining > 0 && (
           <button
@@ -457,19 +395,10 @@ function UrgencyGroup({
   );
 }
 
-function ActionItemRow({
-  item,
-  onClick,
-}: {
-  item: ActionItem;
-  onClick: (e: React.MouseEvent) => void;
-}) {
+function ActionItemRow({ item, onClick }: { item: ActionItem; onClick: (e: React.MouseEvent) => void }) {
   const icon =
     item.type === 'maintenance' ? (
-      <Wrench
-        className="w-3.5 h-3.5 flex-shrink-0 mt-0.5"
-        style={{ color: colors.gold }}
-      />
+      <Wrench className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: colors.gold }} />
     ) : (
       <Circle
         className="w-3 h-3 flex-shrink-0 mt-1"
@@ -485,16 +414,10 @@ function ActionItemRow({
     >
       {icon}
       <div className="flex-1 min-w-0">
-        <p
-          className="text-sm font-medium truncate"
-          style={{ color: colors.brown }}
-        >
+        <p className="text-sm font-medium truncate" style={{ color: colors.brown }}>
           {item.title}
         </p>
-        <div
-          className="flex items-center gap-2 text-xs"
-          style={{ color: colors.brownLight }}
-        >
+        <div className="flex items-center gap-2 text-xs" style={{ color: colors.brownLight }}>
           {item.assigneeName ? (
             <span>{item.assigneeName}</span>
           ) : item.type === 'maintenance' ? (

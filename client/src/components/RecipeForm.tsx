@@ -1,11 +1,11 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertRecipeSchema, type InsertRecipe } from "@shared/schema";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { insertRecipeSchema, type InsertRecipe } from '@shared/schema';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2 } from 'lucide-react';
 
 interface RecipeFormProps {
   defaultValues?: Partial<InsertRecipe>;
@@ -18,8 +18,8 @@ export function RecipeForm({ defaultValues, onSubmit, isLoading, buttonLabel }: 
   const form = useForm<InsertRecipe>({
     resolver: zodResolver(insertRecipeSchema),
     defaultValues: defaultValues || {
-      name: "",
-      description: "",
+      name: '',
+      description: '',
     },
   });
 
@@ -51,7 +51,7 @@ export function RecipeForm({ defaultValues, onSubmit, isLoading, buttonLabel }: 
                   placeholder="Add a description or preparation steps..."
                   className="min-h-[120px] resize-none"
                   {...field}
-                  value={field.value || ""}
+                  value={field.value || ''}
                 />
               </FormControl>
               <FormMessage />

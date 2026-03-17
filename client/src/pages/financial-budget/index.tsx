@@ -3,13 +3,7 @@ import { useSearch, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/lib/colors';
 import { Landmark, Settings } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ChartOfAccountsTab from './ChartOfAccountsTab';
 import UnifiedBudgetTab from './UnifiedBudgetTab';
 import ForecastTab from './ForecastTab';
@@ -25,10 +19,7 @@ export default function FinancialBudgetPage() {
   const [, setLocation] = useLocation();
 
   const activeTab = new URLSearchParams(search).get('tab') || 'budget';
-  const setActiveTab = useCallback(
-    (tab: string) => setLocation(`/financial-budget?tab=${tab}`),
-    [setLocation]
-  );
+  const setActiveTab = useCallback((tab: string) => setLocation(`/financial-budget?tab=${tab}`), [setLocation]);
 
   // Location selector — default to current tenant
   const [selectedLocationId, setSelectedLocationId] = useState<string>(tenant?.id || '');
@@ -65,7 +56,10 @@ export default function FinancialBudgetPage() {
             {/* Location selector */}
             {isParent && (
               <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
-                <SelectTrigger className="w-[220px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                <SelectTrigger
+                  className="w-[220px]"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                >
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
@@ -116,15 +110,9 @@ export default function FinancialBudgetPage() {
 
       {/* Tab content */}
       <div className="px-4 py-4 sm:px-6">
-        {activeTab === 'chart-of-accounts' && (
-          <ChartOfAccountsTab tenantId={coaTenantId} />
-        )}
-        {activeTab === 'budget' && (
-          <UnifiedBudgetTab tenantId={budgetTenantId} coaTenantId={coaTenantId} />
-        )}
-        {activeTab === 'forecast' && (
-          <ForecastTab tenantId={budgetTenantId} coaTenantId={coaTenantId} />
-        )}
+        {activeTab === 'chart-of-accounts' && <ChartOfAccountsTab tenantId={coaTenantId} />}
+        {activeTab === 'budget' && <UnifiedBudgetTab tenantId={budgetTenantId} coaTenantId={coaTenantId} />}
+        {activeTab === 'forecast' && <ForecastTab tenantId={budgetTenantId} coaTenantId={coaTenantId} />}
       </div>
     </div>
   );

@@ -56,9 +56,7 @@ export function useConfirmDialog() {
           <AlertDialogDescription>{options.description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleCancel}>
-            {options.cancelLabel || 'Cancel'}
-          </AlertDialogCancel>
+          <AlertDialogCancel onClick={handleCancel}>{options.cancelLabel || 'Cancel'}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             className={isDestructive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}

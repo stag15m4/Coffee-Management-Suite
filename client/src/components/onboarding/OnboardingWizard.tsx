@@ -54,8 +54,7 @@ export function OnboardingWizard() {
   const [, navigate] = useLocation();
 
   // Resolve dynamic hrefs (e.g., /store/:tenantId)
-  const resolveHref = (href: string) =>
-    href.replace(':tenantId', tenant?.id || '');
+  const resolveHref = (href: string) => href.replace(':tenantId', tenant?.id || '');
 
   // Track which phase is being viewed
   const storedPhase = setupProgress?.currentPhase ?? 1;
@@ -244,10 +243,7 @@ function PhaseWizard({
                     className="w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0"
                     style={{ borderColor: isActive ? colors.gold : colors.creamDark }}
                   >
-                    <Icon
-                      className="w-3.5 h-3.5"
-                      style={{ color: isActive ? colors.gold : colors.brownLight }}
-                    />
+                    <Icon className="w-3.5 h-3.5" style={{ color: isActive ? colors.gold : colors.brownLight }} />
                   </div>
                 )}
                 <span
@@ -385,14 +381,10 @@ function CelebrationCard({ onDismiss }: { onDismiss: () => void }) {
           You're all set!
         </h3>
         <p className="text-sm max-w-sm mx-auto mb-5" style={{ color: colors.brownLight }}>
-          Your shop is configured and ready to go. You can always adjust settings from the sidebar
-          navigation.
+          Your shop is configured and ready to go. You can always adjust settings from the sidebar navigation.
         </p>
 
-        <Button
-          onClick={onDismiss}
-          style={{ backgroundColor: colors.gold, color: '#fff' }}
-        >
+        <Button onClick={onDismiss} style={{ backgroundColor: colors.gold, color: '#fff' }}>
           Go to dashboard
         </Button>
       </div>
@@ -425,11 +417,7 @@ function CompletedCard({ onDismiss }: { onDismiss: () => void }) {
         <span className="flex-1 text-sm font-medium" style={{ color: colors.brown }}>
           Setup complete — you're all set!
         </span>
-        <button
-          onClick={onDismiss}
-          className="p-1 rounded hover:bg-black/5 transition-colors"
-          aria-label="Dismiss"
-        >
+        <button onClick={onDismiss} className="p-1 rounded hover:bg-black/5 transition-colors" aria-label="Dismiss">
           <X className="w-4 h-4 opacity-40" />
         </button>
       </div>

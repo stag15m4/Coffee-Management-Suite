@@ -69,7 +69,7 @@ export async function saveQboTokens(
   realmId: string,
   accessToken: string,
   refreshToken: string,
-  expiresAt: Date,
+  expiresAt: Date
 ): Promise<void> {
   // AES-256-GCM encrypt sensitive fields at rest (Intuit requirement)
   const encryptedRealmId = encrypt(realmId);
@@ -189,9 +189,10 @@ async function getValidToken(tenantId: string): Promise<{ accessToken: string; r
 
 async function qboApiCall(tenantId: string, endpoint: string): Promise<any> {
   const { accessToken, realmId } = await getValidToken(tenantId);
-  const baseUrl = process.env.QBO_ENVIRONMENT === 'production'
-    ? 'https://quickbooks.api.intuit.com'
-    : 'https://sandbox-quickbooks.api.intuit.com';
+  const baseUrl =
+    process.env.QBO_ENVIRONMENT === 'production'
+      ? 'https://quickbooks.api.intuit.com'
+      : 'https://sandbox-quickbooks.api.intuit.com';
 
   const url = `${baseUrl}/v3/company/${realmId}/${endpoint}`;
   const response = await fetch(url, {
@@ -237,7 +238,7 @@ export async function syncChartOfAccounts(tenantId: string): Promise<{
   updated: number;
   skipped: number;
 }> {
-  const data = await qboApiCall(tenantId, "query?query=SELECT * FROM Account MAXRESULTS 1000");
+  const data = await qboApiCall(tenantId, 'query?query=SELECT * FROM Account MAXRESULTS 1000');
   const accounts: QboAccount[] = data?.QueryResponse?.Account || [];
 
   const supabaseAdmin = getSupabaseAdmin();
@@ -263,10 +264,7 @@ export async function syncChartOfAccounts(tenantId: string): Promise<{
   }
 
   // Clear existing accounts and replace with fresh QBO data
-  await supabaseAdmin
-    .from('budget_chart_of_accounts')
-    .delete()
-    .eq('tenant_id', tenantId);
+  await supabaseAdmin.from('budget_chart_of_accounts').delete().eq('tenant_id', tenantId);
 
   // Sort so parents come before children
   const sorted = accounts.sort((a, b) => (a.SubAccount ? 1 : 0) - (b.SubAccount ? 1 : 0));
@@ -318,7 +316,7 @@ export async function syncChartOfAccounts(tenantId: string): Promise<{
 export async function syncActuals(
   tenantId: string,
   fiscalYearId: string,
-  year: number,
+  year: number
 ): Promise<{ synced: number; errors: string[] }> {
   const supabaseAdmin = getSupabaseAdmin();
   let synced = 0;
@@ -347,7 +345,10 @@ export async function syncActuals(
     const endDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
     monthFetches.push(
-      qboApiCall(tenantId, `reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}&summarize_column_by=Total`)
+      qboApiCall(
+        tenantId,
+        `reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}&summarize_column_by=Total`
+      )
         .then((data) => ({ month, data }))
         .catch((err) => {
           errors.push(`Month ${month}: ${err.message}`);

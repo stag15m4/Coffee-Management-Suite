@@ -144,7 +144,9 @@ export function VerticalProvider({ children, verticalId: verticalIdProp }: Verti
             const config = parseVerticalRow(domainRow);
             setVertical(config);
             fetchedRef.current = config.id;
-            try { localStorage.setItem('vertical_slug', config.slug); } catch {}
+            try {
+              localStorage.setItem('vertical_slug', config.slug);
+            } catch {}
             setLoading(false);
             return;
           }
@@ -162,17 +164,15 @@ export function VerticalProvider({ children, verticalId: verticalIdProp }: Verti
         }
 
         try {
-          const { data: row, error } = await supabase
-            .from('verticals')
-            .select('*')
-            .eq('id', explicitId)
-            .single();
+          const { data: row, error } = await supabase.from('verticals').select('*').eq('id', explicitId).single();
 
           if (!error && row && !cancelled) {
             const config = parseVerticalRow(row);
             setVertical(config);
             fetchedRef.current = config.id;
-            try { localStorage.setItem('vertical_slug', config.slug); } catch {}
+            try {
+              localStorage.setItem('vertical_slug', config.slug);
+            } catch {}
             setLoading(false);
             return;
           }
@@ -215,7 +215,7 @@ export function VerticalProvider({ children, verticalId: verticalIdProp }: Verti
 
       return value;
     },
-    [vertical],
+    [vertical]
   );
 
   // -----------------------------------------------------------------------
@@ -225,7 +225,7 @@ export function VerticalProvider({ children, verticalId: verticalIdProp }: Verti
     (key: string, options?: { capitalize?: boolean }): string => {
       return term(key, { plural: true, ...options });
     },
-    [term],
+    [term]
   );
 
   // -----------------------------------------------------------------------
@@ -235,7 +235,7 @@ export function VerticalProvider({ children, verticalId: verticalIdProp }: Verti
     (flag: string): boolean => {
       return vertical?.workflows[flag] ?? false;
     },
-    [vertical],
+    [vertical]
   );
 
   return (

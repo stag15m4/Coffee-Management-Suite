@@ -1,17 +1,18 @@
-import { useState } from "react";
-import { useIngredients, useCreateIngredient, useUpdateIngredient, useDeleteIngredient } from "@/hooks/use-ingredients";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { IngredientForm } from "@/components/IngredientForm";
-import { Plus, Search, Pencil, Trash2, Package } from "lucide-react";
-import { CoffeeLoader } from "@/components/CoffeeLoader";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { type InsertIngredient, type Ingredient } from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
-import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
-import { showDeleteUndoToast } from "@/hooks/use-delete-with-undo";
+import { getErrorMessage } from '@/lib/utils';
+import { useState } from 'react';
+import { useIngredients, useCreateIngredient, useUpdateIngredient, useDeleteIngredient } from '@/hooks/use-ingredients';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { IngredientForm } from '@/components/IngredientForm';
+import { Plus, Search, Pencil, Trash2, Package } from 'lucide-react';
+import { CoffeeLoader } from '@/components/CoffeeLoader';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { type InsertIngredient, type Ingredient } from '@/hooks/use-ingredients';
+import { useToast } from '@/hooks/use-toast';
+import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
+import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 
 export default function Ingredients() {
   const { data: ingredients, isLoading } = useIngredients();
@@ -23,19 +24,17 @@ export default function Ingredients() {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
 
-  const filteredIngredients = ingredients?.filter(ing => 
-    ing.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredIngredients = ingredients?.filter((ing) => ing.name.toLowerCase().includes(search.toLowerCase()));
 
   const handleCreate = async (data: InsertIngredient) => {
     try {
       await createMutation.mutateAsync(data);
       setIsCreateOpen(false);
-      toast({ title: "Success", description: "Ingredient created successfully" });
+      toast({ title: 'Success', description: 'Ingredient created successfully' });
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: (error as Error).message });
+      toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
     }
   };
 
@@ -44,31 +43,39 @@ export default function Ingredients() {
     try {
       await updateMutation.mutateAsync({ id: editingIngredient.id, ...data });
       setEditingIngredient(null);
-      toast({ title: "Success", description: "Ingredient updated successfully" });
+      toast({ title: 'Success', description: 'Ingredient updated successfully' });
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: (error as Error).message });
+      toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
     }
   };
 
   const handleDelete = async (id: string) => {
-    const ingredient = ingredients?.find(i => i.id === id);
+    const ingredient = ingredients?.find((i) => i.id === id);
     const name = ingredient?.name || 'this ingredient';
-    if (await confirm({ title: `Delete ${name}?`, description: 'This will remove it from all recipes.', confirmLabel: 'Delete', variant: 'destructive' })) {
+    if (
+      await confirm({
+        title: `Delete ${name}?`,
+        description: 'This will remove it from all recipes.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      })
+    ) {
       try {
-        const savedData = ingredient ? (() => {
-          const { category_name, cost_per_unit, cost_per_usage_unit, ...tableColumns } = ingredient as unknown as Record<string, unknown>;
-          return tableColumns;
-        })() : null;
+        const savedData = ingredient
+          ? (() => {
+              const { category_name, cost_per_unit, cost_per_usage_unit, ...tableColumns } =
+                ingredient as unknown as Record<string, unknown>;
+              return tableColumns;
+            })()
+          : null;
         await deleteMutation.mutateAsync(id);
         showDeleteUndoToast({
           itemName: name,
-          undo: savedData
-            ? { type: 'reinsert', table: 'ingredients', data: savedData }
-            : { type: 'none' },
+          undo: savedData ? { type: 'reinsert', table: 'ingredients', data: savedData } : { type: 'none' },
           invalidateKeys: [['ingredients']],
         });
       } catch (error) {
-        toast({ variant: "destructive", title: "Error", description: (error as Error).message });
+        toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
       }
     }
   };
@@ -82,7 +89,7 @@ export default function Ingredients() {
           <h1 className="text-4xl font-display font-bold text-primary">Ingredients</h1>
           <p className="text-muted-foreground mt-1">Manage your pantry inventory and costs</p>
         </div>
-        
+
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button className="bg-accent hover:bg-accent/90 text-white font-medium px-6 py-6 rounded-xl shadow-lg shadow-accent/20 transition-all hover:-translate-y-0.5">
@@ -93,11 +100,7 @@ export default function Ingredients() {
             <DialogHeader>
               <DialogTitle className="font-display text-2xl">New Ingredient</DialogTitle>
             </DialogHeader>
-            <IngredientForm 
-              onSubmit={handleCreate} 
-              isLoading={createMutation.isPending}
-              buttonLabel="Add to Pantry"
-            />
+            <IngredientForm onSubmit={handleCreate} isLoading={createMutation.isPending} buttonLabel="Add to Pantry" />
           </DialogContent>
         </Dialog>
       </div>
@@ -106,15 +109,15 @@ export default function Ingredients() {
         <div className="p-4 border-b border-border/50">
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search ingredients..." 
+            <Input
+              placeholder="Search ingredients..."
               className="pl-9 bg-secondary/30 border-transparent focus:bg-background transition-all"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
         </div>
-        
+
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -151,7 +154,8 @@ export default function Ingredients() {
                         ${Number(ing.cost).toFixed(2)}
                       </TableCell>
                       <TableCell className="font-mono font-medium text-accent">
-                        ${unitCost.toFixed(4)} <span className="text-muted-foreground text-xs font-normal">/ {ing.unit}</span>
+                        ${unitCost.toFixed(4)}{' '}
+                        <span className="text-muted-foreground text-xs font-normal">/ {ing.unit}</span>
                       </TableCell>
                       <TableCell className="text-right pr-6">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -28,7 +28,8 @@ export const changelog: ChangelogEntry[] = [
     id: 'vendor-save-fix',
     date: '2025-02-11',
     title: 'Vendor Save Fix',
-    description: 'Fixed an issue where saving a new vendor profile would silently fail. Vendors now save correctly with success/error feedback.',
+    description:
+      'Fixed an issue where saving a new vendor profile would silently fail. Vendors now save correctly with success/error feedback.',
     category: 'fix',
     tryIt: {
       href: '/recipe-costing?tab=vendors',
@@ -39,7 +40,8 @@ export const changelog: ChangelogEntry[] = [
     id: 'reporting-module',
     date: '2025-02-11',
     title: 'Reporting & Analytics Module',
-    description: 'New reporting dashboard with revenue trends, cash accuracy, tip distribution, and task overview charts.',
+    description:
+      'New reporting dashboard with revenue trends, cash accuracy, tip distribution, and task overview charts.',
     category: 'feature',
     tryIt: { href: '/reporting', hint: 'Explore the new analytics dashboard' },
   },
@@ -47,7 +49,8 @@ export const changelog: ChangelogEntry[] = [
     id: 'sheet-edit-pattern',
     date: '2025-02-11',
     title: 'Improved Edit Drawers',
-    description: 'Edit forms for Ingredients, Users, and Locations now slide in from the side instead of blocking modals.',
+    description:
+      'Edit forms for Ingredients, Users, and Locations now slide in from the side instead of blocking modals.',
     category: 'improvement',
     tryIt: {
       href: '/recipe-costing?tab=ingredients',
@@ -59,7 +62,8 @@ export const changelog: ChangelogEntry[] = [
     id: 'ingredients-column-toggle',
     date: '2025-02-11',
     title: 'Ingredients Column Toggle',
-    description: 'Hide or show extra columns (Cost/Unit, Usage Unit, Vendor) in the Ingredients table to reduce clutter.',
+    description:
+      'Hide or show extra columns (Cost/Unit, Usage Unit, Vendor) in the Ingredients table to reduce clutter.',
     category: 'improvement',
     tryIt: {
       href: '/recipe-costing?tab=ingredients',
@@ -83,14 +87,16 @@ export const changelog: ChangelogEntry[] = [
     id: 'keyboard-shortcuts',
     date: '2025-02-10',
     title: 'Keyboard Shortcuts',
-    description: 'Press G then D for Dashboard, G then T for Tasks, G then C for Calendar, G then R for Recipe Costing.',
+    description:
+      'Press G then D for Dashboard, G then T for Tasks, G then C for Calendar, G then R for Recipe Costing.',
     category: 'feature',
   },
   {
     id: 'recipe-costing-tabs-split',
     date: '2025-02-10',
     title: 'Recipe Costing Tab Reorganization',
-    description: 'Overhead calculator now has its own dedicated tab. Each tab loads independently for faster navigation.',
+    description:
+      'Overhead calculator now has its own dedicated tab. Each tab loads independently for faster navigation.',
     category: 'improvement',
     tryIt: {
       href: '/recipe-costing?tab=overhead',
@@ -102,7 +108,8 @@ export const changelog: ChangelogEntry[] = [
     id: 'revenue-overhead-comparison',
     date: '2025-02-10',
     title: 'Revenue vs Overhead Chart',
-    description: 'Recipe Costing overhead tab now shows daily revenue compared to overhead costs, helping you spot profitability at a glance.',
+    description:
+      'Recipe Costing overhead tab now shows daily revenue compared to overhead costs, helping you spot profitability at a glance.',
     category: 'feature',
     tryIt: {
       href: '/recipe-costing?tab=overhead',

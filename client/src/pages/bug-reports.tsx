@@ -8,14 +8,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Bug, Plus, Loader2, Clock, CheckCircle, AlertTriangle, XCircle, ImagePlus, X, ExternalLink, MessageSquarePlus, Lightbulb } from 'lucide-react';
+  Bug,
+  Plus,
+  Loader2,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
+  ImagePlus,
+  X,
+  ExternalLink,
+  MessageSquarePlus,
+  Lightbulb,
+} from 'lucide-react';
 import { colors } from '@/lib/colors';
 
 type ReportType = 'bug' | 'suggestion' | 'feedback';
@@ -98,7 +105,9 @@ export default function BugReports() {
     if (!tenant?.id) return;
     const { data, error } = await supabase
       .from('bug_reports')
-      .select('id, report_type, title, description, severity, status, admin_notes, screenshot_url, created_at, updated_at')
+      .select(
+        'id, report_type, title, description, severity, status, admin_notes, screenshot_url, created_at, updated_at'
+      )
       .eq('tenant_id', tenant.id)
       .order('created_at', { ascending: false });
 
@@ -149,15 +158,14 @@ export default function BugReports() {
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>Bugs & Feedback</h1>
+          <h1 className="text-2xl font-bold" style={{ color: colors.brown }}>
+            Bugs & Feedback
+          </h1>
           <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
             Report bugs, suggest improvements, or share feedback
           </p>
         </div>
-        <Button
-          onClick={() => setShowForm(!showForm)}
-          style={{ backgroundColor: colors.gold, color: colors.white }}
-        >
+        <Button onClick={() => setShowForm(!showForm)} style={{ backgroundColor: colors.gold, color: colors.white }}>
           <Plus className="w-4 h-4 mr-2" />
           New Report
         </Button>
@@ -167,7 +175,10 @@ export default function BugReports() {
         <Card style={{ backgroundColor: colors.white }}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
-              {(() => { const Icon = reportTypeConfig[reportType].icon; return <Icon className="w-5 h-5" />; })()}
+              {(() => {
+                const Icon = reportTypeConfig[reportType].icon;
+                return <Icon className="w-5 h-5" />;
+              })()}
               New {reportTypeConfig[reportType].label} Report
             </CardTitle>
           </CardHeader>
@@ -190,7 +201,7 @@ export default function BugReports() {
                 <Label style={{ color: colors.brown }}>Title</Label>
                 <Input
                   value={title}
-                  onChange={e => setTitle(e.target.value)}
+                  onChange={(e) => setTitle(e.target.value)}
                   placeholder="Brief summary of the issue"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   required
@@ -200,13 +211,13 @@ export default function BugReports() {
                 <Label style={{ color: colors.brown }}>Description</Label>
                 <textarea
                   value={description}
-                  onChange={e => setDescription(e.target.value)}
+                  onChange={(e) => setDescription(e.target.value)}
                   placeholder={
                     reportType === 'bug'
-                      ? "Describe the bug in detail. Include steps to reproduce, what you expected, and what actually happened."
+                      ? 'Describe the bug in detail. Include steps to reproduce, what you expected, and what actually happened.'
                       : reportType === 'suggestion'
-                      ? "What improvement would you like to see? How would it help you?"
-                      : "Share your thoughts with us..."
+                        ? 'What improvement would you like to see? How would it help you?'
+                        : 'Share your thoughts with us...'
                   }
                   className="w-full min-h-[120px] rounded-md border px-3 py-2 text-sm resize-y"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
@@ -214,20 +225,20 @@ export default function BugReports() {
                 />
               </div>
               {reportType === 'bug' && (
-              <div className="space-y-2">
-                <Label style={{ color: colors.brown }}>Severity</Label>
-                <Select value={severity} onValueChange={setSeverity}>
-                  <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low - Minor inconvenience</SelectItem>
-                    <SelectItem value="medium">Medium - Affects workflow</SelectItem>
-                    <SelectItem value="high">High - Major functionality broken</SelectItem>
-                    <SelectItem value="critical">Critical - Cannot use the system</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-2">
+                  <Label style={{ color: colors.brown }}>Severity</Label>
+                  <Select value={severity} onValueChange={setSeverity}>
+                    <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low - Minor inconvenience</SelectItem>
+                      <SelectItem value="medium">Medium - Affects workflow</SelectItem>
+                      <SelectItem value="high">High - Major functionality broken</SelectItem>
+                      <SelectItem value="critical">Critical - Cannot use the system</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
               <div className="space-y-2">
                 <Label style={{ color: colors.brown }}>Screenshot (optional)</Label>
@@ -313,7 +324,7 @@ export default function BugReports() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {reports.map(report => {
+          {reports.map((report) => {
             const sc = statusConfig[report.status] || statusConfig.open;
             const StatusIcon = sc.icon;
             return (
@@ -338,20 +349,26 @@ export default function BugReports() {
                           );
                         })()}
                         {report.report_type === 'bug' && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] px-1.5 py-0"
-                          style={{ borderColor: severityColors[report.severity], color: severityColors[report.severity] }}
-                        >
-                          {report.severity}
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0"
+                            style={{
+                              borderColor: severityColors[report.severity],
+                              color: severityColors[report.severity],
+                            }}
+                          >
+                            {report.severity}
+                          </Badge>
                         )}
                       </div>
                       <p className="text-xs mt-1 line-clamp-2" style={{ color: colors.brownLight }}>
                         {report.description}
                       </p>
                       {report.screenshot_url && (
-                        <a href={report.screenshot_url} target="_blank" rel="noopener noreferrer"
+                        <a
+                          href={report.screenshot_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium"
                           style={{ color: colors.gold }}
                         >
@@ -359,7 +376,10 @@ export default function BugReports() {
                         </a>
                       )}
                       {report.admin_notes && (
-                        <div className="mt-2 p-2 rounded text-xs" style={{ backgroundColor: colors.cream, color: colors.brown }}>
+                        <div
+                          className="mt-2 p-2 rounded text-xs"
+                          style={{ backgroundColor: colors.cream, color: colors.brown }}
+                        >
                           <span className="font-semibold">Admin response:</span> {report.admin_notes}
                         </div>
                       )}

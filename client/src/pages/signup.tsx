@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useLocation, useRoute } from 'wouter';
 import { supabase } from '@/lib/supabase-queries';
@@ -86,7 +87,11 @@ export default function Signup() {
       return;
     }
     if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
-      toast({ title: 'Weak password', description: 'Must include uppercase, lowercase, and a number.', variant: 'destructive' });
+      toast({
+        title: 'Weak password',
+        description: 'Must include uppercase, lowercase, and a number.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -115,41 +120,40 @@ export default function Signup() {
 
       toast({ title: 'Welcome!', description: 'Your account has been created successfully.' });
       window.location.href = '/';
-    } catch (err: any) {
-      toast({ title: 'Signup failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Signup failed', description: getErrorMessage(err), variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const planLabel = codeValidation?.subscriptionPlan === 'beta' ? 'Beta' :
-    codeValidation?.subscriptionPlan === 'premium' ? 'Premium' :
-    codeValidation?.subscriptionPlan || 'Access';
+  const planLabel =
+    codeValidation?.subscriptionPlan === 'beta'
+      ? 'Beta'
+      : codeValidation?.subscriptionPlan === 'premium'
+        ? 'Premium'
+        : codeValidation?.subscriptionPlan || 'Access';
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.cream }}>
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }}>
           <CardHeader className="text-center">
-            <img
-              src="/logo.png"
-              alt="Coffee Management Suite"
-              className="mx-auto w-20 h-20 object-contain mb-4"
-            />
+            <img src="/logo.png" alt="Coffee Management Suite" className="mx-auto w-20 h-20 object-contain mb-4" />
             <CardTitle className="text-2xl" style={{ color: colors.brown }}>
               {step === 1 ? 'Get Started' : 'Create Your Account'}
             </CardTitle>
             <CardDescription style={{ color: colors.brownLight }}>
-              {step === 1
-                ? 'Enter your beta access code to begin'
-                : 'Set up your account and business'}
+              {step === 1 ? 'Enter your beta access code to begin' : 'Set up your account and business'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {step === 1 ? (
               <form onSubmit={handleCodeSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="code" style={{ color: colors.brown }}>Beta Access Code</Label>
+                  <Label htmlFor="code" style={{ color: colors.brown }}>
+                    Beta Access Code
+                  </Label>
                   <Input
                     id="code"
                     type="text"
@@ -174,9 +178,13 @@ export default function Signup() {
                   style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   {isValidating ? (
-                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Validating...</>
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" /> Validating...
+                    </>
                   ) : (
-                    <>Verify Code <ArrowRight className="w-4 h-4 ml-2" /></>
+                    <>
+                      Verify Code <ArrowRight className="w-4 h-4 ml-2" />
+                    </>
                   )}
                 </Button>
                 <div className="text-center">
@@ -201,7 +209,9 @@ export default function Signup() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="fullName" style={{ color: colors.brown }}>Full Name</Label>
+                  <Label htmlFor="fullName" style={{ color: colors.brown }}>
+                    Full Name
+                  </Label>
                   <Input
                     id="fullName"
                     type="text"
@@ -214,7 +224,9 @@ export default function Signup() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email" style={{ color: colors.brown }}>Email</Label>
+                  <Label htmlFor="email" style={{ color: colors.brown }}>
+                    Email
+                  </Label>
                   <Input
                     id="email"
                     type="email"
@@ -226,7 +238,9 @@ export default function Signup() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password" style={{ color: colors.brown }}>Password</Label>
+                  <Label htmlFor="password" style={{ color: colors.brown }}>
+                    Password
+                  </Label>
                   <Input
                     id="password"
                     type="password"
@@ -239,7 +253,9 @@ export default function Signup() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="businessName" style={{ color: colors.brown }}>Business Name</Label>
+                  <Label htmlFor="businessName" style={{ color: colors.brown }}>
+                    Business Name
+                  </Label>
                   <Input
                     id="businessName"
                     type="text"
@@ -258,7 +274,9 @@ export default function Signup() {
                   style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   {isSubmitting ? (
-                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Creating Account...</>
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" /> Creating Account...
+                    </>
                   ) : (
                     'Create Account'
                   )}
@@ -267,7 +285,10 @@ export default function Signup() {
                 <div className="flex justify-between">
                   <button
                     type="button"
-                    onClick={() => { setStep(1); setCodeValidation(null); }}
+                    onClick={() => {
+                      setStep(1);
+                      setCodeValidation(null);
+                    }}
                     className="text-sm underline hover:no-underline flex items-center gap-1"
                     style={{ color: colors.brownLight }}
                   >

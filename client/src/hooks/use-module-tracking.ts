@@ -26,11 +26,13 @@ export function useModuleTracking(moduleId: string | undefined) {
     hasFired.current = moduleId;
     lastVisitMap.set(key, Date.now());
 
-    Promise.resolve(supabase.from('tenant_activity_log').insert({
-      tenant_id: tenantId,
-      user_id: userId,
-      action: 'module_visit',
-      details: { module_id: moduleId },
-    })).catch(() => {});
+    Promise.resolve(
+      supabase.from('tenant_activity_log').insert({
+        tenant_id: tenantId,
+        user_id: userId,
+        action: 'module_visit',
+        details: { module_id: moduleId },
+      })
+    ).catch(() => {});
   }, [moduleId, userId, tenantId]);
 }

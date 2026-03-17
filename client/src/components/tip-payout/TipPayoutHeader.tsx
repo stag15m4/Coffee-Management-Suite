@@ -75,7 +75,10 @@ export function TipPayoutHeader({
               </DialogHeader>
               <div className="space-y-4 pt-2">
                 <form
-                  onSubmit={(e) => { e.preventDefault(); onAddEmployee(); }}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    onAddEmployee();
+                  }}
                   className="flex gap-2"
                 >
                   <Input
@@ -113,8 +116,8 @@ export function TipPayoutHeader({
                   </div>
 
                   {allEmployees
-                    .filter(e => showInactive || isEmployeeActive(e))
-                    .map(emp => {
+                    .filter((e) => showInactive || isEmployeeActive(e))
+                    .map((emp) => {
                       const active = isEmployeeActive(emp);
                       const eligible = isEmployeeTipEligible(emp);
                       return (
@@ -128,7 +131,9 @@ export function TipPayoutHeader({
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             {!active && <UserX className="w-4 h-4 flex-shrink-0" style={{ color: colors.red }} />}
-                            <span className="truncate" style={{ color: colors.brown }}>{emp.name}</span>
+                            <span className="truncate" style={{ color: colors.brown }}>
+                              {emp.name}
+                            </span>
                             {!active && (
                               <span
                                 className="text-xs px-2 py-0.5 rounded flex-shrink-0"

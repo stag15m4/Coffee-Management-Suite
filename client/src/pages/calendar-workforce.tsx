@@ -99,9 +99,21 @@ import { colors } from '@/lib/colors';
 import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
 
 const EMPLOYEE_COLORS = [
-  '#C9A227', '#8B4513', '#CD853F', '#6B5344', '#4A3728',
-  '#D4A574', '#A0522D', '#DEB887', '#B8860B', '#8B6914',
-  '#556B2F', '#6B8E23', '#808000', '#BDB76B', '#DAA520',
+  '#C9A227',
+  '#8B4513',
+  '#CD853F',
+  '#6B5344',
+  '#4A3728',
+  '#D4A574',
+  '#A0522D',
+  '#DEB887',
+  '#B8860B',
+  '#8B6914',
+  '#556B2F',
+  '#6B8E23',
+  '#808000',
+  '#BDB76B',
+  '#DAA520',
 ];
 
 type TabType = 'schedule' | 'time-off' | 'time-clock';
@@ -123,9 +135,7 @@ function formatTimeDisplay(time: string): string {
   const [hours, minutes] = time.split(':').map(Number);
   const suffix = hours >= 12 ? 'pm' : 'am';
   const displayHour = hours % 12 || 12;
-  return minutes > 0
-    ? `${displayHour}:${minutes.toString().padStart(2, '0')}${suffix}`
-    : `${displayHour}${suffix}`;
+  return minutes > 0 ? `${displayHour}:${minutes.toString().padStart(2, '0')}${suffix}` : `${displayHour}${suffix}`;
 }
 
 function formatDateShort(d: string): string {
@@ -134,7 +144,12 @@ function formatDateShort(d: string): string {
 
 // ─── SCHEDULE TAB ────────────────────────────────────────
 
-function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
+function ScheduleTab({
+  tenantId,
+  canEdit,
+  canDelete,
+  employees,
+}: {
   tenantId: string;
   canEdit: boolean;
   canDelete: boolean;
@@ -279,54 +294,64 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
   }, [icalSubs, didAutoSync]);
 
   // Conflict detection — match by employee_name (the common field across both sources)
-  const checkConflicts = useCallback((employeeName: string, date: string, startTime: string, endTime: string, excludeShiftId?: string) => {
-    if (!shifts || !employeeName) { setConflictWarning(null); return; }
+  const checkConflicts = useCallback(
+    (employeeName: string, date: string, startTime: string, endTime: string, excludeShiftId?: string) => {
+      if (!shifts || !employeeName) {
+        setConflictWarning(null);
+        return;
+      }
 
-    // Check overlapping shifts
-    const overlapping = shifts.find((s) => {
-      if (s.id === excludeShiftId) return false;
-      if (s.employee_name !== employeeName || s.date !== date) return false;
-      return s.start_time < endTime && s.end_time > startTime;
-    });
-    if (overlapping) {
-      setConflictWarning(`Overlapping shift: ${overlapping.employee_name} already scheduled ${formatTimeDisplay(overlapping.start_time)}–${formatTimeDisplay(overlapping.end_time)}`);
-      return;
-    }
+      // Check overlapping shifts
+      const overlapping = shifts.find((s) => {
+        if (s.id === excludeShiftId) return false;
+        if (s.employee_name !== employeeName || s.date !== date) return false;
+        return s.start_time < endTime && s.end_time > startTime;
+      });
+      if (overlapping) {
+        setConflictWarning(
+          `Overlapping shift: ${overlapping.employee_name} already scheduled ${formatTimeDisplay(overlapping.start_time)}–${formatTimeDisplay(overlapping.end_time)}`
+        );
+        return;
+      }
 
-    // Check approved time-off (only for profile employees)
-    if (timeOffRequests) {
-      const emp = employees.find((e) => e.name === employeeName);
-      if (emp?.user_profile_id) {
-        const hasTimeOff = timeOffRequests.find((r) => r.employee_id === emp.user_profile_id && r.start_date <= date && r.end_date >= date);
-        if (hasTimeOff) {
-          setConflictWarning(`${employeeName} has approved ${hasTimeOff.category} time off on this date`);
-          return;
+      // Check approved time-off (only for profile employees)
+      if (timeOffRequests) {
+        const emp = employees.find((e) => e.name === employeeName);
+        if (emp?.user_profile_id) {
+          const hasTimeOff = timeOffRequests.find(
+            (r) => r.employee_id === emp.user_profile_id && r.start_date <= date && r.end_date >= date
+          );
+          if (hasTimeOff) {
+            setConflictWarning(`${employeeName} has approved ${hasTimeOff.category} time off on this date`);
+            return;
+          }
         }
       }
-    }
 
-    // Check unavailability
-    if (scheduleUnavailability) {
-      const emp = employees.find((e) => e.name === employeeName);
-      if (emp?.user_profile_id) {
-        const dateObj = new Date(date + 'T00:00:00');
-        const dayOfWeek = dateObj.getDay();
-        const isUnavail = scheduleUnavailability.find((u) => {
-          if (u.employee_id !== emp.user_profile_id) return false;
-          if (u.is_recurring && u.recurrence_day === dayOfWeek) return true;
-          if (!u.is_recurring && u.start_date <= date && u.end_date >= date) return true;
-          return false;
-        });
-        if (isUnavail) {
-          const reason = isUnavail.reason ? ` (${isUnavail.reason})` : '';
-          setConflictWarning(`${employeeName} is marked unavailable${reason}`);
-          return;
+      // Check unavailability
+      if (scheduleUnavailability) {
+        const emp = employees.find((e) => e.name === employeeName);
+        if (emp?.user_profile_id) {
+          const dateObj = new Date(date + 'T00:00:00');
+          const dayOfWeek = dateObj.getDay();
+          const isUnavail = scheduleUnavailability.find((u) => {
+            if (u.employee_id !== emp.user_profile_id) return false;
+            if (u.is_recurring && u.recurrence_day === dayOfWeek) return true;
+            if (!u.is_recurring && u.start_date <= date && u.end_date >= date) return true;
+            return false;
+          });
+          if (isUnavail) {
+            const reason = isUnavail.reason ? ` (${isUnavail.reason})` : '';
+            setConflictWarning(`${employeeName} is marked unavailable${reason}`);
+            return;
+          }
         }
       }
-    }
 
-    setConflictWarning(null);
-  }, [shifts, timeOffRequests, scheduleUnavailability, employees]);
+      setConflictWarning(null);
+    },
+    [shifts, timeOffRequests, scheduleUnavailability, employees]
+  );
 
   // Apply template to current week
   const handleApplyTemplate = useCallback(async () => {
@@ -352,7 +377,11 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
         };
       });
     if (newShifts.length === 0) {
-      toast({ title: 'No applicable templates', description: 'Templates need assigned employees.', variant: 'destructive' });
+      toast({
+        title: 'No applicable templates',
+        description: 'Templates need assigned employees.',
+        variant: 'destructive',
+      });
       return;
     }
     try {
@@ -385,7 +414,17 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
     } catch {
       toast({ title: 'Error', description: 'Failed to save template.', variant: 'destructive' });
     }
-  }, [newTemplateName, newTemplateDay, newTemplateStart, newTemplateEnd, newTemplateEmployee, newTemplatePosition, employees, createTemplate, toast]);
+  }, [
+    newTemplateName,
+    newTemplateDay,
+    newTemplateStart,
+    newTemplateEnd,
+    newTemplateEmployee,
+    newTemplatePosition,
+    employees,
+    createTemplate,
+    toast,
+  ]);
 
   // Employee color mapping — use saved schedule_color or fall back to palette
   const updateEmployeeColor = useUpdateEmployeeColor();
@@ -419,8 +458,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
       title: e.title,
       start: e.start_date,
       // FullCalendar all-day end is exclusive, so add 1 day
-      end: new Date(new Date(e.end_date + 'T00:00:00').getTime() + 86_400_000)
-        .toISOString().split('T')[0],
+      end: new Date(new Date(e.end_date + 'T00:00:00').getTime() + 86_400_000).toISOString().split('T')[0],
       allDay: true,
       backgroundColor: e.color || '#3b82f6',
       borderColor: e.color || '#3b82f6',
@@ -434,8 +472,7 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
       title: `⛔ ${bd.label}`,
       start: bd.start_date,
       // FullCalendar all-day end is exclusive, so add 1 day
-      end: new Date(new Date(bd.end_date + 'T00:00:00').getTime() + 86_400_000)
-        .toISOString().split('T')[0],
+      end: new Date(new Date(bd.end_date + 'T00:00:00').getTime() + 86_400_000).toISOString().split('T')[0],
       allDay: true,
       backgroundColor: '#dc2626',
       borderColor: '#dc2626',
@@ -497,11 +534,13 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                 title: `🚫 ${u.employee_name || 'Employee'} unavailable`,
                 start: dateStr,
                 allDay: u.all_day,
-                ...((!u.all_day && u.start_time && u.end_time) ? {
-                  start: `${dateStr}T${u.start_time}`,
-                  end: `${dateStr}T${u.end_time}`,
-                  allDay: false,
-                } : {}),
+                ...(!u.all_day && u.start_time && u.end_time
+                  ? {
+                      start: `${dateStr}T${u.start_time}`,
+                      end: `${dateStr}T${u.end_time}`,
+                      allDay: false,
+                    }
+                  : {}),
                 backgroundColor: '#9ca3af',
                 borderColor: '#9ca3af',
                 textColor: '#fff',
@@ -515,14 +554,15 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
             id: `unavail-${u.id}`,
             title: `🚫 ${u.employee_name || 'Employee'} unavailable`,
             start: u.start_date,
-            end: new Date(new Date(u.end_date + 'T00:00:00').getTime() + 86_400_000)
-              .toISOString().split('T')[0],
+            end: new Date(new Date(u.end_date + 'T00:00:00').getTime() + 86_400_000).toISOString().split('T')[0],
             allDay: u.all_day,
-            ...((!u.all_day && u.start_time && u.end_time) ? {
-              start: `${u.start_date}T${u.start_time}`,
-              end: `${u.end_date}T${u.end_time}`,
-              allDay: false,
-            } : {}),
+            ...(!u.all_day && u.start_time && u.end_time
+              ? {
+                  start: `${u.start_date}T${u.start_time}`,
+                  end: `${u.end_date}T${u.end_time}`,
+                  allDay: false,
+                }
+              : {}),
             backgroundColor: '#9ca3af',
             borderColor: '#9ca3af',
             textColor: '#fff',
@@ -536,85 +576,106 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
     return [...shiftEvents, ...eventBanners, ...blackoutBanners, ...anniversaryEvents, ...unavailEvents];
   }, [shifts, calendarEvents, blackoutDates, scheduleUnavailability, employeeColorMap, startDate, endDate, employees]);
 
-  const handleDateSelect = useCallback((selectInfo: DateSelectArg) => {
-    if (!canEdit) return;
-    const startLocal = selectInfo.start;
-    const endLocal = selectInfo.end;
-    setSelectedEmployeeKey('');
-    setNewShiftDate(formatDate(startLocal));
-    setNewShiftStart(startLocal.toTimeString().slice(0, 5));
-    setNewShiftEnd(endLocal.toTimeString().slice(0, 5));
-    setNewShiftPosition('');
-    setNewShiftNotes('');
-    setEditingShift(null);
-    setConflictWarning(null);
-    setShowCreateDialog(true);
-  }, [canEdit]);
-
-  const handleEventClick = useCallback((clickInfo: EventClickArg) => {
-    const eventType = clickInfo.event.extendedProps.type;
-    if (eventType === 'event') {
-      setViewingEvent(clickInfo.event.extendedProps.calendarEvent as CalendarEvent);
-      return;
-    }
-    if (eventType === 'blackout') {
-      return; // blackout date banners are display-only
-    }
-    const shift = clickInfo.event.extendedProps.shift as Shift;
-    if (canEdit) {
-      setEditingShift(shift);
-      setSelectedEmployeeKey(shift.employee_name ?? '');
-      setNewShiftDate(shift.date);
-      setNewShiftStart(shift.start_time.slice(0, 5));
-      setNewShiftEnd(shift.end_time.slice(0, 5));
-      setNewShiftPosition(shift.position ?? '');
-      setNewShiftNotes(shift.notes ?? '');
+  const handleDateSelect = useCallback(
+    (selectInfo: DateSelectArg) => {
+      if (!canEdit) return;
+      const startLocal = selectInfo.start;
+      const endLocal = selectInfo.end;
+      setSelectedEmployeeKey('');
+      setNewShiftDate(formatDate(startLocal));
+      setNewShiftStart(startLocal.toTimeString().slice(0, 5));
+      setNewShiftEnd(endLocal.toTimeString().slice(0, 5));
+      setNewShiftPosition('');
+      setNewShiftNotes('');
+      setEditingShift(null);
       setConflictWarning(null);
       setShowCreateDialog(true);
-    } else if (shift.employee_id === user?.id && shift.status === 'published') {
-      setViewingShiftDetail(shift);
-      setDeclineReason('');
-    }
-  }, [canEdit, user?.id]);
+    },
+    [canEdit]
+  );
 
-  const handleEventDrop = useCallback(async (dropInfo: EventDropArg) => {
-    if (!canEdit || dropInfo.event.extendedProps.type === 'event') {
-      dropInfo.revert();
-      return;
-    }
-    const shift = dropInfo.event.extendedProps.shift as Shift;
-    const newStart = dropInfo.event.start;
-    const newEnd = dropInfo.event.end;
-    if (!newStart || !newEnd) { dropInfo.revert(); return; }
-    try {
-      await updateShift.mutateAsync({
-        id: shift.id,
-        date: formatDate(newStart),
-        start_time: newStart.toTimeString().slice(0, 5),
-        end_time: newEnd.toTimeString().slice(0, 5),
-      });
-      toast({ title: 'Shift moved', description: `${shift.employee_name}'s shift updated.` });
-    } catch {
-      dropInfo.revert();
-      toast({ title: 'Error', description: 'Failed to move shift.', variant: 'destructive' });
-    }
-  }, [canEdit, updateShift, toast]);
+  const handleEventClick = useCallback(
+    (clickInfo: EventClickArg) => {
+      const eventType = clickInfo.event.extendedProps.type;
+      if (eventType === 'event') {
+        setViewingEvent(clickInfo.event.extendedProps.calendarEvent as CalendarEvent);
+        return;
+      }
+      if (eventType === 'blackout') {
+        return; // blackout date banners are display-only
+      }
+      const shift = clickInfo.event.extendedProps.shift as Shift;
+      if (canEdit) {
+        setEditingShift(shift);
+        setSelectedEmployeeKey(shift.employee_name ?? '');
+        setNewShiftDate(shift.date);
+        setNewShiftStart(shift.start_time.slice(0, 5));
+        setNewShiftEnd(shift.end_time.slice(0, 5));
+        setNewShiftPosition(shift.position ?? '');
+        setNewShiftNotes(shift.notes ?? '');
+        setConflictWarning(null);
+        setShowCreateDialog(true);
+      } else if (shift.employee_id === user?.id && shift.status === 'published') {
+        setViewingShiftDetail(shift);
+        setDeclineReason('');
+      }
+    },
+    [canEdit, user?.id]
+  );
 
-  const handleEventResize = useCallback(async (resizeInfo: any) => {
-    if (!canEdit || resizeInfo.event.extendedProps.type === 'event') { resizeInfo.revert(); return; }
-    const shift = resizeInfo.event.extendedProps.shift as Shift;
-    const newEnd = resizeInfo.event.end;
-    if (!newEnd) { resizeInfo.revert(); return; }
-    try {
-      await updateShift.mutateAsync({
-        id: shift.id,
-        end_time: newEnd.toTimeString().slice(0, 5),
-      });
-    } catch {
-      resizeInfo.revert();
-      toast({ title: 'Error', description: 'Failed to resize shift.', variant: 'destructive' });
-    }
-  }, [canEdit, updateShift, toast]);
+  const handleEventDrop = useCallback(
+    async (dropInfo: EventDropArg) => {
+      if (!canEdit || dropInfo.event.extendedProps.type === 'event') {
+        dropInfo.revert();
+        return;
+      }
+      const shift = dropInfo.event.extendedProps.shift as Shift;
+      const newStart = dropInfo.event.start;
+      const newEnd = dropInfo.event.end;
+      if (!newStart || !newEnd) {
+        dropInfo.revert();
+        return;
+      }
+      try {
+        await updateShift.mutateAsync({
+          id: shift.id,
+          date: formatDate(newStart),
+          start_time: newStart.toTimeString().slice(0, 5),
+          end_time: newEnd.toTimeString().slice(0, 5),
+        });
+        toast({ title: 'Shift moved', description: `${shift.employee_name}'s shift updated.` });
+      } catch {
+        dropInfo.revert();
+        toast({ title: 'Error', description: 'Failed to move shift.', variant: 'destructive' });
+      }
+    },
+    [canEdit, updateShift, toast]
+  );
+
+  const handleEventResize = useCallback(
+    async (resizeInfo: any) => {
+      if (!canEdit || resizeInfo.event.extendedProps.type === 'event') {
+        resizeInfo.revert();
+        return;
+      }
+      const shift = resizeInfo.event.extendedProps.shift as Shift;
+      const newEnd = resizeInfo.event.end;
+      if (!newEnd) {
+        resizeInfo.revert();
+        return;
+      }
+      try {
+        await updateShift.mutateAsync({
+          id: shift.id,
+          end_time: newEnd.toTimeString().slice(0, 5),
+        });
+      } catch {
+        resizeInfo.revert();
+        toast({ title: 'Error', description: 'Failed to resize shift.', variant: 'destructive' });
+      }
+    },
+    [canEdit, updateShift, toast]
+  );
 
   const handleSaveShift = useCallback(async () => {
     if (!selectedEmployeeKey) {
@@ -662,7 +723,19 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
     } catch {
       toast({ title: 'Error', description: 'Failed to save shift.', variant: 'destructive' });
     }
-  }, [selectedEmployeeKey, employees, newShiftDate, newShiftStart, newShiftEnd, newShiftPosition, newShiftNotes, editingShift, createShift, updateShift, toast]);
+  }, [
+    selectedEmployeeKey,
+    employees,
+    newShiftDate,
+    newShiftStart,
+    newShiftEnd,
+    newShiftPosition,
+    newShiftNotes,
+    editingShift,
+    createShift,
+    updateShift,
+    toast,
+  ]);
 
   const handleDeleteShift = useCallback(async () => {
     if (!editingShift) return;
@@ -676,17 +749,20 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
     }
   }, [editingShift, deleteShift, toast]);
 
-  const navigate = useCallback((direction: number) => {
-    setCurrentDate((prev) => {
-      if (calendarView === 'timeGridDay') {
-        return new Date(prev.getTime() + direction * 86_400_000);
-      }
-      if (calendarView === 'dayGridMonth') {
-        return new Date(prev.getFullYear(), prev.getMonth() + direction, 1);
-      }
-      return new Date(prev.getTime() + direction * 7 * 86_400_000);
-    });
-  }, [calendarView]);
+  const navigate = useCallback(
+    (direction: number) => {
+      setCurrentDate((prev) => {
+        if (calendarView === 'timeGridDay') {
+          return new Date(prev.getTime() + direction * 86_400_000);
+        }
+        if (calendarView === 'dayGridMonth') {
+          return new Date(prev.getFullYear(), prev.getMonth() + direction, 1);
+        }
+        return new Date(prev.getTime() + direction * 7 * 86_400_000);
+      });
+    },
+    [calendarView]
+  );
 
   if (isLoading) {
     return <CoffeeLoader text="Loading schedule..." />;
@@ -703,33 +779,60 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => navigate(-1)}
-              style={{ borderColor: colors.creamDark, color: colors.brown }}>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate(-1)}
+              style={{ borderColor: colors.creamDark, color: colors.brown }}
+            >
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <span className="text-sm font-medium text-center" style={{ color: colors.brown }}>
               {calendarView === 'timeGridDay'
-                ? new Date(startDate + 'T00:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+                ? new Date(startDate + 'T00:00:00').toLocaleDateString([], {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                  })
                 : calendarView === 'dayGridMonth'
                   ? new Date(startDate + 'T00:00:00').toLocaleDateString([], { month: 'long', year: 'numeric' })
                   : `${new Date(startDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${new Date(endDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
             </span>
-            <Button variant="outline" size="icon" onClick={() => navigate(1)}
-              style={{ borderColor: colors.creamDark, color: colors.brown }}>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate(1)}
+              style={{ borderColor: colors.creamDark, color: colors.brown }}
+            >
               <ChevronRight className="w-4 h-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}
-              style={{ borderColor: colors.creamDark, color: colors.brown }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentDate(new Date())}
+              style={{ borderColor: colors.creamDark, color: colors.brown }}
+            >
               Today
             </Button>
           </div>
           <div className="flex rounded-md overflow-hidden border" style={{ borderColor: colors.creamDark }}>
-            {([['timeGridDay', 'Day'], ['timeGridWeek', 'Week'], ['dayGridMonth', 'Month']] as const).map(([view, label]) => (
-              <button key={view} onClick={() => setCalendarView(view)}
+            {(
+              [
+                ['timeGridDay', 'Day'],
+                ['timeGridWeek', 'Week'],
+                ['dayGridMonth', 'Month'],
+              ] as const
+            ).map(([view, label]) => (
+              <button
+                key={view}
+                onClick={() => setCalendarView(view)}
                 className="px-3 py-1.5 text-xs font-medium transition-colors"
-                style={calendarView === view
-                  ? { backgroundColor: colors.gold, color: colors.white }
-                  : { backgroundColor: colors.white, color: colors.brown }}>
+                style={
+                  calendarView === view
+                    ? { backgroundColor: colors.gold, color: colors.white }
+                    : { backgroundColor: colors.white, color: colors.brown }
+                }
+              >
                 {label}
               </button>
             ))}
@@ -738,33 +841,55 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
         {canEdit && (
           <div className="flex gap-2 flex-wrap">
             <Button
-              onClick={() => { setEditingShift(null); setConflictWarning(null); setSelectedEmployeeKey(''); setNewShiftDate(formatDate(new Date())); setNewShiftStart('08:00'); setNewShiftEnd('16:00'); setNewShiftPosition(''); setNewShiftNotes(''); setShowCreateDialog(true); }}
+              onClick={() => {
+                setEditingShift(null);
+                setConflictWarning(null);
+                setSelectedEmployeeKey('');
+                setNewShiftDate(formatDate(new Date()));
+                setNewShiftStart('08:00');
+                setNewShiftEnd('16:00');
+                setNewShiftPosition('');
+                setNewShiftNotes('');
+                setShowCreateDialog(true);
+              }}
               style={{ backgroundColor: colors.gold, color: colors.white }}
             >
               <Plus className="w-4 h-4 mr-1" /> Add Shift
             </Button>
-            <Button variant="outline" onClick={() => {
+            <Button
+              variant="outline"
+              onClick={() => {
                 const opening = !showTemplatePanel;
                 setShowTemplatePanel(opening);
                 if (opening) {
                   // Scroll to the template panel after it renders
                   requestAnimationFrame(() => {
-                    setTimeout(() => templatePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+                    setTimeout(
+                      () => templatePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+                      50
+                    );
                   });
                 }
               }}
-              style={{ borderColor: showTemplatePanel ? colors.gold : colors.creamDark, color: colors.brown }}>
+              style={{ borderColor: showTemplatePanel ? colors.gold : colors.creamDark, color: colors.brown }}
+            >
               <CalendarDays className="w-4 h-4 mr-1" /> Templates
             </Button>
             {templates && templates.length > 0 && (
-              <Button variant="outline" onClick={handleApplyTemplate}
+              <Button
+                variant="outline"
+                onClick={handleApplyTemplate}
                 disabled={bulkCreate.isPending}
-                style={{ borderColor: colors.gold, color: colors.brown }}>
+                style={{ borderColor: colors.gold, color: colors.brown }}
+              >
                 Apply Template
               </Button>
             )}
-            <Button variant="outline" onClick={() => setShowEventsPanel(!showEventsPanel)}
-              style={{ borderColor: showEventsPanel ? colors.gold : colors.creamDark, color: colors.brown }}>
+            <Button
+              variant="outline"
+              onClick={() => setShowEventsPanel(!showEventsPanel)}
+              style={{ borderColor: showEventsPanel ? colors.gold : colors.creamDark, color: colors.brown }}
+            >
               <Star className="w-4 h-4 mr-1" /> Events
             </Button>
           </div>
@@ -777,44 +902,77 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
           <CardContent className="p-4 space-y-4">
             {/* Add Manual Event */}
             <div>
-              <h3 className="text-sm font-semibold mb-2" style={{ color: colors.brown }}>Add Event</h3>
+              <h3 className="text-sm font-semibold mb-2" style={{ color: colors.brown }}>
+                Add Event
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="sm:col-span-2">
-                  <Input placeholder="Event title" value={newEventTitle}
+                  <Input
+                    placeholder="Event title"
+                    value={newEventTitle}
                     onChange={(e) => setNewEventTitle(e.target.value)}
-                    style={{ borderColor: colors.creamDark }} />
+                    style={{ borderColor: colors.creamDark }}
+                  />
                 </div>
                 <div>
-                  <Label className="text-xs" style={{ color: colors.brown }}>Start Date</Label>
-                  <Input type="date" value={newEventStartDate}
-                    onChange={(e) => { setNewEventStartDate(e.target.value); if (!newEventEndDate) setNewEventEndDate(e.target.value); }}
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                  <Label className="text-xs" style={{ color: colors.brown }}>
+                    Start Date
+                  </Label>
+                  <Input
+                    type="date"
+                    value={newEventStartDate}
+                    onChange={(e) => {
+                      setNewEventStartDate(e.target.value);
+                      if (!newEventEndDate) setNewEventEndDate(e.target.value);
+                    }}
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  />
                 </div>
                 <div>
-                  <Label className="text-xs" style={{ color: colors.brown }}>End Date</Label>
-                  <Input type="date" value={newEventEndDate}
+                  <Label className="text-xs" style={{ color: colors.brown }}>
+                    End Date
+                  </Label>
+                  <Input
+                    type="date"
+                    value={newEventEndDate}
                     onChange={(e) => setNewEventEndDate(e.target.value)}
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  />
                 </div>
                 <div>
-                  <Input placeholder="Location (optional)" value={newEventLocation}
+                  <Input
+                    placeholder="Location (optional)"
+                    value={newEventLocation}
                     onChange={(e) => setNewEventLocation(e.target.value)}
-                    style={{ borderColor: colors.creamDark }} />
+                    style={{ borderColor: colors.creamDark }}
+                  />
                 </div>
                 <div>
-                  <Label className="text-xs mb-1 block" style={{ color: colors.brown }}>Color</Label>
+                  <Label className="text-xs mb-1 block" style={{ color: colors.brown }}>
+                    Color
+                  </Label>
                   <div className="flex gap-1">
                     {['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899'].map((c) => (
-                      <button key={c} onClick={() => setNewEventColor(c)}
+                      <button
+                        key={c}
+                        onClick={() => setNewEventColor(c)}
                         className="w-6 h-6 rounded-full border-2 transition-transform"
-                        style={{ backgroundColor: c, borderColor: newEventColor === c ? colors.brown : 'transparent', transform: newEventColor === c ? 'scale(1.2)' : 'scale(1)' }} />
+                        style={{
+                          backgroundColor: c,
+                          borderColor: newEventColor === c ? colors.brown : 'transparent',
+                          transform: newEventColor === c ? 'scale(1.2)' : 'scale(1)',
+                        }}
+                      />
                     ))}
                   </div>
                 </div>
                 <div className="sm:col-span-2">
-                  <Input placeholder="Description (optional)" value={newEventDescription}
+                  <Input
+                    placeholder="Description (optional)"
+                    value={newEventDescription}
                     onChange={(e) => setNewEventDescription(e.target.value)}
-                    style={{ borderColor: colors.creamDark }} />
+                    style={{ borderColor: colors.creamDark }}
+                  />
                 </div>
                 <div className="sm:col-span-2">
                   <Button
@@ -829,8 +987,12 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                           description: newEventDescription || null,
                           color: newEventColor,
                         });
-                        setNewEventTitle(''); setNewEventStartDate(''); setNewEventEndDate('');
-                        setNewEventLocation(''); setNewEventDescription(''); setNewEventColor('#3b82f6');
+                        setNewEventTitle('');
+                        setNewEventStartDate('');
+                        setNewEventEndDate('');
+                        setNewEventLocation('');
+                        setNewEventDescription('');
+                        setNewEventColor('#3b82f6');
                         toast({ title: 'Event created' });
                       } catch {
                         toast({ title: 'Error', description: 'Failed to create event.', variant: 'destructive' });
@@ -847,33 +1009,59 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
             {/* iCal Subscriptions */}
             <div>
-              <h3 className="text-sm font-semibold mb-2" style={{ color: colors.brown }}>iCal Feeds</h3>
+              <h3 className="text-sm font-semibold mb-2" style={{ color: colors.brown }}>
+                iCal Feeds
+              </h3>
               {icalSubs && icalSubs.length > 0 && (
                 <div className="space-y-2 mb-2">
                   {icalSubs.map((sub) => (
-                    <div key={sub.id} className="flex items-center gap-2 text-xs p-2 rounded" style={{ backgroundColor: colors.white }}>
+                    <div
+                      key={sub.id}
+                      className="flex items-center gap-2 text-xs p-2 rounded"
+                      style={{ backgroundColor: colors.white }}
+                    >
                       <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: sub.color }} />
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate" style={{ color: colors.brown }}>{sub.name}</div>
-                        <div className="truncate opacity-60" style={{ color: colors.brown }}>{sub.url}</div>
+                        <div className="font-medium truncate" style={{ color: colors.brown }}>
+                          {sub.name}
+                        </div>
+                        <div className="truncate opacity-60" style={{ color: colors.brown }}>
+                          {sub.url}
+                        </div>
                         {sub.last_synced_at && (
                           <div className="opacity-50" style={{ color: colors.brown }}>
-                            Last synced: {new Date(sub.last_synced_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                            Last synced:{' '}
+                            {new Date(sub.last_synced_at).toLocaleString([], {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                            })}
                           </div>
                         )}
-                        {sub.sync_error && (
-                          <div className="text-red-500">Error: {sub.sync_error}</div>
-                        )}
+                        {sub.sync_error && <div className="text-red-500">Error: {sub.sync_error}</div>}
                       </div>
-                      <Button variant="outline" size="sm"
+                      <Button
+                        variant="outline"
+                        size="sm"
                         disabled={syncICal.isPending}
-                        onClick={() => { syncICal.mutate(sub.id); toast({ title: 'Syncing...' }); }}
-                        style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                        onClick={() => {
+                          syncICal.mutate(sub.id);
+                          toast({ title: 'Syncing...' });
+                        }}
+                        style={{ borderColor: colors.creamDark, color: colors.brown }}
+                      >
                         <RefreshCw className={`w-3 h-3 ${syncICal.isPending ? 'animate-spin' : ''}`} />
                       </Button>
-                      <Button variant="outline" size="sm"
-                        onClick={() => { if (confirm('Remove this iCal feed? Its synced events will be deleted.')) deleteICalSub.mutate(sub.id); }}
-                        style={{ borderColor: colors.creamDark, color: '#ef4444' }}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Remove this iCal feed? Its synced events will be deleted.'))
+                            deleteICalSub.mutate(sub.id);
+                        }}
+                        style={{ borderColor: colors.creamDark, color: '#ef4444' }}
+                      >
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
@@ -881,25 +1069,35 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                 </div>
               )}
               <div className="flex gap-2">
-                <Input placeholder="Feed name" value={newICalName}
+                <Input
+                  placeholder="Feed name"
+                  value={newICalName}
                   onChange={(e) => setNewICalName(e.target.value)}
-                  className="flex-1" style={{ borderColor: colors.creamDark }} />
-                <Input placeholder="iCal URL (.ics)" value={newICalUrl}
+                  className="flex-1"
+                  style={{ borderColor: colors.creamDark }}
+                />
+                <Input
+                  placeholder="iCal URL (.ics)"
+                  value={newICalUrl}
                   onChange={(e) => setNewICalUrl(e.target.value)}
-                  className="flex-[2]" style={{ borderColor: colors.creamDark }} />
+                  className="flex-[2]"
+                  style={{ borderColor: colors.creamDark }}
+                />
                 <Button
                   disabled={!newICalName || !newICalUrl || createICalSub.isPending}
                   onClick={async () => {
                     try {
                       const sub = await createICalSub.mutateAsync({ name: newICalName, url: newICalUrl });
-                      setNewICalName(''); setNewICalUrl('');
+                      setNewICalName('');
+                      setNewICalUrl('');
                       syncICal.mutate(sub.id);
                       toast({ title: 'Feed added, syncing...' });
                     } catch {
                       toast({ title: 'Error', description: 'Failed to add feed.', variant: 'destructive' });
                     }
                   }}
-                  style={{ backgroundColor: colors.gold, color: colors.white }}>
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
+                >
                   <Link className="w-4 h-4 mr-1" /> Add Feed
                 </Button>
               </div>
@@ -908,25 +1106,48 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
             {/* Upcoming Events this week */}
             {calendarEvents && calendarEvents.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold mb-2" style={{ color: colors.brown }}>This Week's Events</h3>
+                <h3 className="text-sm font-semibold mb-2" style={{ color: colors.brown }}>
+                  This Week's Events
+                </h3>
                 <div className="space-y-1">
                   {calendarEvents.map((ev) => (
-                    <div key={ev.id} className="flex items-center gap-2 text-xs p-2 rounded" style={{ backgroundColor: colors.white }}>
+                    <div
+                      key={ev.id}
+                      className="flex items-center gap-2 text-xs p-2 rounded"
+                      style={{ backgroundColor: colors.white }}
+                    >
                       <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: ev.color }} />
                       <div className="flex-1 min-w-0">
-                        <span className="font-medium" style={{ color: colors.brown }}>{ev.title}</span>
-                        <span className="opacity-60 ml-2" style={{ color: colors.brown }}>
-                          {formatDateShort(ev.start_date)}{ev.end_date !== ev.start_date ? ` – ${formatDateShort(ev.end_date)}` : ''}
+                        <span className="font-medium" style={{ color: colors.brown }}>
+                          {ev.title}
                         </span>
-                        {ev.location && <span className="opacity-50 ml-1" style={{ color: colors.brown }}> · {ev.location}</span>}
+                        <span className="opacity-60 ml-2" style={{ color: colors.brown }}>
+                          {formatDateShort(ev.start_date)}
+                          {ev.end_date !== ev.start_date ? ` – ${formatDateShort(ev.end_date)}` : ''}
+                        </span>
+                        {ev.location && (
+                          <span className="opacity-50 ml-1" style={{ color: colors.brown }}>
+                            {' '}
+                            · {ev.location}
+                          </span>
+                        )}
                       </div>
-                      <Badge variant="outline" className="text-[10px]" style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px]"
+                        style={{ borderColor: colors.creamDark, color: colors.brown }}
+                      >
                         {ev.source}
                       </Badge>
                       {ev.source === 'manual' && (
-                        <Button variant="outline" size="sm"
-                          onClick={() => { if (confirm('Delete this event?')) deleteCalendarEvent.mutate(ev.id); }}
-                          style={{ borderColor: colors.creamDark, color: '#ef4444' }}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm('Delete this event?')) deleteCalendarEvent.mutate(ev.id);
+                          }}
+                          style={{ borderColor: colors.creamDark, color: '#ef4444' }}
+                        >
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       )}
@@ -976,24 +1197,28 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                 );
               }
               const shift = arg.event.extendedProps.shift as Shift;
-              const avatarUrl = shift.employee_avatar
-                || employees.find((e) => e.name === shift.employee_name)?.avatar_url
-                || null;
+              const avatarUrl =
+                shift.employee_avatar || employees.find((e) => e.name === shift.employee_name)?.avatar_url || null;
               // Acceptance status
               const isPublished = shift.status === 'published' && shift.employee_id;
               const isUnclaimed = isPublished && !shift.acceptance;
               const isAccepted = shift.acceptance === 'accepted';
               const isDeclined = shift.acceptance === 'declined';
-              const borderLeft = isAccepted ? '3px solid #22c55e'
-                : isDeclined ? '3px solid #ef4444'
-                : isUnclaimed ? '3px solid #f59e0b'
-                : 'none';
+              const borderLeft = isAccepted
+                ? '3px solid #22c55e'
+                : isDeclined
+                  ? '3px solid #ef4444'
+                  : isUnclaimed
+                    ? '3px solid #f59e0b'
+                    : 'none';
 
               // Month view: compact rendering
               if (arg.view.type === 'dayGridMonth') {
                 return (
-                  <div className="flex items-center gap-1 px-1 py-0.5 text-[10px] truncate w-full"
-                    style={{ borderLeft, opacity: isDeclined ? 0.6 : 1 }}>
+                  <div
+                    className="flex items-center gap-1 px-1 py-0.5 text-[10px] truncate w-full"
+                    style={{ borderLeft, opacity: isDeclined ? 0.6 : 1 }}
+                  >
                     <span className="font-medium truncate">{shift.employee_name || 'Unassigned'}</span>
                     {isUnclaimed && <span style={{ color: '#f59e0b' }}>!</span>}
                   </div>
@@ -1002,12 +1227,22 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
               // Day + Week view: full rendering
               return (
-                <div className="flex items-center gap-1 overflow-hidden w-full px-0.5 py-0.5"
-                  style={{ borderLeft, opacity: isDeclined ? 0.7 : 1 }}>
+                <div
+                  className="flex items-center gap-1 overflow-hidden w-full px-0.5 py-0.5"
+                  style={{ borderLeft, opacity: isDeclined ? 0.7 : 1 }}
+                >
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="" className="w-5 h-5 rounded-full flex-shrink-0 object-cover" style={{ border: '1px solid rgba(255,255,255,0.5)' }} />
+                    <img
+                      src={avatarUrl}
+                      alt=""
+                      className="w-5 h-5 rounded-full flex-shrink-0 object-cover"
+                      style={{ border: '1px solid rgba(255,255,255,0.5)' }}
+                    />
                   ) : (
-                    <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold" style={{ backgroundColor: 'rgba(255,255,255,0.3)' }}>
+                    <div
+                      className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.3)' }}
+                    >
                       {(shift.employee_name || '?').charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -1015,20 +1250,37 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                     <div className="font-medium truncate">{shift.employee_name || 'Unassigned'}</div>
                     <div className="opacity-80">{arg.timeText}</div>
                     {isUnclaimed && (
-                      <div className="text-[9px] font-semibold" style={{ color: '#fbbf24' }}>Unclaimed</div>
+                      <div className="text-[9px] font-semibold" style={{ color: '#fbbf24' }}>
+                        Unclaimed
+                      </div>
                     )}
                   </div>
                   {isAccepted && (
-                    <span className="text-[9px] font-bold flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: '#22c55e', color: '#fff' }} title="Accepted">{'\u2713'}</span>
+                    <span
+                      className="text-[9px] font-bold flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: '#22c55e', color: '#fff' }}
+                      title="Accepted"
+                    >
+                      {'\u2713'}
+                    </span>
                   )}
                   {isDeclined && (
-                    <span className="text-[9px] font-bold flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: '#ef4444', color: '#fff' }} title="Declined">{'\u2717'}</span>
+                    <span
+                      className="text-[9px] font-bold flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: '#ef4444', color: '#fff' }}
+                      title="Declined"
+                    >
+                      {'\u2717'}
+                    </span>
                   )}
                   {isUnclaimed && (
-                    <span className="text-[9px] font-bold flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center animate-pulse"
-                      style={{ backgroundColor: '#f59e0b', color: '#fff' }} title="Unclaimed">!</span>
+                    <span
+                      className="text-[9px] font-bold flex-shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center animate-pulse"
+                      style={{ backgroundColor: '#f59e0b', color: '#fff' }}
+                      title="Unclaimed"
+                    >
+                      !
+                    </span>
                   )}
                 </div>
               );
@@ -1047,9 +1299,13 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
               <div key={e.name} className="flex items-center gap-1.5 text-xs" style={{ color: colors.brown }}>
                 {canEdit ? (
                   <label className="relative cursor-pointer">
-                    <div className="w-4 h-4 rounded-full border border-white/50 shadow-sm transition-transform hover:scale-125"
-                      style={{ backgroundColor: currentColor }} />
-                    <input type="color" value={currentColor}
+                    <div
+                      className="w-4 h-4 rounded-full border border-white/50 shadow-sm transition-transform hover:scale-125"
+                      style={{ backgroundColor: currentColor }}
+                    />
+                    <input
+                      type="color"
+                      value={currentColor}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       onChange={(ev) => {
                         updateEmployeeColor.mutate({
@@ -1057,7 +1313,8 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                           tip_employee_id: e.tip_employee_id,
                           color: ev.target.value,
                         });
-                      }} />
+                      }}
+                    />
                   </label>
                 ) : (
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: currentColor }} />
@@ -1071,23 +1328,36 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
       {/* Create/Edit shift dialog */}
       {showCreateDialog && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowCreateDialog(false)}>
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto" style={{ backgroundColor: colors.white }} onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowCreateDialog(false)}
+        >
+          <Card
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto"
+            style={{ backgroundColor: colors.white }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <CardHeader>
-              <CardTitle style={{ color: colors.brown }}>
-                {editingShift ? 'Edit Shift' : 'New Shift'}
-              </CardTitle>
+              <CardTitle style={{ color: colors.brown }}>{editingShift ? 'Edit Shift' : 'New Shift'}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Employee</Label>
-                <Select value={selectedEmployeeKey} onValueChange={(v) => { setSelectedEmployeeKey(v); checkConflicts(v, newShiftDate, newShiftStart, newShiftEnd, editingShift?.id); }}>
+                <Select
+                  value={selectedEmployeeKey}
+                  onValueChange={(v) => {
+                    setSelectedEmployeeKey(v);
+                    checkConflicts(v, newShiftDate, newShiftStart, newShiftEnd, editingShift?.id);
+                  }}
+                >
                   <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
                     {employees.map((e) => (
-                      <SelectItem key={e.name} value={e.name}>{e.name}</SelectItem>
+                      <SelectItem key={e.name} value={e.name}>
+                        {e.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1098,7 +1368,11 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                   id="shift-date"
                   type="date"
                   value={newShiftDate}
-                  onChange={(e) => { const d = e.target.value; setNewShiftDate(d); checkConflicts(selectedEmployeeKey, d, newShiftStart, newShiftEnd, editingShift?.id); }}
+                  onChange={(e) => {
+                    const d = e.target.value;
+                    setNewShiftDate(d);
+                    checkConflicts(selectedEmployeeKey, d, newShiftStart, newShiftEnd, editingShift?.id);
+                  }}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                 />
               </div>
@@ -1109,7 +1383,11 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                     id="shift-start"
                     type="time"
                     value={newShiftStart}
-                    onChange={(e) => { const t = e.target.value; setNewShiftStart(t); checkConflicts(selectedEmployeeKey, newShiftDate, t, newShiftEnd, editingShift?.id); }}
+                    onChange={(e) => {
+                      const t = e.target.value;
+                      setNewShiftStart(t);
+                      checkConflicts(selectedEmployeeKey, newShiftDate, t, newShiftEnd, editingShift?.id);
+                    }}
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   />
                 </div>
@@ -1119,58 +1397,92 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                     id="shift-end"
                     type="time"
                     value={newShiftEnd}
-                    onChange={(e) => { const t = e.target.value; setNewShiftEnd(t); checkConflicts(selectedEmployeeKey, newShiftDate, newShiftStart, t, editingShift?.id); }}
+                    onChange={(e) => {
+                      const t = e.target.value;
+                      setNewShiftEnd(t);
+                      checkConflicts(selectedEmployeeKey, newShiftDate, newShiftStart, t, editingShift?.id);
+                    }}
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Position (optional)</Label>
-                <Input value={newShiftPosition} placeholder="e.g. Barista, Closer"
+                <Input
+                  value={newShiftPosition}
+                  placeholder="e.g. Barista, Closer"
                   onChange={(e) => setNewShiftPosition(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label style={{ color: colors.brown }}>Notes (optional)</Label>
-                <Textarea value={newShiftNotes} placeholder="Any notes..."
+                <Textarea
+                  value={newShiftNotes}
+                  placeholder="Any notes..."
                   onChange={(e) => setNewShiftNotes(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} rows={2} />
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                  rows={2}
+                />
               </div>
               {conflictWarning && (
-                <div className="flex items-start gap-2 p-2 rounded-lg text-sm"
-                  style={{ backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+                <div
+                  className="flex items-start gap-2 p-2 rounded-lg text-sm"
+                  style={{ backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}
+                >
                   <span className="text-base">&#9888;</span>
                   <span>{conflictWarning}</span>
                 </div>
               )}
               {editingShift?.acceptance && (
-                <div className="flex items-center gap-2 p-2 rounded-lg text-sm"
+                <div
+                  className="flex items-center gap-2 p-2 rounded-lg text-sm"
                   style={{
                     backgroundColor: editingShift.acceptance === 'accepted' ? '#dcfce7' : '#fef2f2',
                     color: editingShift.acceptance === 'accepted' ? '#166534' : '#991b1b',
                     border: `1px solid ${editingShift.acceptance === 'accepted' ? '#bbf7d0' : '#fecaca'}`,
-                  }}>
+                  }}
+                >
                   {editingShift.acceptance === 'accepted' ? (
-                    <><Check className="w-4 h-4" /> Accepted by employee</>
+                    <>
+                      <Check className="w-4 h-4" /> Accepted by employee
+                    </>
                   ) : (
-                    <><X className="w-4 h-4" /> Declined{editingShift.decline_reason ? `: "${editingShift.decline_reason}"` : ''}</>
+                    <>
+                      <X className="w-4 h-4" /> Declined
+                      {editingShift.decline_reason ? `: "${editingShift.decline_reason}"` : ''}
+                    </>
                   )}
                 </div>
               )}
               <div className="flex gap-2 pt-2">
-                <Button onClick={handleSaveShift} disabled={createShift.isPending || updateShift.isPending}
-                  style={{ backgroundColor: colors.gold, color: colors.white }} className="flex-1">
+                <Button
+                  onClick={handleSaveShift}
+                  disabled={createShift.isPending || updateShift.isPending}
+                  style={{ backgroundColor: colors.gold, color: colors.white }}
+                  className="flex-1"
+                >
                   <Check className="w-4 h-4 mr-1" />
                   {editingShift ? 'Update' : 'Create'}
                 </Button>
                 {editingShift && canDelete && (
-                  <Button variant="outline" onClick={handleDeleteShift} disabled={deleteShift.isPending}
-                    style={{ borderColor: colors.red, color: colors.red }}>
+                  <Button
+                    variant="outline"
+                    onClick={handleDeleteShift}
+                    disabled={deleteShift.isPending}
+                    style={{ borderColor: colors.red, color: colors.red }}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
-                <Button variant="outline" onClick={() => { setShowCreateDialog(false); setEditingShift(null); }}
-                  style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowCreateDialog(false);
+                    setEditingShift(null);
+                  }}
+                  style={{ borderColor: colors.creamDark, color: colors.brown }}
+                >
                   Cancel
                 </Button>
               </div>
@@ -1181,12 +1493,21 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
       {/* Event Detail Dialog */}
       {viewingEvent && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setViewingEvent(null)}>
-          <Card className="w-full max-w-sm" style={{ backgroundColor: colors.white }} onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setViewingEvent(null)}
+        >
+          <Card
+            className="w-full max-w-sm"
+            style={{ backgroundColor: colors.white }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <CardHeader className="pb-2">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full" style={{ backgroundColor: viewingEvent.color }} />
-                <CardTitle className="text-base" style={{ color: colors.brown }}>{viewingEvent.title}</CardTitle>
+                <CardTitle className="text-base" style={{ color: colors.brown }}>
+                  {viewingEvent.title}
+                </CardTitle>
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -1202,29 +1523,38 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                     {viewingEvent.location}
                   </div>
                 )}
-                {viewingEvent.description && (
-                  <p className="mt-2 opacity-70">{viewingEvent.description}</p>
-                )}
+                {viewingEvent.description && <p className="mt-2 opacity-70">{viewingEvent.description}</p>}
               </div>
               <div className="flex items-center justify-between pt-2">
-                <Badge variant="outline" className="text-[10px]" style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                <Badge
+                  variant="outline"
+                  className="text-[10px]"
+                  style={{ borderColor: colors.creamDark, color: colors.brown }}
+                >
                   {viewingEvent.source === 'ical' ? 'iCal' : 'Manual'}
                 </Badge>
                 <div className="flex gap-2">
                   {viewingEvent.source === 'manual' && canEdit && (
-                    <Button variant="outline" size="sm"
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => {
                         if (confirm('Delete this event?')) {
                           deleteCalendarEvent.mutate(viewingEvent.id);
                           setViewingEvent(null);
                         }
                       }}
-                      style={{ borderColor: colors.creamDark, color: '#ef4444' }}>
+                      style={{ borderColor: colors.creamDark, color: '#ef4444' }}
+                    >
                       <Trash2 className="w-3 h-3 mr-1" /> Delete
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => setViewingEvent(null)}
-                    style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setViewingEvent(null)}
+                    style={{ borderColor: colors.creamDark, color: colors.brown }}
+                  >
                     Close
                   </Button>
                 </div>
@@ -1236,10 +1566,19 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
       {/* Shift Detail / Accept-Decline Dialog (employee view) */}
       {viewingShiftDetail && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setViewingShiftDetail(null)}>
-          <Card className="w-full max-w-sm" style={{ backgroundColor: colors.white }} onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setViewingShiftDetail(null)}
+        >
+          <Card
+            className="w-full max-w-sm"
+            style={{ backgroundColor: colors.white }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <CardHeader className="pb-2">
-              <CardTitle className="text-base" style={{ color: colors.brown }}>Shift Details</CardTitle>
+              <CardTitle className="text-base" style={{ color: colors.brown }}>
+                Shift Details
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="text-sm space-y-1.5" style={{ color: colors.brown }}>
@@ -1249,14 +1588,17 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 opacity-60" />
-                  <span>{formatTimeDisplay(viewingShiftDetail.start_time)} – {formatTimeDisplay(viewingShiftDetail.end_time)}</span>
+                  <span>
+                    {formatTimeDisplay(viewingShiftDetail.start_time)} –{' '}
+                    {formatTimeDisplay(viewingShiftDetail.end_time)}
+                  </span>
                 </div>
                 {viewingShiftDetail.position && (
-                  <Badge variant="secondary" className="text-xs">{viewingShiftDetail.position}</Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    {viewingShiftDetail.position}
+                  </Badge>
                 )}
-                {viewingShiftDetail.notes && (
-                  <p className="text-xs opacity-70 mt-1">{viewingShiftDetail.notes}</p>
-                )}
+                {viewingShiftDetail.notes && <p className="text-xs opacity-70 mt-1">{viewingShiftDetail.notes}</p>}
               </div>
 
               {/* Current acceptance status */}
@@ -1284,30 +1626,42 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                   )}
                   <div className="flex gap-2">
                     {viewingShiftDetail.acceptance !== 'accepted' && (
-                      <Button className="flex-1"
+                      <Button
+                        className="flex-1"
                         disabled={acceptShift.isPending}
                         onClick={async () => {
                           try {
                             await acceptShift.mutateAsync(viewingShiftDetail.id);
                             toast({ title: 'Shift accepted' });
                             setViewingShiftDetail(null);
-                          } catch { toast({ title: 'Failed to accept shift', variant: 'destructive' }); }
+                          } catch {
+                            toast({ title: 'Failed to accept shift', variant: 'destructive' });
+                          }
                         }}
-                        style={{ backgroundColor: '#22c55e', color: '#fff' }}>
+                        style={{ backgroundColor: '#22c55e', color: '#fff' }}
+                      >
                         <Check className="w-4 h-4 mr-1" /> Accept
                       </Button>
                     )}
                     {viewingShiftDetail.acceptance !== 'declined' && (
-                      <Button className="flex-1" variant="outline"
+                      <Button
+                        className="flex-1"
+                        variant="outline"
                         disabled={declineShift.isPending}
                         onClick={async () => {
                           try {
-                            await declineShift.mutateAsync({ shiftId: viewingShiftDetail.id, reason: declineReason || undefined });
+                            await declineShift.mutateAsync({
+                              shiftId: viewingShiftDetail.id,
+                              reason: declineReason || undefined,
+                            });
                             toast({ title: 'Shift declined' });
                             setViewingShiftDetail(null);
-                          } catch { toast({ title: 'Failed to decline shift', variant: 'destructive' }); }
+                          } catch {
+                            toast({ title: 'Failed to decline shift', variant: 'destructive' });
+                          }
                         }}
-                        style={{ borderColor: '#ef4444', color: '#ef4444' }}>
+                        style={{ borderColor: '#ef4444', color: '#ef4444' }}
+                      >
                         <X className="w-4 h-4 mr-1" /> Decline
                       </Button>
                     )}
@@ -1315,9 +1669,13 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
                 </div>
               )}
 
-              <Button variant="outline" size="sm" className="w-full mt-2"
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-2"
                 onClick={() => setViewingShiftDetail(null)}
-                style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                style={{ borderColor: colors.creamDark, color: colors.brown }}
+              >
                 Close
               </Button>
             </CardContent>
@@ -1339,18 +1697,28 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
             {templates && templates.length > 0 && (
               <div className="space-y-2">
                 {templates.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between p-2 rounded-lg"
-                    style={{ backgroundColor: colors.cream }}>
+                  <div
+                    key={t.id}
+                    className="flex items-center justify-between p-2 rounded-lg"
+                    style={{ backgroundColor: colors.cream }}
+                  >
                     <div>
-                      <span className="text-sm font-medium" style={{ color: colors.brown }}>{t.name}</span>
+                      <span className="text-sm font-medium" style={{ color: colors.brown }}>
+                        {t.name}
+                      </span>
                       <span className="text-xs ml-2" style={{ color: colors.brownLight }}>
-                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][t.day_of_week]} {formatTimeDisplay(t.start_time)}–{formatTimeDisplay(t.end_time)}
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][t.day_of_week]}{' '}
+                        {formatTimeDisplay(t.start_time)}–{formatTimeDisplay(t.end_time)}
                         {t.employee_name && ` · ${t.employee_name}`}
                         {t.position && ` · ${t.position}`}
                       </span>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => deleteTemplate.mutate(t.id)}
-                      style={{ color: colors.red }}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteTemplate.mutate(t.id)}
+                      style={{ color: colors.red }}
+                    >
                       <Trash2 className="w-3 h-3" />
                     </Button>
                   </div>
@@ -1360,46 +1728,72 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
             {/* Add new template */}
             <div className="space-y-3 pt-2" style={{ borderTop: `1px solid ${colors.creamDark}` }}>
-              <p className="text-sm font-medium" style={{ color: colors.brown }}>Add Template Entry</p>
+              <p className="text-sm font-medium" style={{ color: colors.brown }}>
+                Add Template Entry
+              </p>
               <div className="grid grid-cols-2 gap-2">
-                <Input placeholder="Template name" value={newTemplateName}
+                <Input
+                  placeholder="Template name"
+                  value={newTemplateName}
                   onChange={(e) => setNewTemplateName(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                />
                 <Select value={String(newTemplateDay)} onValueChange={(v) => setNewTemplateDay(Number(v))}>
                   <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((d, i) => (
-                      <SelectItem key={i} value={String(i)}>{d}</SelectItem>
+                      <SelectItem key={i} value={String(i)}>
+                        {d}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Input type="time" value={newTemplateStart} onChange={(e) => setNewTemplateStart(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-                <Input type="time" value={newTemplateEnd} onChange={(e) => setNewTemplateEnd(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                <Input
+                  type="time"
+                  value={newTemplateStart}
+                  onChange={(e) => setNewTemplateStart(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                />
+                <Input
+                  type="time"
+                  value={newTemplateEnd}
+                  onChange={(e) => setNewTemplateEnd(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Select value={newTemplateEmployee || '__unassigned__'} onValueChange={(v) => setNewTemplateEmployee(v === '__unassigned__' ? '' : v)}>
+                <Select
+                  value={newTemplateEmployee || '__unassigned__'}
+                  onValueChange={(v) => setNewTemplateEmployee(v === '__unassigned__' ? '' : v)}
+                >
                   <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
                     <SelectValue placeholder="Employee (optional)" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__unassigned__">Unassigned</SelectItem>
                     {employees.map((e) => (
-                      <SelectItem key={e.name} value={e.name}>{e.name}</SelectItem>
+                      <SelectItem key={e.name} value={e.name}>
+                        {e.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Input placeholder="Position (optional)" value={newTemplatePosition}
+                <Input
+                  placeholder="Position (optional)"
+                  value={newTemplatePosition}
                   onChange={(e) => setNewTemplatePosition(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                />
               </div>
-              <Button onClick={handleSaveTemplate} disabled={createTemplate.isPending}
-                style={{ backgroundColor: colors.gold, color: colors.white }}>
+              <Button
+                onClick={handleSaveTemplate}
+                disabled={createTemplate.isPending}
+                style={{ backgroundColor: colors.gold, color: colors.white }}
+              >
                 <Plus className="w-4 h-4 mr-1" /> Save Template
               </Button>
             </div>
@@ -1412,7 +1806,13 @@ function ScheduleTab({ tenantId, canEdit, canDelete, employees }: {
 
 // ─── TIME OFF TAB ────────────────────────────────────────
 
-function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees }: {
+function TimeOffTab({
+  tenantId,
+  canApprove,
+  currentUserId,
+  isManager,
+  employees,
+}: {
   tenantId: string;
   canApprove: boolean;
   currentUserId: string;
@@ -1443,7 +1843,9 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
   // Find the relevant balance for the selected category
   const relevantBalance = useMemo(() => {
     if (!myBalances || !activePolicies) return null;
-    const policy = activePolicies.find((p) => p.is_active && p.policy_type !== 'none' && p.categories.includes(formData.category));
+    const policy = activePolicies.find(
+      (p) => p.is_active && p.policy_type !== 'none' && p.categories.includes(formData.category)
+    );
     if (!policy) return null;
     const balance = myBalances.find((b) => b.policy_id === policy.id);
     if (!balance) return null;
@@ -1454,14 +1856,19 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
   }, [myBalances, activePolicies, formData.category]);
 
   // Lookup balance for a given employee + category (manager view)
-  const getEmployeeBalance = useCallback((employeeId: string, category: string) => {
-    if (!allBalances || !activePolicies) return null;
-    const policy = activePolicies.find((p) => p.is_active && p.policy_type !== 'none' && p.categories.includes(category as any));
-    if (!policy) return null;
-    const balance = allBalances.find((b) => b.employee_id === employeeId && b.policy_id === policy.id);
-    if (!balance) return null;
-    return Math.max(0, balance.balance_hours - balance.used_hours - balance.pending_hours);
-  }, [allBalances, activePolicies]);
+  const getEmployeeBalance = useCallback(
+    (employeeId: string, category: string) => {
+      if (!allBalances || !activePolicies) return null;
+      const policy = activePolicies.find(
+        (p) => p.is_active && p.policy_type !== 'none' && p.categories.includes(category as any)
+      );
+      if (!policy) return null;
+      const balance = allBalances.find((b) => b.employee_id === employeeId && b.policy_id === policy.id);
+      if (!balance) return null;
+      return Math.max(0, balance.balance_hours - balance.used_hours - balance.pending_hours);
+    },
+    [allBalances, activePolicies]
+  );
 
   // Unavailability
   const { data: myUnavailability } = useMyUnavailability();
@@ -1498,7 +1905,16 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
         });
         toast({ title: 'Recurring unavailability saved' });
         setShowUnavailForm(false);
-        setUnavailForm({ start_date: '', end_date: '', all_day: true, start_time: '', end_time: '', reason: '', is_recurring: false, recurrence_day: null });
+        setUnavailForm({
+          start_date: '',
+          end_date: '',
+          all_day: true,
+          start_time: '',
+          end_time: '',
+          reason: '',
+          is_recurring: false,
+          recurrence_day: null,
+        });
         return;
       } catch {
         toast({ title: 'Error', description: 'Failed to save.', variant: 'destructive' });
@@ -1522,7 +1938,16 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
       });
       toast({ title: 'Unavailability saved' });
       setShowUnavailForm(false);
-      setUnavailForm({ start_date: '', end_date: '', all_day: true, start_time: '', end_time: '', reason: '', is_recurring: false, recurrence_day: null });
+      setUnavailForm({
+        start_date: '',
+        end_date: '',
+        all_day: true,
+        start_time: '',
+        end_time: '',
+        reason: '',
+        is_recurring: false,
+        recurrence_day: null,
+      });
     } catch {
       toast({ title: 'Error', description: 'Failed to save.', variant: 'destructive' });
     }
@@ -1566,33 +1991,46 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
     }
   }, [formData, createRequest, toast]);
 
-  const handleReview = useCallback(async (id: string, status: 'approved' | 'denied') => {
-    try {
-      await reviewRequest.mutateAsync({ id, status, review_notes: reviewNotes || undefined });
-      toast({ title: `Request ${status}` });
-      setReviewNotes('');
-    } catch {
-      toast({ title: 'Error', description: 'Failed to review request.', variant: 'destructive' });
-    }
-  }, [reviewRequest, reviewNotes, toast]);
+  const handleReview = useCallback(
+    async (id: string, status: 'approved' | 'denied') => {
+      try {
+        await reviewRequest.mutateAsync({ id, status, review_notes: reviewNotes || undefined });
+        toast({ title: `Request ${status}` });
+        setReviewNotes('');
+      } catch {
+        toast({ title: 'Error', description: 'Failed to review request.', variant: 'destructive' });
+      }
+    },
+    [reviewRequest, reviewNotes, toast]
+  );
 
   const statusColor = (s: string) => {
     switch (s) {
-      case 'approved': return colors.green;
-      case 'denied': return colors.red;
-      case 'pending': return colors.yellow;
-      case 'cancelled': return colors.brownLight;
-      default: return colors.brown;
+      case 'approved':
+        return colors.green;
+      case 'denied':
+        return colors.red;
+      case 'pending':
+        return colors.yellow;
+      case 'cancelled':
+        return colors.brownLight;
+      default:
+        return colors.brown;
     }
   };
 
   const categoryLabel = (c: string) => {
     switch (c) {
-      case 'vacation': return 'Vacation';
-      case 'sick': return 'Sick';
-      case 'personal': return 'Personal';
-      case 'bereavement': return 'Bereavement';
-      default: return 'Other';
+      case 'vacation':
+        return 'Vacation';
+      case 'sick':
+        return 'Sick';
+      case 'personal':
+        return 'Personal';
+      case 'bereavement':
+        return 'Bereavement';
+      default:
+        return 'Other';
     }
   };
 
@@ -1607,8 +2045,11 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
             <X className="w-5 h-5" style={{ color: colors.red }} />
             My Unavailability
           </CardTitle>
-          <Button size="sm" onClick={() => setShowUnavailForm(!showUnavailForm)}
-            style={{ backgroundColor: colors.gold, color: colors.white }}>
+          <Button
+            size="sm"
+            onClick={() => setShowUnavailForm(!showUnavailForm)}
+            style={{ backgroundColor: colors.gold, color: colors.white }}
+          >
             <Plus className="w-4 h-4 mr-1" /> Add
           </Button>
         </CardHeader>
@@ -1619,10 +2060,15 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                 {/* Recurring toggle */}
                 <div className="flex items-center gap-3">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={unavailForm.is_recurring}
+                    <input
+                      type="checkbox"
+                      checked={unavailForm.is_recurring}
                       onChange={(e) => setUnavailForm((f) => ({ ...f, is_recurring: e.target.checked }))}
-                      className="rounded border-gray-300" />
-                    <span className="text-sm" style={{ color: colors.brown }}>Recurring weekly</span>
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm" style={{ color: colors.brown }}>
+                      Recurring weekly
+                    </span>
                   </label>
                 </div>
 
@@ -1651,86 +2097,125 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label style={{ color: colors.brown }}>Start Date</Label>
-                      <Input type="date" value={unavailForm.start_date}
-                        onChange={(e) => setUnavailForm((f) => ({ ...f, start_date: e.target.value, end_date: f.end_date || e.target.value }))}
-                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                      <Input
+                        type="date"
+                        value={unavailForm.start_date}
+                        onChange={(e) =>
+                          setUnavailForm((f) => ({
+                            ...f,
+                            start_date: e.target.value,
+                            end_date: f.end_date || e.target.value,
+                          }))
+                        }
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                      />
                     </div>
                     <div className="space-y-1.5">
                       <Label style={{ color: colors.brown }}>End Date</Label>
-                      <Input type="date" value={unavailForm.end_date}
+                      <Input
+                        type="date"
+                        value={unavailForm.end_date}
                         onChange={(e) => setUnavailForm((f) => ({ ...f, end_date: e.target.value }))}
-                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                      />
                     </div>
                   </div>
                 )}
 
                 {/* Blackout date overlap warning */}
-                {blackoutDates && blackoutDates.length > 0 && (() => {
-                  const overlapping = blackoutDates.filter((bd) => {
-                    if (unavailForm.is_recurring && unavailForm.recurrence_day !== null) {
-                      // Check if any blackout period contains this day of the week
-                      const start = new Date(bd.start_date + 'T00:00:00');
-                      const end = new Date(bd.end_date + 'T00:00:00');
-                      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                        if (d.getDay() === unavailForm.recurrence_day) return true;
+                {blackoutDates &&
+                  blackoutDates.length > 0 &&
+                  (() => {
+                    const overlapping = blackoutDates.filter((bd) => {
+                      if (unavailForm.is_recurring && unavailForm.recurrence_day !== null) {
+                        // Check if any blackout period contains this day of the week
+                        const start = new Date(bd.start_date + 'T00:00:00');
+                        const end = new Date(bd.end_date + 'T00:00:00');
+                        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                          if (d.getDay() === unavailForm.recurrence_day) return true;
+                        }
+                        return false;
                       }
-                      return false;
-                    }
-                    if (!unavailForm.start_date || !unavailForm.end_date) return false;
-                    return unavailForm.start_date <= bd.end_date && unavailForm.end_date >= bd.start_date;
-                  });
-                  if (overlapping.length === 0) return null;
-                  return overlapping.map((bd) => (
-                    <div key={bd.id} className="flex items-start gap-2 p-2.5 rounded-lg text-sm"
-                      style={{ backgroundColor: '#fef3c7', borderLeft: '3px solid #f59e0b' }}>
-                      <span className="shrink-0">⚠️</span>
-                      <span style={{ color: '#92400e' }}>
-                        <strong>Heads up:</strong> This overlaps with a blackout date — <strong>{bd.label}</strong> ({formatDateShort(bd.start_date)} – {formatDateShort(bd.end_date)}). Your manager has flagged this as an all-hands-on-deck period.
-                      </span>
-                    </div>
-                  ));
-                })()}
+                      if (!unavailForm.start_date || !unavailForm.end_date) return false;
+                      return unavailForm.start_date <= bd.end_date && unavailForm.end_date >= bd.start_date;
+                    });
+                    if (overlapping.length === 0) return null;
+                    return overlapping.map((bd) => (
+                      <div
+                        key={bd.id}
+                        className="flex items-start gap-2 p-2.5 rounded-lg text-sm"
+                        style={{ backgroundColor: '#fef3c7', borderLeft: '3px solid #f59e0b' }}
+                      >
+                        <span className="shrink-0">⚠️</span>
+                        <span style={{ color: '#92400e' }}>
+                          <strong>Heads up:</strong> This overlaps with a blackout date — <strong>{bd.label}</strong> (
+                          {formatDateShort(bd.start_date)} – {formatDateShort(bd.end_date)}). Your manager has flagged
+                          this as an all-hands-on-deck period.
+                        </span>
+                      </div>
+                    ));
+                  })()}
 
                 {/* All day toggle + time range */}
                 <div className="flex items-center gap-3">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={unavailForm.all_day}
+                    <input
+                      type="checkbox"
+                      checked={unavailForm.all_day}
                       onChange={(e) => setUnavailForm((f) => ({ ...f, all_day: e.target.checked }))}
-                      className="rounded border-gray-300" />
-                    <span className="text-sm" style={{ color: colors.brown }}>All day</span>
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm" style={{ color: colors.brown }}>
+                      All day
+                    </span>
                   </label>
                 </div>
                 {!unavailForm.all_day && (
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label style={{ color: colors.brown }}>From</Label>
-                      <Input type="time" value={unavailForm.start_time}
+                      <Input
+                        type="time"
+                        value={unavailForm.start_time}
                         onChange={(e) => setUnavailForm((f) => ({ ...f, start_time: e.target.value }))}
-                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                      />
                     </div>
                     <div className="space-y-1.5">
                       <Label style={{ color: colors.brown }}>Until</Label>
-                      <Input type="time" value={unavailForm.end_time}
+                      <Input
+                        type="time"
+                        value={unavailForm.end_time}
                         onChange={(e) => setUnavailForm((f) => ({ ...f, end_time: e.target.value }))}
-                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                      />
                     </div>
                   </div>
                 )}
 
                 <div className="space-y-1.5">
                   <Label style={{ color: colors.brown }}>Reason (optional)</Label>
-                  <Input value={unavailForm.reason} placeholder="e.g. class, appointment, personal"
+                  <Input
+                    value={unavailForm.reason}
+                    placeholder="e.g. class, appointment, personal"
                     onChange={(e) => setUnavailForm((f) => ({ ...f, reason: e.target.value }))}
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                  />
                 </div>
 
                 <div className="flex gap-2">
-                  <Button onClick={handleSubmitUnavail} disabled={createUnavail.isPending}
-                    style={{ backgroundColor: colors.gold, color: colors.white }}>
+                  <Button
+                    onClick={handleSubmitUnavail}
+                    disabled={createUnavail.isPending}
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
+                  >
                     Save
                   </Button>
-                  <Button variant="outline" onClick={() => setShowUnavailForm(false)}
-                    style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowUnavailForm(false)}
+                    style={{ borderColor: colors.creamDark, color: colors.brown }}
+                  >
                     Cancel
                   </Button>
                 </div>
@@ -1738,14 +2223,17 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
             </Card>
           )}
 
-          {(!myUnavailability || myUnavailability.length === 0) ? (
+          {!myUnavailability || myUnavailability.length === 0 ? (
             <p className="text-sm py-4 text-center" style={{ color: colors.brownLight }}>
               No unavailability set. Add dates or days you can't work.
             </p>
           ) : (
             myUnavailability.map((u) => (
-              <div key={u.id} className="flex items-center justify-between p-3 rounded-lg"
-                style={{ backgroundColor: colors.cream }}>
+              <div
+                key={u.id}
+                className="flex items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: colors.cream }}
+              >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     {u.is_recurring ? (
@@ -1754,7 +2242,8 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                       </Badge>
                     ) : (
                       <span className="text-sm" style={{ color: colors.brown }}>
-                        {formatDateShort(u.start_date)}{u.start_date !== u.end_date ? ` – ${formatDateShort(u.end_date)}` : ''}
+                        {formatDateShort(u.start_date)}
+                        {u.start_date !== u.end_date ? ` – ${formatDateShort(u.end_date)}` : ''}
                       </span>
                     )}
                     {!u.all_day && u.start_time && u.end_time && (
@@ -1763,10 +2252,19 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                       </Badge>
                     )}
                   </div>
-                  {u.reason && <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>{u.reason}</p>}
+                  {u.reason && (
+                    <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+                      {u.reason}
+                    </p>
+                  )}
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => deleteUnavail.mutate(u.id)}
-                  disabled={deleteUnavail.isPending} style={{ color: colors.red }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => deleteUnavail.mutate(u.id)}
+                  disabled={deleteUnavail.isPending}
+                  style={{ color: colors.red }}
+                >
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
@@ -1788,10 +2286,15 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
             {teamUnavailability
               .filter((u) => u.employee_id !== currentUserId)
               .map((u) => (
-                <div key={u.id} className="flex items-center justify-between p-2.5 rounded-lg"
-                  style={{ backgroundColor: colors.cream }}>
+                <div
+                  key={u.id}
+                  className="flex items-center justify-between p-2.5 rounded-lg"
+                  style={{ backgroundColor: colors.cream }}
+                >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium" style={{ color: colors.brown }}>{u.employee_name || 'Unknown'}</p>
+                    <p className="text-sm font-medium" style={{ color: colors.brown }}>
+                      {u.employee_name || 'Unknown'}
+                    </p>
                     <div className="flex items-center gap-2 flex-wrap mt-0.5">
                       {u.is_recurring ? (
                         <span className="text-xs" style={{ color: colors.orange }}>
@@ -1799,7 +2302,8 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                         </span>
                       ) : (
                         <span className="text-xs" style={{ color: colors.brownLight }}>
-                          {formatDateShort(u.start_date)}{u.start_date !== u.end_date ? ` – ${formatDateShort(u.end_date)}` : ''}
+                          {formatDateShort(u.start_date)}
+                          {u.start_date !== u.end_date ? ` – ${formatDateShort(u.end_date)}` : ''}
                         </span>
                       )}
                       {!u.all_day && u.start_time && u.end_time && (
@@ -1808,13 +2312,14 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                         </span>
                       )}
                       {u.reason && (
-                        <span className="text-xs italic" style={{ color: colors.brownLight }}>({u.reason})</span>
+                        <span className="text-xs italic" style={{ color: colors.brownLight }}>
+                          ({u.reason})
+                        </span>
                       )}
                     </div>
                   </div>
                 </div>
-              ))
-            }
+              ))}
           </CardContent>
         </Card>
       )}
@@ -1826,8 +2331,11 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
             <Plane className="w-5 h-5" style={{ color: colors.gold }} />
             My Requests
           </CardTitle>
-          <Button size="sm" onClick={() => setShowForm(!showForm)}
-            style={{ backgroundColor: colors.gold, color: colors.white }}>
+          <Button
+            size="sm"
+            onClick={() => setShowForm(!showForm)}
+            style={{ backgroundColor: colors.gold, color: colors.white }}
+          >
             <Plus className="w-4 h-4 mr-1" /> Request
           </Button>
         </CardHeader>
@@ -1838,32 +2346,46 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label style={{ color: colors.brown }}>Start Date</Label>
-                    <Input type="date" value={formData.start_date}
+                    <Input
+                      type="date"
+                      value={formData.start_date}
                       onChange={(e) => setFormData((f) => ({ ...f, start_date: e.target.value }))}
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label style={{ color: colors.brown }}>End Date</Label>
-                    <Input type="date" value={formData.end_date}
+                    <Input
+                      type="date"
+                      value={formData.end_date}
                       onChange={(e) => setFormData((f) => ({ ...f, end_date: e.target.value }))}
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                    />
                   </div>
                 </div>
-                {formData.start_date && formData.end_date && (blackoutDates || [])
-                  .filter((bd) => formData.start_date <= bd.end_date && formData.end_date >= bd.start_date)
-                  .map((bd) => (
-                    <div key={bd.id} className="flex items-start gap-2 p-2.5 rounded-lg text-sm"
-                      style={{ backgroundColor: '#fef3c7', borderLeft: '3px solid #f59e0b' }}>
-                      <span className="shrink-0">⚠️</span>
-                      <span style={{ color: '#92400e' }}>
-                        <strong>Blackout date:</strong> {bd.label} ({formatDateShort(bd.start_date)} – {formatDateShort(bd.end_date)}). You can still submit, but approval is unlikely.
-                      </span>
-                    </div>
-                  ))
-                }
+                {formData.start_date &&
+                  formData.end_date &&
+                  (blackoutDates || [])
+                    .filter((bd) => formData.start_date <= bd.end_date && formData.end_date >= bd.start_date)
+                    .map((bd) => (
+                      <div
+                        key={bd.id}
+                        className="flex items-start gap-2 p-2.5 rounded-lg text-sm"
+                        style={{ backgroundColor: '#fef3c7', borderLeft: '3px solid #f59e0b' }}
+                      >
+                        <span className="shrink-0">⚠️</span>
+                        <span style={{ color: '#92400e' }}>
+                          <strong>Blackout date:</strong> {bd.label} ({formatDateShort(bd.start_date)} –{' '}
+                          {formatDateShort(bd.end_date)}). You can still submit, but approval is unlikely.
+                        </span>
+                      </div>
+                    ))}
                 <div className="space-y-1.5">
                   <Label style={{ color: colors.brown }}>Category</Label>
-                  <Select value={formData.category} onValueChange={(v) => setFormData((f) => ({ ...f, category: v as TimeOffRequest['category'] }))}>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(v) => setFormData((f) => ({ ...f, category: v as TimeOffRequest['category'] }))}
+                  >
                     <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
                       <SelectValue />
                     </SelectTrigger>
@@ -1876,24 +2398,37 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                     </SelectContent>
                   </Select>
                   {relevantBalance && (
-                    <p className="text-xs mt-1" style={{ color: relevantBalance.available > 0 ? colors.green : colors.red }}>
+                    <p
+                      className="text-xs mt-1"
+                      style={{ color: relevantBalance.available > 0 ? colors.green : colors.red }}
+                    >
                       {relevantBalance.policyName}: {relevantBalance.available.toFixed(1)}h available
                     </p>
                   )}
                 </div>
                 <div className="space-y-1.5">
                   <Label style={{ color: colors.brown }}>Reason (optional)</Label>
-                  <Textarea value={formData.reason} placeholder="Why you need time off..."
+                  <Textarea
+                    value={formData.reason}
+                    placeholder="Why you need time off..."
                     onChange={(e) => setFormData((f) => ({ ...f, reason: e.target.value }))}
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} rows={2} />
+                    style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                    rows={2}
+                  />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={handleSubmitRequest} disabled={createRequest.isPending}
-                    style={{ backgroundColor: colors.gold, color: colors.white }}>
+                  <Button
+                    onClick={handleSubmitRequest}
+                    disabled={createRequest.isPending}
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
+                  >
                     Submit Request
                   </Button>
-                  <Button variant="outline" onClick={() => setShowForm(false)}
-                    style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowForm(false)}
+                    style={{ borderColor: colors.creamDark, color: colors.brown }}
+                  >
                     Cancel
                   </Button>
                 </div>
@@ -1901,17 +2436,23 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
             </Card>
           )}
 
-          {(!myRequests || myRequests.length === 0) ? (
+          {!myRequests || myRequests.length === 0 ? (
             <p className="text-sm py-4 text-center" style={{ color: colors.brownLight }}>
               No time-off requests yet.
             </p>
           ) : (
             myRequests.map((r) => (
-              <div key={r.id} className="flex items-center justify-between p-3 rounded-lg"
-                style={{ backgroundColor: colors.cream }}>
+              <div
+                key={r.id}
+                className="flex items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: colors.cream }}
+              >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" style={{ borderColor: statusColor(r.status), color: statusColor(r.status) }}>
+                    <Badge
+                      variant="outline"
+                      style={{ borderColor: statusColor(r.status), color: statusColor(r.status) }}
+                    >
                       {r.status}
                     </Badge>
                     <Badge variant="outline" style={{ borderColor: colors.creamDark, color: colors.brown }}>
@@ -1921,7 +2462,11 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                   <p className="text-sm mt-1" style={{ color: colors.brown }}>
                     {formatDateShort(r.start_date)} – {formatDateShort(r.end_date)}
                   </p>
-                  {r.reason && <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>{r.reason}</p>}
+                  {r.reason && (
+                    <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+                      {r.reason}
+                    </p>
+                  )}
                   {r.review_notes && (
                     <p className="text-xs mt-0.5 italic" style={{ color: colors.brownLight }}>
                       Note: {r.review_notes}
@@ -1929,8 +2474,12 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                   )}
                 </div>
                 {r.status === 'pending' && (
-                  <Button variant="ghost" size="sm" onClick={() => cancelRequest.mutate(r.id)}
-                    style={{ color: colors.red }}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => cancelRequest.mutate(r.id)}
+                    style={{ color: colors.red }}
+                  >
                     <X className="w-4 h-4" />
                   </Button>
                 )}
@@ -1957,8 +2506,12 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
               <span className="text-lg leading-none">⛔</span>
               Blackout Dates
             </CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setShowBlackoutForm((v) => !v)}
-              style={{ borderColor: colors.creamDark, color: colors.brown }}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowBlackoutForm((v) => !v)}
+              style={{ borderColor: colors.creamDark, color: colors.brown }}
+            >
               <Plus className="w-4 h-4 mr-1" /> Add
             </Button>
           </CardHeader>
@@ -1967,80 +2520,117 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
               <Card style={{ backgroundColor: colors.cream }}>
                 <CardContent className="space-y-3 pt-4">
                   <div className="space-y-1.5">
-                    <Label style={{ color: colors.brown }}>Label <span style={{ color: colors.red }}>*</span></Label>
-                    <Input value={blackoutForm.label} placeholder="e.g. Black Friday, Holiday Rush"
+                    <Label style={{ color: colors.brown }}>
+                      Label <span style={{ color: colors.red }}>*</span>
+                    </Label>
+                    <Input
+                      value={blackoutForm.label}
+                      placeholder="e.g. Black Friday, Holiday Rush"
                       onChange={(e) => setBlackoutForm((f) => ({ ...f, label: e.target.value }))}
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label style={{ color: colors.brown }}>Start Date</Label>
-                      <Input type="date" value={blackoutForm.start_date}
+                      <Input
+                        type="date"
+                        value={blackoutForm.start_date}
                         onChange={(e) => setBlackoutForm((f) => ({ ...f, start_date: e.target.value }))}
-                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                      />
                     </div>
                     <div className="space-y-1.5">
                       <Label style={{ color: colors.brown }}>End Date</Label>
-                      <Input type="date" value={blackoutForm.end_date}
+                      <Input
+                        type="date"
+                        value={blackoutForm.end_date}
                         onChange={(e) => setBlackoutForm((f) => ({ ...f, end_date: e.target.value }))}
-                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                      />
                     </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label style={{ color: colors.brown }}>Reason (optional)</Label>
-                    <Input value={blackoutForm.reason} placeholder="Internal note..."
+                    <Input
+                      value={blackoutForm.reason}
+                      placeholder="Internal note..."
                       onChange={(e) => setBlackoutForm((f) => ({ ...f, reason: e.target.value }))}
-                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} />
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                    />
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={async () => {
-                      if (!blackoutForm.label || !blackoutForm.start_date || !blackoutForm.end_date) {
-                        toast({ title: 'Label and dates are required', variant: 'destructive' });
-                        return;
-                      }
-                      try {
-                        await createBlackout.mutateAsync({
-                          label: blackoutForm.label,
-                          start_date: blackoutForm.start_date,
-                          end_date: blackoutForm.end_date,
-                          reason: blackoutForm.reason || null,
-                        });
-                        toast({ title: 'Blackout date saved' });
-                        setShowBlackoutForm(false);
-                        setBlackoutForm({ label: '', start_date: '', end_date: '', reason: '' });
-                      } catch {
-                        toast({ title: 'Error', description: 'Failed to save blackout date.', variant: 'destructive' });
-                      }
-                    }} disabled={createBlackout.isPending}
-                      style={{ backgroundColor: colors.gold, color: colors.white }}>
+                    <Button
+                      onClick={async () => {
+                        if (!blackoutForm.label || !blackoutForm.start_date || !blackoutForm.end_date) {
+                          toast({ title: 'Label and dates are required', variant: 'destructive' });
+                          return;
+                        }
+                        try {
+                          await createBlackout.mutateAsync({
+                            label: blackoutForm.label,
+                            start_date: blackoutForm.start_date,
+                            end_date: blackoutForm.end_date,
+                            reason: blackoutForm.reason || null,
+                          });
+                          toast({ title: 'Blackout date saved' });
+                          setShowBlackoutForm(false);
+                          setBlackoutForm({ label: '', start_date: '', end_date: '', reason: '' });
+                        } catch {
+                          toast({
+                            title: 'Error',
+                            description: 'Failed to save blackout date.',
+                            variant: 'destructive',
+                          });
+                        }
+                      }}
+                      disabled={createBlackout.isPending}
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                    >
                       Save
                     </Button>
-                    <Button variant="outline" onClick={() => setShowBlackoutForm(false)}
-                      style={{ borderColor: colors.creamDark, color: colors.brown }}>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowBlackoutForm(false)}
+                      style={{ borderColor: colors.creamDark, color: colors.brown }}
+                    >
                       Cancel
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             )}
-            {(!blackoutDates || blackoutDates.length === 0) ? (
+            {!blackoutDates || blackoutDates.length === 0 ? (
               <p className="text-sm py-4 text-center" style={{ color: colors.brownLight }}>
                 No blackout dates set.
               </p>
             ) : (
               blackoutDates.map((bd) => (
-                <div key={bd.id} className="flex items-center justify-between p-3 rounded-lg"
-                  style={{ backgroundColor: colors.cream }}>
+                <div
+                  key={bd.id}
+                  className="flex items-center justify-between p-3 rounded-lg"
+                  style={{ backgroundColor: colors.cream }}
+                >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium" style={{ color: colors.brown }}>⛔ {bd.label}</p>
+                    <p className="text-sm font-medium" style={{ color: colors.brown }}>
+                      ⛔ {bd.label}
+                    </p>
                     <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
                       {formatDateShort(bd.start_date)} – {formatDateShort(bd.end_date)}
                     </p>
-                    {bd.reason && <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>{bd.reason}</p>}
+                    {bd.reason && (
+                      <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+                        {bd.reason}
+                      </p>
+                    )}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => deleteBlackout.mutate(bd.id)}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteBlackout.mutate(bd.id)}
                     disabled={deleteBlackout.isPending}
-                    style={{ color: colors.red }}>
+                    style={{ color: colors.red }}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -2078,9 +2668,14 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                         {r.employee_name || 'Unknown'}
                       </p>
                       <p className="text-xs" style={{ color: colors.brownLight }}>
-                        {categoryLabel(r.category)} &middot; {formatDateShort(r.start_date)} – {formatDateShort(r.end_date)}
+                        {categoryLabel(r.category)} &middot; {formatDateShort(r.start_date)} –{' '}
+                        {formatDateShort(r.end_date)}
                       </p>
-                      {r.reason && <p className="text-xs" style={{ color: colors.brownLight }}>{r.reason}</p>}
+                      {r.reason && (
+                        <p className="text-xs" style={{ color: colors.brownLight }}>
+                          {r.reason}
+                        </p>
+                      )}
                       {(() => {
                         const bal = getEmployeeBalance(r.employee_id, r.category);
                         if (bal === null) return null;
@@ -2100,14 +2695,21 @@ function TimeOffTab({ tenantId, canApprove, currentUserId, isManager, employees 
                       className="text-xs h-8 flex-1"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                     />
-                    <Button size="sm" onClick={() => handleReview(r.id, 'approved')}
+                    <Button
+                      size="sm"
+                      onClick={() => handleReview(r.id, 'approved')}
                       disabled={reviewRequest.isPending}
-                      style={{ backgroundColor: colors.green, color: '#fff' }}>
+                      style={{ backgroundColor: colors.green, color: '#fff' }}
+                    >
                       <Check className="w-3 h-3 mr-1" /> Approve
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleReview(r.id, 'denied')}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleReview(r.id, 'denied')}
                       disabled={reviewRequest.isPending}
-                      style={{ borderColor: colors.red, color: colors.red }}>
+                      style={{ borderColor: colors.red, color: colors.red }}
+                    >
                       <X className="w-3 h-3 mr-1" /> Deny
                     </Button>
                   </div>
@@ -2130,9 +2732,12 @@ export default function CalendarWorkforce() {
   const { toast } = useToast();
 
   const activeTab = (new URLSearchParams(searchString).get('tab') || 'schedule') as TabType;
-  const setActiveTab = useCallback((tab: TabType) => {
-    setLocation(`/calendar-workforce?tab=${tab}`);
-  }, [setLocation]);
+  const setActiveTab = useCallback(
+    (tab: TabType) => {
+      setLocation(`/calendar-workforce?tab=${tab}`);
+    },
+    [setLocation]
+  );
 
   const isManager = hasRole('manager');
 
@@ -2194,30 +2799,34 @@ export default function CalendarWorkforce() {
         <div className="flex items-center gap-3">
           <CalendarDays className="w-6 h-6" style={{ color: colors.gold }} />
           <div>
-            <h1 className="text-xl font-bold" style={{ color: colors.brown }}>Personnel</h1>
+            <h1 className="text-xl font-bold" style={{ color: colors.brown }}>
+              Personnel
+            </h1>
             <p className="text-sm" style={{ color: colors.brownLight }}>
-              {tenant.parent_tenant_id ? tenant.name : (branding?.company_name || tenant.name)}
+              {tenant.parent_tenant_id ? tenant.name : branding?.company_name || tenant.name}
             </p>
           </div>
         </div>
 
         {/* Tab buttons */}
         <div className="flex gap-2 flex-wrap">
-          {tabs.filter((t) => t.show).map((t) => (
-            <Button
-              key={t.key}
-              variant={activeTab === t.key ? 'default' : 'outline'}
-              onClick={() => setActiveTab(t.key)}
-              style={
-                activeTab === t.key
-                  ? { backgroundColor: colors.gold, color: colors.white }
-                  : { borderColor: colors.gold, color: colors.brown }
-              }
-            >
-              <t.icon className="w-4 h-4 mr-2" />
-              {t.label}
-            </Button>
-          ))}
+          {tabs
+            .filter((t) => t.show)
+            .map((t) => (
+              <Button
+                key={t.key}
+                variant={activeTab === t.key ? 'default' : 'outline'}
+                onClick={() => setActiveTab(t.key)}
+                style={
+                  activeTab === t.key
+                    ? { backgroundColor: colors.gold, color: colors.white }
+                    : { borderColor: colors.gold, color: colors.brown }
+                }
+              >
+                <t.icon className="w-4 h-4 mr-2" />
+                {t.label}
+              </Button>
+            ))}
         </div>
 
         {/* Tab content */}

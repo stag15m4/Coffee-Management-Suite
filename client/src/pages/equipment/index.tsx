@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { useSearch, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,24 +37,30 @@ import { MaintenanceDue } from './MaintenanceDue';
 import { EquipmentList } from './EquipmentList';
 import { EquipmentForm } from './EquipmentForm';
 import { TaskForm } from './TaskForm';
-import {
-  LogMaintenanceModal,
-  EditLastServicedModal,
-  EditTaskModal,
-} from './LogMaintenanceModal';
+import { LogMaintenanceModal, EditLastServicedModal, EditTaskModal } from './LogMaintenanceModal';
 
 export default function EquipmentMaintenance() {
   const { profile, tenant, branding, primaryTenant } = useAuth();
 
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
-  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const displayName = isChildLocation ? tenant?.name : branding?.company_name || tenant?.name || 'Erwin Mills Coffee';
   const orgName = primaryTenant?.name || branding?.company_name || '';
   const { toast } = useToast();
   const { confirm, ConfirmDialog } = useConfirmDialog();
 
-  const { data: equipment = [], isLoading: loadingEquipment, error: equipmentError, isError: equipmentHasError } = useEquipment(tenant?.id);
-  const { data: tasks = [], isLoading: loadingTasks, error: tasksError, isError: tasksHasError } = useMaintenanceTasks(tenant?.id);
+  const {
+    data: equipment = [],
+    isLoading: loadingEquipment,
+    error: equipmentError,
+    isError: equipmentHasError,
+  } = useEquipment(tenant?.id);
+  const {
+    data: tasks = [],
+    isLoading: loadingTasks,
+    error: tasksError,
+    isError: tasksHasError,
+  } = useMaintenanceTasks(tenant?.id);
 
   // Load active team members for vehicle assignment
   const { data: teamMembers = [] } = useQuery({
@@ -105,51 +112,54 @@ export default function EquipmentMaintenance() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const withRetry = useCallback(async <T,>(
-    operationFn: () => PromiseLike<T>,
-    timeoutMs: number = 30000,
-    retries: number = 2
-  ): Promise<T> => {
-    let lastError: Error | null = null;
+  const withRetry = useCallback(
+    async <T,>(operationFn: () => PromiseLike<T>, timeoutMs: number = 30000, retries: number = 2): Promise<T> => {
+      let lastError: Error | null = null;
 
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      let timeoutId: ReturnType<typeof setTimeout> | null = null;
-      try {
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('Request timed out. Please try again.')), timeoutMs);
-        });
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        try {
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('Request timed out. Please try again.')), timeoutMs);
+          });
 
-        const result = await Promise.race([
-          Promise.resolve(operationFn()),
-          timeoutPromise
-        ]);
-        if (timeoutId) clearTimeout(timeoutId);
-        return result;
-      } catch (err) {
-        if (timeoutId) clearTimeout(timeoutId);
-        lastError = err as Error;
-        const msg = lastError.message?.toLowerCase() || '';
-        const isNetworkError = msg.includes('network') || msg.includes('fetch') ||
-          msg.includes('load failed') || msg.includes('timeout') || msg.includes('connection');
+          const result = await Promise.race([Promise.resolve(operationFn()), timeoutPromise]);
+          if (timeoutId) clearTimeout(timeoutId);
+          return result;
+        } catch (err) {
+          if (timeoutId) clearTimeout(timeoutId);
+          lastError = err as Error;
+          const msg = lastError.message?.toLowerCase() || '';
+          const isNetworkError =
+            msg.includes('network') ||
+            msg.includes('fetch') ||
+            msg.includes('load failed') ||
+            msg.includes('timeout') ||
+            msg.includes('connection');
 
-        if (isNetworkError && attempt < retries) {
-          console.log(`[Save] Retry attempt ${attempt + 1}/${retries}...`);
-          await supabase.auth.refreshSession();
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-          continue;
+          if (isNetworkError && attempt < retries) {
+            console.log(`[Save] Retry attempt ${attempt + 1}/${retries}...`);
+            await supabase.auth.refreshSession();
+            await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+            continue;
+          }
+          throw lastError;
         }
-        throw lastError;
       }
-    }
-    throw lastError;
-  }, []);
+      throw lastError;
+    },
+    []
+  );
 
   const searchString = useSearch();
   const [, setLocation] = useLocation();
   const activeTab = (new URLSearchParams(searchString).get('tab') || 'dashboard') as 'dashboard' | 'equipment';
-  const setActiveTab = useCallback((tab: 'dashboard' | 'equipment') => {
-    setLocation(`/equipment-maintenance?tab=${tab}`);
-  }, [setLocation]);
+  const setActiveTab = useCallback(
+    (tab: 'dashboard' | 'equipment') => {
+      setLocation(`/equipment-maintenance?tab=${tab}`);
+    },
+    [setLocation]
+  );
   const [showAddEquipment, setShowAddEquipment] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
@@ -236,17 +246,17 @@ export default function EquipmentMaintenance() {
         .from('equipment-photos')
         .upload(fileName, file, { cacheControl: '3600', upsert: false });
       if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage
-        .from('equipment-photos')
-        .getPublicUrl(fileName);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('equipment-photos').getPublicUrl(fileName);
       if (mode === 'new') {
         setNewEquipmentPhotoUrl(publicUrl);
       } else if (editingEquipment) {
         setEditingEquipment({ ...editingEquipment, photo_url: publicUrl });
       }
       toast({ title: 'Photo uploaded' });
-    } catch (error: any) {
-      toast({ title: 'Photo upload failed', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Photo upload failed', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setUploading(false);
     }
@@ -274,17 +284,17 @@ export default function EquipmentMaintenance() {
         .from('equipment-photos')
         .upload(fileName, file, { cacheControl: '3600', upsert: false });
       if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage
-        .from('equipment-photos')
-        .getPublicUrl(fileName);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('equipment-photos').getPublicUrl(fileName);
       if (mode === 'new') {
         setNewTaskImageUrl(publicUrl);
       } else {
         setEditTaskImageUrl(publicUrl);
       }
       toast({ title: 'Task photo uploaded' });
-    } catch (error: any) {
-      toast({ title: 'Photo upload failed', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Photo upload failed', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setUploading(false);
     }
@@ -298,13 +308,13 @@ export default function EquipmentMaintenance() {
         .from('equipment-photos')
         .upload(fileName, file, { cacheControl: '3600', upsert: false });
       if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage
-        .from('equipment-photos')
-        .getPublicUrl(fileName);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('equipment-photos').getPublicUrl(fileName);
       await updateTaskMutation.mutateAsync({ id: taskId, updates: { image_url: publicUrl } });
       toast({ title: 'Task photo uploaded' });
-    } catch (error: any) {
-      toast({ title: 'Photo upload failed', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Photo upload failed', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -312,8 +322,8 @@ export default function EquipmentMaintenance() {
     try {
       await updateTaskMutation.mutateAsync({ id: taskId, updates: { image_url: null } });
       toast({ title: 'Task photo removed' });
-    } catch (error: any) {
-      toast({ title: 'Failed to remove photo', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Failed to remove photo', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -330,7 +340,7 @@ export default function EquipmentMaintenance() {
   const isManagerOrAbove = profile?.role === 'owner' || profile?.role === 'manager';
   const myTasks = useMemo(() => {
     if (isManagerOrAbove) return tasks; // owners/managers see everything
-    return tasks.filter(t => {
+    return tasks.filter((t) => {
       const assignedTo = t.equipment?.assigned_to;
       if (!assignedTo) return true; // unassigned equipment → visible to all
       return assignedTo === profile?.id; // assigned vehicle → only visible to assignee
@@ -338,7 +348,7 @@ export default function EquipmentMaintenance() {
   }, [tasks, profile?.id, isManagerOrAbove]);
 
   const sortedTasks = useMemo(() => {
-    const statusPriority: Record<TaskStatus, number> = { 'overdue': 0, 'due-soon': 1, 'good': 2 };
+    const statusPriority: Record<TaskStatus, number> = { overdue: 0, 'due-soon': 1, good: 2 };
     return [...myTasks].sort((a, b) => {
       const aPriority = statusPriority[getTaskStatus(a)];
       const bPriority = statusPriority[getTaskStatus(b)];
@@ -351,8 +361,8 @@ export default function EquipmentMaintenance() {
     });
   }, [myTasks]);
 
-  const overdueCount = sortedTasks.filter(t => getTaskStatus(t) === 'overdue').length;
-  const dueSoonCount = sortedTasks.filter(t => getTaskStatus(t) === 'due-soon').length;
+  const overdueCount = sortedTasks.filter((t) => getTaskStatus(t) === 'overdue').length;
+  const dueSoonCount = sortedTasks.filter((t) => getTaskStatus(t) === 'due-soon').length;
 
   const handleAddEquipment = async () => {
     if (!newEquipmentName.trim()) {
@@ -379,25 +389,38 @@ export default function EquipmentMaintenance() {
     setIsSaving(true);
     setSaveError(null);
     try {
-      await withRetry(() => addEquipmentMutation.mutateAsync({
-        tenant_id: tenant.id,
-        name: newEquipmentName.trim(),
-        category: newEquipmentCategory.trim() || undefined,
-        notes: newEquipmentNotes.trim() || undefined,
-        has_warranty: newEquipmentHasWarranty,
-        purchase_date: newEquipmentHasWarranty && newEquipmentPurchaseDate ? newEquipmentPurchaseDate : undefined,
-        warranty_duration_months: newEquipmentHasWarranty && newEquipmentWarrantyMonths ? parseInt(newEquipmentWarrantyMonths) : undefined,
-        warranty_notes: newEquipmentHasWarranty && newEquipmentWarrantyNotes.trim() ? newEquipmentWarrantyNotes.trim() : undefined,
-        photo_url: newEquipmentPhotoUrl || undefined,
-        in_service_date: newEquipmentInServiceDate || undefined,
-        license_state: isVehicle(newEquipmentCategory) && newEquipmentLicenseState ? newEquipmentLicenseState : undefined,
-        license_plate: isVehicle(newEquipmentCategory) && newEquipmentLicensePlate ? newEquipmentLicensePlate : undefined,
-        vin: isVehicle(newEquipmentCategory) && newEquipmentVin ? newEquipmentVin : undefined,
-        current_mileage: isVehicle(newEquipmentCategory) && newEquipmentMileage ? parseInt(newEquipmentMileage) : undefined,
-        model: !isVehicle(newEquipmentCategory) && newEquipmentModel.trim() ? newEquipmentModel.trim() : undefined,
-        serial_number: !isVehicle(newEquipmentCategory) && newEquipmentSerialNumber.trim() ? newEquipmentSerialNumber.trim() : undefined,
-        assigned_to: isVehicle(newEquipmentCategory) && newEquipmentAssignedTo && newEquipmentAssignedTo !== '__none__' ? newEquipmentAssignedTo : undefined,
-      }));
+      await withRetry(() =>
+        addEquipmentMutation.mutateAsync({
+          tenant_id: tenant.id,
+          name: newEquipmentName.trim(),
+          category: newEquipmentCategory.trim() || undefined,
+          notes: newEquipmentNotes.trim() || undefined,
+          has_warranty: newEquipmentHasWarranty,
+          purchase_date: newEquipmentHasWarranty && newEquipmentPurchaseDate ? newEquipmentPurchaseDate : undefined,
+          warranty_duration_months:
+            newEquipmentHasWarranty && newEquipmentWarrantyMonths ? parseInt(newEquipmentWarrantyMonths) : undefined,
+          warranty_notes:
+            newEquipmentHasWarranty && newEquipmentWarrantyNotes.trim() ? newEquipmentWarrantyNotes.trim() : undefined,
+          photo_url: newEquipmentPhotoUrl || undefined,
+          in_service_date: newEquipmentInServiceDate || undefined,
+          license_state:
+            isVehicle(newEquipmentCategory) && newEquipmentLicenseState ? newEquipmentLicenseState : undefined,
+          license_plate:
+            isVehicle(newEquipmentCategory) && newEquipmentLicensePlate ? newEquipmentLicensePlate : undefined,
+          vin: isVehicle(newEquipmentCategory) && newEquipmentVin ? newEquipmentVin : undefined,
+          current_mileage:
+            isVehicle(newEquipmentCategory) && newEquipmentMileage ? parseInt(newEquipmentMileage) : undefined,
+          model: !isVehicle(newEquipmentCategory) && newEquipmentModel.trim() ? newEquipmentModel.trim() : undefined,
+          serial_number:
+            !isVehicle(newEquipmentCategory) && newEquipmentSerialNumber.trim()
+              ? newEquipmentSerialNumber.trim()
+              : undefined,
+          assigned_to:
+            isVehicle(newEquipmentCategory) && newEquipmentAssignedTo && newEquipmentAssignedTo !== '__none__'
+              ? newEquipmentAssignedTo
+              : undefined,
+        })
+      );
 
       setNewEquipmentName('');
       setNewEquipmentCategory('');
@@ -417,66 +440,73 @@ export default function EquipmentMaintenance() {
       setNewEquipmentAssignedTo('');
       setShowAddEquipment(false);
       toast({ title: 'Equipment added successfully' });
-    } catch (error: any) {
-      setSaveError(error.message);
-      toast({ title: 'Error adding equipment', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      setSaveError(getErrorMessage(error));
+      toast({ title: 'Error adding equipment', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const saveEquipment = useCallback(async (closeAfterSave: boolean) => {
-    if (!editingEquipment) return;
+  const saveEquipment = useCallback(
+    async (closeAfterSave: boolean) => {
+      if (!editingEquipment) return;
 
-    if (editingEquipment.has_warranty) {
-      if (!editingEquipment.purchase_date) {
-        toast({ title: 'Please enter purchase date for warranty tracking', variant: 'destructive' });
-        return;
-      }
-      if (!editingEquipment.warranty_duration_months || editingEquipment.warranty_duration_months <= 0) {
-        toast({ title: 'Please enter warranty duration in months', variant: 'destructive' });
-        return;
-      }
-    }
-
-    setIsSaving(true);
-    setSaveError(null);
-    try {
-      await withRetry(() => updateEquipmentMutation.mutateAsync({
-        id: editingEquipment.id,
-        updates: {
-          name: editingEquipment.name,
-          category: editingEquipment.category,
-          notes: editingEquipment.notes,
-          has_warranty: editingEquipment.has_warranty,
-          purchase_date: editingEquipment.has_warranty ? editingEquipment.purchase_date : null,
-          warranty_duration_months: editingEquipment.has_warranty ? editingEquipment.warranty_duration_months : null,
-          warranty_notes: editingEquipment.has_warranty ? editingEquipment.warranty_notes : null,
-          photo_url: editingEquipment.photo_url,
-          in_service_date: editingEquipment.in_service_date,
-          license_state: isVehicle(editingEquipment.category) ? editingEquipment.license_state : null,
-          license_plate: isVehicle(editingEquipment.category) ? editingEquipment.license_plate : null,
-          vin: isVehicle(editingEquipment.category) ? editingEquipment.vin : null,
-          current_mileage: isVehicle(editingEquipment.category) ? editingEquipment.current_mileage : null,
-          model: !isVehicle(editingEquipment.category) ? editingEquipment.model : null,
-          serial_number: !isVehicle(editingEquipment.category) ? editingEquipment.serial_number : null,
+      if (editingEquipment.has_warranty) {
+        if (!editingEquipment.purchase_date) {
+          toast({ title: 'Please enter purchase date for warranty tracking', variant: 'destructive' });
+          return;
         }
-      }));
-
-      // Update original ref so changes are no longer "unsaved"
-      originalEquipmentRef.current = { ...editingEquipment };
-
-      if (closeAfterSave) {
-        setEditingEquipment(null);
+        if (!editingEquipment.warranty_duration_months || editingEquipment.warranty_duration_months <= 0) {
+          toast({ title: 'Please enter warranty duration in months', variant: 'destructive' });
+          return;
+        }
       }
-      toast({ title: 'Equipment updated successfully' });
-    } catch (error: any) {
-      setSaveError(error.message);
-      toast({ title: 'Error updating equipment', description: error.message, variant: 'destructive' });
-    } finally {
-      setIsSaving(false);
-    }
-  }, [editingEquipment, toast, withRetry, updateEquipmentMutation, setEditingEquipment]);
+
+      setIsSaving(true);
+      setSaveError(null);
+      try {
+        await withRetry(() =>
+          updateEquipmentMutation.mutateAsync({
+            id: editingEquipment.id,
+            updates: {
+              name: editingEquipment.name,
+              category: editingEquipment.category,
+              notes: editingEquipment.notes,
+              has_warranty: editingEquipment.has_warranty,
+              purchase_date: editingEquipment.has_warranty ? editingEquipment.purchase_date : null,
+              warranty_duration_months: editingEquipment.has_warranty
+                ? editingEquipment.warranty_duration_months
+                : null,
+              warranty_notes: editingEquipment.has_warranty ? editingEquipment.warranty_notes : null,
+              photo_url: editingEquipment.photo_url,
+              in_service_date: editingEquipment.in_service_date,
+              license_state: isVehicle(editingEquipment.category) ? editingEquipment.license_state : null,
+              license_plate: isVehicle(editingEquipment.category) ? editingEquipment.license_plate : null,
+              vin: isVehicle(editingEquipment.category) ? editingEquipment.vin : null,
+              current_mileage: isVehicle(editingEquipment.category) ? editingEquipment.current_mileage : null,
+              model: !isVehicle(editingEquipment.category) ? editingEquipment.model : null,
+              serial_number: !isVehicle(editingEquipment.category) ? editingEquipment.serial_number : null,
+            },
+          })
+        );
+
+        // Update original ref so changes are no longer "unsaved"
+        originalEquipmentRef.current = { ...editingEquipment };
+
+        if (closeAfterSave) {
+          setEditingEquipment(null);
+        }
+        toast({ title: 'Equipment updated successfully' });
+      } catch (error: unknown) {
+        setSaveError(getErrorMessage(error));
+        toast({ title: 'Error updating equipment', description: getErrorMessage(error), variant: 'destructive' });
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [editingEquipment, toast, withRetry, updateEquipmentMutation, setEditingEquipment]
+  );
 
   const handleUpdateEquipment = useCallback(() => saveEquipment(true), [saveEquipment]);
 
@@ -502,24 +532,35 @@ export default function EquipmentMaintenance() {
     setEditingEquipment(null);
   }, [hasUnsavedEquipmentChanges, saveEquipment, confirm, setEditingEquipment]);
 
-  const handleEditEquipment = useCallback(async (item: Equipment) => {
-    if (editingEquipment && editingEquipment.id !== item.id && hasUnsavedEquipmentChanges()) {
-      const shouldSave = await confirm({
-        title: 'Unsaved Changes',
-        description: `You have unsaved changes to "${editingEquipment.name}". Would you like to save them?`,
-        confirmLabel: 'Save',
-        cancelLabel: 'Discard',
-      });
-      if (shouldSave) {
-        await saveEquipment(false);
+  const handleEditEquipment = useCallback(
+    async (item: Equipment) => {
+      if (editingEquipment && editingEquipment.id !== item.id && hasUnsavedEquipmentChanges()) {
+        const shouldSave = await confirm({
+          title: 'Unsaved Changes',
+          description: `You have unsaved changes to "${editingEquipment.name}". Would you like to save them?`,
+          confirmLabel: 'Save',
+          cancelLabel: 'Discard',
+        });
+        if (shouldSave) {
+          await saveEquipment(false);
+        }
       }
-    }
-    setEditingEquipment(item);
-  }, [editingEquipment, hasUnsavedEquipmentChanges, confirm, saveEquipment, setEditingEquipment]);
+      setEditingEquipment(item);
+    },
+    [editingEquipment, hasUnsavedEquipmentChanges, confirm, saveEquipment, setEditingEquipment]
+  );
 
   const handleDeleteEquipment = async (id: string) => {
-    const name = equipment.find(e => e.id === id)?.name || 'this equipment';
-    if (!await confirm({ title: `Remove ${name}?`, description: 'All related maintenance tasks will also be removed.', confirmLabel: 'Remove', variant: 'destructive' })) return;
+    const name = equipment.find((e) => e.id === id)?.name || 'this equipment';
+    if (
+      !(await confirm({
+        title: `Remove ${name}?`,
+        description: 'All related maintenance tasks will also be removed.',
+        confirmLabel: 'Remove',
+        variant: 'destructive',
+      }))
+    )
+      return;
 
     try {
       await deleteEquipmentMutation.mutateAsync(id);
@@ -528,8 +569,8 @@ export default function EquipmentMaintenance() {
         undo: { type: 'soft-reactivate', table: 'equipment', id },
         invalidateKeys: [queryKeys.equipment, queryKeys.maintenanceTasks],
       });
-    } catch (error: any) {
-      toast({ title: 'Error removing equipment', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error removing equipment', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -569,21 +610,23 @@ export default function EquipmentMaintenance() {
         next_due_at = dueDate.toISOString();
       }
 
-      await withRetry(() => addTaskMutation.mutateAsync({
-        tenant_id: tenant.id,
-        equipment_id: newTaskEquipmentId,
-        name: newTaskName.trim(),
-        description: newTaskDescription.trim() || undefined,
-        image_url: newTaskImageUrl || undefined,
-        interval_type: newTaskIntervalType,
-        interval_days: newTaskIntervalType === 'time' ? parseInt(newTaskIntervalDays) : undefined,
-        interval_units: newTaskIntervalType === 'usage' ? parseInt(newTaskIntervalUnits) : undefined,
-        usage_unit_label: newTaskIntervalType === 'usage' ? newTaskUsageLabel.trim() : undefined,
-        current_usage: 0,
-        last_completed_at,
-        next_due_at,
-        estimated_cost: newTaskEstimatedCost ? parseFloat(newTaskEstimatedCost) : undefined,
-      }));
+      await withRetry(() =>
+        addTaskMutation.mutateAsync({
+          tenant_id: tenant.id,
+          equipment_id: newTaskEquipmentId,
+          name: newTaskName.trim(),
+          description: newTaskDescription.trim() || undefined,
+          image_url: newTaskImageUrl || undefined,
+          interval_type: newTaskIntervalType,
+          interval_days: newTaskIntervalType === 'time' ? parseInt(newTaskIntervalDays) : undefined,
+          interval_units: newTaskIntervalType === 'usage' ? parseInt(newTaskIntervalUnits) : undefined,
+          usage_unit_label: newTaskIntervalType === 'usage' ? newTaskUsageLabel.trim() : undefined,
+          current_usage: 0,
+          last_completed_at,
+          next_due_at,
+          estimated_cost: newTaskEstimatedCost ? parseFloat(newTaskEstimatedCost) : undefined,
+        })
+      );
 
       setNewTaskEquipmentId('');
       setNewTaskName('');
@@ -597,9 +640,9 @@ export default function EquipmentMaintenance() {
       setNewTaskImageUrl('');
       setShowAddTask(false);
       toast({ title: 'Maintenance task added successfully' });
-    } catch (error: any) {
-      setSaveError(error.message);
-      toast({ title: 'Error adding task', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      setSaveError(getErrorMessage(error));
+      toast({ title: 'Error adding task', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
@@ -616,18 +659,19 @@ export default function EquipmentMaintenance() {
     setIsSaving(true);
     setSaveError(null);
     try {
-      await withRetry(() => logMaintenanceMutation.mutateAsync({
-        tenantId: tenant.id,
-        taskId: completingTask.id,
-        completedBy: profile?.full_name || profile?.email,
-        notes: completionNotes.trim() || undefined,
-        usageAtCompletion: completingTask.interval_type === 'usage' && completionUsage
-          ? parseInt(completionUsage)
-          : undefined,
-        cost: completionCost ? parseFloat(completionCost) : undefined,
-        completedAt: isHistoricalEntry && completionDate ? new Date(completionDate).toISOString() : undefined,
-        mileageAtCompletion: completionMileage ? parseInt(completionMileage) : undefined,
-      }));
+      await withRetry(() =>
+        logMaintenanceMutation.mutateAsync({
+          tenantId: tenant.id,
+          taskId: completingTask.id,
+          completedBy: profile?.full_name || profile?.email,
+          notes: completionNotes.trim() || undefined,
+          usageAtCompletion:
+            completingTask.interval_type === 'usage' && completionUsage ? parseInt(completionUsage) : undefined,
+          cost: completionCost ? parseFloat(completionCost) : undefined,
+          completedAt: isHistoricalEntry && completionDate ? new Date(completionDate).toISOString() : undefined,
+          mileageAtCompletion: completionMileage ? parseInt(completionMileage) : undefined,
+        })
+      );
 
       setCompletingTask(null);
       setCompletionNotes('');
@@ -637,18 +681,26 @@ export default function EquipmentMaintenance() {
       setCompletionDate('');
       setIsHistoricalEntry(false);
       toast({ title: 'Maintenance logged successfully' });
-    } catch (error: any) {
-      setSaveError(error.message);
-      toast({ title: 'Error logging maintenance', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      setSaveError(getErrorMessage(error));
+      toast({ title: 'Error logging maintenance', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteTask = async (id: string) => {
-    const task = tasks.find(t => t.id === id);
+    const task = tasks.find((t) => t.id === id);
     const name = task?.name || 'this maintenance task';
-    if (!await confirm({ title: `Remove ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Remove', variant: 'destructive' })) return;
+    if (
+      !(await confirm({
+        title: `Remove ${name}?`,
+        description: 'This cannot be undone.',
+        confirmLabel: 'Remove',
+        variant: 'destructive',
+      }))
+    )
+      return;
 
     try {
       await deleteTaskMutation.mutateAsync(id);
@@ -657,8 +709,8 @@ export default function EquipmentMaintenance() {
         undo: { type: 'soft-reactivate', table: 'maintenance_tasks', id },
         invalidateKeys: [queryKeys.maintenanceTasks],
       });
-    } catch (error: any) {
-      toast({ title: 'Error removing task', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error removing task', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -681,20 +733,22 @@ export default function EquipmentMaintenance() {
         next_due_at = dueDate.toISOString();
       }
 
-      await withRetry(() => updateTaskMutation.mutateAsync({
-        id: editingTaskLastServiced.id,
-        updates: {
-          last_completed_at: lastServiced.toISOString(),
-          next_due_at,
-        }
-      }));
+      await withRetry(() =>
+        updateTaskMutation.mutateAsync({
+          id: editingTaskLastServiced.id,
+          updates: {
+            last_completed_at: lastServiced.toISOString(),
+            next_due_at,
+          },
+        })
+      );
 
       setEditingTaskLastServiced(null);
       setEditLastServicedDate('');
       toast({ title: 'Last serviced date updated' });
-    } catch (error: any) {
-      setSaveError(error.message);
-      toast({ title: 'Error updating date', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      setSaveError(getErrorMessage(error));
+      toast({ title: 'Error updating date', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
@@ -768,32 +822,34 @@ export default function EquipmentMaintenance() {
         next_due_at = null;
       }
 
-      await withRetry(() => updateTaskMutation.mutateAsync({
-        id: editingTask.id,
-        updates: {
-          name: editTaskName.trim(),
-          description: editTaskDescription.trim() || null,
-          image_url: editTaskImageUrl || null,
-          interval_type: editTaskIntervalType,
-          interval_days: editTaskIntervalType === 'time' ? parseInt(editTaskIntervalDays) : null,
-          interval_units: editTaskIntervalType === 'usage' ? parseInt(editTaskIntervalUnits) : null,
-          usage_unit_label: editTaskIntervalType === 'usage' ? editTaskUsageLabel.trim() : null,
-          estimated_cost: editTaskEstimatedCost ? parseFloat(editTaskEstimatedCost) : null,
-          next_due_at,
-        }
-      }));
+      await withRetry(() =>
+        updateTaskMutation.mutateAsync({
+          id: editingTask.id,
+          updates: {
+            name: editTaskName.trim(),
+            description: editTaskDescription.trim() || null,
+            image_url: editTaskImageUrl || null,
+            interval_type: editTaskIntervalType,
+            interval_days: editTaskIntervalType === 'time' ? parseInt(editTaskIntervalDays) : null,
+            interval_units: editTaskIntervalType === 'usage' ? parseInt(editTaskIntervalUnits) : null,
+            usage_unit_label: editTaskIntervalType === 'usage' ? editTaskUsageLabel.trim() : null,
+            estimated_cost: editTaskEstimatedCost ? parseFloat(editTaskEstimatedCost) : null,
+            next_due_at,
+          },
+        })
+      );
 
       setEditingTask(null);
       toast({ title: 'Task updated successfully' });
-    } catch (error: any) {
-      setSaveError(error.message);
-      toast({ title: 'Error updating task', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      setSaveError(getErrorMessage(error));
+      toast({ title: 'Error updating task', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const categories = Array.from(new Set(equipment.map(e => e.category).filter(Boolean))) as string[];
+  const categories = Array.from(new Set(equipment.map((e) => e.category).filter(Boolean))) as string[];
 
   // Don't stay in loading state if there's an error - show content anyway
   const isLoading = (loadingEquipment && !equipmentHasError) || (loadingTasks && !tasksHasError);
@@ -814,18 +870,12 @@ export default function EquipmentMaintenance() {
           </div>
           <div className="flex items-center gap-2">
             {overdueCount > 0 && (
-              <Badge
-                style={{ backgroundColor: colors.red, color: 'white' }}
-                data-testid="badge-overdue-count"
-              >
+              <Badge style={{ backgroundColor: colors.red, color: 'white' }} data-testid="badge-overdue-count">
                 {overdueCount} Overdue
               </Badge>
             )}
             {dueSoonCount > 0 && (
-              <Badge
-                style={{ backgroundColor: colors.yellow, color: colors.brown }}
-                data-testid="badge-due-soon-count"
-              >
+              <Badge style={{ backgroundColor: colors.yellow, color: colors.brown }} data-testid="badge-due-soon-count">
                 {dueSoonCount} Due Soon
               </Badge>
             )}
@@ -846,7 +896,11 @@ export default function EquipmentMaintenance() {
           <Button
             variant={activeTab === 'dashboard' ? 'default' : 'outline'}
             onClick={() => setActiveTab('dashboard')}
-            style={activeTab === 'dashboard' ? { backgroundColor: colors.gold, color: colors.white } : { borderColor: colors.gold, color: colors.brown }}
+            style={
+              activeTab === 'dashboard'
+                ? { backgroundColor: colors.gold, color: colors.white }
+                : { borderColor: colors.gold, color: colors.brown }
+            }
             data-testid="tab-dashboard"
           >
             <Wrench className="w-4 h-4 mr-2" />
@@ -855,7 +909,11 @@ export default function EquipmentMaintenance() {
           <Button
             variant={activeTab === 'equipment' ? 'default' : 'outline'}
             onClick={() => setActiveTab('equipment')}
-            style={activeTab === 'equipment' ? { backgroundColor: colors.gold, color: colors.white } : { borderColor: colors.gold, color: colors.brown }}
+            style={
+              activeTab === 'equipment'
+                ? { backgroundColor: colors.gold, color: colors.white }
+                : { borderColor: colors.gold, color: colors.brown }
+            }
             data-testid="tab-equipment"
           >
             <Settings className="w-4 h-4 mr-2" />

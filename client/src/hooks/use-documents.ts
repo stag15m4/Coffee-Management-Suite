@@ -123,10 +123,7 @@ export function useDeleteDocumentCategory() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('document_categories')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('document_categories').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -148,9 +145,7 @@ export function useSeedDefaultCategories() {
         display_order: c.display_order,
         is_default: true,
       }));
-      const { error } = await supabase
-        .from('document_categories')
-        .insert(rows);
+      const { error } = await supabase.from('document_categories').insert(rows);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -171,7 +166,9 @@ export function useDocuments(categoryId?: string | null) {
       if (!tenant?.id) return [];
       let query = supabase
         .from('documents')
-        .select('*, uploader:user_profiles!uploaded_by(full_name), category:document_categories!category_id(name), reviewer:user_profiles!last_reviewed_by(full_name), assignee:user_profiles!review_assigned_to(full_name)')
+        .select(
+          '*, uploader:user_profiles!uploaded_by(full_name), category:document_categories!category_id(name), reviewer:user_profiles!last_reviewed_by(full_name), assignee:user_profiles!review_assigned_to(full_name)'
+        )
         .eq('tenant_id', tenant.id)
         .order('created_at', { ascending: false });
 
@@ -181,7 +178,14 @@ export function useDocuments(categoryId?: string | null) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []).map((d: any) => ({
+      interface DocumentRow extends Record<string, unknown> {
+        uploader?: { full_name: string | null } | null;
+        category?: { name: string | null } | null;
+        reviewer?: { full_name: string | null } | null;
+        assignee?: { full_name: string | null } | null;
+      }
+
+      return ((data || []) as DocumentRow[]).map((d) => ({
         ...d,
         uploader_name: d.uploader?.full_name ?? null,
         category_name: d.category?.name ?? null,
@@ -232,7 +236,10 @@ export function useCreateDocument() {
 export function useUpdateDocument() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: {
+    mutationFn: async ({
+      id,
+      ...updates
+    }: {
       id: string;
       title?: string;
       description?: string | null;
@@ -288,10 +295,7 @@ export function useDeleteDocument() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('documents')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('documents').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -315,7 +319,11 @@ export function useDocumentAcknowledgments(documentId?: string) {
         .eq('document_id', documentId)
         .order('acknowledged_at', { ascending: false });
       if (error) throw error;
-      return (data || []).map((a: any) => ({
+      interface AcknowledgmentRow extends Record<string, unknown> {
+        user?: { full_name: string | null } | null;
+      }
+
+      return ((data || []) as AcknowledgmentRow[]).map((a) => ({
         ...a,
         user_name: a.user?.full_name ?? null,
       })) as DocumentAcknowledgment[];

@@ -51,16 +51,15 @@ export function useIngredients() {
     queryKey: [...queryKeys.ingredients, tenant?.id],
     queryFn: async () => {
       // Query ingredients table directly (not v_ingredients view) so we can filter by tenant_id
-      let query = supabase
-        .from('ingredients')
-        .select('*, ingredient_categories(name)')
-        .eq('is_active', true);
+      let query = supabase.from('ingredients').select('*, ingredient_categories(name)').eq('is_active', true);
       if (tenant?.id) query = query.eq('tenant_id', tenant.id);
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []).map((row: any) => ({
+      return (data || []).map((row) => ({
         ...row,
-        category_name: row.ingredient_categories?.name ?? null,
+        category_name:
+          (row as Record<string, unknown> & { ingredient_categories?: { name: string } }).ingredient_categories?.name ??
+          null,
       }));
     },
     staleTime: 30 * 1000,
@@ -87,18 +86,17 @@ export function useBaseTemplates() {
   return useQuery({
     queryKey: [...queryKeys.baseTemplates, tenant?.id],
     queryFn: async () => {
-      let query = supabase
-        .from('base_templates')
-        .select(`
+      let query = supabase.from('base_templates').select(`
           *,
           base_template_ingredients(*)
         `);
       if (tenant?.id) query = query.eq('tenant_id', tenant.id);
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []).map((b: any) => ({
+      return (data || []).map((b) => ({
         ...b,
-        ingredients: b.base_template_ingredients || [],
+        ingredients:
+          (b as Record<string, unknown> & { base_template_ingredients?: unknown[] }).base_template_ingredients || [],
       }));
     },
     staleTime: 60 * 1000,
@@ -115,9 +113,12 @@ export function useProductSizes() {
       const { data, error } = await query.order('display_order');
       if (error) throw error;
       // Map DB column name size_value to the DrinkSize interface field size_oz
-      return (data || []).map((s: any) => ({
+      return (data || []).map((s) => ({
         ...s,
-        size_oz: s.size_value ?? s.size_oz ?? 0,
+        size_oz:
+          (s as Record<string, unknown> & { size_value?: number; size_oz?: number }).size_value ??
+          (s as Record<string, unknown> & { size_oz?: number }).size_oz ??
+          0,
       }));
     },
     staleTime: 5 * 60 * 1000,
@@ -131,35 +132,43 @@ export function useRecipes() {
     queryFn: async () => {
       let query = supabase
         .from('recipes')
-        .select(`
+        .select(
+          `
           *,
           product_categories(name),
           base_templates(name),
           products(*),
           recipe_ingredients!recipe_ingredients_recipe_id_fkey(*)
-        `)
+        `
+        )
         .eq('is_active', true);
       if (tenant?.id) query = query.eq('tenant_id', tenant.id);
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []).map((r: any) => ({
-        ...r,
-        category_name: r.product_categories?.name,
-        base_template_name: r.base_templates?.name,
-        recipe_ingredients: r.recipe_ingredients || [],
-      }));
+      return (data || []).map((r) => {
+        const row = r as Record<string, unknown> & {
+          product_categories?: { name: string };
+          base_templates?: { name: string };
+          recipe_ingredients?: unknown[];
+        };
+        return {
+          ...r,
+          category_name: row.product_categories?.name,
+          base_template_name: row.base_templates?.name,
+          recipe_ingredients: row.recipe_ingredients || [],
+        };
+      });
     },
     staleTime: 30 * 1000,
   });
 }
 
 export function useProducts() {
+  const { tenant } = useAuth();
   return useQuery({
-    queryKey: queryKeys.products,
+    queryKey: [...queryKeys.products, tenant?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('v_product_pricing')
-        .select('*');
+      const { data, error } = await supabase.from('v_product_pricing').select('*');
       if (error) throw error;
       return data || [];
     },
@@ -210,24 +219,32 @@ export function useRecipeSizeBases() {
 
 export function useUpdateIngredient() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Record<string, any> }) => {
       const safeUpdates: Record<string, any> = {};
-      const allowedFields = ['name', 'category_id', 'ingredient_type', 'cost', 'quantity', 'unit', 'usage_unit', 'vendor', 'manufacturer', 'item_number', 'updated_at'];
-      
+      const allowedFields = [
+        'name',
+        'category_id',
+        'ingredient_type',
+        'cost',
+        'quantity',
+        'unit',
+        'usage_unit',
+        'vendor',
+        'manufacturer',
+        'item_number',
+        'updated_at',
+      ];
+
       for (const key of allowedFields) {
         if (key in updates) {
           safeUpdates[key] = updates[key];
         }
       }
       safeUpdates.updated_at = new Date().toISOString();
-      
-      const { data, error } = await supabase
-        .from('ingredients')
-        .update(safeUpdates)
-        .eq('id', id)
-        .select();
+
+      const { data, error } = await supabase.from('ingredients').update(safeUpdates).eq('id', id).select();
 
       if (error) throw error;
       if (!data || data.length === 0) {
@@ -243,13 +260,10 @@ export function useUpdateIngredient() {
 
 export function useAddIngredient() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (ingredient: Record<string, any>) => {
-      const { data, error } = await supabase
-        .from('ingredients')
-        .insert(ingredient)
-        .select();
+      const { data, error } = await supabase.from('ingredients').insert(ingredient).select();
       if (error) throw error;
       return data?.[0];
     },
@@ -261,14 +275,10 @@ export function useAddIngredient() {
 
 export function useUpdateOverhead() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Record<string, any> }) => {
-      const { data, error } = await supabase
-        .from('overhead_settings')
-        .update(updates)
-        .eq('id', id)
-        .select();
+      const { data, error } = await supabase.from('overhead_settings').update(updates).eq('id', id).select();
       if (error) throw error;
       return data?.[0];
     },
@@ -328,9 +338,7 @@ export function useGrowthTrackerData() {
   return useQuery({
     queryKey: [...queryKeys.growthTracker, tenant?.id],
     queryFn: async () => {
-      let query = supabase
-        .from('growth_tracker_monthly')
-        .select('*');
+      let query = supabase.from('growth_tracker_monthly').select('*');
       if (tenant?.id) query = query.eq('tenant_id', tenant.id);
       const { data, error } = await query.order('year', { ascending: true }).order('month', { ascending: true });
       if (error) throw error;
@@ -346,10 +354,7 @@ export function useUpsertGrowthMonth() {
     mutationFn: async (entry: { tenant_id: string; year: number; month: number; gross_revenue: number }) => {
       const { data, error } = await supabase
         .from('growth_tracker_monthly')
-        .upsert(
-          { ...entry, updated_at: new Date().toISOString() },
-          { onConflict: 'tenant_id,year,month' }
-        )
+        .upsert({ ...entry, updated_at: new Date().toISOString() }, { onConflict: 'tenant_id,year,month' })
         .select()
         .single();
       if (error) throw error;
@@ -365,7 +370,7 @@ export function useBulkUpsertGrowthMonths() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (entries: { tenant_id: string; year: number; month: number; gross_revenue: number }[]) => {
-      const withTimestamp = entries.map(e => ({ ...e, updated_at: new Date().toISOString() }));
+      const withTimestamp = entries.map((e) => ({ ...e, updated_at: new Date().toISOString() }));
       const { data, error } = await supabase
         .from('growth_tracker_monthly')
         .upsert(withTimestamp, { onConflict: 'tenant_id,year,month' })
@@ -409,11 +414,7 @@ export function useAddRecipeVendor() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (vendor: { tenant_id: string; name: string; phone?: string; email?: string; notes?: string }) => {
-      const { data, error } = await supabase
-        .from('recipe_vendors')
-        .insert(vendor)
-        .select()
-        .single();
+      const { data, error } = await supabase.from('recipe_vendors').insert(vendor).select().single();
       if (error) throw error;
       return data as RecipeVendor;
     },
@@ -446,28 +447,30 @@ export function useDeleteRecipeVendor() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('recipe_vendors')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('recipe_vendors').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.recipeVendors });
       queryClient.invalidateQueries({ queryKey: queryKeys.ingredients });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recipePricing });
     },
   });
 }
 
 export function useAddOverheadItem() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async (item: { tenant_id: string; name: string; amount: number; frequency: string; sort_order?: number }) => {
-      const { data, error } = await supabase
-        .from('overhead_items')
-        .insert(item)
-        .select();
+    mutationFn: async (item: {
+      tenant_id: string;
+      name: string;
+      amount: number;
+      frequency: string;
+      sort_order?: number;
+    }) => {
+      const { data, error } = await supabase.from('overhead_items').insert(item).select();
       if (error) throw error;
       return data?.[0];
     },
@@ -479,9 +482,15 @@ export function useAddOverheadItem() {
 
 export function useUpdateOverheadItem() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: { name?: string; amount?: number; frequency?: string; sort_order?: number } }) => {
+    mutationFn: async ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: { name?: string; amount?: number; frequency?: string; sort_order?: number };
+    }) => {
       const { data, error } = await supabase
         .from('overhead_items')
         .update({ ...updates, updated_at: new Date().toISOString() })
@@ -498,13 +507,10 @@ export function useUpdateOverheadItem() {
 
 export function useDeleteOverheadItem() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('overhead_items')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('overhead_items').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -515,9 +521,19 @@ export function useDeleteOverheadItem() {
 
 export function useUpdateRecipePricing() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ recipeId, sizeId, salePrice, existingId }: { recipeId: string; sizeId: string; salePrice: number; existingId?: string }) => {
+    mutationFn: async ({
+      recipeId,
+      sizeId,
+      salePrice,
+      existingId,
+    }: {
+      recipeId: string;
+      sizeId: string;
+      salePrice: number;
+      existingId?: string;
+    }) => {
       if (existingId) {
         const { error } = await supabase
           .from('recipe_size_pricing')
@@ -539,9 +555,19 @@ export function useUpdateRecipePricing() {
 
 export function useUpdateRecipeSizeBase() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ recipeId, sizeId, baseTemplateId, existingId }: { recipeId: string; sizeId: string; baseTemplateId: string | null; existingId?: string }) => {
+    mutationFn: async ({
+      recipeId,
+      sizeId,
+      baseTemplateId,
+      existingId,
+    }: {
+      recipeId: string;
+      sizeId: string;
+      baseTemplateId: string | null;
+      existingId?: string;
+    }) => {
       if (baseTemplateId) {
         if (existingId) {
           const { error } = await supabase
@@ -556,10 +582,7 @@ export function useUpdateRecipeSizeBase() {
           if (error) throw error;
         }
       } else if (existingId) {
-        const { error } = await supabase
-          .from('recipe_size_bases')
-          .delete()
-          .eq('id', existingId);
+        const { error } = await supabase.from('recipe_size_bases').delete().eq('id', existingId);
         if (error) throw error;
       }
     },
@@ -660,10 +683,12 @@ export function useMaintenanceTasks(tenantId?: string) {
       if (!tenantId) return [];
       const { data, error } = await supabase
         .from('maintenance_tasks')
-        .select(`
+        .select(
+          `
           *,
           equipment(*)
-        `)
+        `
+        )
         .eq('tenant_id', tenantId)
         .eq('is_active', true)
         .order('next_due_at', { ascending: true, nullsFirst: false });
@@ -703,12 +728,12 @@ export function useMaintenanceLogs(tenantId?: string, taskId?: string) {
 
 export function useAddEquipment() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async (equipment: { 
-      tenant_id: string; 
-      name: string; 
-      category?: string; 
+    mutationFn: async (equipment: {
+      tenant_id: string;
+      name: string;
+      category?: string;
       notes?: string;
       has_warranty?: boolean;
       purchase_date?: string;
@@ -726,10 +751,7 @@ export function useAddEquipment() {
       current_mileage?: number;
       assigned_to?: string;
     }) => {
-      const { data, error } = await supabase
-        .from('equipment')
-        .insert(equipment)
-        .select();
+      const { data, error } = await supabase.from('equipment').insert(equipment).select();
       if (error) throw error;
       if (!data || data.length === 0) {
         throw new Error('Insert failed - check RLS policies in Supabase.');
@@ -744,7 +766,7 @@ export function useAddEquipment() {
 
 export function useUpdateEquipment() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Equipment> }) => {
       const { data, error } = await supabase
@@ -822,10 +844,7 @@ export function useAddEquipmentAttachment() {
       url: string;
       file_type?: string;
     }) => {
-      const { data, error } = await supabase
-        .from('equipment_attachments')
-        .insert(attachment)
-        .select();
+      const { data, error } = await supabase.from('equipment_attachments').insert(attachment).select();
       if (error) throw error;
       if (!data || data.length === 0) throw new Error('Insert failed - check RLS policies.');
       return data[0] as EquipmentAttachment;
@@ -840,10 +859,7 @@ export function useDeleteEquipmentAttachment() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('equipment_attachments')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('equipment_attachments').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -895,10 +911,7 @@ export function useAddTaskAttachment() {
       url: string;
       file_type?: string;
     }) => {
-      const { data, error } = await supabase
-        .from('maintenance_task_attachments')
-        .insert(attachment)
-        .select();
+      const { data, error } = await supabase.from('maintenance_task_attachments').insert(attachment).select();
       if (error) throw error;
       if (!data || data.length === 0) throw new Error('Insert failed - check RLS policies.');
       return data[0] as TaskAttachment;
@@ -913,10 +926,7 @@ export function useDeleteTaskAttachment() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('maintenance_task_attachments')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('maintenance_task_attachments').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -927,7 +937,7 @@ export function useDeleteTaskAttachment() {
 
 export function useAddMaintenanceTask() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (task: {
       tenant_id: string;
@@ -947,10 +957,10 @@ export function useAddMaintenanceTask() {
       // Only auto-calculate if last_completed_at not provided
       let next_due_at: string | null = task.next_due_at || null;
       let last_completed_at: string | null = task.last_completed_at || null;
-      
+
       // If no last serviced date provided, don't set one (task has never been done)
       // If time-based and no next_due_at calculated yet, leave it null until first service
-      
+
       const { data, error } = await supabase
         .from('maintenance_tasks')
         .insert({
@@ -983,7 +993,7 @@ export function useAddMaintenanceTask() {
 
 export function useUpdateMaintenanceTask() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<MaintenanceTask> }) => {
       const { data, error } = await supabase
@@ -1002,7 +1012,7 @@ export function useUpdateMaintenanceTask() {
 
 export function useDeleteMaintenanceTask() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -1019,9 +1029,18 @@ export function useDeleteMaintenanceTask() {
 
 export function useLogMaintenance() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ tenantId, taskId, completedBy, notes, usageAtCompletion, cost, completedAt, mileageAtCompletion }: {
+    mutationFn: async ({
+      tenantId,
+      taskId,
+      completedBy,
+      notes,
+      usageAtCompletion,
+      cost,
+      completedAt,
+      mileageAtCompletion,
+    }: {
       tenantId: string;
       taskId: string;
       completedBy?: string;
@@ -1032,7 +1051,7 @@ export function useLogMaintenance() {
       mileageAtCompletion?: number;
     }) => {
       const completionDate = completedAt || new Date().toISOString();
-      
+
       const { data: logData, error: logError } = await supabase
         .from('maintenance_logs')
         .insert({
@@ -1048,22 +1067,18 @@ export function useLogMaintenance() {
         .select();
       if (logError) throw logError;
 
-      const { data: taskData } = await supabase
-        .from('maintenance_tasks')
-        .select('*')
-        .eq('id', taskId)
-        .single();
-      
+      const { data: taskData } = await supabase.from('maintenance_tasks').select('*').eq('id', taskId).single();
+
       if (taskData) {
         const existingLastCompleted = taskData.last_completed_at ? new Date(taskData.last_completed_at) : null;
         const newCompletionDate = new Date(completionDate);
-        
+
         const isNewerThanExisting = !existingLastCompleted || newCompletionDate > existingLastCompleted;
-        
+
         if (isNewerThanExisting) {
           let next_due_at: string | null = null;
           let current_usage = taskData.current_usage || 0;
-          
+
           if (taskData.interval_type === 'time' && taskData.interval_days) {
             const dueDate = new Date(completionDate);
             dueDate.setDate(dueDate.getDate() + taskData.interval_days);
@@ -1071,7 +1086,7 @@ export function useLogMaintenance() {
           } else if (taskData.interval_type === 'usage' && taskData.interval_units && usageAtCompletion !== undefined) {
             current_usage = usageAtCompletion;
           }
-          
+
           await supabase
             .from('maintenance_tasks')
             .update({
@@ -1091,7 +1106,7 @@ export function useLogMaintenance() {
             .eq('id', taskData.equipment_id);
         }
       }
-      
+
       return logData?.[0] as MaintenanceLog;
     },
     onSuccess: () => {
@@ -1149,10 +1164,7 @@ export function useBusinessAccounts() {
   return useQuery({
     queryKey: queryKeys.businessAccounts,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('business_accounts')
-        .select('*')
-        .order('service_name');
+      const { data, error } = await supabase.from('business_accounts').select('*').order('service_name');
       if (error) throw error;
       return (data || []) as BusinessAccount[];
     },
@@ -1164,10 +1176,7 @@ export function useAddBusinessAccount() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (account: Omit<BusinessAccount, 'id' | 'created_at' | 'updated_at'>) => {
-      const { data, error } = await supabase
-        .from('business_accounts')
-        .insert(account)
-        .select();
+      const { data, error } = await supabase.from('business_accounts').insert(account).select();
       if (error) throw error;
       return data?.[0] as BusinessAccount;
     },
@@ -1180,7 +1189,13 @@ export function useAddBusinessAccount() {
 export function useUpdateBusinessAccount() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<BusinessAccount, 'id' | 'created_at'>> }) => {
+    mutationFn: async ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Partial<Omit<BusinessAccount, 'id' | 'created_at'>>;
+    }) => {
       const { data, error } = await supabase
         .from('business_accounts')
         .update({ ...updates, updated_at: new Date().toISOString() })
@@ -1199,10 +1214,7 @@ export function useDeleteBusinessAccount() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('business_accounts')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('business_accounts').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1227,10 +1239,7 @@ export function useAccountBusinesses() {
   return useQuery({
     queryKey: queryKeys.accountBusinesses,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('account_businesses')
-        .select('*')
-        .order('display_order');
+      const { data, error } = await supabase.from('account_businesses').select('*').order('display_order');
       if (error) throw error;
       return (data || []) as AccountBusiness[];
     },
@@ -1242,10 +1251,7 @@ export function useAddAccountBusiness() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (biz: { name: string; color: string; display_order: number }) => {
-      const { data, error } = await supabase
-        .from('account_businesses')
-        .insert(biz)
-        .select();
+      const { data, error } = await supabase.from('account_businesses').insert(biz).select();
       if (error) throw error;
       return data?.[0] as AccountBusiness;
     },
@@ -1259,10 +1265,7 @@ export function useDeleteAccountBusiness() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('account_businesses')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('account_businesses').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {

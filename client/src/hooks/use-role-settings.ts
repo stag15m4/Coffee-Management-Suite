@@ -77,11 +77,7 @@ export function useRoleSettings() {
       // Auto-seed if empty
       if (!data || data.length === 0) {
         await supabase.rpc('seed_tenant_role_settings', { p_tenant_id: tenant.id });
-        const result = await supabase
-          .from('tenant_role_settings')
-          .select('*')
-          .eq('tenant_id', tenant.id)
-          .order('role');
+        const result = await supabase.from('tenant_role_settings').select('*').eq('tenant_id', tenant.id).order('role');
         if (result.error) throw result.error;
         data = result.data;
       }
@@ -96,7 +92,13 @@ export function useRoleSettings() {
 export function useUpdateRoleSetting() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<TenantRoleSetting, 'id' | 'tenant_id' | 'role' | 'created_at' | 'updated_at'>> }) => {
+    mutationFn: async ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Partial<Omit<TenantRoleSetting, 'id' | 'tenant_id' | 'role' | 'created_at' | 'updated_at'>>;
+    }) => {
       const { data, error } = await supabase
         .from('tenant_role_settings')
         .update({ ...updates, updated_at: new Date().toISOString() })

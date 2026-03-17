@@ -25,12 +25,7 @@ export function PricingSection({ gradient }: PricingSectionProps) {
       priceLabel: 'Free',
       priceSuffix: 'forever',
       description: 'Get started with one module, no credit card required',
-      features: [
-        '1 module of your choice',
-        '1 location',
-        'Up to 3 users',
-        '14-day full access trial',
-      ],
+      features: ['1 module of your choice', '1 location', 'Up to 3 users', '14-day full access trial'],
       cta: 'Start Free',
       testId: 'button-starter-start',
     },
@@ -43,12 +38,7 @@ export function PricingSection({ gradient }: PricingSectionProps) {
       priceLabel: null,
       priceSuffix: '/mo per location',
       description: 'Pick the modules that matter most to your shop',
-      features: [
-        'Up to 3 modules',
-        'Unlimited users',
-        'Per-location pricing',
-        'Email support',
-      ],
+      features: ['Up to 3 modules', 'Unlimited users', 'Per-location pricing', 'Email support'],
       cta: 'Start Free Trial',
       testId: 'button-essential-start',
     },
@@ -77,16 +67,10 @@ export function PricingSection({ gradient }: PricingSectionProps) {
     <section id="pricing" className="py-16 md:py-24" style={{ backgroundColor: 'var(--color-background)' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
-          <h2
-            className="text-3xl md:text-4xl font-bold mb-4"
-            style={{ color: 'var(--color-secondary)' }}
-          >
+          <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: 'var(--color-secondary)' }}>
             Simple, Transparent Pricing
           </h2>
-          <p
-            className="text-lg max-w-2xl mx-auto mb-6"
-            style={{ color: 'var(--color-secondary-light)' }}
-          >
+          <p className="text-lg max-w-2xl mx-auto mb-6" style={{ color: 'var(--color-secondary-light)' }}>
             Replace 3–5 separate subscriptions with one platform.
           </p>
 
@@ -113,7 +97,10 @@ export function PricingSection({ gradient }: PricingSectionProps) {
               Annual
               <span
                 className="ml-1.5 text-xs font-bold px-1.5 py-0.5 rounded"
-                style={{ backgroundColor: billing === 'annual' ? CHARCOAL : GOLD_BRIGHT, color: billing === 'annual' ? GOLD_BRIGHT : CHARCOAL }}
+                style={{
+                  backgroundColor: billing === 'annual' ? CHARCOAL : GOLD_BRIGHT,
+                  color: billing === 'annual' ? GOLD_BRIGHT : CHARCOAL,
+                }}
               >
                 Save 20%
               </span>
@@ -148,9 +135,7 @@ export function PricingSection({ gradient }: PricingSectionProps) {
                   <CardTitle className="text-2xl" style={{ color: GOLD_BRIGHT }}>
                     {plan.name}
                   </CardTitle>
-                  <CardDescription style={{ color: 'var(--color-accent)' }}>
-                    {plan.description}
-                  </CardDescription>
+                  <CardDescription style={{ color: 'var(--color-accent)' }}>{plan.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col flex-1">
                   <div className="mb-6">
@@ -200,9 +185,7 @@ export function PricingSection({ gradient }: PricingSectionProps) {
         {/* A La Carte note */}
         <p className="text-center mt-8 text-sm" style={{ color: 'var(--color-secondary-light)' }}>
           Need just 1–2 modules?{' '}
-          <span style={{ color: GOLD_BRIGHT, fontWeight: 600 }}>
-            A La Carte from $29/mo per module per location.
-          </span>
+          <span style={{ color: GOLD_BRIGHT, fontWeight: 600 }}>A La Carte from $29/mo per module per location.</span>
         </p>
       </div>
     </section>

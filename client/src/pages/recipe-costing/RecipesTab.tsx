@@ -25,9 +25,30 @@ interface RecipesTabProps {
   productSizes: ProductSize[];
   overhead: OverheadSettings | null;
   recipeSizeBases: RecipeSizeBase[];
-  onAddRecipe: (recipe: { name: string; category_id: string; base_template_id?: string; is_bulk_recipe?: boolean }) => Promise<void>;
-  onUpdateRecipe: (id: string, updates: { name?: string; category_id?: string; base_template_id?: string | null; is_bulk_recipe?: boolean; minutes_per_drink?: number | null }) => Promise<void>;
-  onAddRecipeIngredient: (ingredient: { recipe_id: string; ingredient_id?: string | null; size_id: string; quantity: number; unit?: string; syrup_recipe_id?: string | null }) => Promise<void>;
+  onAddRecipe: (recipe: {
+    name: string;
+    category_id: string;
+    base_template_id?: string;
+    is_bulk_recipe?: boolean;
+  }) => Promise<void>;
+  onUpdateRecipe: (
+    id: string,
+    updates: {
+      name?: string;
+      category_id?: string;
+      base_template_id?: string | null;
+      is_bulk_recipe?: boolean;
+      minutes_per_drink?: number | null;
+    }
+  ) => Promise<void>;
+  onAddRecipeIngredient: (ingredient: {
+    recipe_id: string;
+    ingredient_id?: string | null;
+    size_id: string;
+    quantity: number;
+    unit?: string;
+    syrup_recipe_id?: string | null;
+  }) => Promise<void>;
   onDeleteRecipeIngredient: (id: string) => Promise<void>;
   onUpdateRecipeSizeBase: (recipeId: string, sizeId: string, baseTemplateId: string | null) => Promise<void>;
   onDuplicateRecipe: (recipe: Recipe) => Promise<void>;
@@ -36,20 +57,55 @@ interface RecipesTabProps {
   onDeleteBulkSize: (sizeId: string) => Promise<void>;
   // Recipe Bases (base template) operations
   onAddTemplate: (template: { name: string; drink_type: string; description?: string }) => Promise<void>;
-  onAddTemplateIngredient: (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => Promise<void>;
+  onAddTemplateIngredient: (ingredient: {
+    base_template_id: string;
+    ingredient_id: string;
+    size_id: string;
+    quantity: number;
+    unit?: string;
+  }) => Promise<void>;
   onDeleteTemplateIngredient: (id: string) => Promise<void>;
   onDeleteTemplate: (id: string) => Promise<void>;
   onAddProductSize: (size: { name: string; size_value: number; product_type: string }) => Promise<string>;
   onRemoveTemplateSize: (templateId: string, sizeId: string) => Promise<void>;
 }
 
-export const RecipesTab = ({ recipes, ingredients, productCategories, productSizes, baseTemplates, overhead, recipeSizeBases, onAddRecipe, onUpdateRecipe, onAddRecipeIngredient, onDeleteRecipeIngredient, onUpdateRecipeSizeBase, onDuplicateRecipe, onDeleteRecipe, onAddBulkSize, onDeleteBulkSize, onAddTemplate, onAddTemplateIngredient, onDeleteTemplateIngredient, onDeleteTemplate, onAddProductSize, onRemoveTemplateSize }: RecipesTabProps) => {
+export const RecipesTab = ({
+  recipes,
+  ingredients,
+  productCategories,
+  productSizes,
+  baseTemplates,
+  overhead,
+  recipeSizeBases,
+  onAddRecipe,
+  onUpdateRecipe,
+  onAddRecipeIngredient,
+  onDeleteRecipeIngredient,
+  onUpdateRecipeSizeBase,
+  onDuplicateRecipe,
+  onDeleteRecipe,
+  onAddBulkSize,
+  onDeleteBulkSize,
+  onAddTemplate,
+  onAddTemplateIngredient,
+  onDeleteTemplateIngredient,
+  onDeleteTemplate,
+  onAddProductSize,
+  onRemoveTemplateSize,
+}: RecipesTabProps) => {
   const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<string | null>(null);
-  const [editRecipeForm, setEditRecipeForm] = useState({ name: '', category_id: '', base_template_id: '', is_bulk_recipe: false, minutes_per_drink: '' });
+  const [editRecipeForm, setEditRecipeForm] = useState({
+    name: '',
+    category_id: '',
+    base_template_id: '',
+    is_bulk_recipe: false,
+    minutes_per_drink: '',
+  });
   const [newRecipe, setNewRecipe] = useState({
     name: '',
     category_id: '',
@@ -68,25 +124,26 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
     if (!cost || !quantity) return 0;
     const usageUnit = ing.usage_unit || ing.unit;
     const costPerUnit = calculateCostPerUsageUnit(cost, quantity, ing.unit, usageUnit);
-    return costPerUnit || (cost / quantity);
+    return costPerUnit || cost / quantity;
   };
 
   // Calculate cost per oz for a bulk/additive recipe
   const getBulkRecipeCostPerOz = (bulkRecipeId: string): number => {
-    const bulkRecipe = recipes.find(r => r.id === bulkRecipeId);
+    const bulkRecipe = recipes.find((r) => r.id === bulkRecipeId);
     if (!bulkRecipe || !bulkRecipe.is_bulk_recipe) return 0;
 
     // Find the bulk size for this recipe
-    const bulkSizes = productSizes.filter(s => s.name.toLowerCase().includes('bulk'));
+    const bulkSizes = productSizes.filter((s) => s.name.toLowerCase().includes('bulk'));
     let totalCost = 0;
     let batchSizeOz = 0;
 
     for (const size of bulkSizes) {
-      const sizeIngredients = bulkRecipe.recipe_ingredients?.filter((ri: RecipeIngredient) => ri.size_id === size.id) || [];
+      const sizeIngredients =
+        bulkRecipe.recipe_ingredients?.filter((ri: RecipeIngredient) => ri.size_id === size.id) || [];
       if (sizeIngredients.length > 0) {
         batchSizeOz = size.size_value;
         for (const ri of sizeIngredients) {
-          const ing = ingredients.find(i => i.id === ri.ingredient_id);
+          const ing = ingredients.find((i) => i.id === ri.ingredient_id);
           if (ing) {
             totalCost += ri.quantity * getIngredientCostPerUnit(ing);
           }
@@ -107,21 +164,21 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
   };
 
   const getSizeBaseTemplateId = (recipeId: string, sizeId: string): string | null => {
-    const sizeBase = recipeSizeBases.find(rsb => rsb.recipe_id === recipeId && rsb.size_id === sizeId);
+    const sizeBase = recipeSizeBases.find((rsb) => rsb.recipe_id === recipeId && rsb.size_id === sizeId);
     return sizeBase?.base_template_id || null;
   };
 
   const calculateSizeCost = (recipe: Recipe, sizeId: string, skipBaseTemplate: boolean = false): number => {
     let totalCost = 0;
 
-    const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === sizeId) || [];
+    const sizeIngredients = recipe.recipe_ingredients?.filter((ri) => ri.size_id === sizeId) || [];
     for (const ri of sizeIngredients) {
       // Check if this is a bulk recipe ingredient (syrup, etc.)
       if (ri.syrup_recipe_id) {
         const bulkCostPerOz = getBulkRecipeCostPerOz(ri.syrup_recipe_id);
         totalCost += ri.quantity * bulkCostPerOz;
       } else if (ri.ingredient_id) {
-        const ing = ingredients.find(i => i.id === ri.ingredient_id);
+        const ing = ingredients.find((i) => i.id === ri.ingredient_id);
         if (ing) {
           totalCost += ri.quantity * getIngredientCostPerUnit(ing);
         }
@@ -131,10 +188,10 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
     if (!skipBaseTemplate) {
       const sizeBaseId = getSizeBaseTemplateId(recipe.id, sizeId);
       if (sizeBaseId) {
-        const baseTemplate = baseTemplates.find(bt => bt.id === sizeBaseId);
-        const baseItems = baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
+        const baseTemplate = baseTemplates.find((bt) => bt.id === sizeBaseId);
+        const baseItems = baseTemplate?.ingredients?.filter((bi) => bi.size_id === sizeId) || [];
         for (const bi of baseItems) {
-          const ing = ingredients.find(i => i.id === bi.ingredient_id);
+          const ing = ingredients.find((i) => i.id === bi.ingredient_id);
           if (ing) {
             totalCost += bi.quantity * getIngredientCostPerUnit(ing);
           }
@@ -157,8 +214,8 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
   const getBaseTemplateItems = (recipe: Recipe, sizeId: string): BaseTemplateIngredient[] => {
     const sizeBaseId = getSizeBaseTemplateId(recipe.id, sizeId);
     if (!sizeBaseId) return [];
-    const baseTemplate = baseTemplates.find(bt => bt.id === sizeBaseId);
-    return baseTemplate?.ingredients?.filter(bi => bi.size_id === sizeId) || [];
+    const baseTemplate = baseTemplates.find((bt) => bt.id === sizeBaseId);
+    return baseTemplate?.ingredients?.filter((bi) => bi.size_id === sizeId) || [];
   };
 
   const handleEditRecipe = (recipe: Recipe) => {
@@ -183,9 +240,8 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
     setEditingRecipe(null);
   };
 
-  const filteredRecipes = selectedCategory === 'all'
-    ? recipes
-    : recipes.filter(r => r.category_id === selectedCategory);
+  const filteredRecipes =
+    selectedCategory === 'all' ? recipes : recipes.filter((r) => r.category_id === selectedCategory);
 
   const handleAddRecipe = async () => {
     if (!newRecipe.name || !newRecipe.category_id) {
@@ -220,7 +276,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
         unit: 'oz', // Bulk recipes (additives) are always measured in oz
       });
     } else {
-      const selectedIngredient = ingredients.find(i => i.id === newIngredient.ingredient_id);
+      const selectedIngredient = ingredients.find((i) => i.id === newIngredient.ingredient_id);
       const unitToUse = newIngredient.unit || selectedIngredient?.usage_unit || selectedIngredient?.unit || 'oz';
       await onAddRecipeIngredient({
         recipe_id: recipeId,
@@ -250,7 +306,9 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
             ) : (
               <ChevronRight className="w-4 h-4" style={{ color: colors.gold }} />
             )}
-            <span className="font-bold" style={{ color: colors.brown }}>Recipe Bases</span>
+            <span className="font-bold" style={{ color: colors.brown }}>
+              Recipe Bases
+            </span>
             <span className="text-sm" style={{ color: colors.brownLight }}>
               ({baseTemplates.length})
             </span>
@@ -278,7 +336,9 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
 
       <div className="flex flex-wrap items-center gap-4 justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-medium" style={{ color: colors.brown }}>Category:</span>
+          <span className="font-medium" style={{ color: colors.brown }}>
+            Category:
+          </span>
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
@@ -287,8 +347,10 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
             data-testid="select-recipe-category"
           >
             <option value="all">All Categories</option>
-            {productCategories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            {productCategories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
             ))}
           </select>
         </div>
@@ -304,7 +366,9 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
 
       {showAddForm && (
         <div className="rounded-xl p-4 shadow-md" style={{ backgroundColor: colors.white }}>
-          <h3 className="font-bold mb-3" style={{ color: colors.brown }}>New Recipe</h3>
+          <h3 className="font-bold mb-3" style={{ color: colors.brown }}>
+            New Recipe
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <input
               type="text"
@@ -323,8 +387,10 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
               data-testid="select-new-recipe-category"
             >
               <option value="">Select Category</option>
-              {productCategories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              {productCategories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
               ))}
             </select>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -361,7 +427,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
       )}
 
       <div className="grid gap-4">
-        {filteredRecipes.map(recipe => (
+        {filteredRecipes.map((recipe) => (
           <div
             key={recipe.id}
             className="rounded-xl shadow-md overflow-hidden"
@@ -390,8 +456,10 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                     style={{ backgroundColor: colors.inputBg, color: colors.brown }}
                     data-testid={`select-edit-recipe-category-${recipe.id}`}
                   >
-                    {productCategories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    {productCategories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
                     ))}
                   </select>
                   <label className="flex items-center gap-1 cursor-pointer">
@@ -403,7 +471,9 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                       style={{ accentColor: colors.gold }}
                       data-testid={`checkbox-edit-recipe-bulk-${recipe.id}`}
                     />
-                    <span className="text-sm" style={{ color: colors.brown }}>Bulk</span>
+                    <span className="text-sm" style={{ color: colors.brown }}>
+                      Bulk
+                    </span>
                   </label>
                   <div className="flex items-center gap-1">
                     <input
@@ -422,7 +492,9 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                       style={{ backgroundColor: colors.inputBg, color: colors.brown }}
                       data-testid={`input-edit-recipe-minutes-${recipe.id}`}
                     />
-                    <span className="text-xs" style={{ color: colors.brownLight }}>min</span>
+                    <span className="text-xs" style={{ color: colors.brownLight }}>
+                      min
+                    </span>
                   </div>
                   <button
                     onClick={() => handleSaveRecipe(recipe.id)}
@@ -445,20 +517,30 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                 <div className="flex items-center gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-bold" style={{ color: colors.brown }}>{recipe.name}</h3>
+                      <h3 className="font-bold" style={{ color: colors.brown }}>
+                        {recipe.name}
+                      </h3>
                       {recipe.minutes_per_drink != null && (
-                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
+                        <span
+                          className="text-xs px-1.5 py-0.5 rounded"
+                          style={{ backgroundColor: colors.cream, color: colors.brownLight }}
+                        >
                           {recipe.minutes_per_drink}m
                         </span>
                       )}
                     </div>
-                    <span className="text-sm" style={{ color: colors.brownLight }}>{recipe.category_name}</span>
+                    <span className="text-sm" style={{ color: colors.brownLight }}>
+                      {recipe.category_name}
+                    </span>
                   </div>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleEditRecipe(recipe); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditRecipe(recipe);
+                          }}
                           className="p-1 rounded"
                           style={{ color: colors.brownLight }}
                           data-testid={`button-edit-recipe-${recipe.id}`}
@@ -471,7 +553,10 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={(e) => { e.stopPropagation(); onDuplicateRecipe(recipe); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDuplicateRecipe(recipe);
+                          }}
                           className="p-1 rounded"
                           style={{ color: colors.brownLight }}
                           data-testid={`button-duplicate-recipe-${recipe.id}`}
@@ -484,7 +569,10 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={(e) => { e.stopPropagation(); onDeleteRecipe(recipe.id); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteRecipe(recipe.id);
+                          }}
                           className="p-1 rounded"
                           style={{ color: colors.brownLight }}
                           data-testid={`button-delete-recipe-${recipe.id}`}
@@ -519,7 +607,10 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                     )}
                   </div>
                   {showAddBulkSize && recipe.is_bulk_recipe && (
-                    <div className="flex flex-wrap items-center gap-2 p-2 rounded" style={{ backgroundColor: colors.creamDark }}>
+                    <div
+                      className="flex flex-wrap items-center gap-2 p-2 rounded"
+                      style={{ backgroundColor: colors.creamDark }}
+                    >
                       <input
                         type="text"
                         placeholder="Name (e.g., Bulk 64oz)"
@@ -559,9 +650,16 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                         Save
                       </button>
                       <button
-                        onClick={() => { setShowAddBulkSize(false); setNewBulkSize({ name: '', oz: '' }); }}
+                        onClick={() => {
+                          setShowAddBulkSize(false);
+                          setNewBulkSize({ name: '', oz: '' });
+                        }}
                         className="px-2 py-1 rounded text-sm font-medium"
-                        style={{ backgroundColor: colors.creamDark, color: colors.brown, border: `1px solid ${colors.brownLight}` }}
+                        style={{
+                          backgroundColor: colors.creamDark,
+                          color: colors.brown,
+                          border: `1px solid ${colors.brownLight}`,
+                        }}
                         data-testid="button-cancel-batch-size"
                       >
                         Cancel
@@ -570,16 +668,21 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                   )}
                   <div className="grid gap-3">
                     {(recipe.is_bulk_recipe
-                      ? productSizes.filter(s => s.name.toLowerCase().includes('bulk'))
+                      ? productSizes.filter((s) => s.name.toLowerCase().includes('bulk'))
                       : (() => {
-                          const foodSizes = productSizes.filter(s => !s.name.toLowerCase().includes('bulk') && s.product_type?.toLowerCase() === 'food');
-                          const drinkTypeSizes = productSizes.filter(s => !s.name.toLowerCase().includes('bulk') && s.product_type?.toLowerCase() !== 'food');
-                          const foodSizeIds = foodSizes.map(s => s.id);
-                          const hasFoodIngredients = recipe.recipe_ingredients?.some(ri => foodSizeIds.includes(ri.size_id)) || false;
+                          const foodSizes = productSizes.filter(
+                            (s) => !s.name.toLowerCase().includes('bulk') && s.product_type?.toLowerCase() === 'food'
+                          );
+                          const drinkTypeSizes = productSizes.filter(
+                            (s) => !s.name.toLowerCase().includes('bulk') && s.product_type?.toLowerCase() !== 'food'
+                          );
+                          const foodSizeIds = foodSizes.map((s) => s.id);
+                          const hasFoodIngredients =
+                            recipe.recipe_ingredients?.some((ri) => foodSizeIds.includes(ri.size_id)) || false;
                           return hasFoodIngredients ? foodSizes : drinkTypeSizes;
                         })()
-                    ).map(size => {
-                      const sizeIngredients = recipe.recipe_ingredients?.filter(ri => ri.size_id === size.id) || [];
+                    ).map((size) => {
+                      const sizeIngredients = recipe.recipe_ingredients?.filter((ri) => ri.size_id === size.id) || [];
                       const isBulkRecipe = recipe.is_bulk_recipe === true;
                       const currentBaseId = getSizeBaseTemplateId(recipe.id, size.id);
                       const baseTemplateItems = !isBulkRecipe ? getBaseTemplateItems(recipe, size.id) : [];
@@ -588,11 +691,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                       const isAdding = addingIngredient?.recipeId === recipe.id && addingIngredient?.sizeId === size.id;
 
                       return (
-                        <div
-                          key={size.id}
-                          className="rounded-lg p-3"
-                          style={{ backgroundColor: colors.cream }}
-                        >
+                        <div key={size.id} className="rounded-lg p-3" style={{ backgroundColor: colors.cream }}>
                           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                             <div className="flex items-center gap-2">
                               <span className="font-semibold" style={{ color: colors.brown }}>
@@ -611,11 +710,20 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                             </div>
                             <div className="flex items-center gap-3 text-sm">
                               <span style={{ color: colors.brownLight }}>
-                                Cost: <span className="font-mono font-bold" style={{ color: hasItems ? colors.green : colors.brownLight }}>{hasItems ? formatCurrency(calculatedCost) : '-'}</span>
+                                Cost:{' '}
+                                <span
+                                  className="font-mono font-bold"
+                                  style={{ color: hasItems ? colors.green : colors.brownLight }}
+                                >
+                                  {hasItems ? formatCurrency(calculatedCost) : '-'}
+                                </span>
                               </span>
                               {isBulkRecipe && hasItems && size.size_value > 0 && (
                                 <span style={{ color: colors.brownLight }}>
-                                  Cost/unit: <span className="font-mono font-bold" style={{ color: colors.gold }}>{formatCurrency(calculatedCost / size.size_value)}</span>
+                                  Cost/unit:{' '}
+                                  <span className="font-mono font-bold" style={{ color: colors.gold }}>
+                                    {formatCurrency(calculatedCost / size.size_value)}
+                                  </span>
                                 </span>
                               )}
                             </div>
@@ -624,7 +732,9 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                           {!isBulkRecipe && (
                             <>
                               <div className="mb-2 flex items-center gap-2">
-                                <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Base:</span>
+                                <span className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                                  Base:
+                                </span>
                                 <select
                                   value={currentBaseId || ''}
                                   onChange={(e) => onUpdateRecipeSizeBase(recipe.id, size.id, e.target.value || null)}
@@ -633,8 +743,10 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                                   data-testid={`select-base-${recipe.id}-${size.id}`}
                                 >
                                   <option value="">No Base</option>
-                                  {baseTemplates.map(bt => (
-                                    <option key={bt.id} value={bt.id}>{bt.name}</option>
+                                  {baseTemplates.map((bt) => (
+                                    <option key={bt.id} value={bt.id}>
+                                      {bt.name}
+                                    </option>
                                   ))}
                                 </select>
                               </div>
@@ -642,58 +754,76 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                               {(() => {
                                 const ohMinutes = recipe.minutes_per_drink ?? overhead?.minutes_per_drink ?? 1;
                                 const ohCost = (overhead?.cost_per_minute || 0) * ohMinutes;
-                                return (baseTemplateItems.length > 0 || (currentBaseId && ohCost > 0)) ? (
-                                <div className="mb-2">
-                                  <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Base (Disposables):</span>
-                                  <div className="flex flex-wrap gap-2 mt-1">
-                                    {baseTemplateItems.map(bi => {
-                                      const ing = ingredients.find(i => i.id === bi.ingredient_id);
-                                      const itemCost = ing ? bi.quantity * getIngredientCostPerUnit(ing) : 0;
-                                      const displayUnit = bi.unit || ing?.usage_unit || ing?.unit || 'each';
-                                      return (
+                                return baseTemplateItems.length > 0 || (currentBaseId && ohCost > 0) ? (
+                                  <div className="mb-2">
+                                    <span className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                                      Base (Disposables):
+                                    </span>
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                      {baseTemplateItems.map((bi) => {
+                                        const ing = ingredients.find((i) => i.id === bi.ingredient_id);
+                                        const itemCost = ing ? bi.quantity * getIngredientCostPerUnit(ing) : 0;
+                                        const displayUnit = bi.unit || ing?.usage_unit || ing?.unit || 'each';
+                                        return (
+                                          <div
+                                            key={bi.id}
+                                            className="flex items-center gap-1 px-2 py-1 rounded text-xs"
+                                            style={{ backgroundColor: colors.creamDark }}
+                                          >
+                                            <span style={{ color: colors.brown }}>{ing?.name || 'Unknown'}</span>
+                                            <span style={{ color: colors.brownLight }}>
+                                              ({bi.quantity} {displayUnit})
+                                            </span>
+                                            <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
+                                          </div>
+                                        );
+                                      })}
+                                      {currentBaseId && overhead && ohCost > 0 && (
                                         <div
-                                          key={bi.id}
                                           className="flex items-center gap-1 px-2 py-1 rounded text-xs"
-                                          style={{ backgroundColor: colors.creamDark }}
+                                          style={{
+                                            backgroundColor: colors.white,
+                                            border: `1px dashed ${colors.brownLight}`,
+                                          }}
                                         >
-                                          <span style={{ color: colors.brown }}>{ing?.name || 'Unknown'}</span>
-                                          <span style={{ color: colors.brownLight }}>({bi.quantity} {displayUnit})</span>
-                                          <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
+                                          <span style={{ color: colors.brown }}>Shop Overhead</span>
+                                          <span style={{ color: colors.gold }}>
+                                            ({formatCurrency(ohCost)}
+                                            {recipe.minutes_per_drink != null ? ` · ${ohMinutes}m` : ''})
+                                          </span>
                                         </div>
-                                      );
-                                    })}
-                                    {currentBaseId && overhead && ohCost > 0 && (
-                                      <div
-                                        className="flex items-center gap-1 px-2 py-1 rounded text-xs"
-                                        style={{ backgroundColor: colors.white, border: `1px dashed ${colors.brownLight}` }}
-                                      >
-                                        <span style={{ color: colors.brown }}>Shop Overhead</span>
-                                        <span style={{ color: colors.gold }}>({formatCurrency(ohCost)}{recipe.minutes_per_drink != null ? ` · ${ohMinutes}m` : ''})</span>
-                                      </div>
-                                    )}
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              ) : null; })()}
+                                ) : null;
+                              })()}
                             </>
                           )}
 
                           {sizeIngredients.length > 0 && (
                             <div className="mb-2">
-                              <span className="text-xs font-medium" style={{ color: colors.brownLight }}>Ingredients:</span>
+                              <span className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                                Ingredients:
+                              </span>
                               <div className="flex flex-wrap gap-2 mt-1">
-                                {sizeIngredients.map(ri => {
+                                {sizeIngredients.map((ri) => {
                                   // Check if this is a bulk recipe ingredient (additive, syrup, etc.)
                                   if (ri.syrup_recipe_id) {
-                                    const bulkRecipe = recipes.find(r => r.id === ri.syrup_recipe_id);
+                                    const bulkRecipe = recipes.find((r) => r.id === ri.syrup_recipe_id);
                                     const bulkCostPerOz = getBulkRecipeCostPerOz(ri.syrup_recipe_id);
                                     const itemCost = ri.quantity * bulkCostPerOz;
                                     return (
                                       <div
                                         key={ri.id}
                                         className="flex items-center gap-1 px-2 py-1 rounded text-xs"
-                                        style={{ backgroundColor: colors.gold + '20', border: `1px solid ${colors.gold}` }}
+                                        style={{
+                                          backgroundColor: colors.gold + '20',
+                                          border: `1px solid ${colors.gold}`,
+                                        }}
                                       >
-                                        <span style={{ color: colors.brown }}>{bulkRecipe?.name || 'Unknown Additive'}</span>
+                                        <span style={{ color: colors.brown }}>
+                                          {bulkRecipe?.name || 'Unknown Additive'}
+                                        </span>
                                         <span style={{ color: colors.brownLight }}>({ri.quantity} oz)</span>
                                         <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
                                         <TooltipProvider>
@@ -715,7 +845,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                                     );
                                   }
 
-                                  const ing = ingredients.find(i => i.id === ri.ingredient_id);
+                                  const ing = ingredients.find((i) => i.id === ri.ingredient_id);
                                   const itemCost = ing ? ri.quantity * getIngredientCostPerUnit(ing) : 0;
                                   const displayUnit = ing?.usage_unit || ri.unit || ing?.unit;
                                   return (
@@ -725,7 +855,9 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                                       style={{ backgroundColor: colors.white }}
                                     >
                                       <span style={{ color: colors.brown }}>{ing?.name || 'Unknown'}</span>
-                                      <span style={{ color: colors.brownLight }}>({ri.quantity} {displayUnit})</span>
+                                      <span style={{ color: colors.brownLight }}>
+                                        ({ri.quantity} {displayUnit})
+                                      </span>
                                       <span style={{ color: colors.gold }}>({formatCurrency(itemCost)})</span>
                                       <TooltipProvider>
                                         <Tooltip>
@@ -749,7 +881,6 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                             </div>
                           )}
 
-
                           {isAdding ? (
                             <div className="flex flex-wrap gap-2 items-center">
                               <select
@@ -765,18 +896,22 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                                     <optgroup label="All Ingredients">
                                       {ingredients
                                         .sort((a, b) => a.name.localeCompare(b.name))
-                                        .map(ing => (
-                                        <option key={ing.id} value={ing.id}>{ing.name} ({ing.ingredient_type || 'FOH Ingredient'})</option>
-                                      ))}
+                                        .map((ing) => (
+                                          <option key={ing.id} value={ing.id}>
+                                            {ing.name} ({ing.ingredient_type || 'FOH Ingredient'})
+                                          </option>
+                                        ))}
                                     </optgroup>
-                                    {recipes.filter(r => r.is_bulk_recipe && r.id !== recipe.id).length > 0 && (
+                                    {recipes.filter((r) => r.is_bulk_recipe && r.id !== recipe.id).length > 0 && (
                                       <optgroup label="Homemade Additives">
                                         {recipes
-                                          .filter(r => r.is_bulk_recipe && r.id !== recipe.id)
+                                          .filter((r) => r.is_bulk_recipe && r.id !== recipe.id)
                                           .sort((a, b) => a.name.localeCompare(b.name))
-                                          .map(bulkRecipe => (
-                                          <option key={`syrup:${bulkRecipe.id}`} value={`syrup:${bulkRecipe.id}`}>{bulkRecipe.name}</option>
-                                        ))}
+                                          .map((bulkRecipe) => (
+                                            <option key={`syrup:${bulkRecipe.id}`} value={`syrup:${bulkRecipe.id}`}>
+                                              {bulkRecipe.name}
+                                            </option>
+                                          ))}
                                       </optgroup>
                                     )}
                                   </>
@@ -784,20 +919,27 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                                   <>
                                     <optgroup label="Ingredients">
                                       {ingredients
-                                        .filter(ing => (ing.ingredient_type || 'FOH Ingredient').toLowerCase() === 'foh ingredient')
+                                        .filter(
+                                          (ing) =>
+                                            (ing.ingredient_type || 'FOH Ingredient').toLowerCase() === 'foh ingredient'
+                                        )
                                         .sort((a, b) => a.name.localeCompare(b.name))
-                                        .map(ing => (
-                                        <option key={ing.id} value={ing.id}>{ing.name}</option>
-                                      ))}
+                                        .map((ing) => (
+                                          <option key={ing.id} value={ing.id}>
+                                            {ing.name}
+                                          </option>
+                                        ))}
                                     </optgroup>
-                                    {recipes.filter(r => r.is_bulk_recipe && r.id !== recipe.id).length > 0 && (
+                                    {recipes.filter((r) => r.is_bulk_recipe && r.id !== recipe.id).length > 0 && (
                                       <optgroup label="Homemade Additives">
                                         {recipes
-                                          .filter(r => r.is_bulk_recipe && r.id !== recipe.id)
+                                          .filter((r) => r.is_bulk_recipe && r.id !== recipe.id)
                                           .sort((a, b) => a.name.localeCompare(b.name))
-                                          .map(bulkRecipe => (
-                                          <option key={`syrup:${bulkRecipe.id}`} value={`syrup:${bulkRecipe.id}`}>{bulkRecipe.name}</option>
-                                        ))}
+                                          .map((bulkRecipe) => (
+                                            <option key={`syrup:${bulkRecipe.id}`} value={`syrup:${bulkRecipe.id}`}>
+                                              {bulkRecipe.name}
+                                            </option>
+                                          ))}
                                       </optgroup>
                                     )}
                                   </>
@@ -815,7 +957,7 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                               <select
                                 value={(() => {
                                   if (newIngredient.unit) return newIngredient.unit;
-                                  const sel = ingredients.find(i => i.id === newIngredient.ingredient_id);
+                                  const sel = ingredients.find((i) => i.id === newIngredient.ingredient_id);
                                   return sel?.usage_unit || sel?.unit || 'oz';
                                 })()}
                                 onChange={(e) => setNewIngredient({ ...newIngredient, unit: e.target.value })}
@@ -824,13 +966,15 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
                                 data-testid={`select-ri-unit-${size.id}`}
                               >
                                 {(() => {
-                                  const sel = ingredients.find(i => i.id === newIngredient.ingredient_id);
+                                  const sel = ingredients.find((i) => i.id === newIngredient.ingredient_id);
                                   const defaultUnit = sel?.usage_unit || sel?.unit || 'oz';
                                   const units = ['oz', 'lb', 'gram', 'ml', 'each'];
                                   // Put the default unit first in the list
-                                  const sortedUnits = [defaultUnit, ...units.filter(u => u !== defaultUnit)];
-                                  return sortedUnits.map(u => (
-                                    <option key={u} value={u}>{u}</option>
+                                  const sortedUnits = [defaultUnit, ...units.filter((u) => u !== defaultUnit)];
+                                  return sortedUnits.map((u) => (
+                                    <option key={u} value={u}>
+                                      {u}
+                                    </option>
                                   ));
                                 })()}
                               </select>
@@ -876,7 +1020,9 @@ export const RecipesTab = ({ recipes, ingredients, productCategories, productSiz
         {filteredRecipes.length === 0 && (
           <div className="text-center py-10">
             <BookOpen className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
-            <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>No recipes yet</h3>
+            <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
+              No recipes yet
+            </h3>
             <p className="text-sm" style={{ color: colors.brownLight }}>
               Add ingredients first, then create recipes to calculate your costs and margins.
             </p>

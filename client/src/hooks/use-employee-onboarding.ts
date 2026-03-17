@@ -24,11 +24,7 @@ export function useEmployeeOnboarding() {
     queryKey: ['employee-onboarding', userId],
     queryFn: async () => {
       if (!userId) return {};
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('onboarding_progress')
-        .eq('id', userId)
-        .single();
+      const { data } = await supabase.from('user_profiles').select('onboarding_progress').eq('id', userId).single();
       return (data?.onboarding_progress as EmployeeOnboardingProgress) || {};
     },
     enabled: !!userId && !isOwner,
@@ -38,17 +34,13 @@ export function useEmployeeOnboarding() {
   const updateProgress = useCallback(
     async (patch: Partial<EmployeeOnboardingProgress>) => {
       if (!userId) return;
-      const current =
-        queryClient.getQueryData<EmployeeOnboardingProgress>(['employee-onboarding', userId]) ?? {};
+      const current = queryClient.getQueryData<EmployeeOnboardingProgress>(['employee-onboarding', userId]) ?? {};
       const next = { ...current, ...patch };
       // Optimistic update
       queryClient.setQueryData(['employee-onboarding', userId], next);
-      await supabase
-        .from('user_profiles')
-        .update({ onboarding_progress: next })
-        .eq('id', userId);
+      await supabase.from('user_profiles').update({ onboarding_progress: next }).eq('id', userId);
     },
-    [userId, queryClient],
+    [userId, queryClient]
   );
 
   const dismissWelcome = useCallback(async () => {
@@ -61,7 +53,7 @@ export function useEmployeeOnboarding() {
       if (current.includes(moduleId)) return;
       await updateProgress({ modulesIntroduced: [...current, moduleId] });
     },
-    [onboardingProgress, updateProgress],
+    [onboardingProgress, updateProgress]
   );
 
   return {

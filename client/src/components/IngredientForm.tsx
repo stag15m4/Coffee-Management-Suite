@@ -1,16 +1,16 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertIngredientSchema, type InsertIngredient } from "@shared/schema";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
-import { z } from "zod";
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { insertIngredientSchema, type InsertIngredient } from '@shared/schema';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2 } from 'lucide-react';
+import { z } from 'zod';
 
 const formSchema = insertIngredientSchema.extend({
-  cost: z.coerce.number().positive("Cost must be positive"),
-  quantity: z.coerce.number().positive("Quantity must be positive"),
+  cost: z.coerce.number().positive('Cost must be positive'),
+  quantity: z.coerce.number().positive('Quantity must be positive'),
 });
 
 interface IngredientFormProps {
@@ -20,16 +20,16 @@ interface IngredientFormProps {
   buttonLabel: string;
 }
 
-const COMMON_UNITS = ["g", "kg", "oz", "lb", "ml", "L", "pcs", "cup", "tsp", "tbsp"];
+const COMMON_UNITS = ['g', 'kg', 'oz', 'lb', 'ml', 'L', 'pcs', 'cup', 'tsp', 'tbsp'];
 
 export function IngredientForm({ defaultValues, onSubmit, isLoading, buttonLabel }: IngredientFormProps) {
   const form = useForm<InsertIngredient>({
     resolver: zodResolver(formSchema),
     defaultValues: defaultValues || {
-      name: "",
-      unit: "g",
-      cost: "0",
-      quantity: "0",
+      name: '',
+      unit: 'g',
+      cost: '0',
+      quantity: '0',
     },
   });
 
@@ -105,8 +105,8 @@ export function IngredientForm({ defaultValues, onSubmit, isLoading, buttonLabel
           )}
         />
 
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           disabled={isLoading}
           className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 rounded-xl mt-6"
         >

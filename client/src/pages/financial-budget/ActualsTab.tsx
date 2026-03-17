@@ -1,15 +1,10 @@
+import { getErrorMessage } from '@/lib/utils';
 import React, { useState, useMemo } from 'react';
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   useChartOfAccounts,
   useFiscalYears,
@@ -56,7 +51,10 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
 
   const hasActuals = cellMap.actual.size > 0;
 
-  const getVariance = (accountId: string, month: number): { budget: number; actual: number | null; variance: number | null } => {
+  const getVariance = (
+    accountId: string,
+    month: number
+  ): { budget: number; actual: number | null; variance: number | null } => {
     const key = `${accountId}-${month}`;
     const b = cellMap.budget.get(key) || 0;
     const a = cellMap.actual.has(key) ? cellMap.actual.get(key)! : null;
@@ -67,7 +65,10 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
     };
   };
 
-  const getColumnTotals = (type: AccountType, month: number): { budget: number; actual: number; variance: number | null } => {
+  const getColumnTotals = (
+    type: AccountType,
+    month: number
+  ): { budget: number; actual: number; variance: number | null } => {
     let budgetTotal = 0;
     let actualTotal = 0;
     let hasAny = false;
@@ -105,14 +106,16 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
         console.warn('[QBO Sync] Unmatched accounts:', result.errors);
         toast({
           title: `Synced ${result.synced} entries — ${result.errors.length} unmatched`,
-          description: result.errors.slice(0, 5).join('\n') + (result.errors.length > 5 ? `\n…and ${result.errors.length - 5} more` : ''),
+          description:
+            result.errors.slice(0, 5).join('\n') +
+            (result.errors.length > 5 ? `\n…and ${result.errors.length - 5} more` : ''),
           variant: 'destructive',
         });
       } else {
         toast({ title: 'Actuals synced', description: `${result.synced} entries updated` });
       }
-    } catch (err: any) {
-      toast({ title: 'Sync failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Sync failed', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -126,7 +129,9 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
     const favorable = isRevenue ? variance <= 0 : variance >= 0;
     return (
       <span style={{ color: favorable ? colors.green : colors.red }}>
-        {variance >= 0 ? '' : '('}{formatCurrency(Math.abs(variance))}{variance < 0 ? ')' : ''}
+        {variance >= 0 ? '' : '('}
+        {formatCurrency(Math.abs(variance))}
+        {variance < 0 ? ')' : ''}
       </span>
     );
   };
@@ -146,7 +151,9 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
             }}
           >
             {acc.account_number && (
-              <span className="text-xs mr-1.5" style={{ color: colors.brownLight }}>{acc.account_number}</span>
+              <span className="text-xs mr-1.5" style={{ color: colors.brownLight }}>
+                {acc.account_number}
+              </span>
             )}
             {acc.name}
           </td>
@@ -184,7 +191,10 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
 
   if (accounts.length === 0) {
     return (
-      <div className="rounded-xl p-8 text-center" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}>
+      <div
+        className="rounded-xl p-8 text-center"
+        style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+      >
         <FileSpreadsheet className="w-10 h-10 mx-auto mb-3" style={{ color: colors.creamDark }} />
         <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
           Set up your Chart of Accounts first
@@ -210,7 +220,9 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
             </SelectTrigger>
             <SelectContent>
               {fiscalYears.map((fy) => (
-                <SelectItem key={fy.id} value={fy.id}>{fy.year}</SelectItem>
+                <SelectItem key={fy.id} value={fy.id}>
+                  {fy.year}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -239,13 +251,15 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
         {selectedFY && accounts.length > 0 && (
           <Button
             variant="outline"
-            onClick={() => exportActualsPdf({
-              title: `${selectedFY.year} Budget vs Actual`,
-              year: selectedFY.year,
-              accounts,
-              budgetMap: cellMap.budget,
-              actualMap: cellMap.actual,
-            })}
+            onClick={() =>
+              exportActualsPdf({
+                title: `${selectedFY.year} Budget vs Actual`,
+                year: selectedFY.year,
+                accounts,
+                budgetMap: cellMap.budget,
+                actualMap: cellMap.actual,
+              })
+            }
             style={{ borderColor: colors.gold, color: colors.brown }}
           >
             <Download className="w-4 h-4 mr-1" />
@@ -261,23 +275,37 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
       </div>
 
       {!selectedFY ? (
-        <div className="rounded-xl p-8 text-center" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}>
+        <div
+          className="rounded-xl p-8 text-center"
+          style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+        >
           <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
             Create a fiscal year on the Budget Entry tab first
           </h3>
         </div>
       ) : (
         /* Budget vs Actual Grid */
-        <div className="rounded-xl overflow-hidden" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}>
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+        >
           <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full text-sm" style={{ minWidth: '1200px' }}>
               <thead>
                 <tr style={{ backgroundColor: colors.gold }}>
-                  <th className="text-left py-2 px-3 font-semibold text-white sticky left-0 z-10" style={{ backgroundColor: colors.gold, minWidth: '180px' }}>
+                  <th
+                    className="text-left py-2 px-3 font-semibold text-white sticky left-0 z-10"
+                    style={{ backgroundColor: colors.gold, minWidth: '180px' }}
+                  >
                     Account
                   </th>
                   {MONTH_LABELS.map((m) => (
-                    <th key={m} colSpan={3} className="text-center py-2 px-1 font-semibold text-white border-l border-white/20" style={{ minWidth: '240px' }}>
+                    <th
+                      key={m}
+                      colSpan={3}
+                      className="text-center py-2 px-1 font-semibold text-white border-l border-white/20"
+                      style={{ minWidth: '240px' }}
+                    >
                       {m}
                     </th>
                   ))}
@@ -297,14 +325,21 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
                 {grouped.map(({ type, accounts: typeAccounts }) => (
                   <Fragment key={type}>
                     <tr>
-                      <td colSpan={1 + 36} className="py-2 px-3 font-semibold text-xs uppercase tracking-wider sticky left-0 z-10" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
+                      <td
+                        colSpan={1 + 36}
+                        className="py-2 px-3 font-semibold text-xs uppercase tracking-wider sticky left-0 z-10"
+                        style={{ backgroundColor: colors.cream, color: colors.brownLight }}
+                      >
                         {type}
                       </td>
                     </tr>
                     {typeAccounts.map((acc) => renderAccountRows(acc, 0, acc.account_type === 'Revenue'))}
                     {/* Subtotal */}
                     <tr style={{ borderTop: `1px solid ${colors.creamDark}` }}>
-                      <td className="py-1.5 px-3 text-sm font-semibold sticky left-0 z-10" style={{ backgroundColor: colors.white, color: colors.brownLight }}>
+                      <td
+                        className="py-1.5 px-3 text-sm font-semibold sticky left-0 z-10"
+                        style={{ backgroundColor: colors.white, color: colors.brownLight }}
+                      >
                         Total {type}
                       </td>
                       {MONTH_LABELS.map((_, i) => {
@@ -312,11 +347,21 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
                         const isRevenue = type === 'Revenue';
                         return (
                           <Fragment key={i}>
-                            <td className="text-right py-1.5 px-1 text-sm font-semibold" style={{ color: colors.brown }}>
+                            <td
+                              className="text-right py-1.5 px-1 text-sm font-semibold"
+                              style={{ color: colors.brown }}
+                            >
                               {formatCurrency(t.budget)}
                             </td>
-                            <td className="text-right py-1.5 px-1 text-sm font-semibold" style={{ color: colors.brown }}>
-                              {t.variance !== null ? formatCurrency(t.actual) : <span style={{ color: colors.creamDark }}>—</span>}
+                            <td
+                              className="text-right py-1.5 px-1 text-sm font-semibold"
+                              style={{ color: colors.brown }}
+                            >
+                              {t.variance !== null ? (
+                                formatCurrency(t.actual)
+                              ) : (
+                                <span style={{ color: colors.creamDark }}>—</span>
+                              )}
                             </td>
                             <td className="text-right py-1.5 px-1 text-sm font-semibold">
                               <VarianceCell variance={t.variance} isRevenue={isRevenue} />

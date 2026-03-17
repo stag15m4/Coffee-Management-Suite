@@ -64,5 +64,5 @@ export function decrypt(encoded: string): string | null {
 export function isEncrypted(value: string): boolean {
   const parts = value.split(':');
   if (parts.length !== 3) return false;
-  return parts.every(p => /^[0-9a-f]+$/i.test(p));
+  return parts.every((p) => /^[0-9a-f]+$/i.test(p));
 }

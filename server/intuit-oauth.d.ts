@@ -40,12 +40,7 @@ declare module 'intuit-oauth' {
     createToken(url: string): Promise<TokenResponse>;
     refresh(): Promise<TokenResponse>;
     revoke(params: { token: string }): Promise<any>;
-    setToken(token: {
-      access_token: string;
-      refresh_token: string;
-      token_type: string;
-      expires_in: number;
-    }): void;
+    setToken(token: { access_token: string; refresh_token: string; token_type: string; expires_in: number }): void;
   }
 
   export = OAuthClient;

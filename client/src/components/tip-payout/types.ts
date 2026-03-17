@@ -56,6 +56,35 @@ export interface UnmatchedEntry {
   entryCount: number;
 }
 
+export interface ServerCalculationResult {
+  weekKey: string;
+  cashTips: number;
+  ccTips: number;
+  ccAfterFee: number;
+  totalPool: number;
+  totalHours: number;
+  hourlyRate: number;
+  distributionMethod: 'hours' | 'equal' | 'points';
+  employees: Array<{
+    employee_id: string;
+    employee_name: string;
+    hours: number;
+    payout: number;
+  }>;
+  calculatedAt: string;
+  calculatedBy: string;
+}
+
+export interface PayoutApprovalResult {
+  id: string;
+  status: 'approved';
+  approvedAt: string;
+  approvedBy: string;
+  weekKey: string;
+  totalPool: number;
+  employeeCount: number;
+}
+
 export interface Colors {
   gold: string;
   goldLight: string;

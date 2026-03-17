@@ -73,7 +73,14 @@ export interface TimeOffBalance {
   employee_name?: string;
 }
 
-export type AccrualEntryType = 'accrual' | 'usage' | 'adjustment' | 'carryover' | 'grant' | 'pending' | 'pending_release';
+export type AccrualEntryType =
+  | 'accrual'
+  | 'usage'
+  | 'adjustment'
+  | 'carryover'
+  | 'grant'
+  | 'pending'
+  | 'pending_release';
 
 export interface AccrualLogEntry {
   id: string;
@@ -157,10 +164,7 @@ export function useDeleteTimeOffPolicy() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('time_off_policies')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('time_off_policies').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -313,18 +317,16 @@ export function useAdjustBalance() {
 
       // Log the adjustment
       const balanceId = existing?.id ?? balance?.id;
-      const { error: logErr } = await supabase
-        .from('time_off_accrual_log')
-        .insert({
-          tenant_id: tenant.id,
-          employee_id: employeeId,
-          policy_id: policyId,
-          balance_id: balanceId,
-          entry_type: 'adjustment',
-          hours,
-          description,
-          created_by: user.id,
-        });
+      const { error: logErr } = await supabase.from('time_off_accrual_log').insert({
+        tenant_id: tenant.id,
+        employee_id: employeeId,
+        policy_id: policyId,
+        balance_id: balanceId,
+        entry_type: 'adjustment',
+        hours,
+        description,
+        created_by: user.id,
+      });
       if (logErr) throw logErr;
 
       return balance;
@@ -421,7 +423,9 @@ export function useRunAccrual() {
           const now = new Date();
           const monthsSinceStart = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
           // Find the highest applicable tier
-          const tiers = (policy.milestone_tiers || []).sort((a: MilestoneTier, b: MilestoneTier) => b.after_months - a.after_months);
+          const tiers = (policy.milestone_tiers || []).sort(
+            (a: MilestoneTier, b: MilestoneTier) => b.after_months - a.after_months
+          );
           const tier = tiers.find((t: MilestoneTier) => monthsSinceStart >= t.after_months);
           if (tier && tier.accrual_per_hours_worked > 0) {
             accrualHours = (hoursWorked / tier.accrual_per_hours_worked) * tier.accrual_hours;
@@ -460,9 +464,8 @@ export function useRunAccrual() {
           if (updErr) throw updErr;
           balanceId = existingBal.id;
         } else {
-          newBalance = policy.max_balance_hours !== null
-            ? Math.min(accrualHours, policy.max_balance_hours)
-            : accrualHours;
+          newBalance =
+            policy.max_balance_hours !== null ? Math.min(accrualHours, policy.max_balance_hours) : accrualHours;
           const { data: newBal, error: insErr } = await supabase
             .from('time_off_balances')
             .insert({
@@ -479,19 +482,17 @@ export function useRunAccrual() {
         }
 
         // Log the accrual
-        const { error: logErr } = await supabase
-          .from('time_off_accrual_log')
-          .insert({
-            tenant_id: tenant.id,
-            employee_id: employeeId,
-            policy_id: policy.id,
-            balance_id: balanceId,
-            entry_type: 'accrual',
-            hours: accrualHours,
-            description: `Accrual for ${periodDescription} (${hoursWorked}h worked)`,
-            reference_id: referenceId ?? null,
-            created_by: user.id,
-          });
+        const { error: logErr } = await supabase.from('time_off_accrual_log').insert({
+          tenant_id: tenant.id,
+          employee_id: employeeId,
+          policy_id: policy.id,
+          balance_id: balanceId,
+          entry_type: 'accrual',
+          hours: accrualHours,
+          description: `Accrual for ${periodDescription} (${hoursWorked}h worked)`,
+          reference_id: referenceId ?? null,
+          created_by: user.id,
+        });
         if (logErr) throw logErr;
 
         results.push({ policyId: policy.id, accrued: accrualHours });
@@ -566,18 +567,16 @@ export function useGrantAnnualHours() {
       }
 
       // Log the grant
-      const { error: logErr } = await supabase
-        .from('time_off_accrual_log')
-        .insert({
-          tenant_id: tenant.id,
-          employee_id: employeeId,
-          policy_id: policyId,
-          balance_id: balanceId,
-          entry_type: 'grant',
-          hours,
-          description,
-          created_by: user.id,
-        });
+      const { error: logErr } = await supabase.from('time_off_accrual_log').insert({
+        tenant_id: tenant.id,
+        employee_id: employeeId,
+        policy_id: policyId,
+        balance_id: balanceId,
+        entry_type: 'grant',
+        hours,
+        description,
+        created_by: user.id,
+      });
       if (logErr) throw logErr;
     },
     onSuccess: () => {

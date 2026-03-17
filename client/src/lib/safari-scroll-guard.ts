@@ -103,20 +103,24 @@ function attachScrollGuard(el: HTMLElement): void {
   window.addEventListener('touchmove', markUserScroll, { passive: true });
   el.addEventListener('keydown', onKeyDown);
 
-  el.addEventListener('blur', () => {
-    window.removeEventListener('scroll', onScroll);
-    window.removeEventListener('wheel', markUserScroll);
-    window.removeEventListener('touchmove', markUserScroll);
-    el.removeEventListener('keydown', onKeyDown);
-    // Clean up ancestor scroll guards
-    for (const [ancestor, handler] of ancestorScrollHandlers) {
-      ancestor.removeEventListener('scroll', handler);
-    }
-    ancestorScrollHandlers.clear();
-    expectedAncestorScrolls.clear();
-    if (settleTimer) clearTimeout(settleTimer);
-    guarded.delete(el);
-  }, { once: true });
+  el.addEventListener(
+    'blur',
+    () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('wheel', markUserScroll);
+      window.removeEventListener('touchmove', markUserScroll);
+      el.removeEventListener('keydown', onKeyDown);
+      // Clean up ancestor scroll guards
+      for (const [ancestor, handler] of ancestorScrollHandlers) {
+        ancestor.removeEventListener('scroll', handler);
+      }
+      ancestorScrollHandlers.clear();
+      expectedAncestorScrolls.clear();
+      if (settleTimer) clearTimeout(settleTimer);
+      guarded.delete(el);
+    },
+    { once: true }
+  );
 }
 
 // Single global listener — captures focusin on any input/textarea in the app.

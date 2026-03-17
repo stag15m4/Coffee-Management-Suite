@@ -39,7 +39,7 @@ export function buildCsvContent(params: {
 }): string {
   const { weekRange, employeeHours, hourlyRate, totalPool } = params;
   let csv = `Week: ${weekRange.start} - ${weekRange.end}\n\n`;
-  csv += "Employee,Hours,Hourly Rate,Payout\n";
+  csv += 'Employee,Hours,Hourly Rate,Payout\n';
 
   Object.entries(employeeHours)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -195,15 +195,23 @@ const pdfBaseStyles = `
 
 export function buildWeeklyPdfHtml(params: WeeklyPdfParams): string {
   const {
-    companyName, weekRange, cashTotal, ccTotal, ccAfterFee,
-    totalPool, totalTeamHours, hourlyRate, employeeHours,
+    companyName,
+    weekRange,
+    cashTotal,
+    ccTotal,
+    ccAfterFee,
+    totalPool,
+    totalTeamHours,
+    hourlyRate,
+    employeeHours,
   } = params;
 
   const sortedEmployees = Object.entries(employeeHours).sort(([a], [b]) => a.localeCompare(b));
 
-  const individualPaystubs = sortedEmployees.map(([name, hours]) => {
-    const payout = hours * hourlyRate;
-    return `
+  const individualPaystubs = sortedEmployees
+    .map(([name, hours]) => {
+      const payout = hours * hourlyRate;
+      return `
       <div class="page-break"></div>
       <div class="container paystub">
         <div class="header">
@@ -248,7 +256,8 @@ export function buildWeeklyPdfHtml(params: WeeklyPdfParams): string {
 
       </div>
     `;
-  }).join('');
+    })
+    .join('');
 
   return `
     <!DOCTYPE html>
@@ -289,13 +298,16 @@ export function buildWeeklyPdfHtml(params: WeeklyPdfParams): string {
           </thead>
           <tbody>
             ${sortedEmployees
-              .map(([name, hours]) => `
+              .map(
+                ([name, hours]) => `
                 <tr>
                   <td>${escapeHtml(name)}</td>
                   <td>${formatHoursMinutes(hours)}</td>
                   <td>${formatCurrency(hours * hourlyRate)}</td>
                 </tr>
-              `).join('')}
+              `
+              )
+              .join('')}
             <tr class="total-row">
               <td>TOTAL</td>
               <td>${formatHoursMinutes(totalTeamHours)}</td>
@@ -415,7 +427,7 @@ export function buildHistoricalGroupHtml(params: HistoricalGroupParams): string 
 
       const empId = h.tip_employees?.id || 'unknown';
       const empName = h.tip_employees?.name || 'Unknown';
-      const empRecord = allEmployees.find(e => e.id === empId);
+      const empRecord = allEmployees.find((e) => e.id === empId);
       const isActive = empRecord?.is_active !== false;
 
       if (!employeeTotals[empId]) {
@@ -438,7 +450,7 @@ export function buildHistoricalGroupHtml(params: HistoricalGroupParams): string 
 
   const sortedEmployees = Object.values(employeeTotals).sort((a, b) => b.payout - a.payout);
   let employeeSummaryRows = '';
-  sortedEmployees.forEach(emp => {
+  sortedEmployees.forEach((emp) => {
     const statusBadge = emp.isActive
       ? ''
       : '<span style="background: #f0f0f0; color: #666; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px;">Inactive</span>';

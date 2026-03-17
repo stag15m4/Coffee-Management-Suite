@@ -66,9 +66,7 @@ export function useAllEmployees(tenantId?: string) {
 
         if (assignments && assignments.length > 0) {
           const knownIds = new Set(profiles.map((p) => p.id));
-          const extraIds = assignments
-            .map((a) => a.user_id)
-            .filter((uid) => !knownIds.has(uid));
+          const extraIds = assignments.map((a) => a.user_id).filter((uid) => !knownIds.has(uid));
 
           if (extraIds.length > 0) {
             const { data: extra } = await supabase

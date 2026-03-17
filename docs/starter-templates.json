@@ -11,7 +11,7 @@
         "name": "Espresso Beans",
         "unit": "g",
         "package_unit": "1 lb bag",
-        "typical_cost": 9.50,
+        "typical_cost": 9.5,
         "typical_quantity": 454,
         "category": "Espresso & Coffee"
       },
@@ -19,7 +19,7 @@
         "name": "Drip Coffee Beans",
         "unit": "g",
         "package_unit": "5 lb bag",
-        "typical_cost": 38.00,
+        "typical_cost": 38.0,
         "typical_quantity": 2268,
         "category": "Espresso & Coffee"
       },
@@ -43,7 +43,7 @@
         "name": "Oat Milk",
         "unit": "oz",
         "package_unit": "32 oz carton",
-        "typical_cost": 4.50,
+        "typical_cost": 4.5,
         "typical_quantity": 32,
         "category": "Milk & Dairy"
       },
@@ -59,7 +59,7 @@
         "name": "Heavy Cream",
         "unit": "oz",
         "package_unit": "1 quart",
-        "typical_cost": 5.50,
+        "typical_cost": 5.5,
         "typical_quantity": 32,
         "category": "Milk & Dairy"
       },
@@ -67,7 +67,7 @@
         "name": "Half & Half",
         "unit": "oz",
         "package_unit": "1 quart",
-        "typical_cost": 3.50,
+        "typical_cost": 3.5,
         "typical_quantity": 32,
         "category": "Milk & Dairy"
       },
@@ -75,7 +75,7 @@
         "name": "Vanilla Syrup",
         "unit": "ml",
         "package_unit": "750 ml bottle",
-        "typical_cost": 7.50,
+        "typical_cost": 7.5,
         "typical_quantity": 750,
         "category": "Syrups & Sauces"
       },
@@ -83,7 +83,7 @@
         "name": "Caramel Syrup",
         "unit": "ml",
         "package_unit": "750 ml bottle",
-        "typical_cost": 7.50,
+        "typical_cost": 7.5,
         "typical_quantity": 750,
         "category": "Syrups & Sauces"
       },
@@ -91,7 +91,7 @@
         "name": "Hazelnut Syrup",
         "unit": "ml",
         "package_unit": "750 ml bottle",
-        "typical_cost": 7.50,
+        "typical_cost": 7.5,
         "typical_quantity": 750,
         "category": "Syrups & Sauces"
       },
@@ -99,7 +99,7 @@
         "name": "Chocolate Sauce",
         "unit": "oz",
         "package_unit": "64 oz bottle",
-        "typical_cost": 12.00,
+        "typical_cost": 12.0,
         "typical_quantity": 64,
         "category": "Syrups & Sauces"
       },
@@ -107,7 +107,7 @@
         "name": "White Mocha Sauce",
         "unit": "oz",
         "package_unit": "64 oz bottle",
-        "typical_cost": 14.50,
+        "typical_cost": 14.5,
         "typical_quantity": 64,
         "category": "Syrups & Sauces"
       },
@@ -115,7 +115,7 @@
         "name": "Chai Concentrate",
         "unit": "oz",
         "package_unit": "32 oz carton",
-        "typical_cost": 6.50,
+        "typical_cost": 6.5,
         "typical_quantity": 32,
         "category": "Syrups & Sauces"
       },
@@ -123,7 +123,7 @@
         "name": "Whipped Cream Chargers",
         "unit": "each",
         "package_unit": "box of 24",
-        "typical_cost": 8.00,
+        "typical_cost": 8.0,
         "typical_quantity": 24,
         "category": "Toppings"
       },
@@ -131,7 +131,7 @@
         "name": "Matcha Powder",
         "unit": "g",
         "package_unit": "100 g tin",
-        "typical_cost": 18.00,
+        "typical_cost": 18.0,
         "typical_quantity": 100,
         "category": "Toppings"
       },
@@ -139,7 +139,7 @@
         "name": "Cocoa Powder",
         "unit": "g",
         "package_unit": "1 lb bag",
-        "typical_cost": 6.50,
+        "typical_cost": 6.5,
         "typical_quantity": 454,
         "category": "Toppings"
       },
@@ -171,7 +171,7 @@
         "name": "24 oz Cold Cup",
         "unit": "each",
         "package_unit": "sleeve of 50",
-        "typical_cost": 6.00,
+        "typical_cost": 6.0,
         "typical_quantity": 50,
         "category": "Disposables"
       },
@@ -179,7 +179,7 @@
         "name": "Hot Cup Lid",
         "unit": "each",
         "package_unit": "sleeve of 50",
-        "typical_cost": 3.00,
+        "typical_cost": 3.0,
         "typical_quantity": 50,
         "category": "Disposables"
       },
@@ -195,7 +195,7 @@
         "name": "Cup Sleeve",
         "unit": "each",
         "package_unit": "pack of 100",
-        "typical_cost": 5.00,
+        "typical_cost": 5.0,
         "typical_quantity": 100,
         "category": "Disposables"
       },
@@ -203,7 +203,7 @@
         "name": "Straw",
         "unit": "each",
         "package_unit": "box of 200",
-        "typical_cost": 5.50,
+        "typical_cost": 5.5,
         "typical_quantity": 200,
         "category": "Disposables"
       }
@@ -213,7 +213,7 @@
       {
         "name": "Latte",
         "description": "Classic espresso with steamed milk. 16 oz serving.",
-        "suggested_price": 5.50,
+        "suggested_price": 5.5,
         "category": "Espresso Drinks",
         "ingredients": [
           { "ingredient_name": "Espresso Beans", "quantity": 18, "unit": "g" },
@@ -279,7 +279,7 @@
       {
         "name": "Vanilla Latte",
         "description": "Espresso with vanilla syrup and steamed milk. 16 oz serving.",
-        "suggested_price": 6.00,
+        "suggested_price": 6.0,
         "category": "Espresso Drinks",
         "ingredients": [
           { "ingredient_name": "Espresso Beans", "quantity": 18, "unit": "g" },
@@ -293,7 +293,7 @@
       {
         "name": "Cold Brew",
         "description": "Slow-steeped cold coffee concentrate with water and ice. 16 oz serving. Uses ~28g beans per serving via batch steeping.",
-        "suggested_price": 5.00,
+        "suggested_price": 5.0,
         "category": "Iced Drinks",
         "ingredients": [
           { "ingredient_name": "Drip Coffee Beans", "quantity": 28, "unit": "g" },
@@ -330,7 +330,7 @@
       {
         "name": "Hot Chocolate",
         "description": "Steamed milk with chocolate sauce, topped with whipped cream. 16 oz serving.",
-        "suggested_price": 5.00,
+        "suggested_price": 5.0,
         "category": "Specialty Drinks",
         "ingredients": [
           { "ingredient_name": "Whole Milk", "quantity": 14, "unit": "oz" },
@@ -535,24 +535,9 @@
     ],
 
     "categories": {
-      "ingredient_categories": [
-        "Espresso & Coffee",
-        "Milk & Dairy",
-        "Syrups & Sauces",
-        "Toppings",
-        "Disposables"
-      ],
-      "recipe_categories": [
-        "Espresso Drinks",
-        "Brewed Coffee",
-        "Iced Drinks",
-        "Specialty Drinks"
-      ],
-      "equipment_categories": [
-        "Brewing",
-        "Refrigeration",
-        "Other"
-      ]
+      "ingredient_categories": ["Espresso & Coffee", "Milk & Dairy", "Syrups & Sauces", "Toppings", "Disposables"],
+      "recipe_categories": ["Espresso Drinks", "Brewed Coffee", "Iced Drinks", "Specialty Drinks"],
+      "equipment_categories": ["Brewing", "Refrigeration", "Other"]
     }
   },
 
@@ -562,7 +547,7 @@
         "name": "All-Purpose Flour",
         "unit": "oz",
         "package_unit": "50 lb bag",
-        "typical_cost": 18.00,
+        "typical_cost": 18.0,
         "typical_quantity": 800,
         "category": "Dough & Base"
       },
@@ -570,7 +555,7 @@
         "name": "Active Dry Yeast",
         "unit": "oz",
         "package_unit": "1 lb package",
-        "typical_cost": 6.50,
+        "typical_cost": 6.5,
         "typical_quantity": 16,
         "category": "Dough & Base"
       },
@@ -578,7 +563,7 @@
         "name": "Salt",
         "unit": "oz",
         "package_unit": "3 lb box",
-        "typical_cost": 2.50,
+        "typical_cost": 2.5,
         "typical_quantity": 48,
         "category": "Dough & Base"
       },
@@ -586,7 +571,7 @@
         "name": "Granulated Sugar",
         "unit": "oz",
         "package_unit": "4 lb bag",
-        "typical_cost": 4.00,
+        "typical_cost": 4.0,
         "typical_quantity": 64,
         "category": "Dough & Base"
       },
@@ -594,7 +579,7 @@
         "name": "Olive Oil",
         "unit": "oz",
         "package_unit": "1 gallon",
-        "typical_cost": 28.00,
+        "typical_cost": 28.0,
         "typical_quantity": 128,
         "category": "Dough & Base"
       },
@@ -602,7 +587,7 @@
         "name": "Cornmeal",
         "unit": "oz",
         "package_unit": "5 lb bag",
-        "typical_cost": 5.50,
+        "typical_cost": 5.5,
         "typical_quantity": 80,
         "category": "Dough & Base"
       },
@@ -610,7 +595,7 @@
         "name": "Pizza Sauce",
         "unit": "oz",
         "package_unit": "#10 can (106 oz)",
-        "typical_cost": 6.50,
+        "typical_cost": 6.5,
         "typical_quantity": 106,
         "category": "Sauces"
       },
@@ -618,7 +603,7 @@
         "name": "White Sauce / Alfredo",
         "unit": "oz",
         "package_unit": "32 oz container",
-        "typical_cost": 7.00,
+        "typical_cost": 7.0,
         "typical_quantity": 32,
         "category": "Sauces"
       },
@@ -626,7 +611,7 @@
         "name": "Shredded Mozzarella",
         "unit": "oz",
         "package_unit": "5 lb bag",
-        "typical_cost": 16.50,
+        "typical_cost": 16.5,
         "typical_quantity": 80,
         "category": "Cheeses"
       },
@@ -634,7 +619,7 @@
         "name": "Grated Parmesan",
         "unit": "oz",
         "package_unit": "1 lb bag",
-        "typical_cost": 8.50,
+        "typical_cost": 8.5,
         "typical_quantity": 16,
         "category": "Cheeses"
       },
@@ -642,7 +627,7 @@
         "name": "Ricotta Cheese",
         "unit": "oz",
         "package_unit": "3 lb container",
-        "typical_cost": 7.50,
+        "typical_cost": 7.5,
         "typical_quantity": 48,
         "category": "Cheeses"
       },
@@ -650,7 +635,7 @@
         "name": "Pepperoni",
         "unit": "oz",
         "package_unit": "5 lb bag",
-        "typical_cost": 22.00,
+        "typical_cost": 22.0,
         "typical_quantity": 80,
         "category": "Meats"
       },
@@ -658,7 +643,7 @@
         "name": "Italian Sausage (crumbled)",
         "unit": "oz",
         "package_unit": "5 lb bag",
-        "typical_cost": 18.00,
+        "typical_cost": 18.0,
         "typical_quantity": 80,
         "category": "Meats"
       },
@@ -666,7 +651,7 @@
         "name": "Diced Ham",
         "unit": "oz",
         "package_unit": "5 lb bag",
-        "typical_cost": 16.00,
+        "typical_cost": 16.0,
         "typical_quantity": 80,
         "category": "Meats"
       },
@@ -674,7 +659,7 @@
         "name": "Bacon (cooked, crumbled)",
         "unit": "oz",
         "package_unit": "2 lb bag",
-        "typical_cost": 14.00,
+        "typical_cost": 14.0,
         "typical_quantity": 32,
         "category": "Meats"
       },
@@ -682,7 +667,7 @@
         "name": "Grilled Chicken (diced)",
         "unit": "oz",
         "package_unit": "5 lb bag",
-        "typical_cost": 20.00,
+        "typical_cost": 20.0,
         "typical_quantity": 80,
         "category": "Meats"
       },
@@ -698,7 +683,7 @@
         "name": "Yellow Onions (diced)",
         "unit": "oz",
         "package_unit": "3 lb bag",
-        "typical_cost": 3.00,
+        "typical_cost": 3.0,
         "typical_quantity": 48,
         "category": "Vegetables"
       },
@@ -706,7 +691,7 @@
         "name": "Sliced Mushrooms",
         "unit": "oz",
         "package_unit": "5 lb case",
-        "typical_cost": 9.00,
+        "typical_cost": 9.0,
         "typical_quantity": 80,
         "category": "Vegetables"
       },
@@ -714,7 +699,7 @@
         "name": "Sliced Black Olives",
         "unit": "oz",
         "package_unit": "#10 can (55 oz)",
-        "typical_cost": 5.50,
+        "typical_cost": 5.5,
         "typical_quantity": 55,
         "category": "Vegetables"
       },
@@ -722,7 +707,7 @@
         "name": "Sliced Jalapenos",
         "unit": "oz",
         "package_unit": "64 oz jar",
-        "typical_cost": 5.00,
+        "typical_cost": 5.0,
         "typical_quantity": 64,
         "category": "Vegetables"
       },
@@ -730,7 +715,7 @@
         "name": "Diced Tomatoes",
         "unit": "oz",
         "package_unit": "#10 can (102 oz)",
-        "typical_cost": 4.50,
+        "typical_cost": 4.5,
         "typical_quantity": 102,
         "category": "Vegetables"
       },
@@ -738,7 +723,7 @@
         "name": "Fresh Spinach",
         "unit": "oz",
         "package_unit": "2.5 lb bag",
-        "typical_cost": 5.00,
+        "typical_cost": 5.0,
         "typical_quantity": 40,
         "category": "Vegetables"
       },
@@ -746,7 +731,7 @@
         "name": "Fresh Basil",
         "unit": "oz",
         "package_unit": "4 oz clamshell",
-        "typical_cost": 3.50,
+        "typical_cost": 3.5,
         "typical_quantity": 4,
         "category": "Vegetables"
       },
@@ -754,7 +739,7 @@
         "name": "Pineapple Tidbits",
         "unit": "oz",
         "package_unit": "#10 can (106 oz)",
-        "typical_cost": 5.00,
+        "typical_cost": 5.0,
         "typical_quantity": 106,
         "category": "Vegetables"
       },
@@ -762,7 +747,7 @@
         "name": "Pizza Box 12\"",
         "unit": "each",
         "package_unit": "bundle of 50",
-        "typical_cost": 22.00,
+        "typical_cost": 22.0,
         "typical_quantity": 50,
         "category": "Disposables"
       },
@@ -770,7 +755,7 @@
         "name": "Pizza Box 16\"",
         "unit": "each",
         "package_unit": "bundle of 50",
-        "typical_cost": 30.00,
+        "typical_cost": 30.0,
         "typical_quantity": 50,
         "category": "Disposables"
       },
@@ -778,7 +763,7 @@
         "name": "Pizza Box 18\"",
         "unit": "each",
         "package_unit": "bundle of 50",
-        "typical_cost": 35.00,
+        "typical_cost": 35.0,
         "typical_quantity": 50,
         "category": "Disposables"
       },
@@ -786,7 +771,7 @@
         "name": "Parchment Circle 16\"",
         "unit": "each",
         "package_unit": "pack of 100",
-        "typical_cost": 12.00,
+        "typical_cost": 12.0,
         "typical_quantity": 100,
         "category": "Disposables"
       }
@@ -1190,25 +1175,9 @@
     ],
 
     "categories": {
-      "ingredient_categories": [
-        "Dough & Base",
-        "Sauces",
-        "Cheeses",
-        "Meats",
-        "Vegetables",
-        "Disposables"
-      ],
-      "recipe_categories": [
-        "Classic Pizzas",
-        "Specialty Pizzas"
-      ],
-      "equipment_categories": [
-        "Cooking",
-        "Dough Preparation",
-        "Preparation",
-        "Refrigeration",
-        "Other"
-      ]
+      "ingredient_categories": ["Dough & Base", "Sauces", "Cheeses", "Meats", "Vegetables", "Disposables"],
+      "recipe_categories": ["Classic Pizzas", "Specialty Pizzas"],
+      "equipment_categories": ["Cooking", "Dough Preparation", "Preparation", "Refrigeration", "Other"]
     }
   }
 }

@@ -51,11 +51,7 @@ export function useCreateAccount() {
       depth?: number;
       display_order?: number;
     }) => {
-      const { data, error } = await supabase
-        .from('budget_chart_of_accounts')
-        .insert(account)
-        .select()
-        .single();
+      const { data, error } = await supabase.from('budget_chart_of_accounts').insert(account).select().single();
       if (error) throw error;
       return data as ChartOfAccount;
     },
@@ -266,15 +262,17 @@ export function useUpsertBudgetLineItem() {
 export function useBulkUpsertBudgetLineItems() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (items: Array<{
-      tenant_id: string;
-      fiscal_year_id: string;
-      account_id: string;
-      month: number;
-      budget_amount: number;
-    }>) => {
+    mutationFn: async (
+      items: Array<{
+        tenant_id: string;
+        fiscal_year_id: string;
+        account_id: string;
+        month: number;
+        budget_amount: number;
+      }>
+    ) => {
       if (items.length === 0) return [];
-      const withTimestamp = items.map(i => ({ ...i, updated_at: new Date().toISOString() }));
+      const withTimestamp = items.map((i) => ({ ...i, updated_at: new Date().toISOString() }));
       const { data, error } = await supabase
         .from('budget_line_items')
         .upsert(withTimestamp, { onConflict: 'tenant_id,fiscal_year_id,account_id,month' })
@@ -316,7 +314,13 @@ export function useImportChartOfAccounts() {
   const qc = useQueryClient();
   const { tenant } = useAuth();
   return useMutation({
-    mutationFn: async ({ csv, tenantId, fileName, columnMapping, replaceExisting }: {
+    mutationFn: async ({
+      csv,
+      tenantId,
+      fileName,
+      columnMapping,
+      replaceExisting,
+    }: {
       csv: string;
       tenantId: string;
       fileName: string;
@@ -335,7 +339,11 @@ export function useImportChartOfAccounts() {
         const err = await response.json();
         throw new Error(err.error || 'Import failed');
       }
-      return response.json() as Promise<{ imported: number; skipped: number; errors: Array<{ row: number; message: string }> }>;
+      return response.json() as Promise<{
+        imported: number;
+        skipped: number;
+        errors: Array<{ row: number; message: string }>;
+      }>;
     },
     onSuccess: () => {
       if (tenant?.id) {

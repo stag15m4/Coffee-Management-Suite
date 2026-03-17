@@ -9,11 +9,7 @@ interface ModuleIntroNudgeProps {
   message: string;
 }
 
-export function ModuleIntroNudge({
-  moduleId,
-  icon,
-  message,
-}: ModuleIntroNudgeProps) {
+export function ModuleIntroNudge({ moduleId, icon, message }: ModuleIntroNudgeProps) {
   // Owner path: tenant-level setup_progress
   const ownerData = useSetupProgress();
   // Non-owner path: per-user onboarding_progress

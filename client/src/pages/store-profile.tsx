@@ -99,7 +99,9 @@ export default function StoreProfile() {
                 {displayName}
               </h1>
               {isParent && (
-                <Badge variant="secondary" className="text-xs">Main</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  Main
+                </Badge>
               )}
             </div>
             {isChildLocation && orgName && (
@@ -200,7 +202,12 @@ export default function StoreProfile() {
                       }}
                     >
                       {shift.employee_avatar ? (
-                        <img src={shift.employee_avatar} alt="" className="w-8 h-8 rounded-full object-cover" loading="lazy" />
+                        <img
+                          src={shift.employee_avatar}
+                          alt=""
+                          className="w-8 h-8 rounded-full object-cover"
+                          loading="lazy"
+                        />
                       ) : (
                         (shift.employee_name || '?').charAt(0).toUpperCase()
                       )}
@@ -250,9 +257,7 @@ export default function StoreProfile() {
         />
 
         {/* Kiosk Store Code */}
-        {canEdit && (storeTenant as any).kiosk_code && (
-          <KioskCodeCard code={(storeTenant as any).kiosk_code} />
-        )}
+        {canEdit && (storeTenant as any).kiosk_code && <KioskCodeCard code={(storeTenant as any).kiosk_code} />}
       </div>
 
       {/* Team Member Profile Overlay */}
@@ -308,7 +313,6 @@ export default function StoreProfile() {
           )}
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
@@ -372,9 +376,7 @@ function OperatingHoursCard({
   };
 
   const updateDay = (dayIndex: number, field: string, value: string | boolean) => {
-    setEditState((prev) =>
-      prev.map((d) => (d.day_of_week === dayIndex ? { ...d, [field]: value } : d))
-    );
+    setEditState((prev) => prev.map((d) => (d.day_of_week === dayIndex ? { ...d, [field]: value } : d)));
   };
 
   return (
@@ -386,24 +388,14 @@ function OperatingHoursCard({
             Operating Hours
           </CardTitle>
           {canEdit && !editing && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onEditToggle}
-              style={{ color: colors.brownLight }}
-            >
+            <Button variant="ghost" size="sm" onClick={onEditToggle} style={{ color: colors.brownLight }}>
               <Pencil className="w-4 h-4 mr-1" />
               Edit
             </Button>
           )}
           {editing && (
             <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onEditToggle}
-                style={{ color: colors.brownLight }}
-              >
+              <Button variant="ghost" size="sm" onClick={onEditToggle} style={{ color: colors.brownLight }}>
                 <X className="w-4 h-4 mr-1" />
                 Cancel
               </Button>
@@ -435,10 +427,7 @@ function OperatingHoursCard({
                 className="flex items-center gap-3 p-2 rounded"
                 style={{ backgroundColor: colors.cream }}
               >
-                <span
-                  className="w-24 text-sm font-medium flex-shrink-0"
-                  style={{ color: colors.brown }}
-                >
+                <span className="w-24 text-sm font-medium flex-shrink-0" style={{ color: colors.brown }}>
                   {getDayName(day.day_of_week)}
                 </span>
                 <label className="flex items-center gap-1 flex-shrink-0">
@@ -448,7 +437,9 @@ function OperatingHoursCard({
                     onChange={(e) => updateDay(day.day_of_week, 'is_closed', e.target.checked)}
                     className="rounded"
                   />
-                  <span className="text-xs" style={{ color: colors.brownLight }}>Closed</span>
+                  <span className="text-xs" style={{ color: colors.brownLight }}>
+                    Closed
+                  </span>
                 </label>
                 {!day.is_closed && (
                   <>
@@ -459,7 +450,9 @@ function OperatingHoursCard({
                       className="w-28 h-8 text-sm"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                     />
-                    <span className="text-sm" style={{ color: colors.brownLight }}>to</span>
+                    <span className="text-sm" style={{ color: colors.brownLight }}>
+                      to
+                    </span>
                     <Input
                       type="time"
                       value={day.close_time}
@@ -478,10 +471,7 @@ function OperatingHoursCard({
               const entry = hours.find((h) => h.day_of_week === i);
               return (
                 <div key={i} className="flex items-center gap-3 py-1">
-                  <span
-                    className="w-24 text-sm font-medium"
-                    style={{ color: colors.brown }}
-                  >
+                  <span className="w-24 text-sm font-medium" style={{ color: colors.brown }}>
                     {getDayName(i)}
                   </span>
                   {entry?.is_closed ? (
@@ -560,24 +550,14 @@ function DrawerDefaultCard({
             Starting Drawer
           </CardTitle>
           {canEdit && !editing && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onEditToggle}
-              style={{ color: colors.brownLight }}
-            >
+            <Button variant="ghost" size="sm" onClick={onEditToggle} style={{ color: colors.brownLight }}>
               <Pencil className="w-4 h-4 mr-1" />
               Edit
             </Button>
           )}
           {editing && (
             <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onEditToggle}
-                style={{ color: colors.brownLight }}
-              >
+              <Button variant="ghost" size="sm" onClick={onEditToggle} style={{ color: colors.brownLight }}>
                 <X className="w-4 h-4 mr-1" />
                 Cancel
               </Button>
@@ -597,7 +577,9 @@ function DrawerDefaultCard({
       <CardContent>
         {editing ? (
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold" style={{ color: colors.brown }}>$</span>
+            <span className="text-lg font-bold" style={{ color: colors.brown }}>
+              $
+            </span>
             <Input
               type="number"
               step="0.01"
@@ -609,9 +591,7 @@ function DrawerDefaultCard({
           </div>
         ) : (
           <p className="text-lg font-semibold" style={{ color: colors.brown }}>
-            {currentAmount != null
-              ? `$${Number(currentAmount).toFixed(2)}`
-              : 'Not set'}
+            {currentAmount != null ? `$${Number(currentAmount).toFixed(2)}` : 'Not set'}
           </p>
         )}
         <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
@@ -689,11 +669,16 @@ function LocationAddressCard({
   const update = (field: keyof LocationAddress, value: string) => {
     setForm((prev) => ({
       ...prev,
-      [field]: field === 'latitude' || field === 'longitude'
-        ? (value === '' ? null : parseFloat(value))
-        : field === 'geofence_radius_meters'
-          ? (value === '' ? null : parseInt(value, 10))
-          : value,
+      [field]:
+        field === 'latitude' || field === 'longitude'
+          ? value === ''
+            ? null
+            : parseFloat(value)
+          : field === 'geofence_radius_meters'
+            ? value === ''
+              ? null
+              : parseInt(value, 10)
+            : value,
     }));
   };
 
@@ -705,7 +690,9 @@ function LocationAddressCard({
     tenant.address_line2,
     [tenant.city, tenant.state].filter(Boolean).join(', '),
     tenant.zip_code,
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   return (
     <Card style={{ backgroundColor: colors.white }}>
@@ -716,24 +703,14 @@ function LocationAddressCard({
             Location & Address
           </CardTitle>
           {canEdit && !editing && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onEditToggle}
-              style={{ color: colors.brownLight }}
-            >
+            <Button variant="ghost" size="sm" onClick={onEditToggle} style={{ color: colors.brownLight }}>
               <Pencil className="w-4 h-4 mr-1" />
               Edit
             </Button>
           )}
           {editing && (
             <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onEditToggle}
-                style={{ color: colors.brownLight }}
-              >
+              <Button variant="ghost" size="sm" onClick={onEditToggle} style={{ color: colors.brownLight }}>
                 <X className="w-4 h-4 mr-1" />
                 Cancel
               </Button>
@@ -754,7 +731,9 @@ function LocationAddressCard({
         {editing ? (
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Address Line 1</label>
+              <label className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                Address Line 1
+              </label>
               <Input
                 value={form.address_line1 || ''}
                 onChange={(e) => update('address_line1', e.target.value)}
@@ -763,7 +742,9 @@ function LocationAddressCard({
               />
             </div>
             <div>
-              <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Address Line 2</label>
+              <label className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                Address Line 2
+              </label>
               <Input
                 value={form.address_line2 || ''}
                 onChange={(e) => update('address_line2', e.target.value)}
@@ -773,7 +754,9 @@ function LocationAddressCard({
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="text-xs font-medium" style={{ color: colors.brownLight }}>City</label>
+                <label className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                  City
+                </label>
                 <Input
                   value={form.city || ''}
                   onChange={(e) => update('city', e.target.value)}
@@ -782,7 +765,9 @@ function LocationAddressCard({
                 />
               </div>
               <div>
-                <label className="text-xs font-medium" style={{ color: colors.brownLight }}>State</label>
+                <label className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                  State
+                </label>
                 <Input
                   value={form.state || ''}
                   onChange={(e) => update('state', e.target.value)}
@@ -791,7 +776,9 @@ function LocationAddressCard({
                 />
               </div>
               <div>
-                <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Zip Code</label>
+                <label className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                  Zip Code
+                </label>
                 <Input
                   value={form.zip_code || ''}
                   onChange={(e) => update('zip_code', e.target.value)}
@@ -807,7 +794,9 @@ function LocationAddressCard({
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Latitude</label>
+                  <label className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                    Latitude
+                  </label>
                   <Input
                     type="number"
                     step="0.00000001"
@@ -818,7 +807,9 @@ function LocationAddressCard({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium" style={{ color: colors.brownLight }}>Longitude</label>
+                  <label className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                    Longitude
+                  </label>
                   <Input
                     type="number"
                     step="0.00000001"
@@ -852,7 +843,9 @@ function LocationAddressCard({
                   className="w-28"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                 />
-                <span className="text-sm" style={{ color: colors.brownLight }}>yards</span>
+                <span className="text-sm" style={{ color: colors.brownLight }}>
+                  yards
+                </span>
               </div>
               <p className="text-xs mt-1" style={{ color: colors.creamDark }}>
                 Employees must be within this distance to clock in from the mobile app.
@@ -893,11 +886,14 @@ function KioskCodeCard({ code }: { code: string }) {
   const { toast } = useToast();
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(code).then(() => {
-      toast({ title: 'Store code copied' });
-    }).catch(() => {
-      toast({ title: 'Failed to copy', variant: 'destructive' });
-    });
+    navigator.clipboard
+      .writeText(code)
+      .then(() => {
+        toast({ title: 'Store code copied' });
+      })
+      .catch(() => {
+        toast({ title: 'Failed to copy', variant: 'destructive' });
+      });
   };
 
   return (

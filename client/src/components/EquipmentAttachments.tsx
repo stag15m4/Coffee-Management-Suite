@@ -21,7 +21,12 @@ interface EquipmentAttachmentsProps {
   onAttachmentAdded?: () => void;
 }
 
-export function EquipmentAttachments({ equipmentId, tenantId, readOnly, onAttachmentAdded }: EquipmentAttachmentsProps) {
+export function EquipmentAttachments({
+  equipmentId,
+  tenantId,
+  readOnly,
+  onAttachmentAdded,
+}: EquipmentAttachmentsProps) {
   const { toast } = useToast();
   const { data: attachments = [], isLoading } = useEquipmentAttachments(equipmentId);
   const addAttachment = useAddEquipmentAttachment();
@@ -30,7 +35,11 @@ export function EquipmentAttachments({ equipmentId, tenantId, readOnly, onAttach
   const [showAddLink, setShowAddLink] = useState(false);
   const [linkName, setLinkName] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
-  const [previewAttachment, setPreviewAttachment] = useState<{ name: string; url: string; file_type: string | null } | null>(null);
+  const [previewAttachment, setPreviewAttachment] = useState<{
+    name: string;
+    url: string;
+    file_type: string | null;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { uploadFile, isUploading } = useUpload({

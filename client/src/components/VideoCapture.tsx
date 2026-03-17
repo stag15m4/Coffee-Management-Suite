@@ -34,41 +34,48 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const startCamera = useCallback(async (deviceId?: string) => {
-    try {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-      const constraints: MediaStreamConstraints = {
-        video: deviceId
-          ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-          : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true,
-      };
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const cameras = devices.filter(d => d.kind === 'videoinput');
-      setVideoDevices(cameras);
-      const activeTrack = mediaStream.getVideoTracks()[0];
-      setSelectedDeviceId(activeTrack?.getSettings()?.deviceId || '');
-      setStream(mediaStream);
-      setShowCamera(true);
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
+  const startCamera = useCallback(
+    async (deviceId?: string) => {
+      try {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
         }
-      }, 100);
-    } catch {
-      toast({ title: 'Camera access denied', description: 'Please allow camera and microphone access', variant: 'destructive' });
-    }
-  }, [stream, toast]);
+        const constraints: MediaStreamConstraints = {
+          video: deviceId
+            ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+            : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: true,
+        };
+        const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter((d) => d.kind === 'videoinput');
+        setVideoDevices(cameras);
+        const activeTrack = mediaStream.getVideoTracks()[0];
+        setSelectedDeviceId(activeTrack?.getSettings()?.deviceId || '');
+        setStream(mediaStream);
+        setShowCamera(true);
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.srcObject = mediaStream;
+          }
+        }, 100);
+      } catch {
+        toast({
+          title: 'Camera access denied',
+          description: 'Please allow camera and microphone access',
+          variant: 'destructive',
+        });
+      }
+    },
+    [stream, toast]
+  );
 
   const stopCamera = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach((track) => track.stop());
       setStream(null);
     }
     if (timerRef.current) {
@@ -81,7 +88,7 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
 
   const switchCamera = () => {
     if (videoDevices.length < 2) return;
-    const currentIndex = videoDevices.findIndex(d => d.deviceId === selectedDeviceId);
+    const currentIndex = videoDevices.findIndex((d) => d.deviceId === selectedDeviceId);
     const nextIndex = (currentIndex + 1) % videoDevices.length;
     startCamera(videoDevices[nextIndex].deviceId);
   };
@@ -130,7 +137,7 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
 
       // Stop camera stream
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
         setStream(null);
       }
       setShowCamera(false);
@@ -140,7 +147,7 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
     setIsRecording(true);
 
     timerRef.current = setInterval(() => {
-      setElapsed(prev => {
+      setElapsed((prev) => {
         if (prev >= MAX_DURATION - 1) {
           // Auto-stop at max duration
           if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
@@ -186,7 +193,7 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
 
   useEffect(() => {
     return () => {
-      if (stream) stream.getTracks().forEach(track => track.stop());
+      if (stream) stream.getTracks().forEach((track) => track.stop());
       if (timerRef.current) clearInterval(timerRef.current);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
@@ -213,7 +220,12 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
       </Button>
 
       {/* Recording Dialog */}
-      <Dialog open={showCamera} onOpenChange={(open) => { if (!open) stopCamera(); }}>
+      <Dialog
+        open={showCamera}
+        onOpenChange={(open) => {
+          if (!open) stopCamera();
+        }}
+      >
         <DialogContent className="max-w-2xl" style={{ backgroundColor: colors.white }}>
           <DialogHeader>
             <DialogTitle style={{ color: colors.brown }}>Record Tutorial Video</DialogTitle>
@@ -225,7 +237,10 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
 
             {videoDevices.length > 1 && !isRecording && (
               <Select value={selectedDeviceId} onValueChange={(deviceId) => startCamera(deviceId)}>
-                <SelectTrigger className="w-full" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
+                <SelectTrigger
+                  className="w-full"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                >
                   <SelectValue placeholder="Select camera" />
                 </SelectTrigger>
                 <SelectContent>
@@ -244,18 +259,28 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
                 {isRecording && (
                   <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/70 rounded-full px-3 py-1.5">
                     <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-white text-sm font-mono">{formatTime(elapsed)} / {formatTime(MAX_DURATION)}</span>
+                    <span className="text-white text-sm font-mono">
+                      {formatTime(elapsed)} / {formatTime(MAX_DURATION)}
+                    </span>
                   </div>
                 )}
               </div>
             </div>
 
             <DialogFooter className="flex gap-2 sm:gap-0">
-              <Button variant="outline" onClick={stopCamera} style={{ borderColor: colors.creamDark, color: colors.brown }}>
+              <Button
+                variant="outline"
+                onClick={stopCamera}
+                style={{ borderColor: colors.creamDark, color: colors.brown }}
+              >
                 Cancel
               </Button>
               {videoDevices.length > 1 && !isRecording && (
-                <Button variant="outline" onClick={switchCamera} style={{ borderColor: colors.brown, color: colors.brown }}>
+                <Button
+                  variant="outline"
+                  onClick={switchCamera}
+                  style={{ borderColor: colors.brown, color: colors.brown }}
+                >
                   <SwitchCamera className="w-4 h-4 mr-2" />
                   Switch Camera
                 </Button>
@@ -277,7 +302,12 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
       </Dialog>
 
       {/* Preview Dialog */}
-      <Dialog open={!!previewUrl} onOpenChange={(open) => { if (!open) handleCancel(); }}>
+      <Dialog
+        open={!!previewUrl}
+        onOpenChange={(open) => {
+          if (!open) handleCancel();
+        }}
+      >
         <DialogContent className="max-w-lg" style={{ backgroundColor: colors.white }}>
           <DialogHeader>
             <DialogTitle style={{ color: colors.brown }}>Review Recording</DialogTitle>
@@ -285,14 +315,7 @@ export function VideoCapture({ onVideoRecorded, isUploading, recorderName }: Vid
           <div className="space-y-4">
             <div className="flex justify-center">
               <div className="w-full aspect-video bg-black rounded-lg overflow-hidden">
-                {previewUrl && (
-                  <video
-                    ref={previewVideoRef}
-                    src={previewUrl}
-                    controls
-                    className="w-full h-full"
-                  />
-                )}
+                {previewUrl && <video ref={previewVideoRef} src={previewUrl} controls className="w-full h-full" />}
               </div>
             </div>
             <div className="text-sm text-center" style={{ color: colors.brownLight }}>

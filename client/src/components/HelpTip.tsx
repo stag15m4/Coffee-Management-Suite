@@ -1,11 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { HelpCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase-queries';
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface HelpTipProps {
   term: string;
@@ -45,10 +41,7 @@ export function HelpTip({ term, children, side = 'top' }: HelpTipProps) {
           className="inline-flex items-center justify-center rounded-full transition-opacity opacity-50 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           aria-label={`Help: ${entry?.title ?? term}`}
         >
-          <HelpCircle
-            className="text-primary"
-            size={14}
-          />
+          <HelpCircle className="text-primary" size={14} />
         </button>
       </TooltipTrigger>
       <TooltipContent side={side} className="max-w-xs text-xs leading-relaxed p-3">

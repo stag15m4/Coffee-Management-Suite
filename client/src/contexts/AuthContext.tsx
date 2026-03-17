@@ -3,6 +3,19 @@ import { supabase } from '@/lib/supabase-queries';
 import type { User, Session } from '@supabase/supabase-js';
 import type { PermissionKey, TenantRoleSetting } from '@/hooks/use-role-settings';
 import { getAllModuleIds, MODULE_REGISTRY, type ModuleId } from '@/lib/module-registry';
+import { getErrorMessage } from '@/lib/utils';
+
+/** Shape returned by Supabase `.select()` queries (single or list). */
+interface SupabaseResult<T> {
+  data: T | null;
+  error: { message: string } | null;
+}
+
+/** Typed accessor for awaited Supabase query results that arrive via Promise.allSettled + withTimeout. */
+function getSupabaseResult<T>(raw: unknown): SupabaseResult<T> {
+  const r = raw as SupabaseResult<T> | null;
+  return { data: r?.data ?? null, error: r?.error ?? null };
+}
 
 export type UserRole = 'owner' | 'manager' | 'lead' | 'employee';
 
@@ -70,7 +83,7 @@ interface AuthContextType {
   roleSettings: TenantRoleSetting[] | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string, tenantId: string, role?: UserRole) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, tenantId: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   hasRole: (requiredRole: UserRole) => boolean;
   hasPermission: (permission: PermissionKey) => boolean;
@@ -89,10 +102,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Check if running in dev mode
-  const isDevMode = import.meta.env.DEV &&
-                    import.meta.env.VITE_USE_MOCK_DATA === 'true' &&
-                    typeof localStorage !== 'undefined' &&
-                    localStorage.getItem('dev_mode') === 'true';
+  const isDevMode =
+    import.meta.env.DEV &&
+    import.meta.env.VITE_USE_MOCK_DATA === 'true' &&
+    typeof localStorage !== 'undefined' &&
+    localStorage.getItem('dev_mode') === 'true';
 
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -126,27 +140,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     fetchInProgressRef.current = userId;
-    
+
     try {
       // Add timeout wrapper for network resilience - returns null on timeout instead of throwing
       const withTimeout = async <T,>(thenable: PromiseLike<T>, label: string): Promise<T | null> => {
         try {
           return await Promise.race([
             Promise.resolve(thenable),
-            new Promise<T>((_, reject) => 
+            new Promise<T>((_, reject) =>
               setTimeout(() => reject(new Error(`${label} timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
-            )
+            ),
           ]);
         } catch (e) {
           console.error(`Error fetching user data: ${e instanceof Error ? e.message : 'Unknown error'}`);
           return null;
         }
       };
-      
+
       // Fetch platform admin AND user profile in parallel - use allSettled so one failure doesn't block the other
       const [adminSettled, profileSettled] = await Promise.allSettled([
         withTimeout(supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle(), 'Admin query'),
-        withTimeout(supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle(), 'Profile query')
+        withTimeout(supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle(), 'Profile query'),
       ]);
 
       // Extract results safely
@@ -154,27 +168,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profileResult = profileSettled.status === 'fulfilled' ? profileSettled.value : null;
 
       // Check if platform admin
-      const isPlatAdmin = adminResult && (adminResult as any).data && !(adminResult as any).error;
+      const admin = getSupabaseResult<PlatformAdmin>(adminResult);
+      const isPlatAdmin = admin.data && !admin.error;
       if (isPlatAdmin) {
-        setPlatformAdmin((adminResult as any).data);
+        setPlatformAdmin(admin.data);
       }
 
       // Check for regular user profile - handle null/error cases
-      const profileError = profileResult ? (profileResult as any).error : null;
-      if (profileError) {
-        console.error('Profile query error:', profileError.message);
+      const profileParsed = getSupabaseResult<UserProfile>(profileResult);
+      if (profileParsed.error) {
+        console.error('Profile query error:', profileParsed.error.message);
         // Retry on network errors
-        if (profileError.message?.includes('Load failed') ||
-            profileError.message?.includes('fetch') ||
-            profileError.message?.includes('network')) {
+        if (
+          profileParsed.error.message?.includes('Load failed') ||
+          profileParsed.error.message?.includes('fetch') ||
+          profileParsed.error.message?.includes('network')
+        ) {
           if (retryCount < MAX_RETRIES) {
             console.log(`Retrying profile fetch (attempt ${retryCount + 2}/${MAX_RETRIES + 1})...`);
-            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+            await new Promise((resolve) => setTimeout(resolve, 1000 * (retryCount + 1)));
             return fetchUserData(userId, retryCount + 1);
           }
         }
       }
-      const profileData = profileResult ? (profileResult as any).data : null;
+      const profileData = profileParsed.data;
 
       if (!profileData) {
         if (isPlatAdmin) {
@@ -211,16 +228,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         roleSettingsSettled,
       ] = await Promise.allSettled([
         withTimeout(supabase.from('tenants').select('*').eq('id', primaryTenantId).single(), 'Tenant query'),
-        withTimeout(supabase.from('tenant_branding').select('*').eq('tenant_id', primaryTenantId).maybeSingle(), 'Branding query'),
+        withTimeout(
+          supabase.from('tenant_branding').select('*').eq('tenant_id', primaryTenantId).maybeSingle(),
+          'Branding query'
+        ),
         withTimeout(supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: primaryTenantId }), 'Modules query'),
         // Child locations — only meaningful for owners, but cheap no-op for others
         isOwner
-          ? withTimeout(supabase.from('tenants').select('*').eq('parent_tenant_id', primaryTenantId).eq('is_active', true).order('name'), 'Child locations query')
+          ? withTimeout(
+              supabase
+                .from('tenants')
+                .select('*')
+                .eq('parent_tenant_id', primaryTenantId)
+                .eq('is_active', true)
+                .order('name'),
+              'Child locations query'
+            )
           : Promise.resolve(null),
         // Cross-tenant assignments
-        withTimeout(supabase.from('user_tenant_assignments').select('tenant:tenants!inner(*)').eq('user_id', userId).eq('is_active', true), 'User assignments query'),
+        withTimeout(
+          supabase
+            .from('user_tenant_assignments')
+            .select('tenant:tenants!inner(*)')
+            .eq('user_id', userId)
+            .eq('is_active', true),
+          'User assignments query'
+        ),
         // Role settings
-        withTimeout(supabase.from('tenant_role_settings').select('*').eq('tenant_id', primaryTenantId).order('role'), 'Role settings query'),
+        withTimeout(
+          supabase.from('tenant_role_settings').select('*').eq('tenant_id', primaryTenantId).order('role'),
+          'Role settings query'
+        ),
       ]);
 
       // --- Process tenant ---
@@ -229,8 +267,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const modulesResult = modulesSettled.status === 'fulfilled' ? modulesSettled.value : null;
       let restoredSavedLocation = false;
 
-      if (tenantResult && !(tenantResult as any).error && (tenantResult as any).data) {
-        const tenantData = (tenantResult as any).data as Tenant;
+      const tenantParsed = getSupabaseResult<Tenant>(tenantResult);
+      if (tenantParsed.data && !tenantParsed.error) {
+        const tenantData = tenantParsed.data;
         setTenant(tenantData);
         setPrimaryTenant(tenantData);
 
@@ -240,9 +279,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           if (isOwner) {
             const childResult = childLocationsSettled.status === 'fulfilled' ? childLocationsSettled.value : null;
-            const childLocations = childResult && !(childResult as any).error
-              ? (childResult as any).data
-              : null;
+            const childParsed = getSupabaseResult<Tenant[]>(childResult);
+            const childLocations = childParsed.data;
             allLocations = [tenantData, ...(childLocations || [])];
             setIsParentTenant((childLocations?.length || 0) > 0);
           } else {
@@ -250,14 +288,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           const assignResult = assignmentsSettled.status === 'fulfilled' ? assignmentsSettled.value : null;
-          const assignments = assignResult && !(assignResult as any).error
-            ? (assignResult as any).data
-            : null;
+          const assignParsed = getSupabaseResult<Array<{ tenant: Tenant }>>(assignResult);
+          const assignments = assignParsed.data;
 
           if (assignments && assignments.length > 0) {
             const assignedTenants = assignments
-              .map((a: any) => a.tenant as Tenant)
-              .filter((t: Tenant) => t.is_active && !allLocations.find(l => l.id === t.id));
+              .map((a) => a.tenant)
+              .filter((t: Tenant) => t.is_active && !allLocations.find((l) => l.id === t.id));
             allLocations = [...allLocations, ...assignedTenants];
           }
         } catch (err) {
@@ -269,7 +306,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // --- Restore saved location ---
         const savedLocationId = sessionStorage.getItem('selected_location_id');
         if (savedLocationId && savedLocationId !== tenantData.id) {
-          const savedLocation = allLocations.find(loc => loc.id === savedLocationId);
+          const savedLocation = allLocations.find((loc) => loc.id === savedLocationId);
 
           if (savedLocation) {
             setTenant(savedLocation);
@@ -277,12 +314,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             restoredSavedLocation = true;
 
             // Record activity (fire-and-forget)
-            supabase
-              .from('user_tenant_assignments')
-              .update({ updated_at: new Date().toISOString() })
-              .eq('user_id', userId)
-              .eq('tenant_id', savedLocationId)
-              .then(() => {});
+            Promise.resolve(
+              supabase
+                .from('user_tenant_assignments')
+                .update({ updated_at: new Date().toISOString() })
+                .eq('user_id', userId)
+                .eq('tenant_id', savedLocationId)
+            ).catch((err: unknown) => console.warn('[AuthContext] Failed to record restored location activity:', err));
 
             // Load branding and modules for the saved location
             const [savedBrandingResult, savedModulesResult] = await Promise.all([
@@ -301,29 +339,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // --- Process branding (only if we didn't already load a saved location's branding) ---
-      if (!restoredSavedLocation && brandingResult && !(brandingResult as any).error && (brandingResult as any).data) {
-        setBranding((brandingResult as any).data);
+      const brandingParsed = getSupabaseResult<TenantBranding>(brandingResult);
+      if (!restoredSavedLocation && brandingParsed.data && !brandingParsed.error) {
+        setBranding(brandingParsed.data);
       }
 
       // --- Process modules (only if we didn't already load a saved location's modules) ---
       if (!restoredSavedLocation) {
-        if (!modulesResult || (modulesResult as any).error) {
-          const errorMsg = modulesResult ? (modulesResult as any).error?.message : 'Query failed';
-          console.warn('Module access RPC failed:', errorMsg);
+        const modulesParsed = getSupabaseResult<ModuleId[]>(modulesResult);
+        if (modulesParsed.error || !modulesResult) {
+          console.warn('Module access RPC failed:', modulesParsed.error?.message ?? 'Query failed');
           setEnabledModules([]);
         } else {
-          setEnabledModules(((modulesResult as any).data || []) as ModuleId[]);
+          setEnabledModules(modulesParsed.data || []);
         }
       }
 
       // --- Process role settings ---
       try {
         const rsResult = roleSettingsSettled.status === 'fulfilled' ? roleSettingsSettled.value : null;
-        let settings = rsResult && !(rsResult as any).error ? (rsResult as any).data : null;
+        const rsParsed = getSupabaseResult<TenantRoleSetting[]>(rsResult);
+        let settings = rsParsed.data;
         if (!settings || settings.length === 0) {
           await supabase.rpc('seed_tenant_role_settings', { p_tenant_id: primaryTenantId });
           const { data: seeded } = await supabase
-            .from('tenant_role_settings').select('*').eq('tenant_id', primaryTenantId).order('role');
+            .from('tenant_role_settings')
+            .select('*')
+            .eq('tenant_id', primaryTenantId)
+            .order('role');
           settings = seeded;
         }
         setRoleSettings(settings || null);
@@ -335,18 +378,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       lastFetchedUserIdRef.current = userId;
       fetchInProgressRef.current = null;
       return true;
-    } catch (error: any) {
-      console.error('Error fetching user data:', error?.message || error);
+    } catch (error: unknown) {
+      const msg = getErrorMessage(error);
+      console.error('Error fetching user data:', msg);
       fetchInProgressRef.current = null;
       // Don't clear profile/admin on timeout - keep trying
-      if (!error?.message?.includes('timed out')) {
+      if (!msg.includes('timed out')) {
         setProfile(null);
         setPlatformAdmin(null);
         setEnabledModules([]);
       }
       return false;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -418,7 +462,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Get initial session - refresh if token is expired or about to expire
     const initSession = async () => {
-      let { data: { session } } = await supabase.auth.getSession();
+      let {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (session) {
         // Check if token is expired or expires within 60 seconds
@@ -429,7 +475,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('[Session] Token expired or expiring soon, refreshing...');
           const { data, error } = await supabase.auth.refreshSession();
           if (error) {
-            console.warn('[Session] Refresh failed, signing out:', error.message);
+            console.warn('[Session] Refresh failed, signing out:', getErrorMessage(error));
             // Token is expired and can't be refreshed - clear stale session
             await supabase.auth.signOut();
             setSession(null);
@@ -462,40 +508,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initSession();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
 
-        if (session?.user) {
-          // On TOKEN_REFRESHED, force re-fetch profile data with fresh token
-          const force = event === 'TOKEN_REFRESHED';
-          await fetchUserData(session.user.id, 0, force);
+      if (session?.user) {
+        // On TOKEN_REFRESHED, force re-fetch profile data with fresh token
+        const force = event === 'TOKEN_REFRESHED';
+        await fetchUserData(session.user.id, 0, force);
 
-          // Record last login timestamp for engagement tracking
-          if (event === 'SIGNED_IN') {
-            supabase
-              .from('user_profiles')
-              .update({ last_login_at: new Date().toISOString() })
-              .eq('id', session.user.id)
-              .then(() => {});
-          }
-
-          if (event === 'PASSWORD_RECOVERY') {
-            window.location.href = '/reset-password';
-          }
-        } else {
-          setProfile(null);
-          setPlatformAdmin(null);
-          setTenant(null);
-          setBranding(null);
+        // Record last login timestamp for engagement tracking
+        if (event === 'SIGNED_IN') {
+          Promise.resolve(
+            supabase.from('user_profiles').update({ last_login_at: new Date().toISOString() }).eq('id', session.user.id)
+          ).catch((err: unknown) => console.warn('[AuthContext] Failed to update last_login_at:', err));
         }
-        setLoading(false);
+
+        if (event === 'PASSWORD_RECOVERY') {
+          window.location.href = '/reset-password';
+        }
+      } else {
+        setProfile(null);
+        setPlatformAdmin(null);
+        setTenant(null);
+        setBranding(null);
       }
-    );
+      setLoading(false);
+    });
 
     return () => subscription.unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDevMode]);
 
   // Handle visibility change (iPad app switching, tab switching)
@@ -532,23 +576,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setTimeout(() => reject(new Error('Session refresh timeout')), 5000)
           );
 
-          const { data, error } = await Promise.race([
-            sessionRefreshPromise,
-            timeoutPromise
-          ]) as any;
+          const { data, error } = (await Promise.race([sessionRefreshPromise, timeoutPromise])) as Awaited<
+            typeof sessionRefreshPromise
+          >;
 
           // Guard against state updates after unmount
           if (!isMounted) return;
 
           if (error) {
-            console.warn('[Session] Session refresh failed:', error.message);
+            console.warn('[Session] Session refresh failed:', getErrorMessage(error));
             // If refresh fails, try to get current session (with timeout)
             try {
               const sessionPromise = supabase.auth.getSession();
-              const { data: sessionData } = await Promise.race([
+              const { data: sessionData } = (await Promise.race([
                 sessionPromise,
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Get session timeout')), 3000))
-              ]) as any;
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Get session timeout')), 3000)),
+              ])) as Awaited<typeof sessionPromise>;
 
               if (sessionData?.session && isMounted) {
                 console.log('[Session] Retrieved existing session');
@@ -606,26 +649,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signUp = async (email: string, password: string, fullName: string, tenantId: string, role: UserRole = 'employee') => {
+  const signUp = async (email: string, password: string, fullName: string, tenantId: string) => {
+    // SECURITY: Role is hardcoded to 'employee' to prevent privilege escalation.
+    // Role upgrades must be performed by an authorized admin via the server-side
+    // /api/users/invite endpoint. Never accept role from client input.
+    const role: UserRole = 'employee';
+
     // First, create the auth user
     const { data, error } = await supabase.auth.signUp({ email, password });
-    
+
     if (error) {
       return { error: error as Error };
     }
 
     if (data.user) {
       // Create user profile
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .insert({
-          id: data.user.id,
-          tenant_id: tenantId,
-          email: email,
-          full_name: fullName,
-          role: role,
-          is_active: true,
-        });
+      const { error: profileError } = await supabase.from('user_profiles').insert({
+        id: data.user.id,
+        tenant_id: tenantId,
+        email: email,
+        full_name: fullName,
+        role: role,
+        is_active: true,
+      });
 
       if (profileError) {
         return { error: profileError as Error };
@@ -659,24 +705,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const { data, error } = await supabase.rpc('get_tenant_enabled_modules', {
-        p_tenant_id: currentTenantId
+        p_tenant_id: currentTenantId,
       });
 
       if (error) {
-        console.warn('Module refresh RPC failed:', error.message);
+        console.warn('Module refresh RPC failed:', getErrorMessage(error));
         setEnabledModules([]);
       } else {
         setEnabledModules((data || []) as ModuleId[]);
       }
-    } catch (err: any) {
-      console.error('Error refreshing modules:', err);
+    } catch (err: unknown) {
+      console.error('Error refreshing modules:', getErrorMessage(err));
       setEnabledModules([]);
     }
   }, [tenant?.id, profile?.tenant_id]);
 
   const hasRole = (requiredRole: UserRole): boolean => {
     if (!profile) return false;
-    
+
     const roleHierarchy: Record<UserRole, number> = {
       owner: 4,
       manager: 3,
@@ -700,45 +746,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return def ? hasRole(def.minRole) : false;
   };
 
-  const hasPermission = useCallback((permission: PermissionKey): boolean => {
-    if (!profile) return false;
-    // Owner always has everything
-    if (profile.role === 'owner') return true;
+  const hasPermission = useCallback(
+    (permission: PermissionKey): boolean => {
+      if (!profile) return false;
+      // Owner always has everything
+      if (profile.role === 'owner') return true;
 
-    if (roleSettings) {
-      const mySetting = roleSettings.find(s => s.role === profile.role);
-      if (mySetting) return mySetting[permission] === true;
-    }
+      if (roleSettings) {
+        const mySetting = roleSettings.find((s) => s.role === profile.role);
+        if (mySetting) return mySetting[permission] === true;
+      }
 
-    // Fallback to hardcoded defaults if role settings aren't loaded
-    const defaults: Record<UserRole, Set<PermissionKey>> = {
-      owner: new Set<PermissionKey>([
-        'approve_time_off', 'approve_time_edits', 'manage_shifts', 'delete_shifts',
-        'manage_recipes', 'manage_users', 'view_reports', 'export_payroll',
-        'manage_equipment', 'manage_tasks', 'manage_orders', 'manage_branding',
-        'manage_locations', 'manage_cash_deposits', 'approve_timesheets',
-      ]),
-      manager: new Set<PermissionKey>([
-        'approve_time_off', 'approve_time_edits', 'manage_shifts', 'delete_shifts',
-        'manage_recipes', 'manage_users', 'view_reports', 'export_payroll',
-        'manage_equipment', 'manage_tasks', 'manage_orders', 'manage_cash_deposits',
-        'approve_timesheets',
-      ]),
-      lead: new Set<PermissionKey>([
-        'approve_time_off', 'approve_time_edits', 'manage_shifts', 'view_reports',
-      ]),
-      employee: new Set<PermissionKey>([]),
-    };
-    return defaults[profile.role]?.has(permission) ?? false;
-  }, [profile, roleSettings]);
+      // Fallback to hardcoded defaults if role settings aren't loaded
+      const defaults: Record<UserRole, Set<PermissionKey>> = {
+        owner: new Set<PermissionKey>([
+          'approve_time_off',
+          'approve_time_edits',
+          'manage_shifts',
+          'delete_shifts',
+          'manage_recipes',
+          'manage_users',
+          'view_reports',
+          'export_payroll',
+          'manage_equipment',
+          'manage_tasks',
+          'manage_orders',
+          'manage_branding',
+          'manage_locations',
+          'manage_cash_deposits',
+          'approve_timesheets',
+        ]),
+        manager: new Set<PermissionKey>([
+          'approve_time_off',
+          'approve_time_edits',
+          'manage_shifts',
+          'delete_shifts',
+          'manage_recipes',
+          'manage_users',
+          'view_reports',
+          'export_payroll',
+          'manage_equipment',
+          'manage_tasks',
+          'manage_orders',
+          'manage_cash_deposits',
+          'approve_timesheets',
+        ]),
+        lead: new Set<PermissionKey>(['approve_time_off', 'approve_time_edits', 'manage_shifts', 'view_reports']),
+        employee: new Set<PermissionKey>([]),
+      };
+      return defaults[profile.role]?.has(permission) ?? false;
+    },
+    [profile, roleSettings]
+  );
 
-  const getRoleDisplayName = useCallback((role: UserRole): string => {
-    if (roleSettings) {
-      const setting = roleSettings.find(s => s.role === role);
-      if (setting?.display_name) return setting.display_name;
-    }
-    return role.charAt(0).toUpperCase() + role.slice(1);
-  }, [roleSettings]);
+  const getRoleDisplayName = useCallback(
+    (role: UserRole): string => {
+      if (roleSettings) {
+        const setting = roleSettings.find((s) => s.role === role);
+        if (setting?.display_name) return setting.display_name;
+      }
+      return role.charAt(0).toUpperCase() + role.slice(1);
+    },
+    [roleSettings]
+  );
 
   const retryProfileFetch = useCallback(async (): Promise<boolean> => {
     if (!user) return false;
@@ -757,108 +827,129 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return success;
   }, [user, fetchUserData]);
 
-  const switchLocation = useCallback(async (locationId: string) => {
-    // Validate the location is in accessible locations
-    const targetLocation = accessibleLocations.find(loc => loc.id === locationId);
-    if (!targetLocation) {
-      console.error('Cannot switch to inaccessible location:', locationId);
-      return;
-    }
+  const switchLocation = useCallback(
+    async (locationId: string) => {
+      // Validate the location is in accessible locations
+      const targetLocation = accessibleLocations.find((loc) => loc.id === locationId);
+      if (!targetLocation) {
+        console.error('Cannot switch to inaccessible location:', locationId);
+        return;
+      }
 
-    // Update tenant context
-    setTenant(targetLocation);
-    setActiveLocationId(locationId);
-    sessionStorage.setItem('selected_location_id', locationId);
+      // Update tenant context
+      setTenant(targetLocation);
+      setActiveLocationId(locationId);
+      sessionStorage.setItem('selected_location_id', locationId);
 
-    // Load branding for the new location
-    const { data: newBranding } = await supabase
-      .from('tenant_branding')
-      .select('*')
-      .eq('tenant_id', locationId)
-      .maybeSingle();
-
-    // Always update branding state - if location has no branding, set to null
-    // This prevents the previous location's branding from persisting
-    setBranding(newBranding || null);
-
-    // Refresh enabled modules for the new location
-    const { data: modules } = await supabase.rpc('get_tenant_enabled_modules', {
-      p_tenant_id: locationId
-    });
-    if (modules) {
-      setEnabledModules(modules as ModuleId[]);
-    }
-
-    // Refresh role settings for the new location
-    const { data: newRoleSettings } = await supabase
-      .from('tenant_role_settings')
-      .select('*')
-      .eq('tenant_id', locationId)
-      .order('role');
-    if (newRoleSettings && newRoleSettings.length > 0) {
-      setRoleSettings(newRoleSettings as TenantRoleSetting[]);
-    } else {
-      // Auto-seed for new location
-      await supabase.rpc('seed_tenant_role_settings', { p_tenant_id: locationId });
-      const { data: seeded } = await supabase
-        .from('tenant_role_settings').select('*').eq('tenant_id', locationId).order('role');
-      setRoleSettings((seeded as TenantRoleSetting[]) || null);
-    }
-
-    // Record activity on this tenant via user_tenant_assignments
-    if (user) {
-      supabase
-        .from('user_tenant_assignments')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('user_id', user.id)
+      // Load branding for the new location
+      const { data: newBranding } = await supabase
+        .from('tenant_branding')
+        .select('*')
         .eq('tenant_id', locationId)
-        .then(() => {});
-    }
+        .maybeSingle();
 
-    // Dispatch location-changed event so pages can refresh their data
-    console.log('[AuthContext] Dispatching location-changed event for', locationId);
-    window.dispatchEvent(new CustomEvent('location-changed', { detail: { locationId } }));
-  }, [accessibleLocations, user]);
+      // Always update branding state - if location has no branding, set to null
+      // This prevents the previous location's branding from persisting
+      setBranding(newBranding || null);
+
+      // Refresh enabled modules for the new location
+      const { data: modules } = await supabase.rpc('get_tenant_enabled_modules', {
+        p_tenant_id: locationId,
+      });
+      if (modules) {
+        setEnabledModules(modules as ModuleId[]);
+      }
+
+      // Refresh role settings for the new location
+      const { data: newRoleSettings } = await supabase
+        .from('tenant_role_settings')
+        .select('*')
+        .eq('tenant_id', locationId)
+        .order('role');
+      if (newRoleSettings && newRoleSettings.length > 0) {
+        setRoleSettings(newRoleSettings as TenantRoleSetting[]);
+      } else {
+        // Auto-seed for new location
+        await supabase.rpc('seed_tenant_role_settings', { p_tenant_id: locationId });
+        const { data: seeded } = await supabase
+          .from('tenant_role_settings')
+          .select('*')
+          .eq('tenant_id', locationId)
+          .order('role');
+        setRoleSettings((seeded as TenantRoleSetting[]) || null);
+      }
+
+      // Record activity on this tenant via user_tenant_assignments
+      if (user) {
+        supabase;
+        Promise.resolve(
+          supabase
+            .from('user_tenant_assignments')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('user_id', user.id)
+            .eq('tenant_id', locationId)
+        ).catch((err: unknown) => console.warn('[AuthContext] Failed to record location switch activity:', err));
+      }
+
+      // Dispatch location-changed event so pages can refresh their data
+      console.log('[AuthContext] Dispatching location-changed event for', locationId);
+      window.dispatchEvent(new CustomEvent('location-changed', { detail: { locationId } }));
+    },
+    [accessibleLocations, user]
+  );
 
   // Platform admin: enter a tenant's dashboard view (requires profile or assignment)
-  const enterTenantView = useCallback(async (tenantId: string) => {
-    if (!user || !platformAdmin) return;
+  const enterTenantView = useCallback(
+    async (tenantId: string) => {
+      if (!user || !platformAdmin) return;
 
-    // Load profile, assignment, and tenant data in parallel
-    const [profileResult, assignmentResult, tenantResult, brandingResult, modulesResult] = await Promise.all([
-      supabase.from('user_profiles').select('*').eq('id', user.id).eq('tenant_id', tenantId).maybeSingle(),
-      supabase.from('user_tenant_assignments').select('role').eq('user_id', user.id).eq('tenant_id', tenantId).eq('is_active', true).maybeSingle(),
-      supabase.from('tenants').select('*').eq('id', tenantId).single(),
-      supabase.from('tenant_branding').select('*').eq('tenant_id', tenantId).maybeSingle(),
-      supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: tenantId }),
-    ]);
+      // Load profile, assignment, and tenant data in parallel
+      const [profileResult, assignmentResult, tenantResult, brandingResult, modulesResult] = await Promise.all([
+        supabase.from('user_profiles').select('*').eq('id', user.id).eq('tenant_id', tenantId).maybeSingle(),
+        supabase
+          .from('user_tenant_assignments')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('tenant_id', tenantId)
+          .eq('is_active', true)
+          .maybeSingle(),
+        supabase.from('tenants').select('*').eq('id', tenantId).single(),
+        supabase.from('tenant_branding').select('*').eq('tenant_id', tenantId).maybeSingle(),
+        supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: tenantId }),
+      ]);
 
-    if (!tenantResult.data) return;
+      if (!tenantResult.data) return;
 
-    // Use direct profile if available, otherwise build one from the assignment
-    const effectiveProfile: UserProfile = profileResult.data || (assignmentResult.data ? {
-      id: user.id,
-      tenant_id: tenantId,
-      email: platformAdmin.email,
-      full_name: platformAdmin.full_name,
-      role: (assignmentResult.data.role || 'owner') as UserRole,
-      is_active: true,
-      avatar_url: null,
-      start_date: null,
-    } : null as any);
+      // Use direct profile if available, otherwise build one from the assignment
+      const effectiveProfile: UserProfile =
+        profileResult.data ||
+        (assignmentResult.data
+          ? {
+              id: user.id,
+              tenant_id: tenantId,
+              email: platformAdmin.email,
+              full_name: platformAdmin.full_name,
+              role: (assignmentResult.data.role || 'owner') as UserRole,
+              is_active: true,
+              avatar_url: null,
+              start_date: null,
+            }
+          : null!);
 
-    if (!effectiveProfile) return;
+      if (!effectiveProfile) return;
 
-    setProfile(effectiveProfile);
-    setTenant(tenantResult.data);
-    setPrimaryTenant(tenantResult.data);
-    setAccessibleLocations([tenantResult.data]);
-    setActiveLocationId(tenantResult.data.id);
-    setBranding(brandingResult.data || null);
-    setEnabledModules((modulesResult.data || []) as ModuleId[]);
-    setAdminViewingTenant(true);
-    sessionStorage.setItem('admin_view_tenant_id', tenantId);
-  }, [user, platformAdmin]);
+      setProfile(effectiveProfile);
+      setTenant(tenantResult.data);
+      setPrimaryTenant(tenantResult.data);
+      setAccessibleLocations([tenantResult.data]);
+      setActiveLocationId(tenantResult.data.id);
+      setBranding(brandingResult.data || null);
+      setEnabledModules((modulesResult.data || []) as ModuleId[]);
+      setAdminViewingTenant(true);
+      sessionStorage.setItem('admin_view_tenant_id', tenantId);
+    },
+    [user, platformAdmin]
+  );
 
   // Platform admin: exit tenant view and return to admin panel
   const exitTenantView = useCallback(() => {
@@ -884,47 +975,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [platformAdmin, adminViewingTenant, enterTenantView]);
 
-  const contextValue = useMemo(() => ({
-    user,
-    session,
-    profile,
-    platformAdmin,
-    isPlatformAdmin: !!platformAdmin,
-    tenant,
-    primaryTenant,
-    accessibleLocations,
-    activeLocationId,
-    branding,
-    enabledModules,
-    roleSettings,
-    loading,
-    signIn,
-    signUp,
-    signOut,
-    hasRole,
-    hasPermission,
-    getRoleDisplayName,
-    canAccessModule,
-    refreshEnabledModules,
-    switchLocation,
-    retryProfileFetch,
-    isParentTenant,
-    adminViewingTenant,
-    enterTenantView,
-    exitTenantView,
-  }), [
-    user, session, profile, platformAdmin, tenant, primaryTenant,
-    accessibleLocations, activeLocationId, branding, enabledModules,
-    roleSettings, loading, hasPermission, getRoleDisplayName,
-    refreshEnabledModules, switchLocation, retryProfileFetch,
-    isParentTenant, adminViewingTenant, enterTenantView, exitTenantView,
-  ]);
-
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      user,
+      session,
+      profile,
+      platformAdmin,
+      isPlatformAdmin: !!platformAdmin,
+      tenant,
+      primaryTenant,
+      accessibleLocations,
+      activeLocationId,
+      branding,
+      enabledModules,
+      roleSettings,
+      loading,
+      signIn,
+      signUp,
+      signOut,
+      hasRole,
+      hasPermission,
+      getRoleDisplayName,
+      canAccessModule,
+      refreshEnabledModules,
+      switchLocation,
+      retryProfileFetch,
+      isParentTenant,
+      adminViewingTenant,
+      enterTenantView,
+      exitTenantView,
+    }),
+    [
+      user,
+      session,
+      profile,
+      platformAdmin,
+      tenant,
+      primaryTenant,
+      accessibleLocations,
+      activeLocationId,
+      branding,
+      enabledModules,
+      roleSettings,
+      loading,
+      hasPermission,
+      getRoleDisplayName,
+      refreshEnabledModules,
+      switchLocation,
+      retryProfileFetch,
+      isParentTenant,
+      adminViewingTenant,
+      enterTenantView,
+      exitTenantView,
+    ]
   );
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

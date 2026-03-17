@@ -93,9 +93,33 @@ function CoffeeSvg({ s, primary, secondary }: { s: number; primary: string; seco
       </g>
 
       {/* Steam wisps */}
-      <path className="coffee-loader-steam-1" d="M 28 24 Q 26 18 28 12 Q 30 6 28 2" stroke={primary} strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0" />
-      <path className="coffee-loader-steam-2" d="M 36 22 Q 38 16 36 10 Q 34 4 36 0" stroke={primary} strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0" />
-      <path className="coffee-loader-steam-3" d="M 44 24 Q 46 18 44 12 Q 42 6 44 2" stroke={primary} strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0" />
+      <path
+        className="coffee-loader-steam-1"
+        d="M 28 24 Q 26 18 28 12 Q 30 6 28 2"
+        stroke={primary}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        fill="none"
+        opacity="0"
+      />
+      <path
+        className="coffee-loader-steam-2"
+        d="M 36 22 Q 38 16 36 10 Q 34 4 36 0"
+        stroke={primary}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        fill="none"
+        opacity="0"
+      />
+      <path
+        className="coffee-loader-steam-3"
+        d="M 44 24 Q 46 18 44 12 Q 42 6 44 2"
+        stroke={primary}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        fill="none"
+        opacity="0"
+      />
     </svg>
   );
 }
@@ -111,11 +135,29 @@ function CoffeeSvg({ s, primary, secondary }: { s: number; primary: string; seco
 const PIZZA_SLICES = [
   // { path, dx, dy, pepperoni?, basil? }  — toppings positioned per-slice
   { d: 'M 40 40 L 40 14 A 26 26 0 0 1 62.5 27 Z', dx: 4, dy: -7, pep: { cx: 48, cy: 24, r: 3 } },
-  { d: 'M 40 40 L 62.5 27 A 26 26 0 0 1 62.5 53 Z', dx: 8, dy: 0, pep: { cx: 56, cy: 40, r: 3.5 }, basil: { cx: 52, cy: 34, rot: -20 } },
+  {
+    d: 'M 40 40 L 62.5 27 A 26 26 0 0 1 62.5 53 Z',
+    dx: 8,
+    dy: 0,
+    pep: { cx: 56, cy: 40, r: 3.5 },
+    basil: { cx: 52, cy: 34, rot: -20 },
+  },
   { d: 'M 40 40 L 62.5 53 A 26 26 0 0 1 40 66 Z', dx: 4, dy: 7, pep: { cx: 48, cy: 56, r: 3 } },
-  { d: 'M 40 40 L 40 66 A 26 26 0 0 1 17.5 53 Z', dx: -4, dy: 7, pep: { cx: 32, cy: 56, r: 3.5 }, basil: { cx: 36, cy: 52, rot: 25 } },
+  {
+    d: 'M 40 40 L 40 66 A 26 26 0 0 1 17.5 53 Z',
+    dx: -4,
+    dy: 7,
+    pep: { cx: 32, cy: 56, r: 3.5 },
+    basil: { cx: 36, cy: 52, rot: 25 },
+  },
   { d: 'M 40 40 L 17.5 53 A 26 26 0 0 1 17.5 27 Z', dx: -8, dy: 0, pep: { cx: 24, cy: 40, r: 3 } },
-  { d: 'M 40 40 L 17.5 27 A 26 26 0 0 1 40 14 Z', dx: -4, dy: -7, pep: { cx: 32, cy: 24, r: 3.5 }, basil: { cx: 28, cy: 30, rot: -15 } },
+  {
+    d: 'M 40 40 L 17.5 27 A 26 26 0 0 1 40 14 Z',
+    dx: -4,
+    dy: -7,
+    pep: { cx: 32, cy: 24, r: 3.5 },
+    basil: { cx: 28, cy: 30, rot: -15 },
+  },
 ];
 
 function PizzaSvg({ s }: { s: number }) {
@@ -144,8 +186,10 @@ function PizzaSvg({ s }: { s: number }) {
           {/* Basil leaf (on some slices) */}
           {slice.basil && (
             <ellipse
-              cx={slice.basil.cx} cy={slice.basil.cy}
-              rx="3" ry="1.2"
+              cx={slice.basil.cx}
+              cy={slice.basil.cy}
+              rx="3"
+              ry="1.2"
               fill="#388E3C"
               transform={`rotate(${slice.basil.rot} ${slice.basil.cx} ${slice.basil.cy})`}
             />
@@ -154,9 +198,33 @@ function PizzaSvg({ s }: { s: number }) {
       ))}
 
       {/* Steam wisps */}
-      <path className="pizza-loader-steam-1" d="M 32 10 Q 30 4 32 -2" stroke="#9E9E9E" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0" />
-      <path className="pizza-loader-steam-2" d="M 40 8 Q 42 2 40 -4" stroke="#9E9E9E" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0" />
-      <path className="pizza-loader-steam-3" d="M 48 10 Q 50 4 48 -2" stroke="#9E9E9E" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0" />
+      <path
+        className="pizza-loader-steam-1"
+        d="M 32 10 Q 30 4 32 -2"
+        stroke="#9E9E9E"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        fill="none"
+        opacity="0"
+      />
+      <path
+        className="pizza-loader-steam-2"
+        d="M 40 8 Q 42 2 40 -4"
+        stroke="#9E9E9E"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        fill="none"
+        opacity="0"
+      />
+      <path
+        className="pizza-loader-steam-3"
+        d="M 48 10 Q 50 4 48 -2"
+        stroke="#9E9E9E"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        fill="none"
+        opacity="0"
+      />
     </svg>
   );
 }
@@ -169,12 +237,7 @@ function DefaultSvg({ s, primary }: { s: number; primary: string }) {
   return (
     <svg width={s} height={s} viewBox="0 0 80 80" fill="none" role="img" aria-label="Loading">
       {/* Outer ring — rotates */}
-      <circle
-        cx="40" cy="40" r="30"
-        stroke="#E5E7EB"
-        strokeWidth="4"
-        fill="none"
-      />
+      <circle cx="40" cy="40" r="30" stroke="#E5E7EB" strokeWidth="4" fill="none" />
       <path
         d="M 40 10 A 30 30 0 0 1 70 40"
         stroke={primary}
@@ -207,7 +270,8 @@ export function CoffeeLoader({ size = 'md', text, progressiveTexts, fullScreen =
   const slug = vertical?.slug ?? cachedSlug;
 
   // Use explicit texts, or fall back to vertical-specific texts for fullScreen
-  const resolvedTexts = progressiveTexts ?? (fullScreen ? (slug ? (VERTICAL_TEXTS[slug] ?? DEFAULT_TEXTS) : DEFAULT_TEXTS) : undefined);
+  const resolvedTexts =
+    progressiveTexts ?? (fullScreen ? (slug ? (VERTICAL_TEXTS[slug] ?? DEFAULT_TEXTS) : DEFAULT_TEXTS) : undefined);
   const safeIndex = resolvedTexts ? textIndex % resolvedTexts.length : 0;
   const displayText = resolvedTexts ? resolvedTexts[safeIndex] : text;
 

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-queries';
 
@@ -31,9 +32,7 @@ export function formatTime(time: string | null): string {
   const [hours, minutes] = time.split(':').map(Number);
   const suffix = hours >= 12 ? 'pm' : 'am';
   const displayHour = hours % 12 || 12;
-  return minutes > 0
-    ? `${displayHour}:${minutes.toString().padStart(2, '0')}${suffix}`
-    : `${displayHour}${suffix}`;
+  return minutes > 0 ? `${displayHour}:${minutes.toString().padStart(2, '0')}${suffix}` : `${displayHour}${suffix}`;
 }
 
 export function getTodayHours(hours: OperatingHoursEntry[] | undefined): string {
@@ -81,18 +80,23 @@ export function formatRelativeTime(dateStr: string | null): string {
 export function getActivityColor(dateStr: string | null): string {
   if (!dateStr) return '#ef4444'; // red — never logged in
   const diffDays = (Date.now() - new Date(dateStr).getTime()) / 86400000;
-  if (diffDays < 3) return '#22c55e';   // green
-  if (diffDays < 14) return '#f59e0b';  // yellow/amber
-  return '#ef4444';                      // red
+  if (diffDays < 3) return '#22c55e'; // green
+  if (diffDays < 14) return '#f59e0b'; // yellow/amber
+  return '#ef4444'; // red
 }
 
 export function getRoleBadgeColor(role: string): string {
   switch (role) {
-    case 'owner': return '#334155';
-    case 'manager': return '#475569';
-    case 'lead': return '#64748B';
-    case 'employee': return '#94A3B8';
-    default: return '#334155';
+    case 'owner':
+      return '#334155';
+    case 'manager':
+      return '#475569';
+    case 'lead':
+      return '#64748B';
+    case 'employee':
+      return '#94A3B8';
+    default:
+      return '#334155';
   }
 }
 
@@ -159,9 +163,7 @@ export function useStoreTeamMembers(tenantId?: string) {
 
         if (assignments && assignments.length > 0) {
           const knownUserIds = new Set(Array.from(memberByEmail.values()).map((m) => m.id));
-          const extraIds = assignments
-            .map((a) => a.user_id)
-            .filter((uid) => !knownUserIds.has(uid));
+          const extraIds = assignments.map((a) => a.user_id).filter((uid) => !knownUserIds.has(uid));
 
           if (extraIds.length > 0) {
             const { data: extraProfiles } = await supabase
@@ -226,13 +228,15 @@ export function useStoreOperatingHours(tenantId?: string) {
 export function useUpsertOperatingHours() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (entries: {
-      tenant_id: string;
-      day_of_week: number;
-      open_time: string | null;
-      close_time: string | null;
-      is_closed: boolean;
-    }[]) => {
+    mutationFn: async (
+      entries: {
+        tenant_id: string;
+        day_of_week: number;
+        open_time: string | null;
+        close_time: string | null;
+        is_closed: boolean;
+      }[]
+    ) => {
       const { data, error } = await supabase
         .from('store_operating_hours')
         .upsert(entries, { onConflict: 'tenant_id,day_of_week' })

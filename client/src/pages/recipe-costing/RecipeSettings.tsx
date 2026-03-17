@@ -27,7 +27,18 @@ interface RecipeSettingsProps {
   hasStoreHours: boolean;
 }
 
-export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipes, productSizes, baseTemplates, recipeSizeBases, recipePricing, autoHours, hasStoreHours }: RecipeSettingsProps) => {
+export const RecipeSettings = ({
+  overhead,
+  onUpdateOverhead,
+  ingredients,
+  recipes,
+  productSizes,
+  baseTemplates,
+  recipeSizeBases,
+  recipePricing,
+  autoHours,
+  hasStoreHours,
+}: RecipeSettingsProps) => {
   const { tenant } = useAuth();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -39,8 +50,8 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
   });
 
   const useStoreHours = overhead?.use_store_hours ?? false;
-  const displayDays = useStoreHours ? autoHours.daysPerWeek : (overhead?.operating_days_per_week || 7);
-  const displayHours = useStoreHours ? autoHours.avgHoursPerDay : (overhead?.hours_open_per_day || 8);
+  const displayDays = useStoreHours ? autoHours.daysPerWeek : overhead?.operating_days_per_week || 7;
+  const displayHours = useStoreHours ? autoHours.avgHoursPerDay : overhead?.hours_open_per_day || 8;
 
   const costPerMinute = overhead?.cost_per_minute || 0;
   const overheadPerDrink = costPerMinute * (overhead?.minutes_per_drink || 1);
@@ -67,7 +78,9 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
     <div className="space-y-6">
       {/* Overhead Settings */}
       <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
-        <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>Overhead Settings</h3>
+        <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>
+          Overhead Settings
+        </h3>
 
         {/* Auto-calculate toggle */}
         <div
@@ -79,23 +92,20 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
               Auto-calculate from store profile
             </div>
             <div className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
-              {hasStoreHours
-                ? 'Uses your store operating hours to derive days/week and hours/day'
-                : (
-                  <>
-                    Set your{' '}
-                    <a href={`/store/${tenant?.id || ''}`} className="underline" style={{ color: colors.gold }}>store hours</a>
-                    {' '}to enable auto-calculation
-                  </>
-                )
-              }
+              {hasStoreHours ? (
+                'Uses your store operating hours to derive days/week and hours/day'
+              ) : (
+                <>
+                  Set your{' '}
+                  <a href={`/store/${tenant?.id || ''}`} className="underline" style={{ color: colors.gold }}>
+                    store hours
+                  </a>{' '}
+                  to enable auto-calculation
+                </>
+              )}
             </div>
           </div>
-          <Switch
-            checked={useStoreHours}
-            onCheckedChange={handleToggleAutoHours}
-            disabled={!hasStoreHours}
-          />
+          <Switch checked={useStoreHours} onCheckedChange={handleToggleAutoHours} disabled={!hasStoreHours} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -145,7 +155,9 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
                 min="1"
                 max="7"
                 value={form.operating_days_per_week}
-                onChange={(e) => setForm({ ...form, operating_days_per_week: Math.min(7, Math.max(1, parseInt(e.target.value) || 7)) })}
+                onChange={(e) =>
+                  setForm({ ...form, operating_days_per_week: Math.min(7, Math.max(1, parseInt(e.target.value) || 7)) })
+                }
                 onFocus={(e) => e.target.select()}
                 className="w-full px-3 py-2 rounded-lg border-2 outline-none"
                 style={{ borderColor: colors.gold }}
@@ -178,7 +190,9 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
                 min="1"
                 max="24"
                 value={form.hours_open_per_day}
-                onChange={(e) => setForm({ ...form, hours_open_per_day: Math.min(24, Math.max(1, parseFloat(e.target.value) || 8)) })}
+                onChange={(e) =>
+                  setForm({ ...form, hours_open_per_day: Math.min(24, Math.max(1, parseFloat(e.target.value) || 8)) })
+                }
                 onFocus={(e) => e.target.select()}
                 className="w-full px-3 py-2 rounded-lg border-2 outline-none"
                 style={{ borderColor: colors.gold }}
@@ -205,7 +219,9 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
         </div>
 
         <div className="mt-4 p-4 rounded-lg" style={{ backgroundColor: colors.cream }}>
-          <div className="text-sm" style={{ color: colors.brownLight }}>Overhead per Item</div>
+          <div className="text-sm" style={{ color: colors.brownLight }}>
+            Overhead per Item
+          </div>
           <div className="text-3xl font-bold" style={{ color: colors.gold }}>
             {formatCurrency(overheadPerDrink)}
           </div>
@@ -267,7 +283,9 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
 
       {/* Export Section */}
       <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
-        <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>Export Data</h3>
+        <h3 className="text-lg font-bold mb-4" style={{ color: colors.brown }}>
+          Export Data
+        </h3>
         <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
           Export your recipe costing data for backup, reporting, or sharing.
         </p>
@@ -275,8 +293,9 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             onClick={() => {
-              let csv = 'Name,Category,Type,Cost,Quantity,Unit,Cost Per Unit,Usage Unit,Cost Per Usage,Vendor,Manufacturer,Item Number,Last Updated\n';
-              ingredients.forEach(ing => {
+              let csv =
+                'Name,Category,Type,Cost,Quantity,Unit,Cost Per Unit,Usage Unit,Cost Per Usage,Vendor,Manufacturer,Item Number,Last Updated\n';
+              ingredients.forEach((ing) => {
                 const ingQuantity = Number(ing.quantity) || 1;
                 const costPerUnit = (Number(ing.cost) || 0) / (ingQuantity > 0 ? ingQuantity : 1);
                 const usageUnit = ing.usage_unit || ing.unit;
@@ -302,24 +321,32 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
 
           <button
             onClick={() => {
-              let csv = 'Recipe Name,Category,Size,Base Template,Ingredient Cost,Overhead,Total Cost,Sale Price,Margin %,Profit\n';
+              let csv =
+                'Recipe Name,Category,Size,Base Template,Ingredient Cost,Overhead,Total Cost,Sale Price,Margin %,Profit\n';
 
-              recipes.forEach(recipe => {
+              recipes.forEach((recipe) => {
                 const recipeMinutes = recipe.minutes_per_drink ?? overhead?.minutes_per_drink ?? 1;
                 const overheadCost = (overhead?.cost_per_minute || 0) * recipeMinutes;
                 const category = recipe.category_name || '';
 
-                productSizes.forEach(size => {
-                  const sizeBase = recipeSizeBases.find(rsb => rsb.recipe_id === recipe.id && rsb.size_id === size.id);
-                  const baseTemplate = sizeBase ? baseTemplates.find(bt => bt.id === sizeBase.base_template_id) :
-                    (recipe.base_template_id ? baseTemplates.find(bt => bt.id === recipe.base_template_id) : null);
+                productSizes.forEach((size) => {
+                  const sizeBase = recipeSizeBases.find(
+                    (rsb) => rsb.recipe_id === recipe.id && rsb.size_id === size.id
+                  );
+                  const baseTemplate = sizeBase
+                    ? baseTemplates.find((bt) => bt.id === sizeBase.base_template_id)
+                    : recipe.base_template_id
+                      ? baseTemplates.find((bt) => bt.id === recipe.base_template_id)
+                      : null;
 
-                  const recipeIngredients = (recipe.recipe_ingredients || []).filter((ri: RecipeIngredient) => ri.size_id === size.id);
+                  const recipeIngredients = (recipe.recipe_ingredients || []).filter(
+                    (ri: RecipeIngredient) => ri.size_id === size.id
+                  );
                   let ingredientCost = 0;
 
                   recipeIngredients.forEach((ri: RecipeIngredient) => {
                     if (ri.ingredient_id) {
-                      const ing = ingredients.find(i => i.id === ri.ingredient_id);
+                      const ing = ingredients.find((i) => i.id === ri.ingredient_id);
                       if (ing) {
                         const usageUnit = ing.usage_unit || ing.unit;
                         const costPerUsage = calculateCostPerUsageUnit(
@@ -334,9 +361,11 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
                   });
 
                   if (baseTemplate) {
-                    const baseIngredients = (baseTemplate.ingredients || []).filter((bi: any) => bi.size_id === size.id);
+                    const baseIngredients = (baseTemplate.ingredients || []).filter(
+                      (bi: any) => bi.size_id === size.id
+                    );
                     baseIngredients.forEach((bi: any) => {
-                      const ing = ingredients.find(i => i.id === bi.ingredient_id);
+                      const ing = ingredients.find((i) => i.id === bi.ingredient_id);
                       if (ing) {
                         const usageUnit = ing.usage_unit || ing.unit;
                         const costPerUsage = calculateCostPerUsageUnit(
@@ -351,7 +380,7 @@ export const RecipeSettings = ({ overhead, onUpdateOverhead, ingredients, recipe
                   }
 
                   const totalCost = ingredientCost + overheadCost;
-                  const pricing = recipePricing.find(rp => rp.recipe_id === recipe.id && rp.size_id === size.id);
+                  const pricing = recipePricing.find((rp) => rp.recipe_id === recipe.id && rp.size_id === size.id);
                   const salePrice = pricing ? Number(pricing.sale_price) || 0 : 0;
                   const margin = salePrice > 0 ? ((salePrice - totalCost) / salePrice) * 100 : 0;
                   const profit = salePrice - totalCost;

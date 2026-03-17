@@ -125,16 +125,10 @@ export default function Landing() {
       <section className="py-16 md:py-24" style={{ backgroundColor: 'var(--color-background)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2
-              className="text-3xl md:text-4xl font-bold mb-4"
-              style={{ color: 'var(--color-secondary)' }}
-            >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: 'var(--color-secondary)' }}>
               Everything You Need to Run Your Business
             </h2>
-            <p
-              className="text-lg max-w-2xl mx-auto"
-              style={{ color: 'var(--color-secondary-light)' }}
-            >
+            <p className="text-lg max-w-2xl mx-auto" style={{ color: 'var(--color-secondary-light)' }}>
               Built by food service professionals, for food service professionals.
             </p>
           </div>
@@ -179,16 +173,10 @@ export default function Landing() {
             >
               <Shield className="w-7 h-7 text-white" />
             </div>
-            <h2
-              className="text-2xl md:text-3xl font-bold mb-3"
-              style={{ color: 'var(--color-secondary)' }}
-            >
+            <h2 className="text-2xl md:text-3xl font-bold mb-3" style={{ color: 'var(--color-secondary)' }}>
               Your Data, Protected
             </h2>
-            <p
-              className="text-base max-w-2xl mx-auto"
-              style={{ color: 'var(--color-secondary-light)' }}
-            >
+            <p className="text-base max-w-2xl mx-auto" style={{ color: 'var(--color-secondary-light)' }}>
               We take security seriously so you can focus on running your business.
             </p>
           </div>
@@ -200,7 +188,8 @@ export default function Landing() {
                 Encrypted Connections
               </h3>
               <p className="text-sm" style={{ color: 'var(--color-secondary-light)' }}>
-                All data is transmitted over secure, encrypted connections. Your information is never sent in plain text.
+                All data is transmitted over secure, encrypted connections. Your information is never sent in plain
+                text.
               </p>
             </div>
             <div className="text-center">
@@ -209,7 +198,8 @@ export default function Landing() {
                 Strict Access Controls
               </h3>
               <p className="text-sm" style={{ color: 'var(--color-secondary-light)' }}>
-                Every request is authenticated and authorized. Each business can only access its own data — no exceptions.
+                Every request is authenticated and authorized. Each business can only access its own data — no
+                exceptions.
               </p>
             </div>
             <div className="text-center">
@@ -218,7 +208,8 @@ export default function Landing() {
                 Reliable Infrastructure
               </h3>
               <p className="text-sm" style={{ color: 'var(--color-secondary-light)' }}>
-                Hosted on trusted cloud infrastructure with automatic backups, so your data is safe and always available.
+                Hosted on trusted cloud infrastructure with automatic backups, so your data is safe and always
+                available.
               </p>
             </div>
           </div>

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -8,21 +9,26 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Mail, MapPin, Building2, Check, X, Shield, DollarSign, Eye, EyeOff, Clock, Pencil } from 'lucide-react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet';
+  ArrowLeft,
+  Plus,
+  Trash2,
+  UserPlus,
+  Loader2,
+  Mail,
+  MapPin,
+  Building2,
+  Check,
+  X,
+  Shield,
+  DollarSign,
+  Eye,
+  EyeOff,
+  Clock,
+  Pencil,
+} from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { colors } from '@/lib/colors';
 import { useManagerAssignments, useSetManager, useUpdateCompensation } from '@/hooks/use-manager-assignment';
@@ -55,14 +61,14 @@ export default function AdminUsers() {
   const { data: managerData } = useManagerAssignments();
   const setManagerMut = useSetManager();
   const updateCompMut = useUpdateCompensation();
-  
+
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
-  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'My Coffee Shop');
+  const displayName = isChildLocation ? tenant?.name : branding?.company_name || tenant?.name || 'My Coffee Shop';
   const orgName = primaryTenant?.name || branding?.company_name || '';
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Location management state
   const [locations, setLocations] = useState<Location[]>([]);
   const [userAssignments, setUserAssignments] = useState<Record<string, string[]>>({});
@@ -70,14 +76,14 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [savingLocations, setSavingLocations] = useState(false);
   const [pendingAssignments, setPendingAssignments] = useState<string[]>([]);
-  
+
   // Add user form state
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<'manager' | 'lead' | 'employee'>('employee');
   const [creating, setCreating] = useState(false);
-  
+
   // Success dialog
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [createdUserEmail, setCreatedUserEmail] = useState('');
@@ -129,27 +135,27 @@ export default function AdminUsers() {
         .eq('id', profile.tenant_id)
         .single();
 
-      const allLocations = parent ? [parent, ...(children || [])] : (children || []);
+      const allLocations = parent ? [parent, ...(children || [])] : children || [];
       setLocations(allLocations);
-    } catch (error: any) {
-      console.error('Error loading locations:', error.message);
+    } catch (error: unknown) {
+      console.error('Error loading locations:', getErrorMessage(error));
     }
   }, [profile?.tenant_id, profile?.role]);
 
   // Load user location assignments
   const loadUserAssignments = useCallback(async () => {
     if (!profile?.tenant_id || locations.length === 0) return;
-    
+
     try {
-      const locationIds = locations.map(l => l.id);
+      const locationIds = locations.map((l) => l.id);
       const { data, error } = await supabase
         .from('user_tenant_assignments')
         .select('user_id, tenant_id')
         .in('tenant_id', locationIds)
         .eq('is_active', true);
-      
+
       if (error) throw error;
-      
+
       // Group assignments by user
       const grouped: Record<string, string[]> = {};
       (data || []).forEach((a: { user_id: string; tenant_id: string }) => {
@@ -157,8 +163,8 @@ export default function AdminUsers() {
         grouped[a.user_id].push(a.tenant_id);
       });
       setUserAssignments(grouped);
-    } catch (error: any) {
-      console.error('Error loading assignments:', error.message);
+    } catch (error: unknown) {
+      console.error('Error loading assignments:', getErrorMessage(error));
     }
   }, [profile?.tenant_id, locations]);
 
@@ -168,8 +174,14 @@ export default function AdminUsers() {
       loadLocations();
       // Load kiosk code for owners
       if (profile.role === 'owner') {
-        supabase.from('tenants').select('kiosk_code').eq('id', profile.tenant_id).single()
-          .then(({ data }) => { if (data?.kiosk_code) setKioskCode(data.kiosk_code); });
+        supabase
+          .from('tenants')
+          .select('kiosk_code')
+          .eq('id', profile.tenant_id)
+          .single()
+          .then(({ data }) => {
+            if (data?.kiosk_code) setKioskCode(data.kiosk_code);
+          });
       }
     } else {
       setLoading(false);
@@ -185,7 +197,7 @@ export default function AdminUsers() {
   // Populate detail sheet form when user is selected
   useEffect(() => {
     if (detailUser && managerData) {
-      const match = managerData.find(u => u.id === detailUser.id);
+      const match = managerData.find((u) => u.id === detailUser.id);
       setDetailManager(match?.manager_id || 'none');
       setDetailExempt(match?.is_exempt ?? false);
       setDetailHourlyRate(match?.hourly_rate != null ? String(match.hourly_rate) : '');
@@ -217,8 +229,8 @@ export default function AdminUsers() {
 
       if (error) throw error;
       setUsers(data || []);
-    } catch (error: any) {
-      toast({ title: 'Error loading users', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error loading users', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -226,31 +238,39 @@ export default function AdminUsers() {
 
   const updateRole = async (userId: string, newRole: string) => {
     try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ role: newRole, updated_at: new Date().toISOString() })
-        .eq('id', userId);
+      const { getAuthHeaders } = await import('@/lib/api-helpers');
+      const response = await fetch('/api/users/change-role', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ userId, newRole }),
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to update role');
+
       toast({ title: 'Role updated' });
       loadUsers();
-    } catch (error: any) {
-      toast({ title: 'Error updating role', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating role', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
   const toggleActive = async (userId: string, isActive: boolean) => {
     try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ is_active: !isActive, updated_at: new Date().toISOString() })
-        .eq('id', userId);
+      const { getAuthHeaders } = await import('@/lib/api-helpers');
+      const response = await fetch('/api/users/deactivate', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ userId }),
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to update user status');
+
       toast({ title: isActive ? 'User deactivated' : 'User activated' });
       loadUsers();
-    } catch (error: any) {
-      toast({ title: 'Error updating user', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating user', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -288,8 +308,8 @@ export default function AdminUsers() {
       setNewName('');
       setNewRole('employee');
       loadUsers();
-    } catch (error: any) {
-      toast({ title: 'Error creating user', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error creating user', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setCreating(false);
     }
@@ -304,23 +324,21 @@ export default function AdminUsers() {
 
   // Toggle a location assignment in pending state
   const toggleLocationAssignment = (locationId: string) => {
-    setPendingAssignments(prev => 
-      prev.includes(locationId) 
-        ? prev.filter(id => id !== locationId)
-        : [...prev, locationId]
+    setPendingAssignments((prev) =>
+      prev.includes(locationId) ? prev.filter((id) => id !== locationId) : [...prev, locationId]
     );
   };
 
   // Save location assignments for selected user
   const saveLocationAssignments = async () => {
     if (!selectedUser) return;
-    
+
     setSavingLocations(true);
     try {
       const currentAssignments = userAssignments[selectedUser.id] || [];
-      const toAdd = pendingAssignments.filter(id => !currentAssignments.includes(id));
-      const toRemove = currentAssignments.filter(id => !pendingAssignments.includes(id));
-      
+      const toAdd = pendingAssignments.filter((id) => !currentAssignments.includes(id));
+      const toRemove = currentAssignments.filter((id) => !pendingAssignments.includes(id));
+
       // Remove assignments
       if (toRemove.length > 0) {
         const { error } = await supabase
@@ -328,29 +346,30 @@ export default function AdminUsers() {
           .delete()
           .eq('user_id', selectedUser.id)
           .in('tenant_id', toRemove);
-        
+
         if (error) throw error;
       }
-      
+
       // Add new assignments
       for (const tenantId of toAdd) {
-        const { error } = await supabase
-          .from('user_tenant_assignments')
-          .upsert({
+        const { error } = await supabase.from('user_tenant_assignments').upsert(
+          {
             user_id: selectedUser.id,
             tenant_id: tenantId,
             role: selectedUser.role,
-            is_active: true
-          }, { onConflict: 'user_id,tenant_id' });
-        
+            is_active: true,
+          },
+          { onConflict: 'user_id,tenant_id' }
+        );
+
         if (error) throw error;
       }
-      
+
       toast({ title: 'Location assignments updated' });
       setShowLocationDialog(false);
       loadUserAssignments();
-    } catch (error: any) {
-      toast({ title: 'Error updating assignments', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating assignments', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSavingLocations(false);
     }
@@ -369,7 +388,7 @@ export default function AdminUsers() {
         userId: detailUser.id,
         updates: {
           is_exempt: detailExempt,
-          hourly_rate: detailExempt ? null : (detailHourlyRate ? parseFloat(detailHourlyRate) : null),
+          hourly_rate: detailExempt ? null : detailHourlyRate ? parseFloat(detailHourlyRate) : null,
           annual_salary: detailExempt ? (detailAnnualSalary ? parseFloat(detailAnnualSalary) : null) : null,
           pay_frequency: detailPayFrequency || 'biweekly',
         },
@@ -389,8 +408,8 @@ export default function AdminUsers() {
       }
       toast({ title: 'Employee details saved' });
       setShowDetailSheet(false);
-    } catch (error: any) {
-      toast({ title: 'Error saving details', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error saving details', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSavingDetail(false);
     }
@@ -417,8 +436,8 @@ export default function AdminUsers() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Failed to resend invite');
       toast({ title: 'Invite resent', description: `Password reset email sent to ${targetUser.email}` });
-    } catch (error: any) {
-      toast({ title: 'Error resending invite', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error resending invite', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setResendingInvite(null);
     }
@@ -441,23 +460,27 @@ export default function AdminUsers() {
       setEmailUser(null);
       setChangedEmail('');
       loadUsers();
-    } catch (error: any) {
-      toast({ title: 'Error changing email', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error changing email', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSavingEmail(false);
     }
   };
 
-  const managerCandidates = (managerData || []).filter(u =>
-    (u.role === 'owner' || u.role === 'manager') && u.id !== detailUser?.id
+  const managerCandidates = (managerData || []).filter(
+    (u) => (u.role === 'owner' || u.role === 'manager') && u.id !== detailUser?.id
   );
 
   const getRoleOrder = (role: string) => {
     switch (role) {
-      case 'owner': return 1;
-      case 'manager': return 2;
-      case 'lead': return 3;
-      default: return 4;
+      case 'owner':
+        return 1;
+      case 'manager':
+        return 2;
+      case 'lead':
+        return 3;
+      default:
+        return 4;
     }
   };
 
@@ -482,7 +505,7 @@ export default function AdminUsers() {
       </div>
     );
   }
-  
+
   const canEditOwners = profile.role === 'owner';
 
   return (
@@ -512,7 +535,7 @@ export default function AdminUsers() {
               <UserPlus className="w-4 h-4 mr-2" />
               Add New User
             </Button>
-            
+
             {/* Success Dialog */}
             <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
               <DialogContent style={{ backgroundColor: colors.white }}>
@@ -527,13 +550,18 @@ export default function AdminUsers() {
                     <div className="flex items-center gap-3">
                       <Mail className="w-8 h-8" style={{ color: colors.gold }} />
                       <div>
-                        <Label className="text-xs" style={{ color: colors.brownLight }}>Email sent to</Label>
-                        <p className="font-medium" style={{ color: colors.brown }}>{createdUserEmail}</p>
+                        <Label className="text-xs" style={{ color: colors.brownLight }}>
+                          Email sent to
+                        </Label>
+                        <p className="font-medium" style={{ color: colors.brown }}>
+                          {createdUserEmail}
+                        </p>
                       </div>
                     </div>
                   </div>
                   <p className="text-sm" style={{ color: colors.brownLight }}>
-                    The user will receive a password reset email. They can click the link in the email to set their own password, then log in.
+                    The user will receive a password reset email. They can click the link in the email to set their own
+                    password, then log in.
                   </p>
                   <Button
                     onClick={() => setShowSuccessDialog(false)}
@@ -548,20 +576,19 @@ export default function AdminUsers() {
             </Dialog>
           </CardHeader>
           <CardContent>
-
             {loading ? (
               <p style={{ color: colors.brownLight }}>Loading...</p>
             ) : users.length === 0 ? (
               <p style={{ color: colors.brownLight }}>No team members found.</p>
             ) : (
               <div className="space-y-3">
-                {sortedUsers.map(user => (
-                  <div 
+                {sortedUsers.map((user) => (
+                  <div
                     key={user.id}
                     className="flex items-center justify-between p-4 rounded-lg gap-4 flex-wrap"
-                    style={{ 
+                    style={{
                       backgroundColor: user.is_active ? colors.cream : colors.creamDark,
-                      opacity: user.is_active ? 1 : 0.7
+                      opacity: user.is_active ? 1 : 0.7,
                     }}
                   >
                     <div className="flex-1 min-w-[200px]">
@@ -587,18 +614,21 @@ export default function AdminUsers() {
                           <Pencil className="w-3 h-3" />
                         </button>
                       ) : (
-                        <p className="text-sm" style={{ color: colors.brownLight }}>{user.email}</p>
+                        <p className="text-sm" style={{ color: colors.brownLight }}>
+                          {user.email}
+                        </p>
                       )}
                       {hasMultipleLocations && userAssignments[user.id]?.length > 0 && (
                         <div className="flex items-center gap-1 mt-1 flex-wrap">
                           <MapPin className="w-3 h-3" style={{ color: colors.brownLight }} />
                           <span className="text-xs" style={{ color: colors.brownLight }}>
-                            {userAssignments[user.id].length} location{userAssignments[user.id].length !== 1 ? 's' : ''} assigned
+                            {userAssignments[user.id].length} location{userAssignments[user.id].length !== 1 ? 's' : ''}{' '}
+                            assigned
                           </span>
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="flex items-center gap-3">
                       {user.id === profile?.id || (user.role === 'owner' && !canEditOwners) ? (
                         <span
@@ -609,10 +639,7 @@ export default function AdminUsers() {
                         </span>
                       ) : (
                         <>
-                          <Select
-                            value={user.role}
-                            onValueChange={(value) => updateRole(user.id, value)}
-                          >
+                          <Select value={user.role} onValueChange={(value) => updateRole(user.id, value)}>
                             <SelectTrigger
                               className="w-32"
                               style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
@@ -632,7 +659,10 @@ export default function AdminUsers() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => { setDetailUser(user); setShowDetailSheet(true); }}
+                              onClick={() => {
+                                setDetailUser(user);
+                                setShowDetailSheet(true);
+                              }}
                               style={{ borderColor: colors.gold, color: colors.gold }}
                             >
                               <DollarSign className="w-4 h-4 mr-1" />
@@ -678,7 +708,7 @@ export default function AdminUsers() {
                             onClick={() => toggleActive(user.id, user.is_active)}
                             style={{
                               borderColor: user.is_active ? colors.red : colors.gold,
-                              color: user.is_active ? colors.red : colors.gold
+                              color: user.is_active ? colors.red : colors.gold,
                             }}
                             data-testid={`button-toggle-${user.id}`}
                           >
@@ -699,7 +729,9 @@ export default function AdminUsers() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold" style={{ color: colors.brown }}>Role Permissions</h3>
+                  <h3 className="font-semibold" style={{ color: colors.brown }}>
+                    Role Permissions
+                  </h3>
                   <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
                     Customize what each role can do and rename roles
                   </p>
@@ -768,7 +800,8 @@ export default function AdminUsers() {
               </div>
               <div className="p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
                 <p className="text-sm" style={{ color: colors.brownLight }}>
-                  An email will be sent to this address. The user will click a link to confirm their email and set their own password.
+                  An email will be sent to this address. The user will click a link to confirm their email and set their
+                  own password.
                 </p>
               </div>
               <Button
@@ -802,24 +835,26 @@ export default function AdminUsers() {
             </SheetHeader>
             <div className="space-y-4 mt-6">
               <div className="space-y-2">
-                {locations.filter(l => l.is_active).map(location => (
-                  <div
-                    key={location.id}
-                    className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all hover:brightness-95"
-                    style={{ backgroundColor: colors.cream }}
-                    onClick={() => toggleLocationAssignment(location.id)}
-                    data-testid={`location-option-${location.id}`}
-                  >
-                    <Checkbox
-                      checked={pendingAssignments.includes(location.id)}
-                      onCheckedChange={() => toggleLocationAssignment(location.id)}
-                      data-testid={`checkbox-location-${location.id}`}
-                    />
-                    <Building2 className="w-4 h-4" style={{ color: colors.gold }} />
-                    <span style={{ color: colors.brown }}>{location.name}</span>
-                  </div>
-                ))}
-                {locations.filter(l => l.is_active).length === 0 && (
+                {locations
+                  .filter((l) => l.is_active)
+                  .map((location) => (
+                    <div
+                      key={location.id}
+                      className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all hover:brightness-95"
+                      style={{ backgroundColor: colors.cream }}
+                      onClick={() => toggleLocationAssignment(location.id)}
+                      data-testid={`location-option-${location.id}`}
+                    >
+                      <Checkbox
+                        checked={pendingAssignments.includes(location.id)}
+                        onCheckedChange={() => toggleLocationAssignment(location.id)}
+                        data-testid={`checkbox-location-${location.id}`}
+                      />
+                      <Building2 className="w-4 h-4" style={{ color: colors.gold }} />
+                      <span style={{ color: colors.brown }}>{location.name}</span>
+                    </div>
+                  ))}
+                {locations.filter((l) => l.is_active).length === 0 && (
                   <p className="text-sm text-center py-4" style={{ color: colors.brownLight }}>
                     No active locations available
                   </p>
@@ -857,18 +892,30 @@ export default function AdminUsers() {
         </Sheet>
 
         {/* Change Email Dialog */}
-        <Dialog open={showEmailDialog} onOpenChange={(open) => { setShowEmailDialog(open); if (!open) { setEmailUser(null); setChangedEmail(''); } }}>
+        <Dialog
+          open={showEmailDialog}
+          onOpenChange={(open) => {
+            setShowEmailDialog(open);
+            if (!open) {
+              setEmailUser(null);
+              setChangedEmail('');
+            }
+          }}
+        >
           <DialogContent style={{ backgroundColor: colors.white }}>
             <DialogHeader>
               <DialogTitle style={{ color: colors.brown }}>Change Email Address</DialogTitle>
               <DialogDescription style={{ color: colors.brownLight }}>
-                Update the email for {emailUser?.full_name || emailUser?.email}. This changes their login email immediately.
+                Update the email for {emailUser?.full_name || emailUser?.email}. This changes their login email
+                immediately.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 mt-2">
               <div>
                 <Label style={{ color: colors.brown }}>Current Email</Label>
-                <p className="text-sm mt-1 font-mono" style={{ color: colors.brownLight }}>{emailUser?.email}</p>
+                <p className="text-sm mt-1 font-mono" style={{ color: colors.brownLight }}>
+                  {emailUser?.email}
+                </p>
               </div>
               <div>
                 <Label style={{ color: colors.brown }}>New Email</Label>
@@ -919,9 +966,7 @@ export default function AdminUsers() {
         <Sheet open={showDetailSheet} onOpenChange={setShowDetailSheet}>
           <SheetContent className="sm:max-w-md overflow-y-auto">
             <SheetHeader>
-              <SheetTitle style={{ color: colors.brown }}>
-                {detailUser?.full_name || detailUser?.email}
-              </SheetTitle>
+              <SheetTitle style={{ color: colors.brown }}>{detailUser?.full_name || detailUser?.email}</SheetTitle>
               <SheetDescription style={{ color: colors.brownLight }}>
                 Manager assignment &amp; compensation
               </SheetDescription>
@@ -939,7 +984,7 @@ export default function AdminUsers() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No manager (auto-assign)</SelectItem>
-                    {managerCandidates.map(m => (
+                    {managerCandidates.map((m) => (
                       <SelectItem key={m.id} value={m.id}>
                         {m.full_name || m.email}
                       </SelectItem>
@@ -949,17 +994,17 @@ export default function AdminUsers() {
               </div>
 
               {/* Exempt Toggle */}
-              <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
+              <div
+                className="flex items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: colors.cream }}
+              >
                 <div>
                   <Label style={{ color: colors.brown }}>Exempt (Salaried)</Label>
                   <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
                     Exempt employees skip the time clock
                   </p>
                 </div>
-                <Switch
-                  checked={detailExempt}
-                  onCheckedChange={setDetailExempt}
-                />
+                <Switch checked={detailExempt} onCheckedChange={setDetailExempt} />
               </div>
 
               {/* Compensation Fields */}
@@ -968,7 +1013,12 @@ export default function AdminUsers() {
                   <div>
                     <Label style={{ color: colors.brown }}>Annual Salary</Label>
                     <div className="relative mt-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: colors.brownLight }}>$</span>
+                      <span
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-sm"
+                        style={{ color: colors.brownLight }}
+                      >
+                        $
+                      </span>
                       <Input
                         type="number"
                         step="0.01"
@@ -1004,7 +1054,12 @@ export default function AdminUsers() {
                   <div>
                     <Label style={{ color: colors.brown }}>Hourly Rate</Label>
                     <div className="relative mt-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: colors.brownLight }}>$</span>
+                      <span
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-sm"
+                        style={{ color: colors.brownLight }}
+                      >
+                        $
+                      </span>
                       <Input
                         type="number"
                         step="0.01"
@@ -1105,7 +1160,14 @@ export default function AdminUsers() {
                 <div className="flex gap-2 mt-1">
                   <Input
                     value={kioskCode}
-                    onChange={(e) => setKioskCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10))}
+                    onChange={(e) =>
+                      setKioskCode(
+                        e.target.value
+                          .toUpperCase()
+                          .replace(/[^A-Z0-9]/g, '')
+                          .slice(0, 10)
+                      )
+                    }
                     placeholder="e.g., COB"
                     className="tracking-widest uppercase flex-1"
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
@@ -1126,8 +1188,8 @@ export default function AdminUsers() {
                           throw new Error(err.error);
                         }
                         toast({ title: 'Kiosk code saved' });
-                      } catch (err: any) {
-                        toast({ title: 'Error', description: err.message, variant: 'destructive' });
+                      } catch (err: unknown) {
+                        toast({ title: 'Error', description: getErrorMessage(err), variant: 'destructive' });
                       } finally {
                         setSavingKioskCode(false);
                       }

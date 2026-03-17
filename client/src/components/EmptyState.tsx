@@ -1,5 +1,5 @@
-import React from "react";
-import { Button } from "@/components/ui/button";
+import React from 'react';
+import { Button } from '@/components/ui/button';
 
 interface EmptyStateProps {
   icon: React.ReactNode;
@@ -16,9 +16,9 @@ interface EmptyStateProps {
   tip?: string;
 }
 
-const accent = "var(--color-accent)";
-const primary = "var(--color-primary)";
-const secondary = "var(--color-secondary)";
+const accent = 'var(--color-accent)';
+const primary = 'var(--color-primary)';
+const secondary = 'var(--color-secondary)';
 
 export function EmptyState({ icon, title, description, action, secondaryAction, tip }: EmptyStateProps) {
   return (
@@ -39,7 +39,7 @@ export function EmptyState({ icon, title, description, action, secondaryAction, 
       </p>
 
       {action && (
-        <Button onClick={action.onClick} className="mb-3" style={{ backgroundColor: primary, color: "#fff" }}>
+        <Button onClick={action.onClick} className="mb-3" style={{ backgroundColor: primary, color: '#fff' }}>
           {action.label}
         </Button>
       )}
@@ -57,9 +57,10 @@ export function EmptyState({ icon, title, description, action, secondaryAction, 
       {tip && (
         <div
           className="text-xs rounded-lg px-4 py-2.5 max-w-sm"
-          style={{ backgroundColor: "var(--color-accent-dark)" }}
+          style={{ backgroundColor: 'var(--color-accent-dark)' }}
         >
-          <span className="mr-1.5">💡</span>{tip}
+          <span className="mr-1.5">💡</span>
+          {tip}
         </div>
       )}
     </div>

@@ -24,7 +24,7 @@ function CurrencyCell({
   const [focused, setFocused] = useState(false);
   const [editValue, setEditValue] = useState('');
 
-  const displayValue = value ? (focused ? editValue : `$${value.toFixed(2)}`) : (focused ? editValue : '');
+  const displayValue = value ? (focused ? editValue : `$${value.toFixed(2)}`) : focused ? editValue : '';
 
   return (
     <Input
@@ -84,38 +84,41 @@ export function DailyTipsEntry({
   savingTips,
 }: DailyTipsEntryProps) {
   // Tab order: Mon Cash → Mon CC → Tue Cash → Tue CC → ... → Sun CC
-  const handleTipTabNav = useCallback((e: React.KeyboardEvent<HTMLInputElement>, row: 'cash' | 'cc', dayIndex: number) => {
-    if (e.key !== 'Tab') return;
-    const forward = !e.shiftKey;
-    let nextRow: 'cash' | 'cc';
-    let nextDay: number;
+  const handleTipTabNav = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>, row: 'cash' | 'cc', dayIndex: number) => {
+      if (e.key !== 'Tab') return;
+      const forward = !e.shiftKey;
+      let nextRow: 'cash' | 'cc';
+      let nextDay: number;
 
-    if (forward) {
-      if (row === 'cash') {
-        nextRow = 'cc';
-        nextDay = dayIndex;
+      if (forward) {
+        if (row === 'cash') {
+          nextRow = 'cc';
+          nextDay = dayIndex;
+        } else {
+          nextRow = 'cash';
+          nextDay = dayIndex + 1;
+        }
+        if (nextDay > 6) return; // let default tab move to Save button
       } else {
-        nextRow = 'cash';
-        nextDay = dayIndex + 1;
+        if (row === 'cc') {
+          nextRow = 'cash';
+          nextDay = dayIndex;
+        } else {
+          nextRow = 'cc';
+          nextDay = dayIndex - 1;
+        }
+        if (nextDay < 0) return; // let default tab move to date picker
       }
-      if (nextDay > 6) return; // let default tab move to Save button
-    } else {
-      if (row === 'cc') {
-        nextRow = 'cash';
-        nextDay = dayIndex;
-      } else {
-        nextRow = 'cc';
-        nextDay = dayIndex - 1;
-      }
-      if (nextDay < 0) return; // let default tab move to date picker
-    }
 
-    e.preventDefault();
-    const selector = `[data-testid="input-${nextRow}-${DAYS[nextDay].toLowerCase()}"]`;
-    const nextInput = document.querySelector<HTMLInputElement>(selector);
-    nextInput?.focus();
-    nextInput?.select();
-  }, []);
+      e.preventDefault();
+      const selector = `[data-testid="input-${nextRow}-${DAYS[nextDay].toLowerCase()}"]`;
+      const nextInput = document.querySelector<HTMLInputElement>(selector);
+      nextInput?.focus();
+      nextInput?.select();
+    },
+    []
+  );
 
   return (
     <section>
@@ -164,7 +167,10 @@ export function DailyTipsEntry({
         </div>
       </div>
       <form
-        onSubmit={(e) => { e.preventDefault(); onSaveTips(); }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSaveTips();
+        }}
         aria-busy={savingTips}
       >
         <div className="space-y-2">
@@ -173,7 +179,9 @@ export function DailyTipsEntry({
             <div className="w-9 shrink-0" />
             <div className="grid grid-cols-7 gap-1 flex-1">
               {DAYS.map((day) => (
-                <span key={day} className="text-xs text-center" style={{ color: colors.brownLight }}>{day}</span>
+                <span key={day} className="text-xs text-center" style={{ color: colors.brownLight }}>
+                  {day}
+                </span>
               ))}
             </div>
             <div className="w-24 shrink-0" />
@@ -217,8 +225,12 @@ export function DailyTipsEntry({
               ))}
             </div>
             <div className="w-24 shrink-0 text-right">
-              <p className="text-sm font-medium" style={{ color: colors.brown }}>{formatCurrency(ccTotal)}</p>
-              <p className="text-xs" style={{ color: colors.brownLight }}>-3.5%: {formatCurrency(ccAfterFee)}</p>
+              <p className="text-sm font-medium" style={{ color: colors.brown }}>
+                {formatCurrency(ccTotal)}
+              </p>
+              <p className="text-xs" style={{ color: colors.brownLight }}>
+                -3.5%: {formatCurrency(ccAfterFee)}
+              </p>
             </div>
           </div>
         </div>

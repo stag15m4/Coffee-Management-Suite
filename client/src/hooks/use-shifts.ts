@@ -259,7 +259,12 @@ export function useShiftTemplates() {
         .order('day_of_week')
         .order('start_time');
       if (error) throw error;
-      return (data || []).map((t: any) => ({
+      interface ShiftTemplateRow extends Record<string, unknown> {
+        employee_name?: string | null;
+        employee?: { full_name: string | null } | null;
+      }
+
+      return ((data || []) as ShiftTemplateRow[]).map((t) => ({
         ...t,
         employee_name: t.employee_name ?? t.employee?.full_name ?? null,
       })) as ShiftTemplate[];

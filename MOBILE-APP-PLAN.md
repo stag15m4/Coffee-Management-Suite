@@ -186,33 +186,33 @@ app needs to be functional first before adding alerts on top.
 
 ### One-Time Costs
 
-| Item | Cost | Notes |
-|------|------|-------|
-| Apple Developer Account | $99/year | Required to publish to the App Store. Must be renewed annually. |
-| Google Play Developer Account | $25 (one-time) | Pay once, publish forever. |
-| App icon and store graphics | $0 - $200 | You can make these yourself with free tools, or hire someone on Fiverr. |
-| **Total one-time** | **~$125 - $325** | |
+| Item                          | Cost             | Notes                                                                   |
+| ----------------------------- | ---------------- | ----------------------------------------------------------------------- |
+| Apple Developer Account       | $99/year         | Required to publish to the App Store. Must be renewed annually.         |
+| Google Play Developer Account | $25 (one-time)   | Pay once, publish forever.                                              |
+| App icon and store graphics   | $0 - $200        | You can make these yourself with free tools, or hire someone on Fiverr. |
+| **Total one-time**            | **~$125 - $325** |                                                                         |
 
 ### Ongoing Costs (Monthly)
 
-| Item | Cost | Notes |
-|------|------|-------|
-| Your existing Supabase plan | No change | The mobile app uses the same database — no added cost unless you massively increase usage. |
-| Your existing server hosting | No change | Same server handles both web and mobile. |
-| Push notification service | $0 - $25/month | Expo (the tool used to build the app) includes free push notifications for small-to-medium usage. May cost at high volume. |
-| Apple Developer Account renewal | $99/year (~$8/month) | Annual renewal. |
-| **Total ongoing** | **~$8 - $33/month** | Beyond what you already pay. |
+| Item                            | Cost                 | Notes                                                                                                                      |
+| ------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Your existing Supabase plan     | No change            | The mobile app uses the same database — no added cost unless you massively increase usage.                                 |
+| Your existing server hosting    | No change            | Same server handles both web and mobile.                                                                                   |
+| Push notification service       | $0 - $25/month       | Expo (the tool used to build the app) includes free push notifications for small-to-medium usage. May cost at high volume. |
+| Apple Developer Account renewal | $99/year (~$8/month) | Annual renewal.                                                                                                            |
+| **Total ongoing**               | **~$8 - $33/month**  | Beyond what you already pay.                                                                                               |
 
 ### If You Hire Help
 
 If you decide to hire a developer instead of (or in addition to) building with
 Claude Code:
 
-| Option | Estimated Cost | Notes |
-|--------|---------------|-------|
-| Freelancer (Upwork/Fiverr) | $3,000 - $10,000 | Wide range depending on experience and location. Get someone with Expo/React Native experience specifically. |
-| Development agency | $15,000 - $40,000 | Higher quality and reliability, but much more expensive. |
-| Claude Code (you build it yourself) | $0 beyond subscription | You do the work with Claude as your guide. Requires time and patience, but no contractor cost. |
+| Option                              | Estimated Cost         | Notes                                                                                                        |
+| ----------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Freelancer (Upwork/Fiverr)          | $3,000 - $10,000       | Wide range depending on experience and location. Get someone with Expo/React Native experience specifically. |
+| Development agency                  | $15,000 - $40,000      | Higher quality and reliability, but much more expensive.                                                     |
+| Claude Code (you build it yourself) | $0 beyond subscription | You do the work with Claude as your guide. Requires time and patience, but no contractor cost.               |
 
 ### Budget Tips
 
@@ -243,16 +243,16 @@ this build. Here is what that looks like in practice:
 
 ### What Claude Code can do for you
 
-| Task | How well Claude handles it |
-|------|---------------------------|
-| Create the project and install dependencies | Fully — Claude can run the setup commands and configure everything |
-| Write all the app screens and logic | Fully — Claude can write React Native code, create screens, wire up navigation |
-| Connect to your existing Supabase database | Fully — Claude knows your database structure and can reuse your existing queries |
-| Copy and adapt your existing data logic | Fully — the hooks and queries from your web app can be brought over with modifications |
-| Set up push notifications | Fully — Claude can write the Expo notification code |
-| Debug problems when things break | Very well — Claude can read error messages, find issues, and fix them |
-| Build the app for testing on your phone | Mostly — Claude can run Expo build commands, though you may need to scan a QR code on your phone |
-| Submit to the App Store / Play Store | Partially — Claude can prepare the build, but you will need to click through the Apple/Google submission forms yourself |
+| Task                                        | How well Claude handles it                                                                                                               |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Create the project and install dependencies | Fully — Claude can run the setup commands and configure everything                                                                       |
+| Write all the app screens and logic         | Fully — Claude can write React Native code, create screens, wire up navigation                                                           |
+| Connect to your existing Supabase database  | Fully — Claude knows your database structure and can reuse your existing queries                                                         |
+| Copy and adapt your existing data logic     | Fully — the hooks and queries from your web app can be brought over with modifications                                                   |
+| Set up push notifications                   | Fully — Claude can write the Expo notification code                                                                                      |
+| Debug problems when things break            | Very well — Claude can read error messages, find issues, and fix them                                                                    |
+| Build the app for testing on your phone     | Mostly — Claude can run Expo build commands, though you may need to scan a QR code on your phone                                         |
+| Submit to the App Store / Play Store        | Partially — Claude can prepare the build, but you will need to click through the Apple/Google submission forms yourself                  |
 | Design visual layouts (making it look good) | Moderately — Claude can build clean, functional screens, but if you want a custom brand-specific design, you may want a designer's input |
 
 ### What Claude Code cannot do
@@ -299,6 +299,7 @@ my shifts for this week, with the date on the left and the time on the right"),
 the better the result.
 
 You do not need to know what "UI" means or how to code. You need to be able to:
+
 - Describe what you want in plain English
 - Test the app on your phone and tell Claude what you see
 - Make decisions when Claude gives you options
@@ -311,38 +312,38 @@ the same way.**
 
 ## Part 6: Glossary
 
-| Term | Plain English |
-|------|--------------|
-| **API** | A way for two programs to talk to each other. Your app sends a request ("give me this employee's schedule") and gets back a response (the schedule data). |
-| **App Store / Play Store** | Where people download apps. App Store is Apple (iPhone/iPad), Play Store is Google (Android). |
-| **Backend / Server** | The behind-the-scenes computer that handles things like sending emails, processing payments, and complex calculations. Your website and mobile app both talk to the same one. |
-| **Codebase / Repo (Repository)** | The folder containing all the files that make up a program. Think of it like a binder with all the blueprints for a building. |
-| **Database** | Where all your data is stored — employees, schedules, recipes, etc. Think of it as a giant spreadsheet with many tabs. |
-| **Expo** | A free toolkit for building mobile apps. It handles the complicated parts of making an app work on both iPhones and Android phones. |
-| **Frontend** | What people see and interact with — the screens, buttons, and forms. |
-| **Push Notification** | An alert that pops up on your phone even when the app is closed, like a text message from the app. |
-| **React Native** | The programming language/framework used to build the mobile app. It lets you write one version of the app that works on both iPhone and Android. |
-| **RLS (Row-Level Security)** | A rule on the database that says "Shop A can only see Shop A's data." It is already set up in your system. |
-| **Supabase** | The service that hosts your database, handles user logins, and stores files. It is already running — the mobile app just connects to it. |
-| **UI (User Interface)** | What you see on screen — the buttons, text, colors, and layout. When someone says "build the UI," they mean "make the screens that people look at and interact with." |
+| Term                             | Plain English                                                                                                                                                                 |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **API**                          | A way for two programs to talk to each other. Your app sends a request ("give me this employee's schedule") and gets back a response (the schedule data).                     |
+| **App Store / Play Store**       | Where people download apps. App Store is Apple (iPhone/iPad), Play Store is Google (Android).                                                                                 |
+| **Backend / Server**             | The behind-the-scenes computer that handles things like sending emails, processing payments, and complex calculations. Your website and mobile app both talk to the same one. |
+| **Codebase / Repo (Repository)** | The folder containing all the files that make up a program. Think of it like a binder with all the blueprints for a building.                                                 |
+| **Database**                     | Where all your data is stored — employees, schedules, recipes, etc. Think of it as a giant spreadsheet with many tabs.                                                        |
+| **Expo**                         | A free toolkit for building mobile apps. It handles the complicated parts of making an app work on both iPhones and Android phones.                                           |
+| **Frontend**                     | What people see and interact with — the screens, buttons, and forms.                                                                                                          |
+| **Push Notification**            | An alert that pops up on your phone even when the app is closed, like a text message from the app.                                                                            |
+| **React Native**                 | The programming language/framework used to build the mobile app. It lets you write one version of the app that works on both iPhone and Android.                              |
+| **RLS (Row-Level Security)**     | A rule on the database that says "Shop A can only see Shop A's data." It is already set up in your system.                                                                    |
+| **Supabase**                     | The service that hosts your database, handles user logins, and stores files. It is already running — the mobile app just connects to it.                                      |
+| **UI (User Interface)**          | What you see on screen — the buttons, text, colors, and layout. When someone says "build the UI," they mean "make the screens that people look at and interact with."         |
 
 ---
 
 ## Summary: At a Glance
 
-| Question | Answer |
-|----------|--------|
-| What is it? | A phone app for employees to clock in, view schedules, complete tasks, and get notifications |
-| Does it replace the website? | No — the website stays as the admin tool for owners and managers |
-| Does it need a new database? | No — it connects to your existing one |
-| How long to build? | ~14 weeks (3.5 months) across 5 phases |
-| How much does it cost? | ~$125 to start + ~$8-33/month ongoing (if you build it yourself with Claude) |
-| Can Claude Code build it? | Yes — Claude writes the code, you test and make decisions |
-| Do I need to know how to code? | No — but you need to describe what you want clearly and test on your phone |
-| Separate project or same one? | Separate project (new repo), same database |
-| iPhone and Android? | Both, from the same codebase |
+| Question                       | Answer                                                                                       |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| What is it?                    | A phone app for employees to clock in, view schedules, complete tasks, and get notifications |
+| Does it replace the website?   | No — the website stays as the admin tool for owners and managers                             |
+| Does it need a new database?   | No — it connects to your existing one                                                        |
+| How long to build?             | ~14 weeks (3.5 months) across 5 phases                                                       |
+| How much does it cost?         | ~$125 to start + ~$8-33/month ongoing (if you build it yourself with Claude)                 |
+| Can Claude Code build it?      | Yes — Claude writes the code, you test and make decisions                                    |
+| Do I need to know how to code? | No — but you need to describe what you want clearly and test on your phone                   |
+| Separate project or same one?  | Separate project (new repo), same database                                                   |
+| iPhone and Android?            | Both, from the same codebase                                                                 |
 
 ---
 
-*This document was generated on February 19, 2026 as a planning reference for the
-Coffee Management Suite companion mobile app.*
+_This document was generated on February 19, 2026 as a planning reference for the
+Coffee Management Suite companion mobile app._

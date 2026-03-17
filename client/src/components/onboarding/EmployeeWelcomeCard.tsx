@@ -29,35 +29,20 @@ export function EmployeeWelcomeCard() {
   const shopName = tenant?.name || 'the team';
 
   // Filter features to what this user can actually access
-  const availableFeatures = FEATURES.filter(
-    (f) => !f.moduleId || canAccessModule(f.moduleId),
-  );
+  const availableFeatures = FEATURES.filter((f) => !f.moduleId || canAccessModule(f.moduleId));
 
   return (
-    <div
-      className="rounded-xl p-5 mb-6"
-      style={{ background: 'var(--color-background)' }}
-    >
-      <h2
-        className="text-lg font-bold mb-1"
-        style={{ color: 'var(--color-secondary)' }}
-      >
+    <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--color-background)' }}>
+      <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--color-secondary)' }}>
         Welcome to {shopName}, {firstName}!
       </h2>
-      <p
-        className="text-sm mb-4 opacity-70"
-        style={{ color: 'var(--color-secondary)' }}
-      >
+      <p className="text-sm mb-4 opacity-70" style={{ color: 'var(--color-secondary)' }}>
         Here's what you can do from your dashboard:
       </p>
 
       <div className="space-y-2.5 mb-5">
         {availableFeatures.map((feature, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3 text-sm"
-            style={{ color: 'var(--color-secondary)' }}
-          >
+          <div key={i} className="flex items-center gap-3 text-sm" style={{ color: 'var(--color-secondary)' }}>
             <span style={{ color: 'var(--color-primary)' }}>{feature.icon}</span>
             <span>{feature.label}</span>
           </div>

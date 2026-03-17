@@ -94,7 +94,9 @@ function useWakeLock() {
       if ('wakeLock' in navigator) {
         wakeLock.current = await (navigator as any).wakeLock.request('screen');
       }
-    } catch { /* not supported or denied */ }
+    } catch {
+      /* not supported or denied */
+    }
   }, []);
 
   useEffect(() => {
@@ -135,10 +137,16 @@ export default function Kiosk() {
   const [pin, setPin] = useState('');
   const [employee, setEmployee] = useState<EmployeeInfo | null>(null);
   const [clockState, setClockState] = useState<ClockState>({
-    status: 'clocked_out', activeEntryId: null, clockInTime: null, activeBreakId: null, breakStartTime: null,
+    status: 'clocked_out',
+    activeEntryId: null,
+    clockInTime: null,
+    activeBreakId: null,
+    breakStartTime: null,
   });
   const [countdown, setCountdown] = useState(5);
-  const [pendingAction, setPendingAction] = useState<'clock_in' | 'clock_out' | 'break_start' | 'break_end'>('clock_in');
+  const [pendingAction, setPendingAction] = useState<'clock_in' | 'clock_out' | 'break_start' | 'break_end'>(
+    'clock_in'
+  );
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -172,7 +180,9 @@ export default function Kiosk() {
 
   useEffect(() => {
     resetIdleTimer();
-    return () => { if (idleTimer.current) clearTimeout(idleTimer.current); };
+    return () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+    };
   }, [step, resetIdleTimer]);
 
   // ─── STORE CODE ──────────────────────────────────
@@ -249,50 +259,53 @@ export default function Kiosk() {
     });
   }, []);
 
-  const submitPin = useCallback(async (pinValue: string) => {
-    setLoading(true);
-    setError('');
-    try {
-      const resp = await fetch('/api/kiosk/punch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId, pin: pinValue }),
-      });
-      if (resp.status === 429) {
-        setError('Too many attempts. Wait a moment.');
-        setPin('');
-        setPinError(true);
-        return;
-      }
-      if (!resp.ok) {
-        setPin('');
-        setPinError(true);
-        return;
-      }
-      const data = await resp.json();
-      setEmployee(data.employee);
-      setKioskToken(data.kioskToken || '');
-      setClockState({
-        status: data.status,
-        activeEntryId: data.activeEntryId,
-        clockInTime: data.clockInTime,
-        activeBreakId: data.activeBreakId,
-        breakStartTime: data.breakStartTime,
-      });
+  const submitPin = useCallback(
+    async (pinValue: string) => {
+      setLoading(true);
+      setError('');
+      try {
+        const resp = await fetch('/api/kiosk/punch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenantId, pin: pinValue }),
+        });
+        if (resp.status === 429) {
+          setError('Too many attempts. Wait a moment.');
+          setPin('');
+          setPinError(true);
+          return;
+        }
+        if (!resp.ok) {
+          setPin('');
+          setPinError(true);
+          return;
+        }
+        const data = await resp.json();
+        setEmployee(data.employee);
+        setKioskToken(data.kioskToken || '');
+        setClockState({
+          status: data.status,
+          activeEntryId: data.activeEntryId,
+          clockInTime: data.clockInTime,
+          activeBreakId: data.activeBreakId,
+          breakStartTime: data.breakStartTime,
+        });
 
-      // Determine pending action
-      if (data.status === 'clocked_out') setPendingAction('clock_in');
-      else if (data.status === 'on_break') setPendingAction('break_end');
-      else setPendingAction('clock_out');
+        // Determine pending action
+        if (data.status === 'clocked_out') setPendingAction('clock_in');
+        else if (data.status === 'on_break') setPendingAction('break_end');
+        else setPendingAction('clock_out');
 
-      setStep('confirm');
-    } catch {
-      setError('Connection error. Try again.');
-      setPin('');
-    } finally {
-      setLoading(false);
-    }
-  }, [tenantId]);
+        setStep('confirm');
+      } catch {
+        setError('Connection error. Try again.');
+        setPin('');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [tenantId]
+  );
 
   // ─── COUNTDOWN ───────────────────────────────────
 
@@ -381,13 +394,22 @@ export default function Kiosk() {
     setLoadingHours(true);
     try {
       const { start, end } = getPayPeriodRange();
-      const params = new URLSearchParams({ tenantId, employeeId: employee.id, source: employee.source, start, end, kioskToken });
+      const params = new URLSearchParams({
+        tenantId,
+        employeeId: employee.id,
+        source: employee.source,
+        start,
+        end,
+        kioskToken,
+      });
       const resp = await fetch(`/api/kiosk/my-hours?${params}`);
       if (resp.ok) {
         const data = await resp.json();
         setHoursEntries(data);
       }
-    } catch { /* ignore */ } finally {
+    } catch {
+      /* ignore */
+    } finally {
       setLoadingHours(false);
     }
   }, [tenantId, employee]);
@@ -397,23 +419,26 @@ export default function Kiosk() {
     loadMyHours();
   }, [loadMyHours]);
 
-  const openEditEntry = useCallback((entry: HoursEntry) => {
-    resetIdleTimer();
-    setEditingEntry(entry);
-    const inParts = splitLocal(entry.clock_in);
-    setEditClockInDate(inParts.date);
-    setEditClockInTime(inParts.time);
-    if (entry.clock_out) {
-      const outParts = splitLocal(entry.clock_out);
-      setEditClockOutDate(outParts.date);
-      setEditClockOutTime(outParts.time);
-    } else {
-      setEditClockOutDate(inParts.date);
-      setEditClockOutTime('');
-    }
-    setEditReason('');
-    setStep('edit_entry');
-  }, [resetIdleTimer]);
+  const openEditEntry = useCallback(
+    (entry: HoursEntry) => {
+      resetIdleTimer();
+      setEditingEntry(entry);
+      const inParts = splitLocal(entry.clock_in);
+      setEditClockInDate(inParts.date);
+      setEditClockInTime(inParts.time);
+      if (entry.clock_out) {
+        const outParts = splitLocal(entry.clock_out);
+        setEditClockOutDate(outParts.date);
+        setEditClockOutTime(outParts.time);
+      } else {
+        setEditClockOutDate(inParts.date);
+        setEditClockOutTime('');
+      }
+      setEditReason('');
+      setStep('edit_entry');
+    },
+    [resetIdleTimer]
+  );
 
   const submitEditRequest = useCallback(async () => {
     if (!editingEntry || !editReason.trim()) return;
@@ -444,19 +469,37 @@ export default function Kiosk() {
     } finally {
       setSubmittingEdit(false);
     }
-  }, [editingEntry, editReason, editClockInDate, editClockInTime, editClockOutDate, editClockOutTime, tenantId, employee, loadMyHours]);
+  }, [
+    editingEntry,
+    editReason,
+    editClockInDate,
+    editClockInTime,
+    editClockOutDate,
+    editClockOutTime,
+    tenantId,
+    employee,
+    loadMyHours,
+  ]);
 
   // ─── ACTION LABELS ───────────────────────────────
 
-  const actionLabel = pendingAction === 'clock_in' ? 'Clock In'
-    : pendingAction === 'clock_out' ? 'Clock Out'
-    : pendingAction === 'break_start' ? 'Start Break'
-    : 'End Break';
+  const actionLabel =
+    pendingAction === 'clock_in'
+      ? 'Clock In'
+      : pendingAction === 'clock_out'
+        ? 'Clock Out'
+        : pendingAction === 'break_start'
+          ? 'Start Break'
+          : 'End Break';
 
-  const actionColor = pendingAction === 'clock_in' ? '#22c55e'
-    : pendingAction === 'clock_out' ? '#ef4444'
-    : pendingAction === 'break_start' ? colors.gold
-    : '#22c55e';
+  const actionColor =
+    pendingAction === 'clock_in'
+      ? '#22c55e'
+      : pendingAction === 'clock_out'
+        ? '#ef4444'
+        : pendingAction === 'break_start'
+          ? colors.gold
+          : '#22c55e';
 
   // ─── RENDER ──────────────────────────────────────
 
@@ -469,19 +512,34 @@ export default function Kiosk() {
       {/* ─── STORE CODE STEP ─── */}
       {step === 'store_code' && (
         <div className="flex flex-col items-center gap-6 w-full max-w-sm">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.gold }}>
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: colors.gold }}
+          >
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           </div>
           <div className="text-center">
-            <h1 className="text-3xl font-bold" style={{ color: colors.brown }}>Time Clock</h1>
-            <p className="text-sm mt-1" style={{ color: colors.brownLight }}>Enter your store code to begin</p>
+            <h1 className="text-3xl font-bold" style={{ color: colors.brown }}>
+              Time Clock
+            </h1>
+            <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
+              Enter your store code to begin
+            </p>
           </div>
           <input
             type="text"
             value={storeCode}
-            onChange={(e) => { setStoreCode(e.target.value.toUpperCase()); setError(''); }}
+            onChange={(e) => {
+              setStoreCode(e.target.value.toUpperCase());
+              setError('');
+            }}
             onKeyDown={(e) => e.key === 'Enter' && handleVerifyStore()}
             className="w-full text-center text-2xl tracking-[0.3em] font-bold py-4 px-6 rounded-xl border-2 outline-none transition-colors"
             style={{ backgroundColor: colors.white, borderColor: error ? '#ef4444' : colors.gold, color: colors.brown }}
@@ -489,7 +547,11 @@ export default function Kiosk() {
             autoFocus
             autoCapitalize="characters"
           />
-          {error && <p className="text-sm font-medium" style={{ color: '#ef4444' }}>{error}</p>}
+          {error && (
+            <p className="text-sm font-medium" style={{ color: '#ef4444' }}>
+              {error}
+            </p>
+          )}
           <button
             onClick={handleVerifyStore}
             disabled={loading || !storeCode.trim()}
@@ -507,14 +569,27 @@ export default function Kiosk() {
           {/* Tenant header with branding */}
           <div className="text-center">
             {logoUrl ? (
-              <img src={logoUrl} alt="" className="w-20 h-20 rounded-full mx-auto mb-3 object-cover" style={{ border: `3px solid ${colors.gold}` }} loading="lazy" />
+              <img
+                src={logoUrl}
+                alt=""
+                className="w-20 h-20 rounded-full mx-auto mb-3 object-cover"
+                style={{ border: `3px solid ${colors.gold}` }}
+                loading="lazy"
+              />
             ) : (
-              <div className="w-20 h-20 rounded-full mx-auto mb-3 flex items-center justify-center text-white font-bold text-2xl" style={{ backgroundColor: colors.gold }}>
+              <div
+                className="w-20 h-20 rounded-full mx-auto mb-3 flex items-center justify-center text-white font-bold text-2xl"
+                style={{ backgroundColor: colors.gold }}
+              >
                 {tenantName.charAt(0)}
               </div>
             )}
-            <h2 className="text-xl font-bold" style={{ color: colors.brown }}>{tenantName}</h2>
-            <p className="text-sm" style={{ color: colors.brownLight }}>Enter your PIN</p>
+            <h2 className="text-xl font-bold" style={{ color: colors.brown }}>
+              {tenantName}
+            </h2>
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              Enter your PIN
+            </p>
           </div>
 
           {/* PIN dots */}
@@ -532,7 +607,11 @@ export default function Kiosk() {
             ))}
           </div>
 
-          {error && <p className="text-sm font-medium text-center" style={{ color: '#ef4444' }}>{error}</p>}
+          {error && (
+            <p className="text-sm font-medium text-center" style={{ color: '#ef4444' }}>
+              {error}
+            </p>
+          )}
 
           {/* Numeric pad */}
           <div className="grid grid-cols-3 gap-3">
@@ -540,8 +619,11 @@ export default function Kiosk() {
               <button
                 key={key}
                 onClick={() => {
-                  if (key === 'CLR') { setPin(''); setPinError(false); setError(''); }
-                  else if (key === '\u232B') setPin((p) => p.slice(0, -1));
+                  if (key === 'CLR') {
+                    setPin('');
+                    setPinError(false);
+                    setError('');
+                  } else if (key === '\u232B') setPin((p) => p.slice(0, -1));
                   else if (pin.length < 4) handlePinDigit(key);
                 }}
                 disabled={loading}
@@ -559,7 +641,13 @@ export default function Kiosk() {
           </div>
 
           <button
-            onClick={() => { localStorage.removeItem('kiosk_store_code'); setStep('store_code'); setStoreCode(''); setPin(''); setError(''); }}
+            onClick={() => {
+              localStorage.removeItem('kiosk_store_code');
+              setStep('store_code');
+              setStoreCode('');
+              setPin('');
+              setError('');
+            }}
             className="text-sm underline mt-2"
             style={{ color: colors.brownLight }}
           >
@@ -573,19 +661,40 @@ export default function Kiosk() {
         <div className="flex flex-col items-center gap-6 w-full max-w-sm">
           {/* Employee info */}
           {employee.avatarUrl ? (
-            <img src={employee.avatarUrl} alt="" className="w-24 h-24 rounded-full object-cover border-4" style={{ borderColor: colors.gold }} loading="lazy" />
+            <img
+              src={employee.avatarUrl}
+              alt=""
+              className="w-24 h-24 rounded-full object-cover border-4"
+              style={{ borderColor: colors.gold }}
+              loading="lazy"
+            />
           ) : (
-            <div className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold text-white" style={{ backgroundColor: colors.gold }}>
+            <div
+              className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold text-white"
+              style={{ backgroundColor: colors.gold }}
+            >
               {employee.fullName.charAt(0).toUpperCase()}
             </div>
           )}
           <div className="text-center">
-            <h2 className="text-2xl font-bold" style={{ color: colors.brown }}>{employee.fullName}</h2>
+            <h2 className="text-2xl font-bold" style={{ color: colors.brown }}>
+              {employee.fullName}
+            </h2>
             <div
               className="inline-block mt-2 px-4 py-1.5 rounded-full text-sm font-semibold"
               style={{
-                backgroundColor: clockState.status === 'clocked_out' ? '#fef2f2' : clockState.status === 'on_break' ? '#fffbeb' : '#f0fdf4',
-                color: clockState.status === 'clocked_out' ? '#991b1b' : clockState.status === 'on_break' ? '#92400e' : '#166534',
+                backgroundColor:
+                  clockState.status === 'clocked_out'
+                    ? '#fef2f2'
+                    : clockState.status === 'on_break'
+                      ? '#fffbeb'
+                      : '#f0fdf4',
+                color:
+                  clockState.status === 'clocked_out'
+                    ? '#991b1b'
+                    : clockState.status === 'on_break'
+                      ? '#92400e'
+                      : '#166534',
               }}
             >
               {clockState.status === 'clocked_out' && 'Clocked Out'}
@@ -625,7 +734,11 @@ export default function Kiosk() {
 
           {/* Cancel */}
           <button
-            onClick={() => { setStep('pin_entry'); setPin(''); setEmployee(null); }}
+            onClick={() => {
+              setStep('pin_entry');
+              setPin('');
+              setEmployee(null);
+            }}
             className="text-sm underline"
             style={{ color: colors.brownLight }}
           >
@@ -638,7 +751,9 @@ export default function Kiosk() {
       {step === 'countdown' && employee && (
         <div className="flex flex-col items-center gap-8 w-full max-w-sm">
           <div className="text-center">
-            <h2 className="text-xl font-bold" style={{ color: colors.brown }}>{employee.fullName}</h2>
+            <h2 className="text-xl font-bold" style={{ color: colors.brown }}>
+              {employee.fullName}
+            </h2>
           </div>
 
           {/* Countdown circle */}
@@ -657,7 +772,9 @@ export default function Kiosk() {
           </p>
 
           <button
-            onClick={() => { setStep('confirm'); }}
+            onClick={() => {
+              setStep('confirm');
+            }}
             className="w-full py-4 rounded-xl text-lg font-semibold border-2 active:scale-[0.98]"
             style={{ borderColor: colors.creamDark, color: colors.brown, backgroundColor: colors.white }}
           >
@@ -669,12 +786,17 @@ export default function Kiosk() {
       {/* ─── SUCCESS STEP ─── */}
       {step === 'success' && (
         <div className="flex flex-col items-center gap-6">
-          <div className="w-24 h-24 rounded-full flex items-center justify-center" style={{ backgroundColor: '#22c55e' }}>
+          <div
+            className="w-24 h-24 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: '#22c55e' }}
+          >
             <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-3xl font-bold" style={{ color: colors.brown }}>{successMessage}</h2>
+          <h2 className="text-3xl font-bold" style={{ color: colors.brown }}>
+            {successMessage}
+          </h2>
           <p className="text-sm" style={{ color: colors.brownLight }}>
             {new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
           </p>
@@ -696,25 +818,41 @@ export default function Kiosk() {
               </svg>
             </button>
             <div>
-              <h2 className="text-lg font-bold" style={{ color: colors.brown }}>{employee.fullName}</h2>
-              <p className="text-xs" style={{ color: colors.brownLight }}>Current Pay Period</p>
+              <h2 className="text-lg font-bold" style={{ color: colors.brown }}>
+                {employee.fullName}
+              </h2>
+              <p className="text-xs" style={{ color: colors.brownLight }}>
+                Current Pay Period
+              </p>
             </div>
           </div>
 
           {/* Entries */}
           <div className="flex-1 overflow-y-auto rounded-xl" style={{ backgroundColor: colors.white }}>
             {loadingHours ? (
-              <div className="text-center py-12" style={{ color: colors.brownLight }}>Loading...</div>
+              <div className="text-center py-12" style={{ color: colors.brownLight }}>
+                Loading...
+              </div>
             ) : hoursEntries.length === 0 ? (
-              <div className="text-center py-12" style={{ color: colors.brownLight }}>No entries this period</div>
+              <div className="text-center py-12" style={{ color: colors.brownLight }}>
+                No entries this period
+              </div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: `2px solid ${colors.creamDark}` }}>
-                    <th className="text-left py-3 px-4" style={{ color: colors.brownLight }}>Date</th>
-                    <th className="text-center py-3 px-2" style={{ color: colors.brownLight }}>In</th>
-                    <th className="text-center py-3 px-2" style={{ color: colors.brownLight }}>Out</th>
-                    <th className="text-right py-3 px-4" style={{ color: colors.brownLight }}>Hours</th>
+                    <th className="text-left py-3 px-4" style={{ color: colors.brownLight }}>
+                      Date
+                    </th>
+                    <th className="text-center py-3 px-2" style={{ color: colors.brownLight }}>
+                      In
+                    </th>
+                    <th className="text-center py-3 px-2" style={{ color: colors.brownLight }}>
+                      Out
+                    </th>
+                    <th className="text-right py-3 px-4" style={{ color: colors.brownLight }}>
+                      Hours
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -729,14 +867,22 @@ export default function Kiosk() {
                         <div className="flex items-center gap-2">
                           {formatDate(entry.clock_in)}
                           {entry.has_pending_edit && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: '#fef3c7', color: '#92400e' }}>
+                            <span
+                              className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                              style={{ backgroundColor: '#fef3c7', color: '#92400e' }}
+                            >
                               Pending
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="text-center py-3 px-2" style={{ color: colors.brown }}>{formatTime(entry.clock_in)}</td>
-                      <td className="text-center py-3 px-2" style={{ color: entry.clock_out ? colors.brown : colors.brownLight }}>
+                      <td className="text-center py-3 px-2" style={{ color: colors.brown }}>
+                        {formatTime(entry.clock_in)}
+                      </td>
+                      <td
+                        className="text-center py-3 px-2"
+                        style={{ color: entry.clock_out ? colors.brown : colors.brownLight }}
+                      >
                         {entry.clock_out ? formatTime(entry.clock_out) : '--'}
                       </td>
                       <td className="text-right py-3 px-4 font-semibold" style={{ color: colors.brown }}>
@@ -747,7 +893,9 @@ export default function Kiosk() {
                 </tbody>
                 <tfoot>
                   <tr style={{ borderTop: `2px solid ${colors.creamDark}` }}>
-                    <td colSpan={3} className="py-3 px-4 font-semibold" style={{ color: colors.brown }}>Total</td>
+                    <td colSpan={3} className="py-3 px-4 font-semibold" style={{ color: colors.brown }}>
+                      Total
+                    </td>
                     <td className="text-right py-3 px-4 font-bold" style={{ color: colors.gold }}>
                       {formatHM(hoursEntries.reduce((sum, e) => sum + calcNetHours(e), 0))}
                     </td>
@@ -777,46 +925,73 @@ export default function Kiosk() {
               </svg>
             </button>
             <div>
-              <h2 className="text-lg font-bold" style={{ color: colors.brown }}>Request Correction</h2>
-              <p className="text-xs" style={{ color: colors.brownLight }}>{formatDate(editingEntry.clock_in)}</p>
+              <h2 className="text-lg font-bold" style={{ color: colors.brown }}>
+                Request Correction
+              </h2>
+              <p className="text-xs" style={{ color: colors.brownLight }}>
+                {formatDate(editingEntry.clock_in)}
+              </p>
             </div>
           </div>
 
           <div className="rounded-xl p-4 space-y-4" style={{ backgroundColor: colors.white }}>
             {/* Original times */}
             <div className="text-sm" style={{ color: colors.brownLight }}>
-              Original: {formatTime(editingEntry.clock_in)} – {editingEntry.clock_out ? formatTime(editingEntry.clock_out) : '--'}
+              Original: {formatTime(editingEntry.clock_in)} –{' '}
+              {editingEntry.clock_out ? formatTime(editingEntry.clock_out) : '--'}
             </div>
 
             {/* Corrected clock in */}
             <div>
-              <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>Corrected Clock In</label>
+              <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+                Corrected Clock In
+              </label>
               <div className="flex gap-2">
-                <input type="date" value={editClockInDate} onChange={(e) => setEditClockInDate(e.target.value)}
+                <input
+                  type="date"
+                  value={editClockInDate}
+                  onChange={(e) => setEditClockInDate(e.target.value)}
                   className="flex-1 px-3 py-2 rounded-lg border text-sm"
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }} />
-                <input type="time" value={editClockInTime} onChange={(e) => setEditClockInTime(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }}
+                />
+                <input
+                  type="time"
+                  value={editClockInTime}
+                  onChange={(e) => setEditClockInTime(e.target.value)}
                   className="flex-1 px-3 py-2 rounded-lg border text-sm"
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }} />
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }}
+                />
               </div>
             </div>
 
             {/* Corrected clock out */}
             <div>
-              <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>Corrected Clock Out</label>
+              <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+                Corrected Clock Out
+              </label>
               <div className="flex gap-2">
-                <input type="date" value={editClockOutDate} onChange={(e) => setEditClockOutDate(e.target.value)}
+                <input
+                  type="date"
+                  value={editClockOutDate}
+                  onChange={(e) => setEditClockOutDate(e.target.value)}
                   className="flex-1 px-3 py-2 rounded-lg border text-sm"
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }} />
-                <input type="time" value={editClockOutTime} onChange={(e) => setEditClockOutTime(e.target.value)}
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }}
+                />
+                <input
+                  type="time"
+                  value={editClockOutTime}
+                  onChange={(e) => setEditClockOutTime(e.target.value)}
                   className="flex-1 px-3 py-2 rounded-lg border text-sm"
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }} />
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }}
+                />
               </div>
             </div>
 
             {/* Reason */}
             <div>
-              <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>Reason *</label>
+              <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
+                Reason *
+              </label>
               <textarea
                 value={editReason}
                 onChange={(e) => setEditReason(e.target.value)}
@@ -827,7 +1002,11 @@ export default function Kiosk() {
               />
             </div>
 
-            {error && <p className="text-sm font-medium" style={{ color: '#ef4444' }}>{error}</p>}
+            {error && (
+              <p className="text-sm font-medium" style={{ color: '#ef4444' }}>
+                {error}
+              </p>
+            )}
 
             <button
               onClick={submitEditRequest}

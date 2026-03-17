@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/lib/colors';
@@ -17,20 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -175,12 +164,15 @@ function AccountFormDialog({
   onClose,
 }: AccountFormDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle style={{ color: colors.brown }}>
-            {isEditing ? 'Edit Account' : 'Add Account'}
-          </DialogTitle>
+          <DialogTitle style={{ color: colors.brown }}>{isEditing ? 'Edit Account' : 'Add Account'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -222,7 +214,9 @@ function AccountFormDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {businesses.map((b) => (
-                    <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                    <SelectItem key={b.id} value={b.name}>
+                      {b.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -237,7 +231,9 @@ function AccountFormDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -283,7 +279,9 @@ function AccountFormDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {BILLING_CYCLES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -313,7 +311,9 @@ function AccountFormDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -398,7 +398,11 @@ function SortHeader({ label, field, sortField, sortDir, onSort }: SortHeaderProp
     >
       {label}
       {active ? (
-        sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+        sortDir === 'asc' ? (
+          <ChevronUp className="h-3 w-3" />
+        ) : (
+          <ChevronDown className="h-3 w-3" />
+        )
       ) : (
         <ChevronDown className="h-3 w-3 opacity-30" />
       )}
@@ -425,7 +429,9 @@ export default function AdminBusinessAccounts() {
   // Business color lookup
   const bizColors = useMemo(() => {
     const map: Record<string, string> = {};
-    businesses.forEach((b) => { map[b.name] = b.color; });
+    businesses.forEach((b) => {
+      map[b.name] = b.color;
+    });
     return map;
   }, [businesses]);
 
@@ -460,7 +466,9 @@ export default function AdminBusinessAccounts() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
         <div className="text-center">
-          <p className="text-lg font-semibold" style={{ color: colors.brown }}>Access Denied</p>
+          <p className="text-lg font-semibold" style={{ color: colors.brown }}>
+            Access Denied
+          </p>
           <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
             This page is restricted to platform administrators.
           </p>
@@ -482,7 +490,7 @@ export default function AdminBusinessAccounts() {
         (a) =>
           a.service_name.toLowerCase().includes(q) ||
           (a.username_or_email ?? '').toLowerCase().includes(q) ||
-          (a.notes ?? '').toLowerCase().includes(q),
+          (a.notes ?? '').toLowerCase().includes(q)
       );
     }
     if (filterBusiness !== 'All') list = list.filter((a) => a.business === filterBusiness);
@@ -494,12 +502,30 @@ export default function AdminBusinessAccounts() {
       let av: string | number = '';
       let bv: string | number = '';
       switch (sortField) {
-        case 'service_name': av = a.service_name.toLowerCase(); bv = b.service_name.toLowerCase(); break;
-        case 'business': av = a.business; bv = b.business; break;
-        case 'category': av = a.category; bv = b.category; break;
-        case 'cost': av = toMonthly(a.cost, a.billing_cycle); bv = toMonthly(b.cost, b.billing_cycle); break;
-        case 'renewal_date': av = a.renewal_date ?? '9999-99-99'; bv = b.renewal_date ?? '9999-99-99'; break;
-        case 'status': av = a.status; bv = b.status; break;
+        case 'service_name':
+          av = a.service_name.toLowerCase();
+          bv = b.service_name.toLowerCase();
+          break;
+        case 'business':
+          av = a.business;
+          bv = b.business;
+          break;
+        case 'category':
+          av = a.category;
+          bv = b.category;
+          break;
+        case 'cost':
+          av = toMonthly(a.cost, a.billing_cycle);
+          bv = toMonthly(b.cost, b.billing_cycle);
+          break;
+        case 'renewal_date':
+          av = a.renewal_date ?? '9999-99-99';
+          bv = b.renewal_date ?? '9999-99-99';
+          break;
+        case 'status':
+          av = a.status;
+          bv = b.status;
+          break;
       }
       if (av < bv) return sortDir === 'asc' ? -1 : 1;
       if (av > bv) return sortDir === 'asc' ? 1 : -1;
@@ -518,25 +544,33 @@ export default function AdminBusinessAccounts() {
   const totalMonthly = activeAccounts.reduce((sum, a) => sum + toMonthly(a.cost, a.billing_cycle), 0);
   const totalAnnual = activeAccounts.reduce((sum, a) => sum + toAnnual(a.cost, a.billing_cycle), 0);
 
-  const upcomingRenewals = accounts.filter((a) => {
-    const days = daysUntilRenewal(a.renewal_date);
-    return days !== null && days >= 0 && days <= 30 && a.status === 'Active';
-  }).sort((a, b) => (a.renewal_date ?? '') < (b.renewal_date ?? '') ? -1 : 1);
+  const upcomingRenewals = accounts
+    .filter((a) => {
+      const days = daysUntilRenewal(a.renewal_date);
+      return days !== null && days >= 0 && days <= 30 && a.status === 'Active';
+    })
+    .sort((a, b) => ((a.renewal_date ?? '') < (b.renewal_date ?? '') ? -1 : 1));
 
-  const byBusiness = businesses.reduce<Record<string, number>>((acc, biz) => {
-    acc[biz.name] = activeAccounts
-      .filter((a) => a.business === biz.name)
-      .reduce((s, a) => s + toMonthly(a.cost, a.billing_cycle), 0);
-    return acc;
-  }, {} as Record<string, number>);
+  const byBusiness = businesses.reduce<Record<string, number>>(
+    (acc, biz) => {
+      acc[biz.name] = activeAccounts
+        .filter((a) => a.business === biz.name)
+        .reduce((s, a) => s + toMonthly(a.cost, a.billing_cycle), 0);
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
-  const byCategory = CATEGORIES.reduce<Record<string, number>>((acc, cat) => {
-    const sum = activeAccounts
-      .filter((a) => a.category === cat)
-      .reduce((s, a) => s + toMonthly(a.cost, a.billing_cycle), 0);
-    if (sum > 0) acc[cat] = sum;
-    return acc;
-  }, {} as Record<string, number>);
+  const byCategory = CATEGORIES.reduce<Record<string, number>>(
+    (acc, cat) => {
+      const sum = activeAccounts
+        .filter((a) => a.category === cat)
+        .reduce((s, a) => s + toMonthly(a.cost, a.billing_cycle), 0);
+      if (sum > 0) acc[cat] = sum;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -599,7 +633,7 @@ export default function AdminBusinessAccounts() {
     } catch (err: unknown) {
       toast({
         title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to save account',
+        description: err instanceof Error ? getErrorMessage(err) : 'Failed to save account',
         variant: 'destructive',
       });
     } finally {
@@ -614,7 +648,7 @@ export default function AdminBusinessAccounts() {
     } catch (err: unknown) {
       toast({
         title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to delete account',
+        description: err instanceof Error ? getErrorMessage(err) : 'Failed to delete account',
         variant: 'destructive',
       });
     } finally {
@@ -636,7 +670,11 @@ export default function AdminBusinessAccounts() {
       setNewBizName('');
       toast({ title: `"${trimmed}" added` });
     } catch (err: unknown) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to add business', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? getErrorMessage(err) : 'Failed to add business',
+        variant: 'destructive',
+      });
     } finally {
       setBizSaving(false);
     }
@@ -646,7 +684,11 @@ export default function AdminBusinessAccounts() {
     const biz = businesses.find((b) => b.id === id);
     const inUse = accounts.some((a) => a.business === biz?.name);
     if (inUse) {
-      toast({ title: 'Cannot delete', description: `"${biz?.name}" is assigned to one or more accounts. Reassign them first.`, variant: 'destructive' });
+      toast({
+        title: 'Cannot delete',
+        description: `"${biz?.name}" is assigned to one or more accounts. Reassign them first.`,
+        variant: 'destructive',
+      });
       setBizDeleteId(null);
       return;
     }
@@ -654,7 +696,11 @@ export default function AdminBusinessAccounts() {
       await deleteBiz.mutateAsync(id);
       toast({ title: `"${biz?.name}" removed` });
     } catch (err: unknown) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to delete business', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? getErrorMessage(err) : 'Failed to delete business',
+        variant: 'destructive',
+      });
     } finally {
       setBizDeleteId(null);
     }
@@ -667,7 +713,10 @@ export default function AdminBusinessAccounts() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
       {/* Header */}
-      <div className="px-4 sm:px-6 py-4 border-b" style={{ borderColor: colors.creamDark, backgroundColor: colors.white }}>
+      <div
+        className="px-4 sm:px-6 py-4 border-b"
+        style={{ borderColor: colors.creamDark, backgroundColor: colors.white }}
+      >
         <div className="max-w-7xl mx-auto flex items-center gap-3">
           <button
             onClick={() => window.history.back()}
@@ -707,19 +756,22 @@ export default function AdminBusinessAccounts() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-
         {/* ── Summary Cards ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Card style={{ backgroundColor: colors.white }}>
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-2 mb-1">
                 <DollarSign className="h-4 w-4" style={{ color: colors.gold }} />
-                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: colors.brownLight }}>Monthly</span>
+                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: colors.brownLight }}>
+                  Monthly
+                </span>
               </div>
               <p className="text-2xl font-bold" style={{ color: colors.brown }}>
                 {formatCurrency(totalMonthly)}
               </p>
-              <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>active subscriptions</p>
+              <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+                active subscriptions
+              </p>
             </CardContent>
           </Card>
 
@@ -727,12 +779,16 @@ export default function AdminBusinessAccounts() {
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp className="h-4 w-4" style={{ color: colors.blue }} />
-                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: colors.brownLight }}>Annual</span>
+                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: colors.brownLight }}>
+                  Annual
+                </span>
               </div>
               <p className="text-2xl font-bold" style={{ color: colors.brown }}>
                 {formatCurrency(totalAnnual)}
               </p>
-              <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>projected spend</p>
+              <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+                projected spend
+              </p>
             </CardContent>
           </Card>
 
@@ -740,25 +796,39 @@ export default function AdminBusinessAccounts() {
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-2 mb-1">
                 <Building2 className="h-4 w-4" style={{ color: colors.green }} />
-                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: colors.brownLight }}>Accounts</span>
+                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: colors.brownLight }}>
+                  Accounts
+                </span>
               </div>
               <p className="text-2xl font-bold" style={{ color: colors.brown }}>
                 {accounts.filter((a) => a.status === 'Active').length}
               </p>
-              <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>active of {accounts.length} total</p>
+              <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+                active of {accounts.length} total
+              </p>
             </CardContent>
           </Card>
 
           <Card style={{ backgroundColor: upcomingRenewals.length > 0 ? '#fff7ed' : colors.white }}>
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-2 mb-1">
-                <Calendar className="h-4 w-4" style={{ color: upcomingRenewals.length > 0 ? colors.orange : colors.brownLight }} />
-                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: colors.brownLight }}>Renewals</span>
+                <Calendar
+                  className="h-4 w-4"
+                  style={{ color: upcomingRenewals.length > 0 ? colors.orange : colors.brownLight }}
+                />
+                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: colors.brownLight }}>
+                  Renewals
+                </span>
               </div>
-              <p className="text-2xl font-bold" style={{ color: upcomingRenewals.length > 0 ? colors.orange : colors.brown }}>
+              <p
+                className="text-2xl font-bold"
+                style={{ color: upcomingRenewals.length > 0 ? colors.orange : colors.brown }}
+              >
                 {upcomingRenewals.length}
               </p>
-              <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>due in 30 days</p>
+              <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+                due in 30 days
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -768,7 +838,9 @@ export default function AdminBusinessAccounts() {
           {/* By Business */}
           <Card style={{ backgroundColor: colors.white }}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm" style={{ color: colors.brown }}>Monthly Spend by Business</CardTitle>
+              <CardTitle className="text-sm" style={{ color: colors.brown }}>
+                Monthly Spend by Business
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {businesses.map((biz) => {
@@ -776,7 +848,9 @@ export default function AdminBusinessAccounts() {
                 const maxAmount = Math.max(...Object.values(byBusiness), 0.01);
                 return (
                   <div key={biz.id} className="flex items-center gap-2">
-                    <div className="w-24 text-xs truncate" style={{ color: colors.brownLight }}>{biz.name}</div>
+                    <div className="w-24 text-xs truncate" style={{ color: colors.brownLight }}>
+                      {biz.name}
+                    </div>
                     <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: colors.cream }}>
                       <div
                         className="h-full rounded-full transition-all"
@@ -798,11 +872,15 @@ export default function AdminBusinessAccounts() {
           {/* Upcoming Renewals */}
           <Card style={{ backgroundColor: colors.white }}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm" style={{ color: colors.brown }}>Upcoming Renewals (30 days)</CardTitle>
+              <CardTitle className="text-sm" style={{ color: colors.brown }}>
+                Upcoming Renewals (30 days)
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {upcomingRenewals.length === 0 ? (
-                <p className="text-sm" style={{ color: colors.brownLight }}>No renewals due in the next 30 days.</p>
+                <p className="text-sm" style={{ color: colors.brownLight }}>
+                  No renewals due in the next 30 days.
+                </p>
               ) : (
                 <div className="space-y-2">
                   {upcomingRenewals.map((a) => {
@@ -810,11 +888,17 @@ export default function AdminBusinessAccounts() {
                     return (
                       <div key={a.id} className="flex items-center justify-between">
                         <div className="flex items-center gap-2 min-w-0">
-                          {days <= 7 && <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" style={{ color: colors.red }} />}
-                          <span className="text-sm truncate" style={{ color: colors.brown }}>{a.service_name}</span>
+                          {days <= 7 && (
+                            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" style={{ color: colors.red }} />
+                          )}
+                          <span className="text-sm truncate" style={{ color: colors.brown }}>
+                            {a.service_name}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-xs" style={{ color: colors.brownLight }}>{formatDate(a.renewal_date)}</span>
+                          <span className="text-xs" style={{ color: colors.brownLight }}>
+                            {formatDate(a.renewal_date)}
+                          </span>
                           <Badge
                             style={{
                               backgroundColor: days <= 7 ? '#fee2e2' : '#fef3c7',
@@ -839,7 +923,10 @@ export default function AdminBusinessAccounts() {
           <CardContent className="pt-4 pb-4">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: colors.brownLight }} />
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+                  style={{ color: colors.brownLight }}
+                />
                 <Input
                   placeholder="Search accounts…"
                   value={search}
@@ -849,39 +936,67 @@ export default function AdminBusinessAccounts() {
                 />
               </div>
               <Select value={filterBusiness} onValueChange={setFilterBusiness}>
-                <SelectTrigger className="w-full sm:w-36" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                <SelectTrigger
+                  className="w-full sm:w-36"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                >
                   <SelectValue placeholder="Business" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All Businesses</SelectItem>
-                  {businesses.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
+                  {businesses.map((b) => (
+                    <SelectItem key={b.id} value={b.name}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-full sm:w-36" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                <SelectTrigger
+                  className="w-full sm:w-36"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                >
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All Categories</SelectItem>
-                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-full sm:w-32" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                <SelectTrigger
+                  className="w-full sm:w-32"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                >
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All Statuses</SelectItem>
-                  {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={filterCycle} onValueChange={setFilterCycle}>
-                <SelectTrigger className="w-full sm:w-32" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                <SelectTrigger
+                  className="w-full sm:w-32"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                >
                   <SelectValue placeholder="Cycle" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All Cycles</SelectItem>
-                  {BILLING_CYCLES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {BILLING_CYCLES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -926,25 +1041,59 @@ export default function AdminBusinessAccounts() {
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${colors.creamDark}`, backgroundColor: colors.cream }}>
                       <th className="text-left px-4 py-3">
-                        <SortHeader label="Service" field="service_name" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                        <SortHeader
+                          label="Service"
+                          field="service_name"
+                          sortField={sortField}
+                          sortDir={sortDir}
+                          onSort={handleSort}
+                        />
                       </th>
                       <th className="text-left px-3 py-3 hidden sm:table-cell">
-                        <SortHeader label="Business" field="business" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                        <SortHeader
+                          label="Business"
+                          field="business"
+                          sortField={sortField}
+                          sortDir={sortDir}
+                          onSort={handleSort}
+                        />
                       </th>
                       <th className="text-left px-3 py-3 hidden md:table-cell">
-                        <SortHeader label="Category" field="category" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                        <SortHeader
+                          label="Category"
+                          field="category"
+                          sortField={sortField}
+                          sortDir={sortDir}
+                          onSort={handleSort}
+                        />
                       </th>
-                      <th className="text-left px-3 py-3 hidden lg:table-cell">
-                        Login
-                      </th>
+                      <th className="text-left px-3 py-3 hidden lg:table-cell">Login</th>
                       <th className="text-right px-3 py-3">
-                        <SortHeader label="Cost" field="cost" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                        <SortHeader
+                          label="Cost"
+                          field="cost"
+                          sortField={sortField}
+                          sortDir={sortDir}
+                          onSort={handleSort}
+                        />
                       </th>
                       <th className="text-left px-3 py-3 hidden md:table-cell">
-                        <SortHeader label="Renewal" field="renewal_date" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                        <SortHeader
+                          label="Renewal"
+                          field="renewal_date"
+                          sortField={sortField}
+                          sortDir={sortDir}
+                          onSort={handleSort}
+                        />
                       </th>
                       <th className="text-left px-3 py-3">
-                        <SortHeader label="Status" field="status" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                        <SortHeader
+                          label="Status"
+                          field="status"
+                          sortField={sortField}
+                          sortDir={sortDir}
+                          onSort={handleSort}
+                        />
                       </th>
                       <th className="px-3 py-3 w-20" />
                     </tr>
@@ -1021,18 +1170,27 @@ export default function AdminBusinessAccounts() {
                           {/* Cost */}
                           <td className="px-3 py-3 text-right">
                             {account.billing_cycle === 'Free' ? (
-                              <span className="text-xs font-medium" style={{ color: colors.green }}>Free</span>
+                              <span className="text-xs font-medium" style={{ color: colors.green }}>
+                                Free
+                              </span>
                             ) : account.cost ? (
                               <div>
                                 <div className="font-medium text-xs" style={{ color: colors.brown }}>
                                   {formatCurrency(account.cost)}
                                 </div>
                                 <div className="text-xs" style={{ color: colors.brownLight }}>
-                                  /{account.billing_cycle === 'Monthly' ? 'mo' : account.billing_cycle === 'Annual' ? 'yr' : 'once'}
+                                  /
+                                  {account.billing_cycle === 'Monthly'
+                                    ? 'mo'
+                                    : account.billing_cycle === 'Annual'
+                                      ? 'yr'
+                                      : 'once'}
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-xs" style={{ color: colors.brownLight }}>—</span>
+                              <span className="text-xs" style={{ color: colors.brownLight }}>
+                                —
+                              </span>
                             )}
                           </td>
 
@@ -1040,18 +1198,33 @@ export default function AdminBusinessAccounts() {
                           <td className="px-3 py-3 hidden md:table-cell">
                             {account.renewal_date ? (
                               <div>
-                                <div className="text-xs" style={{ color: colors.brown }}>{formatDate(account.renewal_date)}</div>
+                                <div className="text-xs" style={{ color: colors.brown }}>
+                                  {formatDate(account.renewal_date)}
+                                </div>
                                 {days !== null && days >= 0 && (
-                                  <div className="text-xs" style={{ color: renewingUrgent ? colors.red : renewingSoon ? colors.orange : colors.brownLight }}>
+                                  <div
+                                    className="text-xs"
+                                    style={{
+                                      color: renewingUrgent
+                                        ? colors.red
+                                        : renewingSoon
+                                          ? colors.orange
+                                          : colors.brownLight,
+                                    }}
+                                  >
                                     {days === 0 ? 'Today' : `${days}d`}
                                   </div>
                                 )}
                                 {days !== null && days < 0 && (
-                                  <div className="text-xs" style={{ color: colors.brownLight }}>Past</div>
+                                  <div className="text-xs" style={{ color: colors.brownLight }}>
+                                    Past
+                                  </div>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-xs" style={{ color: colors.brownLight }}>—</span>
+                              <span className="text-xs" style={{ color: colors.brownLight }}>
+                                —
+                              </span>
                             )}
                           </td>
 
@@ -1104,17 +1277,29 @@ export default function AdminBusinessAccounts() {
         {Object.keys(byCategory).length > 0 && (
           <Card style={{ backgroundColor: colors.white }}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm" style={{ color: colors.brown }}>Monthly Spend by Category</CardTitle>
+              <CardTitle className="text-sm" style={{ color: colors.brown }}>
+                Monthly Spend by Category
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {Object.entries(byCategory)
                   .sort(([, a], [, b]) => b - a)
                   .map(([cat, amount]) => (
-                    <div key={cat} className="flex flex-col gap-0.5 p-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
-                      <span className="text-xs font-medium" style={{ color: colors.brownLight }}>{cat}</span>
-                      <span className="text-base font-bold" style={{ color: colors.brown }}>{formatCurrency(amount)}</span>
-                      <span className="text-xs" style={{ color: colors.brownLight }}>/ mo</span>
+                    <div
+                      key={cat}
+                      className="flex flex-col gap-0.5 p-3 rounded-lg"
+                      style={{ backgroundColor: colors.cream }}
+                    >
+                      <span className="text-xs font-medium" style={{ color: colors.brownLight }}>
+                        {cat}
+                      </span>
+                      <span className="text-base font-bold" style={{ color: colors.brown }}>
+                        {formatCurrency(amount)}
+                      </span>
+                      <span className="text-xs" style={{ color: colors.brownLight }}>
+                        / mo
+                      </span>
                     </div>
                   ))}
               </div>
@@ -1136,7 +1321,12 @@ export default function AdminBusinessAccounts() {
       />
 
       {/* ── Delete Account Confirm ── */}
-      <AlertDialog open={deleteId !== null} onOpenChange={(v) => { if (!v) setDeleteId(null); }}>
+      <AlertDialog
+        open={deleteId !== null}
+        onOpenChange={(v) => {
+          if (!v) setDeleteId(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Account?</AlertDialogTitle>
@@ -1166,10 +1356,18 @@ export default function AdminBusinessAccounts() {
             {businesses.map((biz) => {
               const count = accounts.filter((a) => a.business === biz.name).length;
               return (
-                <div key={biz.id} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: colors.cream }}>
+                <div
+                  key={biz.id}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                  style={{ backgroundColor: colors.cream }}
+                >
                   <div className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: biz.color }} />
-                  <span className="flex-1 text-sm font-medium" style={{ color: colors.brown }}>{biz.name}</span>
-                  <span className="text-xs" style={{ color: colors.brownLight }}>{count} acct{count !== 1 ? 's' : ''}</span>
+                  <span className="flex-1 text-sm font-medium" style={{ color: colors.brown }}>
+                    {biz.name}
+                  </span>
+                  <span className="text-xs" style={{ color: colors.brownLight }}>
+                    {count} acct{count !== 1 ? 's' : ''}
+                  </span>
                   <button
                     onClick={() => setBizDeleteId(biz.id)}
                     className="p-1 rounded hover:opacity-70"
@@ -1186,7 +1384,9 @@ export default function AdminBusinessAccounts() {
                 placeholder="New business name"
                 value={newBizName}
                 onChange={(e) => setNewBizName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleAddBusiness(); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddBusiness();
+                }}
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                 className="flex-1"
               />
@@ -1204,7 +1404,12 @@ export default function AdminBusinessAccounts() {
       </Dialog>
 
       {/* ── Delete Business Confirm ── */}
-      <AlertDialog open={bizDeleteId !== null} onOpenChange={(v) => { if (!v) setBizDeleteId(null); }}>
+      <AlertDialog
+        open={bizDeleteId !== null}
+        onOpenChange={(v) => {
+          if (!v) setBizDeleteId(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Business?</AlertDialogTitle>

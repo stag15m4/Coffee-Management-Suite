@@ -49,7 +49,9 @@ export function HistoricalExport({
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <Label htmlFor="history-start-date" className="text-sm" style={{ color: colors.brownLight }}>Start Date</Label>
+            <Label htmlFor="history-start-date" className="text-sm" style={{ color: colors.brownLight }}>
+              Start Date
+            </Label>
             <Input
               id="history-start-date"
               type="date"
@@ -60,7 +62,9 @@ export function HistoricalExport({
             />
           </div>
           <div>
-            <Label htmlFor="history-end-date" className="text-sm" style={{ color: colors.brownLight }}>End Date</Label>
+            <Label htmlFor="history-end-date" className="text-sm" style={{ color: colors.brownLight }}>
+              End Date
+            </Label>
             <Input
               id="history-end-date"
               type="date"
@@ -73,7 +77,9 @@ export function HistoricalExport({
         </div>
 
         <div>
-          <Label htmlFor="export-type-select" className="text-sm" style={{ color: colors.brownLight }}>Export Type</Label>
+          <Label htmlFor="export-type-select" className="text-sm" style={{ color: colors.brownLight }}>
+            Export Type
+          </Label>
           <Select
             value={historyExportType}
             onValueChange={(value: 'group' | 'individual') => onExportTypeChange(value)}
@@ -94,11 +100,10 @@ export function HistoricalExport({
 
         {historyExportType === 'individual' && (
           <div>
-            <Label htmlFor="history-employee-select" className="text-sm" style={{ color: colors.brownLight }}>Select Employee</Label>
-            <Select
-              value={historySelectedEmployee}
-              onValueChange={onSelectedEmployeeChange}
-            >
+            <Label htmlFor="history-employee-select" className="text-sm" style={{ color: colors.brownLight }}>
+              Select Employee
+            </Label>
+            <Select value={historySelectedEmployee} onValueChange={onSelectedEmployeeChange}>
               <SelectTrigger
                 id="history-employee-select"
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
@@ -107,7 +112,7 @@ export function HistoricalExport({
                 <SelectValue placeholder="Select an employee" />
               </SelectTrigger>
               <SelectContent>
-                {(allEmployees.length > 0 ? allEmployees : employees).map(emp => (
+                {(allEmployees.length > 0 ? allEmployees : employees).map((emp) => (
                   <SelectItem key={emp.id} value={emp.id}>
                     {emp.name} {!isEmployeeActive(emp) && '(Inactive)'}
                   </SelectItem>

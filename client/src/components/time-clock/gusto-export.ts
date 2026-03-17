@@ -28,8 +28,7 @@ export interface GustoExportParams {
 
 function calcNetHours(entry: TimeClockEntry): number {
   if (!entry.clock_out) return 0;
-  const gross =
-    (new Date(entry.clock_out).getTime() - new Date(entry.clock_in).getTime()) / 3_600_000;
+  const gross = (new Date(entry.clock_out).getTime() - new Date(entry.clock_in).getTime()) / 3_600_000;
   const breakHrs = (entry.breaks ?? []).reduce((sum, b: TimeClockBreak) => {
     if (!b.break_end) return sum;
     return sum + (new Date(b.break_end).getTime() - new Date(b.break_start).getTime()) / 3_600_000;
@@ -76,7 +75,7 @@ function getWeekKeysForPeriod(periodStart: string, periodEnd: string): string[] 
 function aggregateHoursByEmployee(
   entries: TimeClockEntry[],
   employees: UnifiedEmployee[],
-  weeks: WeekGroup[],
+  weeks: WeekGroup[]
 ): Map<string, { name: string; regularHours: number; overtimeHours: number }> {
   // Build a set of day strings per week for fast lookup
   const dayToWeekIdx = new Map<string, number>();
@@ -136,17 +135,13 @@ async function fetchTipPayoutsForPeriod(
   tenantId: string,
   periodStart: string,
   periodEnd: string,
-  employees: UnifiedEmployee[],
+  employees: UnifiedEmployee[]
 ): Promise<Map<string, number>> {
   const weekKeys = getWeekKeysForPeriod(periodStart, periodEnd);
   if (weekKeys.length === 0) return new Map();
 
   const [weeklyRes, hoursRes] = await Promise.all([
-    supabase
-      .from('tip_weekly_data')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .in('week_key', weekKeys),
+    supabase.from('tip_weekly_data').select('*').eq('tenant_id', tenantId).in('week_key', weekKeys),
     supabase
       .from('tip_employee_hours')
       .select('*, tip_employees(id, name)')
@@ -177,10 +172,7 @@ async function fetchTipPayoutsForPeriod(
 
     // Get employee hours for this week
     const weekHours = hoursData.filter((h: any) => h.week_key === wd.week_key);
-    const totalTeamHours = weekHours.reduce(
-      (sum: number, h: any) => sum + (parseFloat(String(h.hours)) || 0),
-      0,
-    );
+    const totalTeamHours = weekHours.reduce((sum: number, h: any) => sum + (parseFloat(String(h.hours)) || 0), 0);
     if (totalTeamHours <= 0 || pool <= 0) continue;
 
     const hourlyTipRate = pool / totalTeamHours;
@@ -216,7 +208,7 @@ function buildGustoCsv(rows: GustoEmployeeRow[]): string {
         r.overtimeHours.toFixed(2),
         r.cashTips.toFixed(2),
         r.ptoHours.toFixed(2),
-      ].join(','),
+      ].join(',')
     );
   }
 

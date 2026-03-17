@@ -222,7 +222,9 @@ export function TimesheetGrid({
     <div>
       {/* Summary bar */}
       <div className="flex items-center gap-4 py-2 px-1 text-xs flex-wrap" style={{ color: colors.brownLight }}>
-        <span><strong style={{ color: colors.brown }}>{formatHM(grandTotalHours)}</strong> Total Paid Hours</span>
+        <span>
+          <strong style={{ color: colors.brown }}>{formatHM(grandTotalHours)}</strong> Total Paid Hours
+        </span>
         {grandTotalPay > 0 && (
           <span className="ml-auto font-semibold" style={{ color: colors.brown }}>
             ${grandTotalPay.toFixed(2)} Pay per dates
@@ -235,11 +237,18 @@ export function TimesheetGrid({
         <table className="w-full text-sm">
           <thead>
             <tr style={{ borderBottom: `2px solid ${colors.creamDark}` }}>
-              <th className="text-left py-2 px-2 sticky left-0 z-10" style={{ color: colors.brownLight, backgroundColor: colors.white, minWidth: 140 }}>
+              <th
+                className="text-left py-2 px-2 sticky left-0 z-10"
+                style={{ color: colors.brownLight, backgroundColor: colors.white, minWidth: 140 }}
+              >
                 Full name
               </th>
               {days.map((day) => (
-                <th key={day} className="text-center py-2 px-1 whitespace-nowrap" style={{ color: colors.brownLight, minWidth: 60 }}>
+                <th
+                  key={day}
+                  className="text-center py-2 px-1 whitespace-nowrap"
+                  style={{ color: colors.brownLight, minWidth: 60 }}
+                >
                   {formatDayHeader(day)}
                 </th>
               ))}
@@ -265,14 +274,20 @@ export function TimesheetGrid({
                 >
                   <td className="py-2 px-2 sticky left-0 z-10" style={{ backgroundColor: colors.white }}>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium" style={{ color: colors.brown }}>{row.name}</span>
+                      <span className="font-medium" style={{ color: colors.brown }}>
+                        {row.name}
+                      </span>
                       {statusBadge(row.approvalStatus)}
                     </div>
                   </td>
                   {days.map((day) => {
                     const hrs = row.dayHours.get(day) || 0;
                     return (
-                      <td key={day} className="text-center py-2 px-1" style={{ color: hrs > 0 ? colors.brown : colors.brownLight }}>
+                      <td
+                        key={day}
+                        className="text-center py-2 px-1"
+                        style={{ color: hrs > 0 ? colors.brown : colors.brownLight }}
+                      >
                         {hrs > 0 ? formatHM(hrs) : '--'}
                       </td>
                     );

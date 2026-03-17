@@ -76,13 +76,15 @@ export function JobInsights({ entries, shifts, employees }: JobInsightsProps) {
       j.shiftCount += 1;
     }
 
-    return Array.from(jobMap.entries()).map(([job, data]) => ({
-      job,
-      totalHours: data.totalHours,
-      totalPay: data.totalPay,
-      shiftCount: data.shiftCount,
-      avgHoursPerShift: data.shiftCount > 0 ? data.totalHours / data.shiftCount : 0,
-    })).sort((a, b) => b.totalHours - a.totalHours);
+    return Array.from(jobMap.entries())
+      .map(([job, data]) => ({
+        job,
+        totalHours: data.totalHours,
+        totalPay: data.totalPay,
+        shiftCount: data.shiftCount,
+        avgHoursPerShift: data.shiftCount > 0 ? data.totalHours / data.shiftCount : 0,
+      }))
+      .sort((a, b) => b.totalHours - a.totalHours);
   }, [entries, shifts, employees]);
 
   if (insights.length === 0) return null;
@@ -99,10 +101,18 @@ export function JobInsights({ entries, shifts, employees }: JobInsightsProps) {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: `1px solid ${colors.creamDark}` }}>
-                <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Job</th>
-                <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>Total hours</th>
-                <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>Total pay</th>
-                <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>Avg hours per shift</th>
+                <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>
+                  Job
+                </th>
+                <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>
+                  Total hours
+                </th>
+                <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>
+                  Total pay
+                </th>
+                <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>
+                  Avg hours per shift
+                </th>
               </tr>
             </thead>
             <tbody>

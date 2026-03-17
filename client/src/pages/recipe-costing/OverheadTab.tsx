@@ -15,7 +15,15 @@ interface OverheadTabProps {
   onDeleteOverheadItem: (id: string) => Promise<void>;
 }
 
-export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayCount, onAddOverheadItem, onUpdateOverheadItem, onDeleteOverheadItem }: OverheadTabProps) => {
+export const OverheadTab = ({
+  overhead,
+  overheadItems,
+  avgDailyRevenue,
+  cashDayCount,
+  onAddOverheadItem,
+  onUpdateOverheadItem,
+  onDeleteOverheadItem,
+}: OverheadTabProps) => {
   const [newItem, setNewItem] = useState({ name: '', amount: '', frequency: 'monthly' });
   const [addingItem, setAddingItem] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -111,7 +119,7 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
     const run1 = payrollInputs.run1 !== '' ? parseFloat(payrollInputs.run1) || 0 : null;
     const run2 = payrollInputs.run2 !== '' ? parseFloat(payrollInputs.run2) || 0 : null;
     const run3 = payrollInputs.run3 !== '' ? parseFloat(payrollInputs.run3) || 0 : null;
-    const enteredRuns = [run1, run2, run3].filter(r => r !== null) as number[];
+    const enteredRuns = [run1, run2, run3].filter((r) => r !== null) as number[];
     if (enteredRuns.length === 0) return 0;
     return enteredRuns.reduce((a, b) => a + b, 0) / enteredRuns.length;
   }, [payrollInputs]);
@@ -124,13 +132,15 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
     return count;
   }, [payrollInputs]);
 
-  const existingPayrollItem = overheadItems.find(item => item.name === 'Labor');
+  const existingPayrollItem = overheadItems.find((item) => item.name === 'Labor');
 
   const openPayrollModal = () => {
     if (existingPayrollItem) {
       const avg = Number(existingPayrollItem.amount);
       setPayrollInputs({ run1: avg.toString(), run2: '', run3: '' });
-      setLaborFrequency((existingPayrollItem.frequency as 'weekly' | 'bi-weekly' | 'monthly' | 'bi-monthly') || 'bi-weekly');
+      setLaborFrequency(
+        (existingPayrollItem.frequency as 'weekly' | 'bi-weekly' | 'monthly' | 'bi-monthly') || 'bi-weekly'
+      );
     } else {
       setPayrollInputs({ run1: '', run2: '', run3: '' });
       setLaborFrequency('bi-weekly');
@@ -161,7 +171,11 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
     <div className="space-y-6">
       {/* Revenue vs Overhead Comparison */}
       {overheadItems.length > 0 && (
-        <div className="rounded-xl shadow-md overflow-hidden" style={{ backgroundColor: colors.white }} data-spotlight="revenue-chart">
+        <div
+          className="rounded-xl shadow-md overflow-hidden"
+          style={{ backgroundColor: colors.white }}
+          data-spotlight="revenue-chart"
+        >
           <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: colors.brown }}>
             <h3 className="font-bold text-white">Daily Revenue vs Overhead</h3>
             <button
@@ -174,13 +188,29 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
             </button>
           </div>
           {showRevenueInfo && (
-            <div className="px-4 py-3 text-sm border-b" style={{ backgroundColor: colors.cream, borderColor: colors.creamDark, color: colors.brown }}>
+            <div
+              className="px-4 py-3 text-sm border-b"
+              style={{ backgroundColor: colors.cream, borderColor: colors.creamDark, color: colors.brown }}
+            >
               <p className="font-semibold mb-2">How these numbers are calculated:</p>
               <ul className="space-y-1.5" style={{ color: colors.brownLight }}>
-                <li><strong style={{ color: colors.brown }}>Avg Daily Revenue</strong> — The average of your daily gross revenue from your cash deposit logs ({cashDayCount} {cashDayCount === 1 ? 'day' : 'days'} recorded). Days you've excluded from the average are not counted.</li>
-                <li><strong style={{ color: colors.brown }}>Daily Overhead</strong> — The total of all overhead items below, converted to a daily amount based on your {operatingDays}-day operating week.</li>
-                <li><strong style={{ color: colors.brown }}>Daily Margin</strong> — Revenue minus overhead. Green means you're covering your costs; red means overhead exceeds revenue.</li>
-                <li><strong style={{ color: colors.brown }}>Overhead %</strong> — What percentage of your daily revenue goes to overhead. Lower is better.</li>
+                <li>
+                  <strong style={{ color: colors.brown }}>Avg Daily Revenue</strong> — The average of your daily gross
+                  revenue from your cash deposit logs ({cashDayCount} {cashDayCount === 1 ? 'day' : 'days'} recorded).
+                  Days you've excluded from the average are not counted.
+                </li>
+                <li>
+                  <strong style={{ color: colors.brown }}>Daily Overhead</strong> — The total of all overhead items
+                  below, converted to a daily amount based on your {operatingDays}-day operating week.
+                </li>
+                <li>
+                  <strong style={{ color: colors.brown }}>Daily Margin</strong> — Revenue minus overhead. Green means
+                  you're covering your costs; red means overhead exceeds revenue.
+                </li>
+                <li>
+                  <strong style={{ color: colors.brown }}>Overhead %</strong> — What percentage of your daily revenue
+                  goes to overhead. Lower is better.
+                </li>
               </ul>
             </div>
           )}
@@ -192,26 +222,50 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
-                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Avg Daily Revenue</div>
-                  <div className="text-xl font-bold" style={{ color: colors.brown }}>{formatCurrency(avgDailyRevenue)}</div>
-                  <div className="text-xs" style={{ color: colors.brownLight }}>from {cashDayCount} days</div>
+                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>
+                    Avg Daily Revenue
+                  </div>
+                  <div className="text-xl font-bold" style={{ color: colors.brown }}>
+                    {formatCurrency(avgDailyRevenue)}
+                  </div>
+                  <div className="text-xs" style={{ color: colors.brownLight }}>
+                    from {cashDayCount} days
+                  </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Daily Overhead</div>
-                  <div className="text-xl font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.daily)}</div>
+                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>
+                    Daily Overhead
+                  </div>
+                  <div className="text-xl font-bold" style={{ color: colors.gold }}>
+                    {formatCurrency(totals.daily)}
+                  </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Daily Margin</div>
-                  <div className="text-xl font-bold" style={{ color: avgDailyRevenue - totals.daily >= 0 ? '#22c55e' : '#ef4444' }}>
+                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>
+                    Daily Margin
+                  </div>
+                  <div
+                    className="text-xl font-bold"
+                    style={{ color: avgDailyRevenue - totals.daily >= 0 ? '#22c55e' : '#ef4444' }}
+                  >
                     {formatCurrency(avgDailyRevenue - totals.daily)}
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Overhead %</div>
-                  <div className="text-xl font-bold" style={{ color: avgDailyRevenue > 0 && (totals.daily / avgDailyRevenue) <= 0.5 ? '#22c55e' : colors.gold }}>
+                  <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>
+                    Overhead %
+                  </div>
+                  <div
+                    className="text-xl font-bold"
+                    style={{
+                      color: avgDailyRevenue > 0 && totals.daily / avgDailyRevenue <= 0.5 ? '#22c55e' : colors.gold,
+                    }}
+                  >
                     {avgDailyRevenue > 0 ? `${((totals.daily / avgDailyRevenue) * 100).toFixed(1)}%` : '\u2014'}
                   </div>
-                  <div className="text-xs" style={{ color: colors.brownLight }}>of revenue</div>
+                  <div className="text-xs" style={{ color: colors.brownLight }}>
+                    of revenue
+                  </div>
                 </div>
               </div>
             )}
@@ -222,7 +276,9 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
       {/* Overhead Calculator */}
       <div className="rounded-xl p-6 shadow-md" style={{ backgroundColor: colors.white }}>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-          <h3 className="text-lg font-bold" style={{ color: colors.brown }}>Overhead Calculator</h3>
+          <h3 className="text-lg font-bold" style={{ color: colors.brown }}>
+            Overhead Calculator
+          </h3>
           <div className="flex gap-2 items-center">
             {/* View mode toggle */}
             <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: colors.creamDark }}>
@@ -268,7 +324,8 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
           </div>
         </div>
         <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
-          Add your shop overhead costs. Amounts are automatically converted to all time periods based on your {operatingDays}-day operating week.
+          Add your shop overhead costs. Amounts are automatically converted to all time periods based on your{' '}
+          {operatingDays}-day operating week.
         </p>
 
         {/* Table */}
@@ -276,33 +333,67 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
           <table className="w-full text-sm" style={{ minWidth: viewMode === 'amounts' ? '700px' : '580px' }}>
             <thead>
               <tr style={{ backgroundColor: colors.brown }}>
-                <th className="text-left p-2 font-semibold text-white cursor-pointer hover:opacity-70 select-none" style={{ width: viewMode === 'amounts' ? '20%' : '24%' }} onClick={() => handleSort('name')}>
+                <th
+                  className="text-left p-2 font-semibold text-white cursor-pointer hover:opacity-70 select-none"
+                  style={{ width: viewMode === 'amounts' ? '20%' : '24%' }}
+                  onClick={() => handleSort('name')}
+                >
                   Item {sortColumn === 'name' && (sortDirection === 'asc' ? '\u2191' : '\u2193')}
                 </th>
-                <th className="text-right p-2 font-semibold text-white cursor-pointer hover:opacity-70 select-none" style={{ width: viewMode === 'amounts' ? '12%' : '15%' }} onClick={() => handleSort('amount')}>
+                <th
+                  className="text-right p-2 font-semibold text-white cursor-pointer hover:opacity-70 select-none"
+                  style={{ width: viewMode === 'amounts' ? '12%' : '15%' }}
+                  onClick={() => handleSort('amount')}
+                >
                   Amount {sortColumn === 'amount' && (sortDirection === 'asc' ? '\u2191' : '\u2193')}
                 </th>
-                <th className="text-center p-2 font-semibold text-white cursor-pointer hover:opacity-70 select-none" style={{ width: viewMode === 'amounts' ? '12%' : '15%' }} onClick={() => handleSort('frequency')}>
+                <th
+                  className="text-center p-2 font-semibold text-white cursor-pointer hover:opacity-70 select-none"
+                  style={{ width: viewMode === 'amounts' ? '12%' : '15%' }}
+                  onClick={() => handleSort('frequency')}
+                >
                   Frequency {sortColumn === 'frequency' && (sortDirection === 'asc' ? '\u2191' : '\u2193')}
                 </th>
                 {viewMode === 'amounts' ? (
                   <>
-                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '11%' }}>Daily</th>
-                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '11%' }}>Weekly</th>
-                    <th className="text-right p-2 font-semibold text-white/70 cursor-pointer hover:opacity-70 select-none" style={{ width: '11%' }} onClick={() => handleSort('monthly')}>
+                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '11%' }}>
+                      Daily
+                    </th>
+                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '11%' }}>
+                      Weekly
+                    </th>
+                    <th
+                      className="text-right p-2 font-semibold text-white/70 cursor-pointer hover:opacity-70 select-none"
+                      style={{ width: '11%' }}
+                      onClick={() => handleSort('monthly')}
+                    >
                       Monthly {sortColumn === 'monthly' && (sortDirection === 'asc' ? '\u2191' : '\u2193')}
                     </th>
-                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '11%' }}>Quarterly</th>
-                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '11%' }}>Annual</th>
+                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '11%' }}>
+                      Quarterly
+                    </th>
+                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '11%' }}>
+                      Annual
+                    </th>
                   </>
                 ) : (
                   <>
-                    <th className="text-right p-2 font-semibold text-white/70 cursor-pointer hover:opacity-70 select-none" style={{ width: '13%' }} onClick={() => handleSort('monthly')}>
+                    <th
+                      className="text-right p-2 font-semibold text-white/70 cursor-pointer hover:opacity-70 select-none"
+                      style={{ width: '13%' }}
+                      onClick={() => handleSort('monthly')}
+                    >
                       Monthly {sortColumn === 'monthly' && (sortDirection === 'asc' ? '\u2191' : '\u2193')}
                     </th>
-                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '10%' }}>Mo. %</th>
-                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '13%' }}>Annual</th>
-                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '10%' }}>Ann. %</th>
+                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '10%' }}>
+                      Mo. %
+                    </th>
+                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '13%' }}>
+                      Annual
+                    </th>
+                    <th className="text-right p-2 font-semibold text-white/70" style={{ width: '10%' }}>
+                      Ann. %
+                    </th>
                   </>
                 )}
                 <th className="p-2" style={{ width: '40px' }}></th>
@@ -438,26 +529,43 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
                           <option value="annual">Annual</option>
                         </select>
                       ) : (
-                        <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
+                        <span
+                          className="text-xs px-2 py-0.5 rounded"
+                          style={{ backgroundColor: colors.cream, color: colors.brownLight }}
+                        >
                           {item.frequency}
                         </span>
                       )}
                     </td>
                     {viewMode === 'amounts' ? (
                       <>
-                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.daily)}</td>
-                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.weekly)}</td>
-                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.monthly)}</td>
-                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.quarterly)}</td>
-                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.annual)}</td>
+                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>
+                          {formatCurrency(amounts.daily)}
+                        </td>
+                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>
+                          {formatCurrency(amounts.weekly)}
+                        </td>
+                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>
+                          {formatCurrency(amounts.monthly)}
+                        </td>
+                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>
+                          {formatCurrency(amounts.quarterly)}
+                        </td>
+                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>
+                          {formatCurrency(amounts.annual)}
+                        </td>
                       </>
                     ) : (
                       <>
-                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.monthly)}</td>
+                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>
+                          {formatCurrency(amounts.monthly)}
+                        </td>
                         <td className="p-2 text-right" style={{ color: colors.brownLight }}>
                           {monthlyRevenue > 0 ? `${((amounts.monthly / monthlyRevenue) * 100).toFixed(1)}%` : '\u2014'}
                         </td>
-                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>{formatCurrency(amounts.annual)}</td>
+                        <td className="p-2 text-right" style={{ color: colors.brownLight }}>
+                          {formatCurrency(amounts.annual)}
+                        </td>
                         <td className="p-2 text-right" style={{ color: colors.brownLight }}>
                           {annualRevenue > 0 ? `${((amounts.annual / annualRevenue) * 100).toFixed(1)}%` : '\u2014'}
                         </td>
@@ -537,24 +645,40 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
               {/* Totals Row */}
               {overheadItems.length > 0 && (
                 <tr style={{ backgroundColor: colors.cream }}>
-                  <td className="p-2 font-bold" style={{ color: colors.brown }}>Total</td>
+                  <td className="p-2 font-bold" style={{ color: colors.brown }}>
+                    Total
+                  </td>
                   <td className="p-2"></td>
                   <td className="p-2"></td>
                   {viewMode === 'amounts' ? (
                     <>
-                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.daily)}</td>
-                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.weekly)}</td>
-                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.monthly)}</td>
-                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.quarterly)}</td>
-                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.annual)}</td>
+                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>
+                        {formatCurrency(totals.daily)}
+                      </td>
+                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>
+                        {formatCurrency(totals.weekly)}
+                      </td>
+                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>
+                        {formatCurrency(totals.monthly)}
+                      </td>
+                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>
+                        {formatCurrency(totals.quarterly)}
+                      </td>
+                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>
+                        {formatCurrency(totals.annual)}
+                      </td>
                     </>
                   ) : (
                     <>
-                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.monthly)}</td>
+                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>
+                        {formatCurrency(totals.monthly)}
+                      </td>
                       <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>
                         {monthlyRevenue > 0 ? `${((totals.monthly / monthlyRevenue) * 100).toFixed(1)}%` : '\u2014'}
                       </td>
-                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>{formatCurrency(totals.annual)}</td>
+                      <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>
+                        {formatCurrency(totals.annual)}
+                      </td>
                       <td className="p-2 text-right font-bold" style={{ color: colors.gold }}>
                         {annualRevenue > 0 ? `${((totals.annual / annualRevenue) * 100).toFixed(1)}%` : '\u2014'}
                       </td>
@@ -567,7 +691,11 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
               {/* Empty State */}
               {overheadItems.length === 0 && !addingItem && (
                 <tr>
-                  <td colSpan={viewMode === 'amounts' ? 9 : 8} className="p-8 text-center" style={{ color: colors.brownLight }}>
+                  <td
+                    colSpan={viewMode === 'amounts' ? 9 : 8}
+                    className="p-8 text-center"
+                    style={{ color: colors.brownLight }}
+                  >
                     No overhead items yet. Click "Add Item" to get started.
                   </td>
                 </tr>
@@ -581,7 +709,9 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
       {showPayrollModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="rounded-xl p-6 shadow-xl max-w-md w-full" style={{ backgroundColor: colors.white }}>
-            <h3 className="text-lg font-bold mb-2" style={{ color: colors.brown }}>Labor Calculator</h3>
+            <h3 className="text-lg font-bold mb-2" style={{ color: colors.brown }}>
+              Labor Calculator
+            </h3>
             <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
               Enter your last 3 payroll runs (including all taxes) to calculate an average labor cost.
             </p>
@@ -593,7 +723,9 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
                 </label>
                 <select
                   value={laborFrequency}
-                  onChange={(e) => setLaborFrequency(e.target.value as 'weekly' | 'bi-weekly' | 'monthly' | 'bi-monthly')}
+                  onChange={(e) =>
+                    setLaborFrequency(e.target.value as 'weekly' | 'bi-weekly' | 'monthly' | 'bi-monthly')
+                  }
                   className="w-full px-3 py-2 rounded-lg border-2 outline-none"
                   style={{ borderColor: colors.gold }}
                   data-testid="select-labor-frequency"
@@ -634,17 +766,25 @@ export const OverheadTab = ({ overhead, overheadItems, avgDailyRevenue, cashDayC
               <div className="pt-2 border-t" style={{ borderColor: colors.cream }}>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs" style={{ color: colors.brownLight }}>
-                    {payrollRunsEntered === 0 ? 'Enter payroll runs above' :
-                     payrollRunsEntered === 1 ? 'Average of 1 run' :
-                     payrollRunsEntered === 2 ? 'Average of 2 runs' :
-                     'Average of 3 runs'}
+                    {payrollRunsEntered === 0
+                      ? 'Enter payroll runs above'
+                      : payrollRunsEntered === 1
+                        ? 'Average of 1 run'
+                        : payrollRunsEntered === 2
+                          ? 'Average of 2 runs'
+                          : 'Average of 3 runs'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium" style={{ color: colors.brownLight }}>
-                    {laborFrequency === 'weekly' ? 'Weekly' :
-                     laborFrequency === 'bi-weekly' ? 'Bi-Weekly' :
-                     laborFrequency === 'bi-monthly' ? 'Bi-Monthly' : 'Monthly'} Labor
+                    {laborFrequency === 'weekly'
+                      ? 'Weekly'
+                      : laborFrequency === 'bi-weekly'
+                        ? 'Bi-Weekly'
+                        : laborFrequency === 'bi-monthly'
+                          ? 'Bi-Monthly'
+                          : 'Monthly'}{' '}
+                    Labor
                   </span>
                   <span className="text-lg font-bold" style={{ color: colors.brown }}>
                     {formatCurrency(payrollAverage)}

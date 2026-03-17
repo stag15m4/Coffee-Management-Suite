@@ -1,27 +1,13 @@
+import { getErrorMessage } from '@/lib/utils';
 import React, { useState, useMemo, useRef } from 'react';
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  useChartOfAccounts,
-  useFiscalYears,
-  useBudgetLineItems,
-} from '@/hooks/use-budget';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useChartOfAccounts, useFiscalYears, useBudgetLineItems } from '@/hooks/use-budget';
 import {
   useForecastScenarios,
   useCreateForecastScenario,
@@ -39,8 +25,19 @@ import {
 import { buildAccountTree, ACCOUNT_TYPE_ORDER, MONTH_LABELS } from './types';
 import type { ChartOfAccount, AccountType, ForecastDriver, DriverType } from './types';
 import {
-  Loader2, Plus, Trash2, Play, Copy, TrendingUp, TrendingDown,
-  DollarSign, Percent, BarChart3, FileSpreadsheet, ChevronDown, ChevronUp,
+  Loader2,
+  Plus,
+  Trash2,
+  Play,
+  Copy,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Percent,
+  BarChart3,
+  FileSpreadsheet,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface Props {
@@ -60,7 +57,8 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
   // Scenarios
   const { data: scenarios = [] } = useForecastScenarios(fyId, tenantId);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
-  const activeScenario = scenarios.find((s) => s.id === selectedScenarioId) || scenarios.find((s) => s.is_default) || scenarios[0];
+  const activeScenario =
+    scenarios.find((s) => s.id === selectedScenarioId) || scenarios.find((s) => s.is_default) || scenarios[0];
   const scenarioId = activeScenario?.id || '';
 
   const createScenario = useCreateForecastScenario();
@@ -128,27 +126,41 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
     if (isClosed(month)) return;
     if (value !== '' && !/^\d*\.?\d*$/.test(value)) return;
     const key = `${accountId}-${month}`;
-    setLocalEdits((prev) => { const next = new Map(prev); next.set(key, value); return next; });
+    setLocalEdits((prev) => {
+      const next = new Map(prev);
+      next.set(key, value);
+      return next;
+    });
     const existing = saveTimeoutRef.current.get(key);
     if (existing) clearTimeout(existing);
-    saveTimeoutRef.current.set(key, setTimeout(() => {
-      upsertForecast.mutate({
-        tenant_id: tenantId,
-        scenario_id: scenarioId,
-        account_id: accountId,
-        month,
-        forecast_amount: parseFloat(value) || 0,
-      });
-      setLocalEdits((prev) => { const next = new Map(prev); next.delete(key); return next; });
-      saveTimeoutRef.current.delete(key);
-    }, 800));
+    saveTimeoutRef.current.set(
+      key,
+      setTimeout(() => {
+        upsertForecast.mutate({
+          tenant_id: tenantId,
+          scenario_id: scenarioId,
+          account_id: accountId,
+          month,
+          forecast_amount: parseFloat(value) || 0,
+        });
+        setLocalEdits((prev) => {
+          const next = new Map(prev);
+          next.delete(key);
+          return next;
+        });
+        saveTimeoutRef.current.delete(key);
+      }, 800)
+    );
   };
 
   const handleCellBlur = (accountId: string, month: number) => {
     if (isClosed(month)) return;
     const key = `${accountId}-${month}`;
     const existing = saveTimeoutRef.current.get(key);
-    if (existing) { clearTimeout(existing); saveTimeoutRef.current.delete(key); }
+    if (existing) {
+      clearTimeout(existing);
+      saveTimeoutRef.current.delete(key);
+    }
     const value = localEdits.get(key);
     if (value !== undefined) {
       upsertForecast.mutate({
@@ -158,7 +170,11 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
         month,
         forecast_amount: parseFloat(value) || 0,
       });
-      setLocalEdits((prev) => { const next = new Map(prev); next.delete(key); return next; });
+      setLocalEdits((prev) => {
+        const next = new Map(prev);
+        next.delete(key);
+        return next;
+      });
     }
   };
 
@@ -189,8 +205,14 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
 
   // KPI calculations
   const kpis = useMemo(() => {
-    let totalRevenue = 0, totalCOGS = 0, totalExpense = 0, totalOther = 0;
-    let budgetRevenue = 0, budgetCOGS = 0, budgetExpense = 0, budgetOther = 0;
+    let totalRevenue = 0,
+      totalCOGS = 0,
+      totalExpense = 0,
+      totalOther = 0;
+    let budgetRevenue = 0,
+      budgetCOGS = 0,
+      budgetExpense = 0,
+      budgetOther = 0;
     for (let m = 1; m <= 12; m++) {
       const rev = getColumnTotals('Revenue', m);
       const cogs = getColumnTotals('COGS', m);
@@ -213,8 +235,15 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
     const netMargin = totalRevenue > 0 ? (netIncome / totalRevenue) * 100 : 0;
     const budgetNetIncome = budgetRevenue - budgetCOGS - budgetExpense - budgetOther;
     return {
-      totalRevenue, grossProfit, netIncome, grossMargin, cogsPercent, expensePercent, netMargin,
-      budgetRevenue, budgetNetIncome,
+      totalRevenue,
+      grossProfit,
+      netIncome,
+      grossMargin,
+      cogsPercent,
+      expensePercent,
+      netMargin,
+      budgetRevenue,
+      budgetNetIncome,
       revenueVariance: totalRevenue - budgetRevenue,
       netVariance: netIncome - budgetNetIncome,
     };
@@ -234,8 +263,8 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
       setShowNewScenarioDialog(false);
       setNewScenarioName('');
       toast({ title: `Scenario "${s.name}" created` });
-    } catch (err: any) {
-      toast({ title: 'Failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -257,8 +286,8 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
     try {
       await bulkUpsertForecast.mutateAsync(items);
       toast({ title: `Seeded ${items.length} entries from budget` });
-    } catch (err: any) {
-      toast({ title: 'Seed failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Seed failed', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -267,8 +296,8 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
     try {
       const result = await applyDrivers.mutateAsync({ scenarioId, tenantId });
       toast({ title: `Drivers applied — ${result.updated} entries updated` });
-    } catch (err: any) {
-      toast({ title: 'Failed to apply drivers', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to apply drivers', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -284,12 +313,17 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
           <td
             className="py-1 px-3 sticky left-0 z-10 text-sm"
             style={{
-              backgroundColor: colors.white, color: colors.brown,
+              backgroundColor: colors.white,
+              color: colors.brown,
               paddingLeft: `${12 + depth * 20}px`,
               ...(hasChildren ? { fontWeight: 600 } : {}),
             }}
           >
-            {acc.account_number && <span className="text-xs font-mono mr-1.5" style={{ color: colors.brownLight }}>{acc.account_number}</span>}
+            {acc.account_number && (
+              <span className="text-xs font-mono mr-1.5" style={{ color: colors.brownLight }}>
+                {acc.account_number}
+              </span>
+            )}
             {acc.name}
           </td>
           {MONTH_LABELS.map((_, i) => {
@@ -301,13 +335,19 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
             return (
               <Fragment key={i}>
                 {/* Budget reference */}
-                <td className="text-right py-1 px-1 text-xs" style={{ color: colors.brownLight, backgroundColor: colors.cream + '60' }}>
+                <td
+                  className="text-right py-1 px-1 text-xs"
+                  style={{ color: colors.brownLight, backgroundColor: colors.cream + '60' }}
+                >
                   {budgetVal > 0 ? formatCurrency(budgetVal) : <span style={{ color: colors.creamDark }}>—</span>}
                 </td>
                 {/* Forecast/Actual */}
                 <td className="py-0.5 px-0.5">
                   {closed ? (
-                    <div className="text-right text-sm py-1 px-1 rounded" style={{ backgroundColor: colors.cream + '80', color: colors.brown }}>
+                    <div
+                      className="text-right text-sm py-1 px-1 rounded"
+                      style={{ backgroundColor: colors.cream + '80', color: colors.brown }}
+                    >
                       {formatCurrency(effectiveVal)}
                     </div>
                   ) : (
@@ -320,9 +360,18 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
                       onBlur={() => handleCellBlur(acc.id, month)}
                       onFocus={(e) => e.target.select()}
                       className="w-full text-right text-sm py-1 px-1 rounded border outline-none focus:ring-1"
-                      style={{ backgroundColor: colors.inputBg, borderColor: 'transparent', color: colors.brown, minWidth: '70px' }}
-                      onFocusCapture={(e) => { (e.target as HTMLInputElement).style.borderColor = colors.gold; }}
-                      onBlurCapture={(e) => { (e.target as HTMLInputElement).style.borderColor = 'transparent'; }}
+                      style={{
+                        backgroundColor: colors.inputBg,
+                        borderColor: 'transparent',
+                        color: colors.brown,
+                        minWidth: '70px',
+                      }}
+                      onFocusCapture={(e) => {
+                        (e.target as HTMLInputElement).style.borderColor = colors.gold;
+                      }}
+                      onBlurCapture={(e) => {
+                        (e.target as HTMLInputElement).style.borderColor = 'transparent';
+                      }}
                     />
                   )}
                 </td>
@@ -330,9 +379,13 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
                 <td className="text-right py-1 px-1 text-xs">
                   {variance !== null ? (
                     <span style={{ color: (isRevenue ? variance <= 0 : variance >= 0) ? colors.green : colors.red }}>
-                      {variance >= 0 ? '' : '('}{formatCurrency(Math.abs(variance))}{variance < 0 ? ')' : ''}
+                      {variance >= 0 ? '' : '('}
+                      {formatCurrency(Math.abs(variance))}
+                      {variance < 0 ? ')' : ''}
                     </span>
-                  ) : <span style={{ color: colors.creamDark }}>—</span>}
+                  ) : (
+                    <span style={{ color: colors.creamDark }}>—</span>
+                  )}
                 </td>
               </Fragment>
             );
@@ -355,16 +408,24 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
 
   if (accounts.length === 0) {
     return (
-      <div className="rounded-xl p-8 text-center" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}>
+      <div
+        className="rounded-xl p-8 text-center"
+        style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+      >
         <FileSpreadsheet className="w-10 h-10 mx-auto mb-3" style={{ color: colors.creamDark }} />
-        <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>Set up your Chart of Accounts first</h3>
+        <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
+          Set up your Chart of Accounts first
+        </h3>
       </div>
     );
   }
 
   if (!selectedFY) {
     return (
-      <div className="rounded-xl p-8 text-center" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}>
+      <div
+        className="rounded-xl p-8 text-center"
+        style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+      >
         <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
           Create a fiscal year on the Budget tab first
         </h3>
@@ -377,15 +438,45 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
       {/* KPI Dashboard */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Forecast Revenue', value: formatCurrency(kpis.totalRevenue), sub: `Budget: ${formatCurrency(kpis.budgetRevenue)}`, color: colors.brown },
-          { label: 'Gross Margin', value: `${kpis.grossMargin.toFixed(1)}%`, sub: `GP: ${formatCurrency(kpis.grossProfit)}`, color: kpis.grossMargin >= 60 ? colors.green : colors.red },
-          { label: 'Net Income', value: formatCurrency(kpis.netIncome), sub: `Budget: ${formatCurrency(kpis.budgetNetIncome)}`, color: kpis.netIncome >= 0 ? colors.green : colors.red },
-          { label: 'Net Margin', value: `${kpis.netMargin.toFixed(1)}%`, sub: `COGS: ${kpis.cogsPercent.toFixed(1)}% | OpEx: ${kpis.expensePercent.toFixed(1)}%`, color: kpis.netMargin >= 10 ? colors.green : kpis.netMargin >= 0 ? colors.gold : colors.red },
+          {
+            label: 'Forecast Revenue',
+            value: formatCurrency(kpis.totalRevenue),
+            sub: `Budget: ${formatCurrency(kpis.budgetRevenue)}`,
+            color: colors.brown,
+          },
+          {
+            label: 'Gross Margin',
+            value: `${kpis.grossMargin.toFixed(1)}%`,
+            sub: `GP: ${formatCurrency(kpis.grossProfit)}`,
+            color: kpis.grossMargin >= 60 ? colors.green : colors.red,
+          },
+          {
+            label: 'Net Income',
+            value: formatCurrency(kpis.netIncome),
+            sub: `Budget: ${formatCurrency(kpis.budgetNetIncome)}`,
+            color: kpis.netIncome >= 0 ? colors.green : colors.red,
+          },
+          {
+            label: 'Net Margin',
+            value: `${kpis.netMargin.toFixed(1)}%`,
+            sub: `COGS: ${kpis.cogsPercent.toFixed(1)}% | OpEx: ${kpis.expensePercent.toFixed(1)}%`,
+            color: kpis.netMargin >= 10 ? colors.green : kpis.netMargin >= 0 ? colors.gold : colors.red,
+          },
         ].map((kpi) => (
-          <div key={kpi.label} className="rounded-xl p-3" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}>
-            <p className="text-xs font-medium" style={{ color: colors.brownLight }}>{kpi.label}</p>
-            <p className="text-xl font-bold mt-1" style={{ color: kpi.color }}>{kpi.value}</p>
-            <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>{kpi.sub}</p>
+          <div
+            key={kpi.label}
+            className="rounded-xl p-3"
+            style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+          >
+            <p className="text-xs font-medium" style={{ color: colors.brownLight }}>
+              {kpi.label}
+            </p>
+            <p className="text-xl font-bold mt-1" style={{ color: kpi.color }}>
+              {kpi.value}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
+              {kpi.sub}
+            </p>
           </div>
         ))}
       </div>
@@ -393,40 +484,73 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium whitespace-nowrap" style={{ color: colors.brown }}>Year:</Label>
+          <Label className="text-sm font-medium whitespace-nowrap" style={{ color: colors.brown }}>
+            Year:
+          </Label>
           <Select value={selectedFYId || fyId} onValueChange={setSelectedFYId}>
             <SelectTrigger className="w-[120px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
               <SelectValue placeholder="Year" />
             </SelectTrigger>
             <SelectContent>
-              {fiscalYears.map((fy) => <SelectItem key={fy.id} value={fy.id}>{fy.year}</SelectItem>)}
+              {fiscalYears.map((fy) => (
+                <SelectItem key={fy.id} value={fy.id}>
+                  {fy.year}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
         <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium whitespace-nowrap" style={{ color: colors.brown }}>Scenario:</Label>
+          <Label className="text-sm font-medium whitespace-nowrap" style={{ color: colors.brown }}>
+            Scenario:
+          </Label>
           <Select value={selectedScenarioId || scenarioId} onValueChange={setSelectedScenarioId}>
             <SelectTrigger className="w-[180px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
               <SelectValue placeholder="Select scenario" />
             </SelectTrigger>
             <SelectContent>
-              {scenarios.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}{s.is_default ? ' (default)' : ''}</SelectItem>)}
+              {scenarios.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                  {s.is_default ? ' (default)' : ''}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => setShowNewScenarioDialog(true)} style={{ borderColor: colors.gold, color: colors.brown }}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowNewScenarioDialog(true)}
+            style={{ borderColor: colors.gold, color: colors.brown }}
+          >
             <Plus className="w-4 h-4" />
           </Button>
         </div>
 
         {scenarioId && (
           <>
-            <Button variant="outline" size="sm" onClick={handleSeedFromBudget} disabled={bulkUpsertForecast.isPending} style={{ borderColor: colors.gold, color: colors.brown }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSeedFromBudget}
+              disabled={bulkUpsertForecast.isPending}
+              style={{ borderColor: colors.gold, color: colors.brown }}
+            >
               <Copy className="w-4 h-4 mr-1" /> Seed from Budget
             </Button>
             {drivers.length > 0 && (
-              <Button size="sm" onClick={handleApplyDrivers} disabled={applyDrivers.isPending} style={{ backgroundColor: colors.gold, color: '#fff' }}>
-                {applyDrivers.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
+              <Button
+                size="sm"
+                onClick={handleApplyDrivers}
+                disabled={applyDrivers.isPending}
+                style={{ backgroundColor: colors.gold, color: '#fff' }}
+              >
+                {applyDrivers.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4 mr-1" />
+                )}
                 Apply Drivers
               </Button>
             )}
@@ -436,27 +560,51 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
 
       {/* No scenario message */}
       {scenarios.length === 0 ? (
-        <div className="rounded-xl p-8 text-center" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}>
+        <div
+          className="rounded-xl p-8 text-center"
+          style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+        >
           <BarChart3 className="w-10 h-10 mx-auto mb-3" style={{ color: colors.creamDark }} />
-          <h3 className="text-lg font-semibold mb-2" style={{ color: colors.brown }}>Create your first forecast scenario</h3>
+          <h3 className="text-lg font-semibold mb-2" style={{ color: colors.brown }}>
+            Create your first forecast scenario
+          </h3>
           <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
             Scenarios let you model different outcomes — Base Case, Optimistic, Conservative.
           </p>
-          <Button onClick={() => { setNewScenarioName('Base Case'); setShowNewScenarioDialog(true); }} style={{ backgroundColor: colors.gold, color: '#fff' }}>
+          <Button
+            onClick={() => {
+              setNewScenarioName('Base Case');
+              setShowNewScenarioDialog(true);
+            }}
+            style={{ backgroundColor: colors.gold, color: '#fff' }}
+          >
             <Plus className="w-4 h-4 mr-2" /> Create Base Case
           </Button>
         </div>
       ) : (
         <>
           {/* Forecast Grid */}
-          <div className="rounded-xl overflow-hidden" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}>
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+          >
             <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
               <table className="w-full text-sm" style={{ minWidth: '1800px' }}>
                 <thead>
                   <tr style={{ backgroundColor: colors.gold }}>
-                    <th className="text-left py-2 px-3 font-semibold text-white sticky left-0 z-10" style={{ backgroundColor: colors.gold, minWidth: '200px' }}>Account</th>
+                    <th
+                      className="text-left py-2 px-3 font-semibold text-white sticky left-0 z-10"
+                      style={{ backgroundColor: colors.gold, minWidth: '200px' }}
+                    >
+                      Account
+                    </th>
                     {MONTH_LABELS.map((m, i) => (
-                      <th key={m} colSpan={3} className="text-center py-2 px-1 font-semibold text-white border-l border-white/20" style={{ ...(isClosed(i + 1) ? { opacity: 0.7 } : {}) }}>
+                      <th
+                        key={m}
+                        colSpan={3}
+                        className="text-center py-2 px-1 font-semibold text-white border-l border-white/20"
+                        style={{ ...(isClosed(i + 1) ? { opacity: 0.7 } : {}) }}
+                      >
                         {m} {isClosed(i + 1) ? '(closed)' : ''}
                       </th>
                     ))}
@@ -476,14 +624,21 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
                   {grouped.map(({ type, accounts: typeAccounts }) => (
                     <Fragment key={type}>
                       <tr>
-                        <td colSpan={1 + 36} className="py-2 px-3 font-semibold text-xs uppercase tracking-wider sticky left-0 z-10" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
+                        <td
+                          colSpan={1 + 36}
+                          className="py-2 px-3 font-semibold text-xs uppercase tracking-wider sticky left-0 z-10"
+                          style={{ backgroundColor: colors.cream, color: colors.brownLight }}
+                        >
                           {type}
                         </td>
                       </tr>
                       {typeAccounts.map((acc) => renderAccountRows(acc, 0, acc.account_type === 'Revenue'))}
                       {/* Subtotal */}
                       <tr style={{ borderTop: `1px solid ${colors.creamDark}` }}>
-                        <td className="py-1.5 px-3 text-sm font-semibold sticky left-0 z-10" style={{ backgroundColor: colors.white, color: colors.brownLight }}>
+                        <td
+                          className="py-1.5 px-3 text-sm font-semibold sticky left-0 z-10"
+                          style={{ backgroundColor: colors.white, color: colors.brownLight }}
+                        >
                           Total {type}
                         </td>
                         {MONTH_LABELS.map((_, i) => {
@@ -492,15 +647,27 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
                           const isRevenue = type === 'Revenue';
                           return (
                             <Fragment key={i}>
-                              <td className="text-right py-1.5 px-1 text-xs font-semibold" style={{ color: colors.brownLight, backgroundColor: colors.cream + '60' }}>
+                              <td
+                                className="text-right py-1.5 px-1 text-xs font-semibold"
+                                style={{ color: colors.brownLight, backgroundColor: colors.cream + '60' }}
+                              >
                                 {formatCurrency(t.budget)}
                               </td>
-                              <td className="text-right py-1.5 px-1 text-sm font-semibold" style={{ color: colors.brown }}>
+                              <td
+                                className="text-right py-1.5 px-1 text-sm font-semibold"
+                                style={{ color: colors.brown }}
+                              >
                                 {formatCurrency(t.forecast)}
                               </td>
                               <td className="text-right py-1.5 px-1 text-xs font-semibold">
-                                <span style={{ color: (isRevenue ? variance <= 0 : variance >= 0) ? colors.green : colors.red }}>
-                                  {variance >= 0 ? '' : '('}{formatCurrency(Math.abs(variance))}{variance < 0 ? ')' : ''}
+                                <span
+                                  style={{
+                                    color: (isRevenue ? variance <= 0 : variance >= 0) ? colors.green : colors.red,
+                                  }}
+                                >
+                                  {variance >= 0 ? '' : '('}
+                                  {formatCurrency(Math.abs(variance))}
+                                  {variance < 0 ? ')' : ''}
                                 </span>
                               </td>
                             </Fragment>
@@ -512,7 +679,12 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
 
                   {/* Net Income */}
                   <tr style={{ backgroundColor: colors.goldLight, fontWeight: 700 }}>
-                    <td className="py-2 px-3 sticky left-0 z-10" style={{ backgroundColor: colors.goldLight, color: colors.brown }}>Net Income</td>
+                    <td
+                      className="py-2 px-3 sticky left-0 z-10"
+                      style={{ backgroundColor: colors.goldLight, color: colors.brown }}
+                    >
+                      Net Income
+                    </td>
                     {MONTH_LABELS.map((_, i) => {
                       const m = i + 1;
                       const rev = getColumnTotals('Revenue', m);
@@ -524,15 +696,23 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
                       const variance = netBudget - netForecast;
                       return (
                         <Fragment key={i}>
-                          <td className="text-right py-2 px-1 text-xs" style={{ color: colors.brownLight, backgroundColor: colors.goldLight }}>
+                          <td
+                            className="text-right py-2 px-1 text-xs"
+                            style={{ color: colors.brownLight, backgroundColor: colors.goldLight }}
+                          >
                             {formatCurrency(netBudget)}
                           </td>
-                          <td className="text-right py-2 px-1" style={{ color: netForecast >= 0 ? colors.green : colors.red }}>
+                          <td
+                            className="text-right py-2 px-1"
+                            style={{ color: netForecast >= 0 ? colors.green : colors.red }}
+                          >
                             {formatCurrency(netForecast)}
                           </td>
                           <td className="text-right py-2 px-1 text-xs">
                             <span style={{ color: variance <= 0 ? colors.green : colors.red }}>
-                              {variance >= 0 ? '' : '('}{formatCurrency(Math.abs(variance))}{variance < 0 ? ')' : ''}
+                              {variance >= 0 ? '' : '('}
+                              {formatCurrency(Math.abs(variance))}
+                              {variance < 0 ? ')' : ''}
                             </span>
                           </td>
                         </Fragment>
@@ -556,7 +736,10 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
           </div>
 
           {/* Drivers Panel */}
-          <div className="rounded-xl overflow-hidden" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}>
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
+          >
             <button
               onClick={() => setShowDrivers(!showDrivers)}
               className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold"
@@ -574,7 +757,12 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
                   Drivers auto-calculate account values. E.g., "COGS = 35% of Revenue" or "Rent = $2,500 fixed monthly."
                 </p>
                 {drivers.map((d) => (
-                  <DriverRow key={d.id} driver={d} accounts={accounts} onDelete={() => deleteDriver.mutate({ id: d.id, scenario_id: scenarioId })} />
+                  <DriverRow
+                    key={d.id}
+                    driver={d}
+                    accounts={accounts}
+                    onDelete={() => deleteDriver.mutate({ id: d.id, scenario_id: scenarioId })}
+                  />
                 ))}
                 <AddDriverForm
                   accounts={accounts}
@@ -592,7 +780,9 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
       {/* New Scenario Dialog */}
       <Dialog open={showNewScenarioDialog} onOpenChange={setShowNewScenarioDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>New Forecast Scenario</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>New Forecast Scenario</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
               <Label>Scenario Name</Label>
@@ -603,8 +793,16 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
               />
             </div>
-            <Button onClick={handleCreateScenario} disabled={createScenario.isPending} style={{ backgroundColor: colors.gold, color: '#fff' }}>
-              {createScenario.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+            <Button
+              onClick={handleCreateScenario}
+              disabled={createScenario.isPending}
+              style={{ backgroundColor: colors.gold, color: '#fff' }}
+            >
+              {createScenario.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4 mr-2" />
+              )}
               Create Scenario
             </Button>
           </div>
@@ -618,9 +816,17 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function DriverRow({ driver, accounts, onDelete }: { driver: ForecastDriver; accounts: ChartOfAccount[]; onDelete: () => void }) {
-  const target = accounts.find(a => a.id === driver.target_account_id);
-  const source = driver.source_account_id ? accounts.find(a => a.id === driver.source_account_id) : null;
+function DriverRow({
+  driver,
+  accounts,
+  onDelete,
+}: {
+  driver: ForecastDriver;
+  accounts: ChartOfAccount[];
+  onDelete: () => void;
+}) {
+  const target = accounts.find((a) => a.id === driver.target_account_id);
+  const source = driver.source_account_id ? accounts.find((a) => a.id === driver.source_account_id) : null;
   const typeLabel: Record<DriverType, string> = {
     percentage_of_account: `${(driver.driver_value * 100).toFixed(1)}% of ${source?.name || '?'}`,
     fixed_amount: `$${driver.driver_value.toFixed(2)} / month`,
@@ -630,17 +836,31 @@ function DriverRow({ driver, accounts, onDelete }: { driver: ForecastDriver; acc
   return (
     <div className="flex items-center gap-3 py-2 px-3 rounded-lg" style={{ backgroundColor: colors.cream }}>
       <div className="flex-1">
-        <p className="text-sm font-medium" style={{ color: colors.brown }}>{target?.name || 'Unknown'}</p>
-        <p className="text-xs" style={{ color: colors.brownLight }}>{typeLabel[driver.driver_type]}</p>
+        <p className="text-sm font-medium" style={{ color: colors.brown }}>
+          {target?.name || 'Unknown'}
+        </p>
+        <p className="text-xs" style={{ color: colors.brownLight }}>
+          {typeLabel[driver.driver_type]}
+        </p>
       </div>
-      <button onClick={onDelete} className="p-1 rounded hover:bg-black/5"><Trash2 className="w-4 h-4" style={{ color: colors.red }} /></button>
+      <button onClick={onDelete} className="p-1 rounded hover:bg-black/5">
+        <Trash2 className="w-4 h-4" style={{ color: colors.red }} />
+      </button>
     </div>
   );
 }
 
-function AddDriverForm({ accounts, onAdd }: {
+function AddDriverForm({
+  accounts,
+  onAdd,
+}: {
   accounts: ChartOfAccount[];
-  onAdd: (driver: { target_account_id: string; driver_type: string; source_account_id?: string; driver_value: number }) => Promise<void>;
+  onAdd: (driver: {
+    target_account_id: string;
+    driver_type: string;
+    source_account_id?: string;
+    driver_value: number;
+  }) => Promise<void>;
 }) {
   const [targetId, setTargetId] = useState('');
   const [driverType, setDriverType] = useState<DriverType>('fixed_amount');
@@ -652,9 +872,10 @@ function AddDriverForm({ accounts, onAdd }: {
     if (!targetId || !value) return;
     setAdding(true);
     try {
-      const numVal = driverType === 'percentage_of_account' || driverType === 'growth_rate'
-        ? parseFloat(value) / 100
-        : parseFloat(value);
+      const numVal =
+        driverType === 'percentage_of_account' || driverType === 'growth_rate'
+          ? parseFloat(value) / 100
+          : parseFloat(value);
       await onAdd({
         target_account_id: targetId,
         driver_type: driverType,
@@ -677,9 +898,13 @@ function AddDriverForm({ accounts, onAdd }: {
             <SelectValue placeholder="Account..." />
           </SelectTrigger>
           <SelectContent>
-            {accounts.filter(a => !a.parent_id).map(a => (
-              <SelectItem key={a.id} value={a.id} className="text-xs">{a.name}</SelectItem>
-            ))}
+            {accounts
+              .filter((a) => !a.parent_id)
+              .map((a) => (
+                <SelectItem key={a.id} value={a.id} className="text-xs">
+                  {a.name}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
       </div>
@@ -690,9 +915,15 @@ function AddDriverForm({ accounts, onAdd }: {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="fixed_amount" className="text-xs">Fixed $ / month</SelectItem>
-            <SelectItem value="percentage_of_account" className="text-xs">% of account</SelectItem>
-            <SelectItem value="growth_rate" className="text-xs">% growth MoM</SelectItem>
+            <SelectItem value="fixed_amount" className="text-xs">
+              Fixed $ / month
+            </SelectItem>
+            <SelectItem value="percentage_of_account" className="text-xs">
+              % of account
+            </SelectItem>
+            <SelectItem value="growth_rate" className="text-xs">
+              % growth MoM
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -700,13 +931,20 @@ function AddDriverForm({ accounts, onAdd }: {
         <div style={{ minWidth: '140px' }}>
           <Label className="text-xs">Source Account</Label>
           <Select value={sourceId} onValueChange={setSourceId}>
-            <SelectTrigger className="h-8 text-xs" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+            <SelectTrigger
+              className="h-8 text-xs"
+              style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+            >
               <SelectValue placeholder="Source..." />
             </SelectTrigger>
             <SelectContent>
-              {accounts.filter(a => !a.parent_id).map(a => (
-                <SelectItem key={a.id} value={a.id} className="text-xs">{a.name}</SelectItem>
-              ))}
+              {accounts
+                .filter((a) => !a.parent_id)
+                .map((a) => (
+                  <SelectItem key={a.id} value={a.id} className="text-xs">
+                    {a.name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
@@ -718,14 +956,21 @@ function AddDriverForm({ accounts, onAdd }: {
           inputMode="decimal"
           pattern="[0-9]*\.?[0-9]*"
           value={value}
-          onChange={(e) => { if (e.target.value === '' || /^\d*\.?\d*$/.test(e.target.value)) setValue(e.target.value); }}
+          onChange={(e) => {
+            if (e.target.value === '' || /^\d*\.?\d*$/.test(e.target.value)) setValue(e.target.value);
+          }}
           onFocus={(e) => e.target.select()}
           placeholder={driverType === 'fixed_amount' ? '2500' : '35'}
           className="h-8 text-xs"
           style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
         />
       </div>
-      <Button size="sm" onClick={handleAdd} disabled={adding || !targetId || !value} style={{ backgroundColor: colors.gold, color: '#fff' }}>
+      <Button
+        size="sm"
+        onClick={handleAdd}
+        disabled={adding || !targetId || !value}
+        style={{ backgroundColor: colors.gold, color: '#fff' }}
+      >
         <Plus className="w-3 h-3 mr-1" /> Add
       </Button>
     </div>

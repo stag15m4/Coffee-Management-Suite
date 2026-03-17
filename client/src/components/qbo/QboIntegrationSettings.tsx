@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -29,8 +30,8 @@ export default function QboIntegrationSettings() {
     try {
       await disconnect.mutateAsync(tenantId);
       toast({ title: 'QuickBooks disconnected' });
-    } catch (err: any) {
-      toast({ title: 'Failed to disconnect', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to disconnect', description: getErrorMessage(err), variant: 'destructive' });
     } finally {
       setDisconnecting(false);
     }
@@ -55,9 +56,7 @@ export default function QboIntegrationSettings() {
               <BookOpen className="h-5 w-5" />
               QuickBooks Online
             </CardTitle>
-            <CardDescription>
-              Sync chart of accounts and actuals from QuickBooks
-            </CardDescription>
+            <CardDescription>Sync chart of accounts and actuals from QuickBooks</CardDescription>
           </div>
           {status?.connected ? (
             <Badge className="text-white" style={{ backgroundColor: colors.green }}>
@@ -74,10 +73,19 @@ export default function QboIntegrationSettings() {
         {!status?.connected ? (
           <div className="text-center py-6">
             <p className="text-sm mb-4" style={{ color: colors.brownLight }}>
-              Connect your QuickBooks Online account to import your chart of accounts and sync P&L actuals into the Financial Budget module.
+              Connect your QuickBooks Online account to import your chart of accounts and sync P&L actuals into the
+              Financial Budget module.
             </p>
-            <Button onClick={handleConnect} disabled={connect.isPending} style={{ backgroundColor: colors.gold, color: '#fff' }}>
-              {connect.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Link2 className="h-4 w-4 mr-2" />}
+            <Button
+              onClick={handleConnect}
+              disabled={connect.isPending}
+              style={{ backgroundColor: colors.gold, color: '#fff' }}
+            >
+              {connect.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Link2 className="h-4 w-4 mr-2" />
+              )}
               Connect to QuickBooks
             </Button>
           </div>
@@ -94,7 +102,11 @@ export default function QboIntegrationSettings() {
                 disabled={disconnecting}
                 className="text-red-600 border-red-300 hover:bg-red-50"
               >
-                {disconnecting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Unlink className="h-4 w-4 mr-1" />}
+                {disconnecting ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Unlink className="h-4 w-4 mr-1" />
+                )}
                 Disconnect
               </Button>
             </div>

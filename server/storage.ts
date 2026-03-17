@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { db } from './db';
 import {
   ingredients,
   recipes,
@@ -8,21 +8,23 @@ import {
   type InsertRecipeIngredient,
   type Ingredient,
   type Recipe,
-  type RecipeIngredient
-} from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+  type RecipeIngredient,
+} from '@shared/schema';
+import { eq, sql } from 'drizzle-orm';
 
 export interface IStorage {
   // Ingredients
-  getIngredients(): Promise<Ingredient[]>;
+  getIngredients(tenantId: string): Promise<Ingredient[]>;
   getIngredient(id: string): Promise<Ingredient | undefined>;
   createIngredient(ingredient: InsertIngredient): Promise<Ingredient>;
   updateIngredient(id: string, ingredient: Partial<InsertIngredient>): Promise<Ingredient | undefined>;
   deleteIngredient(id: string): Promise<void>;
 
   // Recipes
-  getRecipes(): Promise<Recipe[]>;
-  getRecipe(id: string): Promise<(Recipe & { ingredients: (RecipeIngredient & { ingredient: Ingredient })[] }) | undefined>;
+  getRecipes(tenantId: string): Promise<Recipe[]>;
+  getRecipe(
+    id: string
+  ): Promise<(Recipe & { ingredients: (RecipeIngredient & { ingredient: Ingredient })[] }) | undefined>;
   createRecipe(recipe: InsertRecipe): Promise<Recipe>;
   updateRecipe(id: string, recipe: Partial<InsertRecipe>): Promise<Recipe | undefined>;
   deleteRecipe(id: string): Promise<void>;
@@ -32,14 +34,19 @@ export interface IStorage {
   deleteRecipeIngredient(id: string): Promise<void>;
 
   // Tenants (Stripe)
-  getTenant(tenantId: string): Promise<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null } | null>;
-  updateTenantStripeInfo(tenantId: string, info: { stripeCustomerId?: string; stripeSubscriptionId?: string; stripeSubscriptionStatus?: string }): Promise<void>;
+  getTenant(
+    tenantId: string
+  ): Promise<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null } | null>;
+  updateTenantStripeInfo(
+    tenantId: string,
+    info: { stripeCustomerId?: string; stripeSubscriptionId?: string; stripeSubscriptionStatus?: string }
+  ): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
   // Ingredients
-  async getIngredients(): Promise<Ingredient[]> {
-    return await db.select().from(ingredients);
+  async getIngredients(tenantId: string): Promise<Ingredient[]> {
+    return await db.select().from(ingredients).where(eq(ingredients.tenantId, tenantId));
   }
 
   async getIngredient(id: string): Promise<Ingredient | undefined> {
@@ -53,10 +60,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateIngredient(id: string, updates: Partial<InsertIngredient>): Promise<Ingredient | undefined> {
-    const [updated] = await db.update(ingredients)
-      .set(updates)
-      .where(eq(ingredients.id, id))
-      .returning();
+    const [updated] = await db.update(ingredients).set(updates).where(eq(ingredients.id, id)).returning();
     return updated;
   }
 
@@ -65,11 +69,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Recipes
-  async getRecipes(): Promise<Recipe[]> {
-    return await db.select().from(recipes);
+  async getRecipes(tenantId: string): Promise<Recipe[]> {
+    return await db.select().from(recipes).where(eq(recipes.tenantId, tenantId));
   }
 
-  async getRecipe(id: string): Promise<(Recipe & { ingredients: (RecipeIngredient & { ingredient: Ingredient })[] }) | undefined> {
+  async getRecipe(
+    id: string
+  ): Promise<(Recipe & { ingredients: (RecipeIngredient & { ingredient: Ingredient })[] }) | undefined> {
     const [recipe] = await db.select().from(recipes).where(eq(recipes.id, id));
 
     if (!recipe) return undefined;
@@ -77,8 +83,8 @@ export class DatabaseStorage implements IStorage {
     const items = await db.query.recipeIngredients.findMany({
       where: eq(recipeIngredients.recipeId, id),
       with: {
-        ingredient: true
-      }
+        ingredient: true,
+      },
     });
 
     return { ...recipe, ingredients: items };
@@ -90,10 +96,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateRecipe(id: string, updates: Partial<InsertRecipe>): Promise<Recipe | undefined> {
-    const [updated] = await db.update(recipes)
-      .set(updates)
-      .where(eq(recipes.id, id))
-      .returning();
+    const [updated] = await db.update(recipes).set(updates).where(eq(recipes.id, id)).returning();
     return updated;
   }
 
@@ -112,18 +115,21 @@ export class DatabaseStorage implements IStorage {
     await db.delete(recipeIngredients).where(eq(recipeIngredients.id, id));
   }
 
-  async getTenant(tenantId: string): Promise<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null } | null> {
+  async getTenant(
+    tenantId: string
+  ): Promise<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null } | null> {
     const result = await db.execute(
       sql`SELECT id, stripe_customer_id, stripe_subscription_id FROM tenants WHERE id = ${tenantId}`
     );
-    return result.rows[0] as any || null;
+    return (result.rows[0] as any) || null;
   }
 
-  async updateTenantStripeInfo(tenantId: string, info: { stripeCustomerId?: string; stripeSubscriptionId?: string; stripeSubscriptionStatus?: string }): Promise<void> {
+  async updateTenantStripeInfo(
+    tenantId: string,
+    info: { stripeCustomerId?: string; stripeSubscriptionId?: string; stripeSubscriptionStatus?: string }
+  ): Promise<void> {
     if (info.stripeCustomerId) {
-      await db.execute(
-        sql`UPDATE tenants SET stripe_customer_id = ${info.stripeCustomerId} WHERE id = ${tenantId}`
-      );
+      await db.execute(sql`UPDATE tenants SET stripe_customer_id = ${info.stripeCustomerId} WHERE id = ${tenantId}`);
     }
     if (info.stripeSubscriptionId) {
       await db.execute(

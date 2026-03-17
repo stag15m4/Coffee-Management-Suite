@@ -1,13 +1,13 @@
-import { Response } from "express";
-import { randomUUID } from "crypto";
-import { getSupabaseAdmin } from "./supabaseAdmin";
+import { Response } from 'express';
+import { randomUUID } from 'crypto';
+import { getSupabaseAdmin } from './supabaseAdmin';
 
-const STORAGE_BUCKET = "uploads";
+const STORAGE_BUCKET = 'uploads';
 
 export class ObjectNotFoundError extends Error {
   constructor() {
-    super("Object not found");
-    this.name = "ObjectNotFoundError";
+    super('Object not found');
+    this.name = 'ObjectNotFoundError';
     Object.setPrototypeOf(this, ObjectNotFoundError.prototype);
   }
 }
@@ -19,9 +19,7 @@ export class ObjectStorageService {
     const objectId = randomUUID();
     const storagePath = `uploads/${objectId}`;
 
-    const { data, error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .createSignedUploadUrl(storagePath);
+    const { data, error } = await supabase.storage.from(STORAGE_BUCKET).createSignedUploadUrl(storagePath);
 
     if (error || !data) {
       throw new Error(`Failed to create upload URL: ${error?.message || 'Unknown error'}`);
@@ -37,9 +35,7 @@ export class ObjectStorageService {
   async getSignedUrl(storagePath: string): Promise<string> {
     const supabase = getSupabaseAdmin();
 
-    const { data, error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .createSignedUrl(storagePath, 3600); // 1 hour expiry
+    const { data, error } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrl(storagePath, 3600); // 1 hour expiry
 
     if (error || !data?.signedUrl) {
       throw new ObjectNotFoundError();
@@ -57,10 +53,10 @@ export class ObjectStorageService {
 
   // Resolves an object path (e.g. "/objects/uploads/uuid") to the Supabase storage path.
   resolveStoragePath(objectPath: string): string {
-    if (!objectPath.startsWith("/objects/")) {
+    if (!objectPath.startsWith('/objects/')) {
       throw new ObjectNotFoundError();
     }
-    const storagePath = objectPath.slice("/objects/".length);
+    const storagePath = objectPath.slice('/objects/'.length);
     // Block path traversal attempts
     if (storagePath.includes('..') || storagePath.includes('\0')) {
       throw new ObjectNotFoundError();
@@ -71,7 +67,7 @@ export class ObjectStorageService {
   // Normalizes a raw path (which may be a full URL or storage path) to the /objects/ format.
   normalizeObjectEntityPath(rawPath: string): string {
     // If it's already in our normalized format, return as-is
-    if (rawPath.startsWith("/objects/")) {
+    if (rawPath.startsWith('/objects/')) {
       return rawPath;
     }
 

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { supabase } from '@/lib/supabase-queries';
@@ -24,9 +25,17 @@ export default function ResetPassword() {
     let timeout: ReturnType<typeof setTimeout>;
 
     // Listen for auth state changes (token exchange from URL hash)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
+      if (
+        session &&
+        (event === 'PASSWORD_RECOVERY' ||
+          event === 'SIGNED_IN' ||
+          event === 'TOKEN_REFRESHED' ||
+          event === 'INITIAL_SESSION')
+      ) {
         setSessionReady(true);
       }
     });
@@ -59,7 +68,11 @@ export default function ResetPassword() {
       return;
     }
     if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
-      toast({ title: 'Weak password', description: 'Must include uppercase, lowercase, and a number.', variant: 'destructive' });
+      toast({
+        title: 'Weak password',
+        description: 'Must include uppercase, lowercase, and a number.',
+        variant: 'destructive',
+      });
       return;
     }
     if (password !== confirm) {
@@ -73,8 +86,12 @@ export default function ResetPassword() {
       if (error) throw error;
       toast({ title: 'Password updated!', description: 'You can now sign in with your new password.' });
       setLocation('/');
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message || 'Failed to update password.', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({
+        title: 'Error',
+        description: getErrorMessage(err) || 'Failed to update password.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -87,11 +104,7 @@ export default function ResetPassword() {
         <div className="flex-1 flex items-center justify-center p-4">
           <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }}>
             <CardHeader className="text-center">
-              <img
-                src="/logo.png"
-                alt="Coffee Management Suite"
-                className="mx-auto w-20 h-20 object-contain mb-4"
-              />
+              <img src="/logo.png" alt="Coffee Management Suite" className="mx-auto w-20 h-20 object-contain mb-4" />
               <CardTitle className="text-2xl" style={{ color: colors.brown }}>
                 Setting Up Your Account
               </CardTitle>
@@ -114,16 +127,13 @@ export default function ResetPassword() {
         <div className="flex-1 flex items-center justify-center p-4">
           <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }}>
             <CardHeader className="text-center">
-              <img
-                src="/logo.png"
-                alt="Coffee Management Suite"
-                className="mx-auto w-20 h-20 object-contain mb-4"
-              />
+              <img src="/logo.png" alt="Coffee Management Suite" className="mx-auto w-20 h-20 object-contain mb-4" />
               <CardTitle className="text-2xl" style={{ color: colors.brown }}>
                 Link Expired or Invalid
               </CardTitle>
               <CardDescription style={{ color: colors.brownLight }}>
-                This password link may have expired or already been used. Please ask your manager to send a new invitation, or use "Forgot Password" on the login page.
+                This password link may have expired or already been used. Please ask your manager to send a new
+                invitation, or use "Forgot Password" on the login page.
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
@@ -146,11 +156,7 @@ export default function ResetPassword() {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md" style={{ backgroundColor: colors.white }}>
           <CardHeader className="text-center">
-            <img
-              src="/logo.png"
-              alt="Coffee Management Suite"
-              className="mx-auto w-20 h-20 object-contain mb-4"
-            />
+            <img src="/logo.png" alt="Coffee Management Suite" className="mx-auto w-20 h-20 object-contain mb-4" />
             <CardTitle className="text-2xl" style={{ color: colors.brown }}>
               Set New Password
             </CardTitle>
@@ -161,7 +167,9 @@ export default function ResetPassword() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="password" style={{ color: colors.brown }}>New Password</Label>
+                <Label htmlFor="password" style={{ color: colors.brown }}>
+                  New Password
+                </Label>
                 <Input
                   id="password"
                   type="password"
@@ -175,7 +183,9 @@ export default function ResetPassword() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirm" style={{ color: colors.brown }}>Confirm Password</Label>
+                <Label htmlFor="confirm" style={{ color: colors.brown }}>
+                  Confirm Password
+                </Label>
                 <Input
                   id="confirm"
                   type="password"
@@ -193,7 +203,9 @@ export default function ResetPassword() {
                 style={{ backgroundColor: colors.gold, color: colors.white }}
               >
                 {isSubmitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Updating...</>
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" /> Updating...
+                  </>
                 ) : (
                   'Update Password'
                 )}

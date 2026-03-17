@@ -74,9 +74,7 @@ export function useSmartSuggestions(): Suggestion[] {
     // Rule 2: No deposit in 2+ days
     const deposits = queryClient.getQueryData<CashDeposit[]>(['cash-deposits']);
     if (deposits && deposits.length > 0) {
-      const sorted = [...deposits].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
+      const sorted = [...deposits].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       const latest = new Date(sorted[0].created_at);
       const twoDaysAgo = new Date();
       twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);

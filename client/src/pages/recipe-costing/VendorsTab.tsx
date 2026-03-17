@@ -1,5 +1,18 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState } from 'react';
-import { Check, Plus, Pencil, Trash2, Truck, Phone, Mail, FileText, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import {
+  Check,
+  Plus,
+  Pencil,
+  Trash2,
+  Truck,
+  Phone,
+  Mail,
+  FileText,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';
 import { formatCurrency } from './utils';
@@ -11,12 +24,26 @@ interface VendorsTabProps {
   recipeVendors: RecipeVendor[];
   tenantId: string;
   onUpdateIngredientCost: (id: string, cost: number) => Promise<void>;
-  onAddVendor: (vendor: { tenant_id: string; name: string; phone?: string; email?: string; notes?: string }) => Promise<RecipeVendor>;
+  onAddVendor: (vendor: {
+    tenant_id: string;
+    name: string;
+    phone?: string;
+    email?: string;
+    notes?: string;
+  }) => Promise<RecipeVendor>;
   onUpdateVendor: (id: string, updates: Partial<RecipeVendor>) => Promise<RecipeVendor>;
   onDeleteVendor: (id: string) => Promise<void>;
 }
 
-export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngredientCost, onAddVendor, onUpdateVendor, onDeleteVendor }: VendorsTabProps) => {
+export const VendorsTab = ({
+  ingredients,
+  recipeVendors,
+  tenantId,
+  onUpdateIngredientCost,
+  onAddVendor,
+  onUpdateVendor,
+  onDeleteVendor,
+}: VendorsTabProps) => {
   const { toast } = useToast();
   const [selectedVendor, setSelectedVendor] = useState<string>('all');
   const [editingCost, setEditingCost] = useState<string | null>(null);
@@ -55,8 +82,12 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
         toast({ title: 'Vendor added' });
       }
       resetVendorForm();
-    } catch (error: any) {
-      toast({ title: 'Error saving vendor', description: error?.message || 'Please try again', variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({
+        title: 'Error saving vendor',
+        description: getErrorMessage(error) || 'Please try again',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -71,28 +102,30 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
     setShowVendorForm(true);
   };
 
-  const vendors = Array.from(new Set(ingredients.map(i => i.vendor).filter(Boolean))) as string[];
+  const vendors = Array.from(new Set(ingredients.map((i) => i.vendor).filter(Boolean))) as string[];
 
-  const vendorData = vendors.map(vendor => {
-    const vendorIngredients = ingredients.filter(i => i.vendor === vendor);
-    const totalValue = vendorIngredients.reduce((sum, ing) => sum + (Number(ing.cost) || 0), 0);
-    return {
-      name: vendor,
-      ingredients: vendorIngredients,
-      itemCount: vendorIngredients.length,
-      totalValue,
-    };
-  }).sort((a, b) => b.totalValue - a.totalValue);
+  const vendorData = vendors
+    .map((vendor) => {
+      const vendorIngredients = ingredients.filter((i) => i.vendor === vendor);
+      const totalValue = vendorIngredients.reduce((sum, ing) => sum + (Number(ing.cost) || 0), 0);
+      return {
+        name: vendor,
+        ingredients: vendorIngredients,
+        itemCount: vendorIngredients.length,
+        totalValue,
+      };
+    })
+    .sort((a, b) => b.totalValue - a.totalValue);
 
-  const displayedVendors = selectedVendor === 'all'
-    ? vendorData
-    : vendorData.filter(v => v.name === selectedVendor);
+  const displayedVendors = selectedVendor === 'all' ? vendorData : vendorData.filter((v) => v.name === selectedVendor);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-4 justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-medium" style={{ color: colors.brown }}>Vendor:</span>
+          <span className="font-medium" style={{ color: colors.brown }}>
+            Vendor:
+          </span>
           <select
             value={selectedVendor}
             onChange={(e) => setSelectedVendor(e.target.value)}
@@ -101,14 +134,16 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
             data-testid="select-vendor-filter"
           >
             <option value="all">All Vendors ({vendors.length})</option>
-            {vendors.sort().map(vendor => (
-              <option key={vendor} value={vendor}>{vendor}</option>
+            {vendors.sort().map((vendor) => (
+              <option key={vendor} value={vendor}>
+                {vendor}
+              </option>
             ))}
           </select>
         </div>
         <div className="text-sm" style={{ color: colors.brownLight }}>
-          {ingredients.filter(i => !i.vendor).length > 0 && (
-            <span>{ingredients.filter(i => !i.vendor).length} items without vendor</span>
+          {ingredients.filter((i) => !i.vendor).length > 0 && (
+            <span>{ingredients.filter((i) => !i.vendor).length} items without vendor</span>
           )}
         </div>
       </div>
@@ -118,7 +153,10 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
         <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: colors.brown }}>
           <h3 className="font-bold text-white">Vendor Profiles</h3>
           <button
-            onClick={() => { resetVendorForm(); setShowVendorForm(true); }}
+            onClick={() => {
+              resetVendorForm();
+              setShowVendorForm(true);
+            }}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium"
             style={{ backgroundColor: colors.gold, color: colors.white }}
             data-testid="button-add-vendor"
@@ -135,10 +173,12 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: colors.brownLight }}>Name *</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: colors.brownLight }}>
+                    Name *
+                  </label>
                   <input
                     value={vendorForm.name}
-                    onChange={(e) => setVendorForm(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) => setVendorForm((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="Vendor name"
                     className="w-full px-3 py-2 rounded-lg border-0 outline-none text-sm"
                     style={{ backgroundColor: colors.inputBg, color: colors.brown }}
@@ -146,10 +186,12 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: colors.brownLight }}>Phone</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: colors.brownLight }}>
+                    Phone
+                  </label>
                   <input
                     value={vendorForm.phone}
-                    onChange={(e) => setVendorForm(prev => ({ ...prev, phone: e.target.value }))}
+                    onChange={(e) => setVendorForm((prev) => ({ ...prev, phone: e.target.value }))}
                     placeholder="(555) 123-4567"
                     className="w-full px-3 py-2 rounded-lg border-0 outline-none text-sm"
                     style={{ backgroundColor: colors.inputBg, color: colors.brown }}
@@ -157,11 +199,13 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: colors.brownLight }}>Email</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: colors.brownLight }}>
+                    Email
+                  </label>
                   <input
                     type="email"
                     value={vendorForm.email}
-                    onChange={(e) => setVendorForm(prev => ({ ...prev, email: e.target.value }))}
+                    onChange={(e) => setVendorForm((prev) => ({ ...prev, email: e.target.value }))}
                     placeholder="sales@vendor.com"
                     className="w-full px-3 py-2 rounded-lg border-0 outline-none text-sm"
                     style={{ backgroundColor: colors.inputBg, color: colors.brown }}
@@ -169,10 +213,12 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: colors.brownLight }}>Notes</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: colors.brownLight }}>
+                    Notes
+                  </label>
                   <input
                     value={vendorForm.notes}
-                    onChange={(e) => setVendorForm(prev => ({ ...prev, notes: e.target.value }))}
+                    onChange={(e) => setVendorForm((prev) => ({ ...prev, notes: e.target.value }))}
                     placeholder="Account #, rep name, delivery schedule..."
                     className="w-full px-3 py-2 rounded-lg border-0 outline-none text-sm"
                     style={{ backgroundColor: colors.inputBg, color: colors.brown }}
@@ -212,8 +258,8 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
             </div>
           ) : (
             <div className="space-y-2">
-              {recipeVendors.map(vendor => {
-                const vendorIngredientCount = ingredients.filter(i => i.vendor === vendor.name).length;
+              {recipeVendors.map((vendor) => {
+                const vendorIngredientCount = ingredients.filter((i) => i.vendor === vendor.name).length;
                 return (
                   <div
                     key={vendor.id}
@@ -226,13 +272,20 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
                       onClick={() => setExpandedProfile(expandedProfile === vendor.id ? null : vendor.id)}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ backgroundColor: colors.cream, color: colors.brown }}>
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                          style={{ backgroundColor: colors.cream, color: colors.brown }}
+                        >
                           {vendor.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-medium text-sm" style={{ color: colors.brown }}>{vendor.name}</div>
+                          <div className="font-medium text-sm" style={{ color: colors.brown }}>
+                            {vendor.name}
+                          </div>
                           {vendorIngredientCount > 0 && (
-                            <div className="text-xs" style={{ color: colors.brownLight }}>{vendorIngredientCount} ingredients</div>
+                            <div className="text-xs" style={{ color: colors.brownLight }}>
+                              {vendorIngredientCount} ingredients
+                            </div>
                           )}
                         </div>
                       </div>
@@ -248,13 +301,21 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
                         {vendor.phone && (
                           <div className="flex items-center gap-2 text-sm">
                             <Phone className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />
-                            <a href={`tel:${vendor.phone}`} className="hover:underline" style={{ color: colors.brown }}>{vendor.phone}</a>
+                            <a href={`tel:${vendor.phone}`} className="hover:underline" style={{ color: colors.brown }}>
+                              {vendor.phone}
+                            </a>
                           </div>
                         )}
                         {vendor.email && (
                           <div className="flex items-center gap-2 text-sm">
                             <Mail className="w-3.5 h-3.5" style={{ color: colors.brownLight }} />
-                            <a href={`mailto:${vendor.email}`} className="hover:underline" style={{ color: colors.brown }}>{vendor.email}</a>
+                            <a
+                              href={`mailto:${vendor.email}`}
+                              className="hover:underline"
+                              style={{ color: colors.brown }}
+                            >
+                              {vendor.email}
+                            </a>
                           </div>
                         )}
                         {vendor.notes && (
@@ -295,7 +356,7 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
 
       {/* Vendor ingredient cards */}
       <div className="grid gap-4">
-        {displayedVendors.map(vendor => (
+        {displayedVendors.map((vendor) => (
           <div
             key={vendor.name}
             className="rounded-xl shadow-md overflow-hidden"
@@ -308,7 +369,7 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
                 <div className="flex items-center gap-3 text-sm text-white/60">
                   <span>{vendor.itemCount} items</span>
                   {(() => {
-                    const profile = recipeVendors.find(v => v.name === vendor.name);
+                    const profile = recipeVendors.find((v) => v.name === vendor.name);
                     if (!profile) return null;
                     return (
                       <>
@@ -329,9 +390,7 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
               </div>
               <div className="text-right">
                 <div className="text-sm text-white/60">Total Spend</div>
-                <div className="font-bold font-mono text-white">
-                  {formatCurrency(vendor.totalValue)}
-                </div>
+                <div className="font-bold font-mono text-white">{formatCurrency(vendor.totalValue)}</div>
               </div>
             </div>
 
@@ -339,87 +398,124 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: `2px solid ${colors.creamDark}` }}>
-                    <th className="py-2 px-2 text-left font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>
+                    <th
+                      className="py-2 px-2 text-left font-medium text-xs uppercase tracking-wider"
+                      style={{ color: colors.brownLight }}
+                    >
                       <button
                         className="flex items-center gap-1 hover:opacity-80"
                         style={{ color: colors.brownLight }}
-                        onClick={() => setProductSort(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')}
+                        onClick={() =>
+                          setProductSort((prev) => (prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc'))
+                        }
                       >
                         Product
-                        {productSort === 'asc' ? <ArrowUp className="w-3 h-3" /> : productSort === 'desc' ? <ArrowDown className="w-3 h-3" /> : <ArrowUpDown className="w-3 h-3 opacity-40" />}
+                        {productSort === 'asc' ? (
+                          <ArrowUp className="w-3 h-3" />
+                        ) : productSort === 'desc' ? (
+                          <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-40" />
+                        )}
                       </button>
                     </th>
-                    <th className="py-2 px-2 text-left font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Category</th>
-                    <th className="py-2 px-2 text-right font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Cost</th>
-                    <th className="py-2 px-2 text-right font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Quantity</th>
-                    <th className="py-2 px-2 text-left font-medium text-xs uppercase tracking-wider" style={{ color: colors.brownLight }}>Item #</th>
+                    <th
+                      className="py-2 px-2 text-left font-medium text-xs uppercase tracking-wider"
+                      style={{ color: colors.brownLight }}
+                    >
+                      Category
+                    </th>
+                    <th
+                      className="py-2 px-2 text-right font-medium text-xs uppercase tracking-wider"
+                      style={{ color: colors.brownLight }}
+                    >
+                      Cost
+                    </th>
+                    <th
+                      className="py-2 px-2 text-right font-medium text-xs uppercase tracking-wider"
+                      style={{ color: colors.brownLight }}
+                    >
+                      Quantity
+                    </th>
+                    <th
+                      className="py-2 px-2 text-left font-medium text-xs uppercase tracking-wider"
+                      style={{ color: colors.brownLight }}
+                    >
+                      Item #
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...vendor.ingredients].sort((a, b) => {
-                    if (!productSort) return 0;
-                    const cmp = a.name.localeCompare(b.name);
-                    return productSort === 'asc' ? cmp : -cmp;
-                  }).map(ing => (
-                    <tr
-                      key={ing.id}
-                      style={{ borderBottom: `1px solid ${colors.cream}` }}
-                      data-testid={`row-vendor-item-${ing.id}`}
-                    >
-                      <td className="py-2 font-medium" style={{ color: colors.brown }}>{ing.name}</td>
-                      <td className="py-2" style={{ color: colors.brownLight }}>{ing.category_name}</td>
-                      <td className="py-2 text-right font-mono" style={{ color: colors.brown }}>
-                        {editingCost === ing.id ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={editCostValue}
-                            onChange={(e) => setEditCostValue(e.target.value)}
-                            onBlur={async () => {
-                              const newCost = parseFloat(editCostValue);
-                              if (!isNaN(newCost) && newCost !== Number(ing.cost)) {
-                                await onUpdateIngredientCost(ing.id, newCost);
-                              }
-                              setEditingCost(null);
-                            }}
-                            onKeyDown={async (e) => {
-                              if (e.key === 'Enter') {
+                  {[...vendor.ingredients]
+                    .sort((a, b) => {
+                      if (!productSort) return 0;
+                      const cmp = a.name.localeCompare(b.name);
+                      return productSort === 'asc' ? cmp : -cmp;
+                    })
+                    .map((ing) => (
+                      <tr
+                        key={ing.id}
+                        style={{ borderBottom: `1px solid ${colors.cream}` }}
+                        data-testid={`row-vendor-item-${ing.id}`}
+                      >
+                        <td className="py-2 font-medium" style={{ color: colors.brown }}>
+                          {ing.name}
+                        </td>
+                        <td className="py-2" style={{ color: colors.brownLight }}>
+                          {ing.category_name}
+                        </td>
+                        <td className="py-2 text-right font-mono" style={{ color: colors.brown }}>
+                          {editingCost === ing.id ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editCostValue}
+                              onChange={(e) => setEditCostValue(e.target.value)}
+                              onBlur={async () => {
                                 const newCost = parseFloat(editCostValue);
                                 if (!isNaN(newCost) && newCost !== Number(ing.cost)) {
                                   await onUpdateIngredientCost(ing.id, newCost);
                                 }
                                 setEditingCost(null);
-                              } else if (e.key === 'Escape') {
-                                setEditingCost(null);
-                              }
-                            }}
-                            autoFocus
-                            className="w-20 px-2 py-1 text-right rounded border"
-                            style={{ borderColor: colors.gold, backgroundColor: colors.inputBg }}
-                            data-testid={`input-cost-${ing.id}`}
-                          />
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setEditingCost(ing.id);
-                              setEditCostValue(String(ing.cost || 0));
-                            }}
-                            className="hover:underline cursor-pointer"
-                            style={{ color: colors.brown }}
-                            data-testid={`button-edit-cost-${ing.id}`}
-                          >
-                            {formatCurrency(ing.cost)}
-                          </button>
-                        )}
-                      </td>
-                      <td className="py-2 text-right font-mono" style={{ color: colors.brownLight }}>
-                        {ing.quantity} {ing.unit}
-                      </td>
-                      <td className="py-2" style={{ color: colors.brownLight }}>
-                        {ing.item_number || '-'}
-                      </td>
-                    </tr>
-                  ))}
+                              }}
+                              onKeyDown={async (e) => {
+                                if (e.key === 'Enter') {
+                                  const newCost = parseFloat(editCostValue);
+                                  if (!isNaN(newCost) && newCost !== Number(ing.cost)) {
+                                    await onUpdateIngredientCost(ing.id, newCost);
+                                  }
+                                  setEditingCost(null);
+                                } else if (e.key === 'Escape') {
+                                  setEditingCost(null);
+                                }
+                              }}
+                              autoFocus
+                              className="w-20 px-2 py-1 text-right rounded border"
+                              style={{ borderColor: colors.gold, backgroundColor: colors.inputBg }}
+                              data-testid={`input-cost-${ing.id}`}
+                            />
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setEditingCost(ing.id);
+                                setEditCostValue(String(ing.cost || 0));
+                              }}
+                              className="hover:underline cursor-pointer"
+                              style={{ color: colors.brown }}
+                              data-testid={`button-edit-cost-${ing.id}`}
+                            >
+                              {formatCurrency(ing.cost)}
+                            </button>
+                          )}
+                        </td>
+                        <td className="py-2 text-right font-mono" style={{ color: colors.brownLight }}>
+                          {ing.quantity} {ing.unit}
+                        </td>
+                        <td className="py-2" style={{ color: colors.brownLight }}>
+                          {ing.item_number || '-'}
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -429,7 +525,9 @@ export const VendorsTab = ({ ingredients, recipeVendors, tenantId, onUpdateIngre
         {displayedVendors.length === 0 && (
           <div className="text-center py-10">
             <Truck className="w-10 h-10 mx-auto mb-3" style={{ color: colors.brownLight }} />
-            <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>No vendors found</h3>
+            <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
+              No vendors found
+            </h3>
             <p className="text-sm" style={{ color: colors.brownLight }}>
               Add vendor information to your ingredients to see them grouped here.
             </p>

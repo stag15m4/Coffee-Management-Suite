@@ -36,12 +36,14 @@ export function UpcomingMaintenanceWidget() {
       // Get upcoming maintenance tasks (next 7 days)
       const { data: tasks, error: tasksError } = await supabase
         .from('maintenance_tasks')
-        .select(`
+        .select(
+          `
           id,
           task_type,
           next_due_date,
           equipment:equipment!inner(id, name, assigned_to, category)
-        `)
+        `
+        )
         .eq('equipment.tenant_id', tenant.id)
         .eq('is_active', true)
         .lte('next_due_date', sevenDaysFromNow)
@@ -50,16 +52,26 @@ export function UpcomingMaintenanceWidget() {
 
       if (tasksError) throw tasksError;
 
+      interface MaintenanceRow {
+        id: string;
+        task_type: string;
+        next_due_date: string;
+        equipment: { id: string; name: string; assigned_to: string | null; category: string | null };
+      }
+
       // Filter out tasks for vehicles assigned to someone else
       // Owners and managers see all tasks regardless of assignment
       const isManagerOrAbove = profile?.role === 'owner' || profile?.role === 'manager';
-      const filteredTasks = isManagerOrAbove ? (tasks || []) : (tasks || []).filter((task: any) => {
-        const eq = task.equipment;
-        if (!eq.assigned_to) return true; // unassigned equipment shows for everyone
-        return eq.assigned_to === profile?.id; // assigned vehicles only show for the assignee
-      });
+      const allTasks = (tasks || []) as unknown as MaintenanceRow[];
+      const filteredTasks = isManagerOrAbove
+        ? allTasks
+        : allTasks.filter((task) => {
+            const eq = task.equipment;
+            if (!eq.assigned_to) return true; // unassigned equipment shows for everyone
+            return eq.assigned_to === profile?.id; // assigned vehicles only show for the assignee
+          });
 
-      const formattedTasks: MaintenanceTask[] = filteredTasks.slice(0, 5).map((task: any) => ({
+      const formattedTasks: MaintenanceTask[] = filteredTasks.slice(0, 5).map((task) => ({
         id: task.id,
         equipment_name: task.equipment.name,
         task_type: task.task_type,
@@ -69,7 +81,7 @@ export function UpcomingMaintenanceWidget() {
 
       return {
         tasks: formattedTasks,
-        overdueCount: formattedTasks.filter(t => t.is_overdue).length,
+        overdueCount: formattedTasks.filter((t) => t.is_overdue).length,
       };
     },
     enabled: !!tenant?.id,

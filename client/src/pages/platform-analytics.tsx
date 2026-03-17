@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
@@ -7,18 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
@@ -146,9 +137,9 @@ const PIE_COLORS = ['#3b82f6', '#f59e0b'];
 // Wholesale reseller tiers — official pricing (Feb 2026)
 // Rates = what we receive per seat (discount off Professional $99/mo retail)
 const WHOLESALE_TIERS = [
-  { id: 'authorized', label: 'Authorized', discount: 0.20, rate: 79.20 },
-  { id: 'silver', label: 'Silver', discount: 0.30, rate: 69.30 },
-  { id: 'gold', label: 'Gold', discount: 0.40, rate: 59.40 },
+  { id: 'authorized', label: 'Authorized', discount: 0.2, rate: 79.2 },
+  { id: 'silver', label: 'Silver', discount: 0.3, rate: 69.3 },
+  { id: 'gold', label: 'Gold', discount: 0.4, rate: 59.4 },
 ];
 
 // Supabase pricing constants (2026 Pro & Team plans)
@@ -240,10 +231,10 @@ export default function PlatformAnalytics() {
           });
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error loading analytics',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -296,18 +287,15 @@ export default function PlatformAnalytics() {
       if (row.subscription_status !== 'active' && row.subscription_status !== 'trial') continue;
       const prices = planPrices[row.subscription_plan];
       if (!prices) continue;
-      const monthlyRate =
-        row.billing_interval === 'annual' ? prices.annual : prices.monthly;
+      const monthlyRate = row.billing_interval === 'annual' ? prices.annual : prices.monthly;
       const contribution = Number(row.count) * monthlyRate;
       directMrr += contribution;
-      byPlan[row.subscription_plan] =
-        (byPlan[row.subscription_plan] || 0) + contribution;
+      byPlan[row.subscription_plan] = (byPlan[row.subscription_plan] || 0) + contribution;
     }
 
     let wholesaleMrr = 0;
     for (const r of overview.resellers) {
-      wholesaleMrr +=
-        Number(r.seats_used) * Number(r.wholesale_rate_per_seat || 0);
+      wholesaleMrr += Number(r.seats_used) * Number(r.wholesale_rate_per_seat || 0);
     }
 
     return {
@@ -396,10 +384,14 @@ export default function PlatformAnalytics() {
     if (!overview) return [];
 
     // Per-month new revenue from all tier sliders
-    const newDirectRevenuePerMonth = Object.entries(newPerTier)
-      .reduce((sum, [planId, count]) => sum + count * (planPrices[planId]?.monthly || 0), 0);
-    const newWholesaleRevenuePerMonth = Object.entries(newWholesalePerTier)
-      .reduce((sum, [tier, count]) => sum + count * (wholesaleRateByTier[tier] || 30), 0);
+    const newDirectRevenuePerMonth = Object.entries(newPerTier).reduce(
+      (sum, [planId, count]) => sum + count * (planPrices[planId]?.monthly || 0),
+      0
+    );
+    const newWholesaleRevenuePerMonth = Object.entries(newWholesalePerTier).reduce(
+      (sum, [tier, count]) => sum + count * (wholesaleRateByTier[tier] || 30),
+      0
+    );
     const newTenantsPerMonth = Object.values(newPerTier).reduce((a, b) => a + b, 0);
 
     let projectedRevenue = mrr.total;
@@ -410,13 +402,14 @@ export default function PlatformAnalytics() {
 
     for (let i = 0; i <= forecastMonths; i++) {
       const projectedTenants = currentTenants + cumulativeNewTenants;
-      const projectedUsers = currentUsers + (cumulativeNewTenants * usersPerTenant);
+      const projectedUsers = currentUsers + cumulativeNewTenants * usersPerTenant;
       const projectedStorageGB = (projectedTenants * storageMbPerTenant) / 1024;
 
       // Supabase scaling cost for this month
       const pricing = SUPABASE_PRICING[supabasePlan];
       const mauOverage = Math.max(0, projectedUsers - pricing.includedMAU) * SUPABASE_PRICING.mauOverageRate;
-      const storageOverage = Math.max(0, projectedStorageGB - pricing.includedStorageGB) * SUPABASE_PRICING.storageOverageRate;
+      const storageOverage =
+        Math.max(0, projectedStorageGB - pricing.includedStorageGB) * SUPABASE_PRICING.storageOverageRate;
       const supabaseCost = pricing.base + mauOverage + storageOverage;
 
       // Total costs for this month
@@ -440,8 +433,19 @@ export default function PlatformAnalytics() {
     }
 
     return months;
-  }, [overview, mrr, costs, newPerTier, newWholesalePerTier, forecastMonths,
-      usersPerTenant, storageMbPerTenant, supabasePlan, planPrices, wholesaleRateByTier]);
+  }, [
+    overview,
+    mrr,
+    costs,
+    newPerTier,
+    newWholesalePerTier,
+    forecastMonths,
+    usersPerTenant,
+    storageMbPerTenant,
+    supabasePlan,
+    planPrices,
+    wholesaleRateByTier,
+  ]);
 
   const breakEvenMonth = useMemo(() => {
     if (mrr.total >= totalMonthlyCosts) return 0;
@@ -466,8 +470,8 @@ export default function PlatformAnalytics() {
         const err = await res.text();
         toast({ title: 'Error saving costs', description: err, variant: 'destructive' });
       }
-    } catch (error: any) {
-      toast({ title: 'Error saving costs', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error saving costs', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSavingCosts(false);
     }
@@ -494,10 +498,7 @@ export default function PlatformAnalytics() {
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.cream }}>
       {/* ─── Header ─────────────────────────────────────────────────────── */}
-      <header
-        className="px-6 py-4 border-b"
-        style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
-      >
+      <header className="px-6 py-4 border-b" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <BarChart3 className="w-8 h-8" style={{ color: colors.gold }} />
@@ -511,10 +512,7 @@ export default function PlatformAnalytics() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setLocation('/')}
-              style={{ backgroundColor: colors.gold, color: colors.white }}
-            >
+            <Button onClick={() => setLocation('/')} style={{ backgroundColor: colors.gold, color: colors.white }}>
               <LayoutDashboard className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Dashboard</span>
             </Button>
@@ -757,7 +755,20 @@ export default function PlatformAnalytics() {
                       tick={{ fontSize: 11, fill: colors.brownLight }}
                       tickFormatter={(v) => {
                         const [, m] = v.split('-');
-                        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                        const months = [
+                          'Jan',
+                          'Feb',
+                          'Mar',
+                          'Apr',
+                          'May',
+                          'Jun',
+                          'Jul',
+                          'Aug',
+                          'Sep',
+                          'Oct',
+                          'Nov',
+                          'Dec',
+                        ];
                         return months[parseInt(m, 10) - 1] || v;
                       }}
                     />
@@ -798,10 +809,7 @@ export default function PlatformAnalytics() {
                   <div key={plan.id} className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm" style={{ color: colors.brown }}>
-                        {plan.name}{' '}
-                        <span style={{ color: colors.brownLight }}>
-                          (${Number(plan.monthly_price)}/mo)
-                        </span>
+                        {plan.name} <span style={{ color: colors.brownLight }}>(${Number(plan.monthly_price)}/mo)</span>
                       </Label>
                       <span className="text-sm font-bold tabular-nums" style={{ color: colors.gold }}>
                         {newPerTier[plan.id] || 0}
@@ -855,7 +863,9 @@ export default function PlatformAnalytics() {
 
             {/* Forecast period */}
             <div className="w-full sm:w-48">
-              <Label className="text-sm" style={{ color: colors.brown }}>Forecast Period</Label>
+              <Label className="text-sm" style={{ color: colors.brown }}>
+                Forecast Period
+              </Label>
               <Select value={String(forecastMonths)} onValueChange={(v) => setForecastMonths(Number(v))}>
                 <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
                   <SelectValue />
@@ -885,7 +895,9 @@ export default function PlatformAnalytics() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-sm" style={{ color: colors.brown }}>Supabase Plan</Label>
+                  <Label className="text-sm" style={{ color: colors.brown }}>
+                    Supabase Plan
+                  </Label>
                   <Select value={supabasePlan} onValueChange={(v) => setSupabasePlan(v as 'pro' | 'team')}>
                     <SelectTrigger style={{ backgroundColor: colors.white, borderColor: colors.gold }}>
                       <SelectValue />
@@ -898,7 +910,9 @@ export default function PlatformAnalytics() {
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm" style={{ color: colors.brown }}>Est. users per tenant</Label>
+                    <Label className="text-sm" style={{ color: colors.brown }}>
+                      Est. users per tenant
+                    </Label>
                     <span className="text-sm font-bold tabular-nums" style={{ color: colors.gold }}>
                       {usersPerTenant}
                     </span>
@@ -913,7 +927,9 @@ export default function PlatformAnalytics() {
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm" style={{ color: colors.brown }}>Est. storage per tenant</Label>
+                    <Label className="text-sm" style={{ color: colors.brown }}>
+                      Est. storage per tenant
+                    </Label>
                     <span className="text-sm font-bold tabular-nums" style={{ color: colors.gold }}>
                       {storageMbPerTenant} MB
                     </span>
@@ -936,7 +952,7 @@ export default function PlatformAnalytics() {
                   <CartesianGrid strokeDasharray="3 3" stroke={colors.creamDark} />
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: colors.brownLight }} />
                   <YAxis
-                    tickFormatter={(v) => v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`}
+                    tickFormatter={(v) => (v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`)}
                     tick={{ fontSize: 11, fill: colors.brownLight }}
                   />
                   <Tooltip
@@ -976,9 +992,7 @@ export default function PlatformAnalytics() {
             {/* Break-even + summary badges */}
             <div className="flex items-center gap-3 flex-wrap">
               {breakEvenMonth === 0 && (
-                <Badge style={{ backgroundColor: '#dcfce7', color: '#16a34a' }}>
-                  Already profitable
-                </Badge>
+                <Badge style={{ backgroundColor: '#dcfce7', color: '#16a34a' }}>Already profitable</Badge>
               )}
               {breakEvenMonth !== null && breakEvenMonth > 0 && (
                 <Badge style={{ backgroundColor: colors.goldLight, color: colors.gold }}>
@@ -992,10 +1006,8 @@ export default function PlatformAnalytics() {
               )}
               {forecast.length > 0 && (
                 <span className="text-xs" style={{ color: colors.brownLight }}>
-                  End-of-period MRR:{' '}
-                  <strong>{formatCurrency(forecast[forecast.length - 1]?.projected || 0)}</strong>
-                  {' | '}Costs:{' '}
-                  <strong>{formatCurrency(forecast[forecast.length - 1]?.costs || 0)}</strong>
+                  End-of-period MRR: <strong>{formatCurrency(forecast[forecast.length - 1]?.projected || 0)}</strong>
+                  {' | '}Costs: <strong>{formatCurrency(forecast[forecast.length - 1]?.costs || 0)}</strong>
                 </span>
               )}
             </div>
@@ -1006,22 +1018,22 @@ export default function PlatformAnalytics() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ borderBottom: `2px solid ${colors.creamDark}` }}>
-                      {['Month', 'Revenue', 'Supabase', 'Total Costs', 'Profit', 'Margin', 'Tenants', 'Users'].map((h) => (
-                        <th
-                          key={h}
-                          className={`py-2 px-2 font-medium ${h === 'Month' ? 'text-left' : 'text-right'}`}
-                          style={{ color: colors.brownLight }}
-                        >
-                          {h}
-                        </th>
-                      ))}
+                      {['Month', 'Revenue', 'Supabase', 'Total Costs', 'Profit', 'Margin', 'Tenants', 'Users'].map(
+                        (h) => (
+                          <th
+                            key={h}
+                            className={`py-2 px-2 font-medium ${h === 'Month' ? 'text-left' : 'text-right'}`}
+                            style={{ color: colors.brownLight }}
+                          >
+                            {h}
+                          </th>
+                        )
+                      )}
                     </tr>
                   </thead>
                   <tbody>
                     {forecast.map((row) => {
-                      const margin = row.projected > 0
-                        ? ((row.projected - row.costs) / row.projected * 100)
-                        : 0;
+                      const margin = row.projected > 0 ? ((row.projected - row.costs) / row.projected) * 100 : 0;
                       return (
                         <tr key={row.month} style={{ borderBottom: `1px solid ${colors.cream}` }}>
                           <td className="py-1.5 px-2 font-medium" style={{ color: colors.brown }}>
@@ -1086,7 +1098,9 @@ export default function PlatformAnalytics() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="space-y-1">
-                    <Label className="text-sm" style={{ color: colors.brown }}>Hosting ($/mo)</Label>
+                    <Label className="text-sm" style={{ color: colors.brown }}>
+                      Hosting ($/mo)
+                    </Label>
                     <Input
                       type="number"
                       min={0}
@@ -1097,7 +1111,9 @@ export default function PlatformAnalytics() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-sm" style={{ color: colors.brown }}>Support/Labor ($/mo)</Label>
+                    <Label className="text-sm" style={{ color: colors.brown }}>
+                      Support/Labor ($/mo)
+                    </Label>
                     <Input
                       type="number"
                       min={0}
@@ -1108,7 +1124,9 @@ export default function PlatformAnalytics() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-sm" style={{ color: colors.brown }}>Other ($/mo)</Label>
+                    <Label className="text-sm" style={{ color: colors.brown }}>
+                      Other ($/mo)
+                    </Label>
                     <Input
                       type="number"
                       min={0}
@@ -1119,14 +1137,18 @@ export default function PlatformAnalytics() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-sm" style={{ color: colors.brown }}>Stripe Fee (%)</Label>
+                    <Label className="text-sm" style={{ color: colors.brown }}>
+                      Stripe Fee (%)
+                    </Label>
                     <Input
                       type="number"
                       min={0}
                       max={100}
                       step={0.1}
                       value={costs.stripe_fee_percent || ''}
-                      onChange={(e) => setCosts((prev) => ({ ...prev, stripe_fee_percent: Number(e.target.value) || 0 }))}
+                      onChange={(e) =>
+                        setCosts((prev) => ({ ...prev, stripe_fee_percent: Number(e.target.value) || 0 }))
+                      }
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                     />
                   </div>
@@ -1144,7 +1166,9 @@ export default function PlatformAnalytics() {
                       {formatCurrency(totalMonthlyCosts)}
                     </span>
                     <span className="text-xs ml-2" style={{ color: colors.brownLight }}>
-                      (Supabase: {formatCurrencyDecimal(currentSupabaseCost)} + Stripe: {formatCurrency(mrr.total * costs.stripe_fee_percent / 100)} + Fixed: {formatCurrency(costs.hosting + costs.support_labor + costs.other)})
+                      (Supabase: {formatCurrencyDecimal(currentSupabaseCost)} + Stripe:{' '}
+                      {formatCurrency((mrr.total * costs.stripe_fee_percent) / 100)} + Fixed:{' '}
+                      {formatCurrency(costs.hosting + costs.support_labor + costs.other)})
                     </span>
                   </div>
                   <Button
@@ -1178,7 +1202,12 @@ export default function PlatformAnalytics() {
                   <BarChart data={moduleAdoptionData} layout="vertical" margin={{ left: 120 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={colors.creamDark} />
                     <XAxis type="number" tick={{ fontSize: 11, fill: colors.brownLight }} allowDecimals={false} />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: colors.brownLight }} width={110} />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      tick={{ fontSize: 11, fill: colors.brownLight }}
+                      width={110}
+                    />
                     <Tooltip
                       formatter={(value: number, _name: string, props: any) => [
                         `${value} tenants (${props.payload.percent}%)`,
@@ -1211,19 +1240,35 @@ export default function PlatformAnalytics() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ borderBottom: `2px solid ${colors.creamDark}` }}>
-                      <th className="text-left py-3 px-2 font-medium" style={{ color: colors.brownLight }}>Name</th>
-                      <th className="text-left py-3 px-2 font-medium" style={{ color: colors.brownLight }}>Tier</th>
-                      <th className="text-right py-3 px-2 font-medium" style={{ color: colors.brownLight }}>Seats</th>
-                      <th className="text-right py-3 px-2 font-medium" style={{ color: colors.brownLight }}>Rate/Seat</th>
-                      <th className="text-right py-3 px-2 font-medium" style={{ color: colors.brownLight }}>Monthly Rev</th>
-                      <th className="text-right py-3 px-2 font-medium" style={{ color: colors.brownLight }}>Total Invoiced</th>
-                      <th className="text-right py-3 px-2 font-medium" style={{ color: colors.brownLight }}>Total Paid</th>
+                      <th className="text-left py-3 px-2 font-medium" style={{ color: colors.brownLight }}>
+                        Name
+                      </th>
+                      <th className="text-left py-3 px-2 font-medium" style={{ color: colors.brownLight }}>
+                        Tier
+                      </th>
+                      <th className="text-right py-3 px-2 font-medium" style={{ color: colors.brownLight }}>
+                        Seats
+                      </th>
+                      <th className="text-right py-3 px-2 font-medium" style={{ color: colors.brownLight }}>
+                        Rate/Seat
+                      </th>
+                      <th className="text-right py-3 px-2 font-medium" style={{ color: colors.brownLight }}>
+                        Monthly Rev
+                      </th>
+                      <th className="text-right py-3 px-2 font-medium" style={{ color: colors.brownLight }}>
+                        Total Invoiced
+                      </th>
+                      <th className="text-right py-3 px-2 font-medium" style={{ color: colors.brownLight }}>
+                        Total Paid
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {overview.resellers.map((r) => (
                       <tr key={r.id} style={{ borderBottom: `1px solid ${colors.cream}` }}>
-                        <td className="py-2.5 px-2 font-medium" style={{ color: colors.brown }}>{r.name}</td>
+                        <td className="py-2.5 px-2 font-medium" style={{ color: colors.brown }}>
+                          {r.name}
+                        </td>
                         <td className="py-2.5 px-2">
                           <Badge
                             variant="outline"

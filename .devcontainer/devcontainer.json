@@ -3,7 +3,7 @@
   "portsAttributes": {
     "5001": {
       "label": "Coffee Management Suite",
-      "visibility": "public",
+      "visibility": "private",
       "onAutoForward": "notify"
     }
   }

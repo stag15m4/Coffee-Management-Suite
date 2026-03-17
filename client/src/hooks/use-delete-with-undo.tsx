@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { queryClient } from '@/lib/queryClient';
@@ -35,10 +36,15 @@ export function showDeleteUndoToast({
         if (error) throw error;
       } else if (undo.type === 'reinsert') {
         // Strip auto-generated timestamp columns that can conflict on re-insert
-        const { created_at, updated_at, ...insertData } = undo.data as Record<string, unknown> & { created_at?: unknown; updated_at?: unknown };
+        const { created_at, updated_at, ...insertData } = undo.data as Record<string, unknown> & {
+          created_at?: unknown;
+          updated_at?: unknown;
+        };
         // Ensure tenant_id is present — view-sourced data (e.g. v_ingredients) may omit it
         if (!insertData.tenant_id) {
-          const { data: { session } } = await supabase.auth.getSession();
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
           if (session) {
             const { data: profile } = await supabase
               .from('profiles')
@@ -50,9 +56,7 @@ export function showDeleteUndoToast({
             }
           }
         }
-        const { error } = await supabase
-          .from(undo.table)
-          .insert(insertData);
+        const { error } = await supabase.from(undo.table).insert(insertData);
         if (error) throw error;
       }
 
@@ -66,9 +70,12 @@ export function showDeleteUndoToast({
 
       toast({ title: `${itemName} restored` });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message
-        : (err && typeof err === 'object' && 'message' in err) ? String((err as { message: unknown }).message)
-        : 'Unknown error';
+      const message =
+        err instanceof Error
+          ? getErrorMessage(err)
+          : err && typeof err === 'object' && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Unknown error';
       toast({
         title: 'Failed to undo',
         description: message,
@@ -80,8 +87,10 @@ export function showDeleteUndoToast({
   toast({
     title: `${itemName} deleted`,
     duration,
-    action: canUndo
-      ? <ToastAction altText="Undo delete" onClick={handleUndo}>Undo</ToastAction>
-      : undefined,
+    action: canUndo ? (
+      <ToastAction altText="Undo delete" onClick={handleUndo}>
+        Undo
+      </ToastAction>
+    ) : undefined,
   });
 }

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -33,7 +34,7 @@ export function FeedbackButton() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.description.trim()) {
       toast({
         title: 'Error',
@@ -74,11 +75,11 @@ export function FeedbackButton() {
       } else {
         throw new Error(result.error || 'Failed to submit feedback');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Feedback submission error:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to submit feedback. Please try again.',
+        description: getErrorMessage(error) || 'Failed to submit feedback. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -88,9 +89,12 @@ export function FeedbackButton() {
 
   const getTypeLabel = (type: FeedbackType) => {
     switch (type) {
-      case 'bug': return 'Bug Report';
-      case 'suggestion': return 'Suggestion';
-      case 'general': return 'General Feedback';
+      case 'bug':
+        return 'Bug Report';
+      case 'suggestion':
+        return 'Suggestion';
+      case 'general':
+        return 'General Feedback';
     }
   };
 
@@ -107,14 +111,9 @@ export function FeedbackButton() {
       </button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent 
-          className="max-w-md"
-          style={{ backgroundColor: colors.white }}
-        >
+        <DialogContent className="max-w-md" style={{ backgroundColor: colors.white }}>
           <DialogHeader>
-            <DialogTitle style={{ color: colors.brown }}>
-              Send Feedback
-            </DialogTitle>
+            <DialogTitle style={{ color: colors.brown }}>Send Feedback</DialogTitle>
             <DialogDescription style={{ color: colors.brownLight }}>
               Report a bug, suggest an improvement, or share your thoughts
             </DialogDescription>
@@ -127,7 +126,7 @@ export function FeedbackButton() {
                 value={formData.type}
                 onValueChange={(value: FeedbackType) => setFormData({ ...formData, type: value })}
               >
-                <SelectTrigger 
+                <SelectTrigger
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                   data-testid="select-feedback-type"
                 >
@@ -159,10 +158,10 @@ export function FeedbackButton() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder={
                   formData.type === 'bug'
-                    ? "Please describe the issue you encountered. What were you trying to do? What happened instead?"
+                    ? 'Please describe the issue you encountered. What were you trying to do? What happened instead?'
                     : formData.type === 'suggestion'
-                    ? "What improvement would you like to see? How would it help you?"
-                    : "Share your thoughts with us..."
+                      ? 'What improvement would you like to see? How would it help you?'
+                      : 'Share your thoughts with us...'
                 }
                 rows={5}
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
@@ -170,7 +169,7 @@ export function FeedbackButton() {
               />
             </div>
 
-            <p 
+            <p
               className="text-sm italic text-center px-2 py-3 rounded-md"
               style={{ backgroundColor: colors.cream, color: colors.brownLight }}
             >

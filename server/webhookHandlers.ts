@@ -7,9 +7,11 @@ export class WebhookHandlers {
     if (!Buffer.isBuffer(payload)) {
       throw new Error(
         'STRIPE WEBHOOK ERROR: Payload must be a Buffer. ' +
-        'Received type: ' + typeof payload + '. ' +
-        'This usually means express.json() parsed the body before reaching this handler. ' +
-        'FIX: Ensure webhook route is registered BEFORE app.use(express.json()).'
+          'Received type: ' +
+          typeof payload +
+          '. ' +
+          'This usually means express.json() parsed the body before reaching this handler. ' +
+          'FIX: Ensure webhook route is registered BEFORE app.use(express.json()).'
       );
     }
 
@@ -62,9 +64,7 @@ export class WebhookHandlers {
           // Clear subscription ID directly since the storage helper skips undefined values
           const { db } = await import('./db');
           const { sql } = await import('drizzle-orm');
-          await db.execute(
-            sql`UPDATE tenants SET stripe_subscription_id = NULL WHERE id = ${tenant.id}`
-          );
+          await db.execute(sql`UPDATE tenants SET stripe_subscription_id = NULL WHERE id = ${tenant.id}`);
           log(`Subscription deleted for customer ${customerId}`, 'stripe');
         }
         break;
@@ -134,9 +134,7 @@ async function findTenantByStripeCustomer(customerId: string) {
   // Use the db directly to find tenant by stripe_customer_id
   const { db } = await import('./db');
   const { sql } = await import('drizzle-orm');
-  const result = await db.execute(
-    sql`SELECT id FROM tenants WHERE stripe_customer_id = ${customerId} LIMIT 1`
-  );
+  const result = await db.execute(sql`SELECT id FROM tenants WHERE stripe_customer_id = ${customerId} LIMIT 1`);
   return result.rows[0] as { id: string } | undefined;
 }
 

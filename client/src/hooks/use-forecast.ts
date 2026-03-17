@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-queries';
-import type { ForecastScenario, ForecastLineItem, ForecastDriver, SeasonalPattern } from '@/pages/financial-budget/types';
+import type {
+  ForecastScenario,
+  ForecastLineItem,
+  ForecastDriver,
+  SeasonalPattern,
+} from '@/pages/financial-budget/types';
 
 const keys = {
   scenarios: (fyId?: string, tenantId?: string) => ['forecast-scenarios', fyId, tenantId] as const,
@@ -43,11 +48,7 @@ export function useCreateForecastScenario() {
       is_default?: boolean;
       created_by?: string;
     }) => {
-      const { data, error } = await supabase
-        .from('budget_forecast_scenarios')
-        .insert(scenario)
-        .select()
-        .single();
+      const { data, error } = await supabase.from('budget_forecast_scenarios').insert(scenario).select().single();
       if (error) throw error;
       return data as ForecastScenario;
     },
@@ -60,7 +61,15 @@ export function useCreateForecastScenario() {
 export function useDeleteForecastScenario() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, fiscal_year_id, tenant_id }: { id: string; fiscal_year_id: string; tenant_id: string }) => {
+    mutationFn: async ({
+      id,
+      fiscal_year_id,
+      tenant_id,
+    }: {
+      id: string;
+      fiscal_year_id: string;
+      tenant_id: string;
+    }) => {
       const { error } = await supabase.from('budget_forecast_scenarios').delete().eq('id', id);
       if (error) throw error;
     },
@@ -121,15 +130,17 @@ export function useUpsertForecastLineItem() {
 export function useBulkUpsertForecastLineItems() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (items: Array<{
-      tenant_id: string;
-      scenario_id: string;
-      account_id: string;
-      month: number;
-      forecast_amount: number;
-    }>) => {
+    mutationFn: async (
+      items: Array<{
+        tenant_id: string;
+        scenario_id: string;
+        account_id: string;
+        month: number;
+        forecast_amount: number;
+      }>
+    ) => {
       if (items.length === 0) return [];
-      const withTimestamp = items.map(i => ({ ...i, updated_at: new Date().toISOString() }));
+      const withTimestamp = items.map((i) => ({ ...i, updated_at: new Date().toISOString() }));
       const { data, error } = await supabase
         .from('budget_forecast_line_items')
         .upsert(withTimestamp, { onConflict: 'tenant_id,scenario_id,account_id,month' })
@@ -179,11 +190,7 @@ export function useCreateForecastDriver() {
       driver_value: number;
       apply_months?: number[];
     }) => {
-      const { data, error } = await supabase
-        .from('budget_forecast_drivers')
-        .insert(driver)
-        .select()
-        .single();
+      const { data, error } = await supabase.from('budget_forecast_drivers').insert(driver).select().single();
       if (error) throw error;
       return data as ForecastDriver;
     },
@@ -196,7 +203,11 @@ export function useCreateForecastDriver() {
 export function useUpdateForecastDriver() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, scenario_id, ...updates }: Partial<ForecastDriver> & { id: string; scenario_id: string }) => {
+    mutationFn: async ({
+      id,
+      scenario_id,
+      ...updates
+    }: Partial<ForecastDriver> & { id: string; scenario_id: string }) => {
       const { data, error } = await supabase
         .from('budget_forecast_drivers')
         .update({ ...updates, updated_at: new Date().toISOString() })
@@ -250,11 +261,7 @@ export function useCreateSeasonalPattern() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (pattern: { tenant_id: string; name: string; month_weights: number[] }) => {
-      const { data, error } = await supabase
-        .from('budget_seasonal_patterns')
-        .insert(pattern)
-        .select()
-        .single();
+      const { data, error } = await supabase.from('budget_seasonal_patterns').insert(pattern).select().single();
       if (error) throw error;
       return data as SeasonalPattern;
     },

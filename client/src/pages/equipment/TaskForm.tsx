@@ -68,18 +68,25 @@ export function TaskForm({
   return (
     <Card style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg" style={{ color: colors.brown }}>Add Maintenance Task</CardTitle>
+        <CardTitle className="text-lg" style={{ color: colors.brown }}>
+          Add Maintenance Task
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
           <Label style={{ color: colors.brown }}>Equipment *</Label>
           <Select value={newTaskEquipmentId} onValueChange={setNewTaskEquipmentId}>
-            <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} data-testid="select-task-equipment">
+            <SelectTrigger
+              style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+              data-testid="select-task-equipment"
+            >
               <SelectValue placeholder="Select equipment" />
             </SelectTrigger>
             <SelectContent>
-              {equipment.map(e => (
-                <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+              {equipment.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -88,7 +95,7 @@ export function TaskForm({
           <Label style={{ color: colors.brown }}>Task Name *</Label>
           <Input
             value={newTaskName}
-            onChange={e => setNewTaskName(e.target.value)}
+            onChange={(e) => setNewTaskName(e.target.value)}
             placeholder="e.g., Change burrs, Clean ice bin"
             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
             data-testid="input-task-name"
@@ -98,7 +105,7 @@ export function TaskForm({
           <Label style={{ color: colors.brown }}>Description</Label>
           <Textarea
             value={newTaskDescription}
-            onChange={e => setNewTaskDescription(e.target.value)}
+            onChange={(e) => setNewTaskDescription(e.target.value)}
             placeholder="Optional details about this task"
             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
             data-testid="input-task-description"
@@ -106,7 +113,9 @@ export function TaskForm({
         </div>
         <div>
           <Label style={{ color: colors.brown }}>Task Photo</Label>
-          <p className="text-xs mb-1" style={{ color: colors.brownLight }}>Optional — use a specific photo for this task (e.g. burr assembly) instead of the equipment photo</p>
+          <p className="text-xs mb-1" style={{ color: colors.brownLight }}>
+            Optional — use a specific photo for this task (e.g. burr assembly) instead of the equipment photo
+          </p>
           <PhotoCapture
             currentPhotoUrl={newTaskImageUrl || null}
             onPhotoSelected={async (file) => handleTaskPhotoUpload(file, 'new')}
@@ -119,7 +128,10 @@ export function TaskForm({
         <div>
           <Label style={{ color: colors.brown }}>Interval Type *</Label>
           <Select value={newTaskIntervalType} onValueChange={(v: 'time' | 'usage') => setNewTaskIntervalType(v)}>
-            <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} data-testid="select-interval-type">
+            <SelectTrigger
+              style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+              data-testid="select-interval-type"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -136,7 +148,7 @@ export function TaskForm({
               <Input
                 type="number"
                 value={newTaskIntervalDays}
-                onChange={e => setNewTaskIntervalDays(e.target.value)}
+                onChange={(e) => setNewTaskIntervalDays(e.target.value)}
                 placeholder="e.g., 180 for 6 months"
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-interval-days"
@@ -151,7 +163,7 @@ export function TaskForm({
               <Input
                 type="date"
                 value={newTaskLastServiced}
-                onChange={e => setNewTaskLastServiced(e.target.value)}
+                onChange={(e) => setNewTaskLastServiced(e.target.value)}
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                 data-testid="input-last-serviced"
               />
@@ -166,7 +178,7 @@ export function TaskForm({
               <Label style={{ color: colors.brown }}>Usage Unit Label *</Label>
               <Input
                 value={newTaskUsageLabel}
-                onChange={e => setNewTaskUsageLabel(e.target.value)}
+                onChange={(e) => setNewTaskUsageLabel(e.target.value)}
                 placeholder="e.g., lbs, shots, cycles"
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-usage-label"
@@ -177,7 +189,7 @@ export function TaskForm({
               <Input
                 type="number"
                 value={newTaskIntervalUnits}
-                onChange={e => setNewTaskIntervalUnits(e.target.value)}
+                onChange={(e) => setNewTaskIntervalUnits(e.target.value)}
                 placeholder="e.g., 1000"
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-interval-units"
@@ -190,13 +202,15 @@ export function TaskForm({
         <div>
           <Label style={{ color: colors.brown }}>Estimated Cost</Label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: colors.brownLight }}>$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: colors.brownLight }}>
+              $
+            </span>
             <Input
               type="number"
               step="0.01"
               min="0"
               value={newTaskEstimatedCost}
-              onChange={e => setNewTaskEstimatedCost(e.target.value)}
+              onChange={(e) => setNewTaskEstimatedCost(e.target.value)}
               placeholder="0.00"
               className="pl-7"
               style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}

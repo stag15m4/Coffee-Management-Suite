@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { insertIngredientSchema, insertRecipeSchema, insertRecipeIngredientSchema, ingredients, recipes, recipeIngredients } from './schema';
+import {
+  insertIngredientSchema,
+  insertRecipeSchema,
+  insertRecipeIngredientSchema,
+  ingredients,
+  recipes,
+  recipeIngredients,
+} from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -26,7 +33,7 @@ export const api = {
     create: {
       method: 'POST' as const,
       path: '/api/ingredients',
-      input: insertIngredientSchema,
+      input: insertIngredientSchema.omit({ tenantId: true }),
       responses: {
         201: z.custom<typeof ingredients.$inferSelect>(),
         400: errorSchemas.validation,
@@ -43,7 +50,7 @@ export const api = {
     update: {
       method: 'PUT' as const,
       path: '/api/ingredients/:id',
-      input: insertIngredientSchema.partial(),
+      input: insertIngredientSchema.omit({ tenantId: true }).partial(),
       responses: {
         200: z.custom<typeof ingredients.$inferSelect>(),
         404: errorSchemas.notFound,
@@ -69,7 +76,7 @@ export const api = {
     create: {
       method: 'POST' as const,
       path: '/api/recipes',
-      input: insertRecipeSchema,
+      input: insertRecipeSchema.omit({ tenantId: true }),
       responses: {
         201: z.custom<typeof recipes.$inferSelect>(),
         400: errorSchemas.validation,
@@ -79,14 +86,18 @@ export const api = {
       method: 'GET' as const,
       path: '/api/recipes/:id',
       responses: {
-        200: z.custom<typeof recipes.$inferSelect & { ingredients: (typeof recipeIngredients.$inferSelect & { ingredient: typeof ingredients.$inferSelect })[] }>(),
+        200: z.custom<
+          typeof recipes.$inferSelect & {
+            ingredients: (typeof recipeIngredients.$inferSelect & { ingredient: typeof ingredients.$inferSelect })[];
+          }
+        >(),
         404: errorSchemas.notFound,
       },
     },
-     update: {
+    update: {
       method: 'PUT' as const,
       path: '/api/recipes/:id',
-      input: insertRecipeSchema.partial(),
+      input: insertRecipeSchema.omit({ tenantId: true }).partial(),
       responses: {
         200: z.custom<typeof recipes.$inferSelect>(),
         404: errorSchemas.notFound,
@@ -105,13 +116,13 @@ export const api = {
     create: {
       method: 'POST' as const,
       path: '/api/recipes/:recipeId/ingredients',
-      input: insertRecipeIngredientSchema.omit({ recipeId: true }),
+      input: insertRecipeIngredientSchema.omit({ recipeId: true, tenantId: true }),
       responses: {
         201: z.custom<typeof recipeIngredients.$inferSelect>(),
         400: errorSchemas.validation,
       },
     },
-     delete: {
+    delete: {
       method: 'DELETE' as const,
       path: '/api/recipes/:recipeId/ingredients/:id',
       responses: {
@@ -119,7 +130,7 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
-  }
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {

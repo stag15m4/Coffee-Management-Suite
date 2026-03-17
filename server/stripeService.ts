@@ -1,12 +1,17 @@
+import crypto from 'crypto';
 import { getUncachableStripeClient } from './stripeClient';
 
 export class StripeService {
   async createCustomer(email: string, tenantId: string, tenantName: string) {
     const stripe = await getUncachableStripeClient();
-    return await stripe.customers.create({
-      email,
-      metadata: { tenantId, tenantName },
-    });
+    const idempotencyKey = `create-customer-${tenantId}`;
+    return await stripe.customers.create(
+      {
+        email,
+        metadata: { tenantId, tenantName },
+      },
+      { idempotencyKey }
+    );
   }
 
   async createCheckoutSession(
@@ -18,23 +23,31 @@ export class StripeService {
     quantity: number = 1
   ) {
     const stripe = await getUncachableStripeClient();
-    return await stripe.checkout.sessions.create({
-      customer: customerId,
-      payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity }],
-      mode: 'subscription',
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      metadata: { tenantId },
-    });
+    const idempotencyKey = `checkout-${tenantId}-${priceId}-${quantity}`;
+    return await stripe.checkout.sessions.create(
+      {
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [{ price: priceId, quantity }],
+        mode: 'subscription',
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: { tenantId },
+      },
+      { idempotencyKey }
+    );
   }
 
   async createCustomerPortalSession(customerId: string, returnUrl: string) {
     const stripe = await getUncachableStripeClient();
-    return await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: returnUrl,
-    });
+    const idempotencyKey = crypto.randomUUID();
+    return await stripe.billingPortal.sessions.create(
+      {
+        customer: customerId,
+        return_url: returnUrl,
+      },
+      { idempotencyKey }
+    );
   }
 
   async getProduct(productId: string) {
@@ -59,15 +72,15 @@ export class StripeService {
       stripe.prices.list({ active: true, limit: 100 }),
     ]);
 
-    return products.data.map(product => ({
+    return products.data.map((product) => ({
       id: product.id,
       name: product.name,
       description: product.description,
       active: product.active,
       metadata: product.metadata,
       prices: prices.data
-        .filter(price => price.product === product.id)
-        .map(price => ({
+        .filter((price) => price.product === product.id)
+        .map((price) => ({
           id: price.id,
           unit_amount: price.unit_amount,
           currency: price.currency,
@@ -110,19 +123,26 @@ export class StripeService {
       });
 
       const pm = subscription.default_payment_method;
-      const paymentMethod = pm && typeof pm === 'object' && 'card' in pm ? {
-        brand: pm.card?.brand || null,
-        last4: pm.card?.last4 || null,
-        exp_month: pm.card?.exp_month || null,
-        exp_year: pm.card?.exp_year || null,
-      } : null;
+      const paymentMethod =
+        pm && typeof pm === 'object' && 'card' in pm
+          ? {
+              brand: pm.card?.brand || null,
+              last4: pm.card?.last4 || null,
+              exp_month: pm.card?.exp_month || null,
+              exp_year: pm.card?.exp_year || null,
+            }
+          : null;
 
-      const items = subscription.items?.data?.map((item) => ({
-        product_name: typeof item.price?.product === 'object' && item.price.product && 'name' in item.price.product ? (item.price.product as any).name : null,
-        price_amount: item.price?.unit_amount || 0,
-        currency: item.price?.currency || 'usd',
-        interval: item.price?.recurring?.interval || null,
-      })) || [];
+      const items =
+        subscription.items?.data?.map((item) => ({
+          product_name:
+            typeof item.price?.product === 'object' && item.price.product && 'name' in item.price.product
+              ? (item.price.product as any).name
+              : null,
+          price_amount: item.price?.unit_amount || 0,
+          currency: item.price?.currency || 'usd',
+          interval: item.price?.recurring?.interval || null,
+        })) || [];
 
       // In Stripe v20+, current_period is on the latest invoice, not the subscription
       const latestInvoice = subscription.latest_invoice;
@@ -155,24 +175,33 @@ export class StripeService {
         next_payment_attempt: invoice.next_payment_attempt,
         period_start: invoice.period_start,
         period_end: invoice.period_end,
-        lines: invoice.lines?.data?.map((line) => ({
-          description: line.description,
-          amount: line.amount,
-        })) || [],
+        lines:
+          invoice.lines?.data?.map((line) => ({
+            description: line.description,
+            amount: line.amount,
+          })) || [],
       };
     } catch {
       return null;
     }
   }
 
-  async createCoupon(percentOff: number, duration: 'once' | 'repeating' | 'forever', metadata?: Record<string, string>) {
+  async createCoupon(
+    percentOff: number,
+    duration: 'once' | 'repeating' | 'forever',
+    metadata?: Record<string, string>
+  ) {
     const stripe = await getUncachableStripeClient();
-    return await stripe.coupons.create({
-      percent_off: percentOff,
-      duration,
-      duration_in_months: duration === 'repeating' ? 1 : undefined,
-      metadata,
-    });
+    const idempotencyKey = crypto.randomUUID();
+    return await stripe.coupons.create(
+      {
+        percent_off: percentOff,
+        duration,
+        duration_in_months: duration === 'repeating' ? 1 : undefined,
+        metadata,
+      },
+      { idempotencyKey }
+    );
   }
 
   async applySubscriptionDiscount(subscriptionId: string, couponId: string) {
@@ -186,11 +215,15 @@ export class StripeService {
 
   async createResellerCustomer(email: string, resellerId: string, resellerName: string) {
     const stripe = await getUncachableStripeClient();
-    return await stripe.customers.create({
-      email,
-      name: resellerName,
-      metadata: { resellerId, type: 'reseller' },
-    });
+    const idempotencyKey = `create-reseller-customer-${resellerId}`;
+    return await stripe.customers.create(
+      {
+        email,
+        name: resellerName,
+        metadata: { resellerId, type: 'reseller' },
+      },
+      { idempotencyKey }
+    );
   }
 
   async createResellerInvoice(
@@ -202,26 +235,36 @@ export class StripeService {
     const stripe = await getUncachableStripeClient();
 
     // Create an invoice
-    const invoice = await stripe.invoices.create({
-      customer: customerId,
-      collection_method: 'send_invoice',
-      days_until_due: daysUntilDue,
-      metadata,
-      payment_settings: {
-        payment_method_types: ['ach_debit', 'card', 'us_bank_account'],
+    const itemsHash = crypto.createHash('sha256').update(JSON.stringify(lineItems)).digest('hex').slice(0, 16);
+    const invoiceIdempotencyKey = `create-invoice-${customerId}-${itemsHash}`;
+    const invoice = await stripe.invoices.create(
+      {
+        customer: customerId,
+        collection_method: 'send_invoice',
+        days_until_due: daysUntilDue,
+        metadata,
+        payment_settings: {
+          payment_method_types: ['ach_debit', 'card', 'us_bank_account'],
+        },
       },
-    });
+      { idempotencyKey: invoiceIdempotencyKey }
+    );
 
     // Add line items
-    for (const item of lineItems) {
-      await stripe.invoiceItems.create({
-        customer: customerId,
-        invoice: invoice.id,
-        description: item.description,
-        amount: item.amount, // in cents
-        quantity: item.quantity,
-        currency: 'usd',
-      });
+    for (let i = 0; i < lineItems.length; i++) {
+      const item = lineItems[i];
+      const itemIdempotencyKey = `create-invoice-item-${invoice.id}-${i}`;
+      await stripe.invoiceItems.create(
+        {
+          customer: customerId,
+          invoice: invoice.id,
+          description: item.description,
+          amount: item.amount, // in cents
+          quantity: item.quantity,
+          currency: 'usd',
+        },
+        { idempotencyKey: itemIdempotencyKey }
+      );
     }
 
     return invoice;

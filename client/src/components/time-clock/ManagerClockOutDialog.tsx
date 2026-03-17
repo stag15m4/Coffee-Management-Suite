@@ -38,12 +38,8 @@ export function ManagerClockOutDialog({ entry, employeeName, onClose }: ManagerC
   const inParts = splitLocal(entry.clock_in);
   const [clockInDate, setClockInDate] = useState(inParts.date);
   const [clockInTime, setClockInTime] = useState(inParts.time);
-  const [clockOutDate, setClockOutDate] = useState(
-    entry.clock_out ? splitLocal(entry.clock_out).date : inParts.date
-  );
-  const [clockOutTime, setClockOutTime] = useState(
-    entry.clock_out ? splitLocal(entry.clock_out).time : ''
-  );
+  const [clockOutDate, setClockOutDate] = useState(entry.clock_out ? splitLocal(entry.clock_out).date : inParts.date);
+  const [clockOutTime, setClockOutTime] = useState(entry.clock_out ? splitLocal(entry.clock_out).time : '');
   const [managerNotes, setManagerNotes] = useState('');
 
   const handleForceClockOut = useCallback(async () => {
@@ -100,7 +96,18 @@ export function ManagerClockOutDialog({ entry, employeeName, onClose }: ManagerC
     } catch {
       toast({ title: 'Error', description: 'Failed to update time entry.', variant: 'destructive' });
     }
-  }, [entry, clockInDate, clockInTime, clockOutDate, clockOutTime, managerNotes, editEntry, updateNotes, toast, onClose]);
+  }, [
+    entry,
+    clockInDate,
+    clockInTime,
+    clockOutDate,
+    clockOutTime,
+    managerNotes,
+    editEntry,
+    updateNotes,
+    toast,
+    onClose,
+  ]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -114,9 +121,19 @@ export function ManagerClockOutDialog({ entry, employeeName, onClose }: ManagerC
         <CardContent className="space-y-4">
           {/* Current entry info */}
           <div className="p-2 rounded-lg text-sm" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
-            <p className="font-medium" style={{ color: colors.brown }}>{employeeName}</p>
-            <p>In: {formatTimestamp(entry.clock_in)} &middot; {new Date(entry.clock_in).toLocaleDateString([], { month: 'short', day: 'numeric' })}</p>
-            <p>Out: {entry.clock_out ? `${formatTimestamp(entry.clock_out)} · ${new Date(entry.clock_out).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : 'Still clocked in'}</p>
+            <p className="font-medium" style={{ color: colors.brown }}>
+              {employeeName}
+            </p>
+            <p>
+              In: {formatTimestamp(entry.clock_in)} &middot;{' '}
+              {new Date(entry.clock_in).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+            </p>
+            <p>
+              Out:{' '}
+              {entry.clock_out
+                ? `${formatTimestamp(entry.clock_out)} · ${new Date(entry.clock_out).toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+                : 'Still clocked in'}
+            </p>
           </div>
 
           {/* Force clock out button — only for active entries */}
@@ -134,7 +151,9 @@ export function ManagerClockOutDialog({ entry, employeeName, onClose }: ManagerC
           {isActive && (
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px" style={{ backgroundColor: colors.creamDark }} />
-              <span className="text-xs" style={{ color: colors.brownLight }}>or enter a specific time</span>
+              <span className="text-xs" style={{ color: colors.brownLight }}>
+                or enter a specific time
+              </span>
               <div className="flex-1 h-px" style={{ backgroundColor: colors.creamDark }} />
             </div>
           )}
@@ -143,14 +162,20 @@ export function ManagerClockOutDialog({ entry, employeeName, onClose }: ManagerC
           <div className="space-y-1.5">
             <Label style={{ color: colors.brown }}>Clock In</Label>
             <div className="flex gap-2">
-              <Input type="date" value={clockInDate}
+              <Input
+                type="date"
+                value={clockInDate}
                 onChange={(e) => setClockInDate(e.target.value)}
                 className="flex-1"
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-              <Input type="time" value={clockInTime}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
+              <Input
+                type="time"
+                value={clockInTime}
                 onChange={(e) => setClockInTime(e.target.value)}
                 className="w-28"
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
             </div>
           </div>
 
@@ -158,34 +183,47 @@ export function ManagerClockOutDialog({ entry, employeeName, onClose }: ManagerC
           <div className="space-y-1.5">
             <Label style={{ color: colors.brown }}>Clock Out</Label>
             <div className="flex gap-2">
-              <Input type="date" value={clockOutDate}
+              <Input
+                type="date"
+                value={clockOutDate}
                 onChange={(e) => setClockOutDate(e.target.value)}
                 className="flex-1"
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-              <Input type="time" value={clockOutTime}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
+              <Input
+                type="time"
+                value={clockOutTime}
                 onChange={(e) => setClockOutTime(e.target.value)}
                 className="w-28"
                 placeholder="--:--"
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
             </div>
           </div>
 
           {/* Manager notes */}
           <div className="space-y-1.5">
             <Label style={{ color: colors.brown }}>Manager Notes</Label>
-            <Textarea value={managerNotes} placeholder="Optional note..."
+            <Textarea
+              value={managerNotes}
+              placeholder="Optional note..."
               onChange={(e) => setManagerNotes(e.target.value)}
-              style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} rows={2} />
+              style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+              rows={2}
+            />
           </div>
 
           {/* Action buttons */}
           <div className="flex gap-2 pt-2">
-            <Button onClick={handleSaveTime} disabled={editEntry.isPending}
-              style={{ backgroundColor: colors.gold, color: colors.white }} className="flex-1">
+            <Button
+              onClick={handleSaveTime}
+              disabled={editEntry.isPending}
+              style={{ backgroundColor: colors.gold, color: colors.white }}
+              className="flex-1"
+            >
               <Clock className="w-4 h-4 mr-1" /> Save Time
             </Button>
-            <Button variant="outline" onClick={onClose}
-              style={{ borderColor: colors.creamDark, color: colors.brown }}>
+            <Button variant="outline" onClick={onClose} style={{ borderColor: colors.creamDark, color: colors.brown }}>
               Cancel
             </Button>
           </div>

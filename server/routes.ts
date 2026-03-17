@@ -1,125 +1,83 @@
-import type { Express, Request, Response, NextFunction } from "express";
-import type { Server } from "http";
-import { storage } from "./storage";
-import { api } from "@shared/routes";
-import { z } from "zod";
-import { sendOrderEmail, sendFeedbackEmail, sendBetaInviteEmail, type OrderEmailData, type FeedbackEmailData } from "./resend";
-import { registerObjectStorageRoutes } from "./objectStorageRoutes";
-import { db } from "./db";
-import { sql } from "drizzle-orm";
-import ical from "node-ical";
-import { getSupabaseAdmin } from "./supabaseAdmin";
-import crypto from "crypto";
-import rateLimit from "express-rate-limit";
-import * as qboService from "./qboService";
+import type { Express, Request, Response, NextFunction } from 'express';
+import type { Server } from 'http';
+import { storage } from './storage';
+import { api } from '@shared/routes';
+import { z } from 'zod';
+import { sendOrderEmail, sendFeedbackEmail, type OrderEmailData, type FeedbackEmailData } from './resend';
+import { registerObjectStorageRoutes } from './objectStorageRoutes';
+import { db, pool } from './db';
+import { sql } from 'drizzle-orm';
+import ical from 'node-ical';
+import { getSupabaseAdmin } from './supabaseAdmin';
+import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
+import * as qboService from './qboService';
+import logger from './logger';
 
-// Rate limiters for sensitive endpoints
-const authRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // 20 attempts per window
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many attempts. Please try again later.' },
+// Import shared helpers from route modules
+import {
+  getUserIdFromRequest,
+  getTrustedBaseUrl,
+  getTenantIdForUser,
+  logAuditEvent,
+  requirePlatformAdmin,
+  enforceMapLimit,
+  authRateLimit,
+} from './routes/core';
+
+// Import the route module registrar
+import { registerAllRouteModules } from './routes/index';
+
+// Coffee Order Email Schema
+const sendOrderEmailSchema = z.object({
+  vendorEmail: z.string().email(),
+  ccEmail: z.string().email().optional().or(z.literal('')),
+  vendorName: z.string(),
+  orderItems: z.array(
+    z.object({
+      name: z.string(),
+      size: z.string(),
+      quantity: z.number(),
+      price: z.number(),
+      retailLabels: z.number().optional(),
+      category: z.string().optional(),
+    })
+  ),
+  totalUnits: z.number(),
+  totalCost: z.number(),
+  notes: z.string().optional(),
+  tenantName: z.string().optional(),
 });
 
-const kioskVerifyRateLimit = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 15, // 15 attempts per minute (multiple employees may use same kiosk IP)
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many verification attempts. Please wait a moment.' },
+// Feedback Email Schema
+const sendFeedbackEmailSchema = z.object({
+  feedbackType: z.enum(['bug', 'suggestion', 'general']),
+  subject: z.string(),
+  description: z.string().min(1, 'Description is required'),
+  pageUrl: z.string().optional(),
+  browserInfo: z.string().optional(),
+  userEmail: z.string().email().optional(),
+  userName: z.string().optional(),
+  tenantId: z.string().optional(),
+  tenantName: z.string().optional(),
 });
 
-const licenseValidateRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 30, // 30 attempts per window — generous for legitimate signup flow
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many validation attempts. Please try again later.' },
-});
+export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
+  // =====================================================
+  // Register route sub-modules (admin, kiosk, billing, reseller, tips)
+  // =====================================================
+  await registerAllRouteModules(app);
 
-// Extract user ID from request via Authorization Bearer JWT
-async function getUserIdFromRequest(req: Request): Promise<{ userId: string | null; debug: string }> {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader?.startsWith('Bearer ')) {
-    return { userId: null, debug: 'No Bearer token' };
-  }
+  // =====================================================
+  // INGREDIENT ROUTES
+  // =====================================================
 
-  const token = authHeader.slice(7);
-  try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-    if (!error && user?.id) {
-      return { userId: user.id, debug: 'JWT verified' };
-    }
-    return { userId: null, debug: `JWT verify failed: ${error?.message || 'no user returned'}` };
-  } catch (err: any) {
-    return { userId: null, debug: `JWT error: ${err.message}` };
-  }
-}
-
-// Build a trusted base URL from request, preferring APP_URL env var.
-// Falls back to request headers only for known safe domains (Codespaces, localhost).
-function getTrustedBaseUrl(req: Request): string {
-  if (process.env.APP_URL) {
-    return process.env.APP_URL;
-  }
-  const proto = req.get('x-forwarded-proto') || req.protocol;
-  const host = req.get('x-forwarded-host') || req.get('host') || '';
-  // Only trust hosts that match known patterns
-  if (
-    host.startsWith('localhost') ||
-    host.endsWith('.app.github.dev') ||
-    host.endsWith('.preview.app.github.dev')
-  ) {
-    return `${proto}://${host}`;
-  }
-  // Reject unknown hosts — require APP_URL in production
-  throw new Error('APP_URL environment variable must be set for this operation');
-}
-
-// Helper to verify platform admin status
-async function verifyPlatformAdmin(userId: string | undefined): Promise<{ isAdmin: boolean; debug: string }> {
-  if (!userId) {
-    return { isAdmin: false, debug: 'No userId provided' };
-  }
-  try {
-    const result = await db.execute(sql`
-      SELECT 1 FROM platform_admins
-      WHERE id = ${userId}::uuid AND is_active = true
-      LIMIT 1
-    `);
-    return { isAdmin: result.rows.length > 0, debug: result.rows.length > 0 ? 'Admin verified' : `userId ${userId} not found in platform_admins` };
-  } catch (error: any) {
-    return { isAdmin: false, debug: `DB error: ${error.message}` };
-  }
-}
-
-// Middleware to require platform admin
-const requirePlatformAdmin = async (req: Request, res: Response, next: NextFunction) => {
-  const { userId, debug: authDebug } = await getUserIdFromRequest(req);
-  const { isAdmin, debug: adminDebug } = await verifyPlatformAdmin(userId ?? undefined);
-  if (!isAdmin) {
-    console.error(`[platform-admin] Access denied: ${authDebug} | ${adminDebug}`);
-    console.error(`[platform-admin] Denied: ${authDebug} | ${adminDebug}`);
-    return res.status(403).json({ error: 'Platform admin access required' });
-  }
-  (req as any).userId = userId;
-  next();
-};
-
-export async function registerRoutes(
-  httpServer: Server,
-  app: Express
-): Promise<Server> {
-
-  // Ingredients Routes — legacy seed-data endpoints (no tenant isolation in Drizzle schema).
-  // Gated to non-production to prevent cross-tenant data exposure.
-  if (process.env.NODE_ENV !== 'production') {
   app.get(api.ingredients.list.path, async (req, res) => {
     const { userId } = await getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Authentication required' });
-    const ingredients = await storage.getIngredients();
+    const tenantId = await getTenantIdForUser(userId);
+    if (!tenantId) return res.status(403).json({ error: 'No tenant association found' });
+    const ingredients = await storage.getIngredients(tenantId);
     res.json(ingredients);
   });
 
@@ -127,8 +85,10 @@ export async function registerRoutes(
     try {
       const { userId } = await getUserIdFromRequest(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
+      const tenantId = await getTenantIdForUser(userId);
+      if (!tenantId) return res.status(403).json({ error: 'No tenant association found' });
       const input = api.ingredients.create.input.parse(req.body);
-      const ingredient = await storage.createIngredient(input);
+      const ingredient = await storage.createIngredient({ ...input, tenantId });
       res.status(201).json(ingredient);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -137,7 +97,7 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      console.error('Error creating ingredient:', err);
+      logger.error({ err }, 'Error creating ingredient');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -169,7 +129,7 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      console.error('Error updating ingredient:', err);
+      logger.error({ err }, 'Error updating ingredient');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -180,9 +140,11 @@ export async function registerRoutes(
     await storage.deleteIngredient(req.params.id);
     res.status(204).end();
   });
-  } // end dev-only ingredient/recipe routes
 
-  // Coffee Order Email Route (requires authentication)
+  // =====================================================
+  // COFFEE ORDER EMAIL ROUTE
+  // =====================================================
+
   app.post('/api/coffee-order/send-email', async (req, res) => {
     try {
       const { userId } = await getUserIdFromRequest(req);
@@ -199,9 +161,9 @@ export async function registerRoutes(
         totalUnits: data.totalUnits,
         totalCost: data.totalCost,
         notes: data.notes,
-        tenantName: data.tenantName
+        tenantName: data.tenantName,
       });
-      
+
       if (result.success) {
         res.json({ success: true });
       } else {
@@ -211,15 +173,18 @@ export async function registerRoutes(
       if (err instanceof z.ZodError) {
         return res.status(400).json({
           success: false,
-          error: err.errors[0].message
+          error: err.errors[0].message,
         });
       }
-      console.error('Email send error:', err);
+      logger.error({ err }, 'Email send error');
       res.status(500).json({ success: false, error: 'Failed to send email' });
     }
   });
 
-  // Feedback Submit Route with basic rate limiting
+  // =====================================================
+  // FEEDBACK SUBMIT ROUTE
+  // =====================================================
+
   const feedbackRateLimit: Map<string, { count: number; resetTime: number }> = new Map();
   const FEEDBACK_LIMIT = 5; // max 5 submissions per hour
   const FEEDBACK_WINDOW = 60 * 60 * 1000; // 1 hour in ms
@@ -227,47 +192,58 @@ export async function registerRoutes(
   app.post('/api/feedback/submit', async (req, res) => {
     try {
       // M12: Require JWT authentication for feedback
-      const { userId } = await getUserIdFromRequest(req);
+      const { userId, userEmail: authenticatedEmail } = await getUserIdFromRequest(req);
       if (!userId) {
         return res.status(401).json({ success: false, error: 'Authentication required' });
       }
 
       const data = sendFeedbackEmailSchema.parse(req.body);
-      
+
+      // Prevent email injection: verify client-supplied email matches authenticated user
+      let verifiedEmail = authenticatedEmail;
+      if (data.userEmail) {
+        if (authenticatedEmail && data.userEmail !== authenticatedEmail) {
+          return res.status(400).json({ success: false, error: 'Email must match your account' });
+        }
+        verifiedEmail = data.userEmail;
+      }
+
       // Rate limiting by IP + email
       const clientIP = req.ip || req.socket.remoteAddress || 'unknown';
-      const rateLimitKey = `${clientIP}:${data.userEmail}`;
+      const rateLimitKey = `${clientIP}:${verifiedEmail}`;
       const now = Date.now();
-      
+
       const rateData = feedbackRateLimit.get(rateLimitKey);
       if (rateData) {
         if (now < rateData.resetTime) {
           if (rateData.count >= FEEDBACK_LIMIT) {
-            return res.status(429).json({ 
-              success: false, 
-              error: 'Too many feedback submissions. Please try again later.' 
+            return res.status(429).json({
+              success: false,
+              error: 'Too many feedback submissions. Please try again later.',
             });
           }
           rateData.count++;
         } else {
           feedbackRateLimit.set(rateLimitKey, { count: 1, resetTime: now + FEEDBACK_WINDOW });
+          enforceMapLimit(feedbackRateLimit, 10_000);
         }
       } else {
         feedbackRateLimit.set(rateLimitKey, { count: 1, resetTime: now + FEEDBACK_WINDOW });
+        enforceMapLimit(feedbackRateLimit, 10_000);
       }
-      
+
       const result = await sendFeedbackEmail({
         feedbackType: data.feedbackType,
         subject: data.subject,
         description: data.description,
         pageUrl: data.pageUrl,
         browserInfo: data.browserInfo,
-        userEmail: data.userEmail,
+        userEmail: verifiedEmail ?? undefined,
         userName: data.userName,
         tenantId: data.tenantId,
-        tenantName: data.tenantName
+        tenantName: data.tenantName,
       });
-      
+
       if (result.success) {
         res.json({ success: true });
       } else {
@@ -277,19 +253,24 @@ export async function registerRoutes(
       if (err instanceof z.ZodError) {
         return res.status(400).json({
           success: false,
-          error: err.errors[0].message
+          error: err.errors[0].message,
         });
       }
-      console.error('Feedback send error:', err);
+      logger.error({ err }, 'Feedback send error');
       res.status(500).json({ success: false, error: 'Failed to submit feedback' });
     }
   });
 
-  // Recipes Routes (require authentication)
+  // =====================================================
+  // RECIPE ROUTES
+  // =====================================================
+
   app.get(api.recipes.list.path, async (req, res) => {
     const { userId } = await getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Authentication required' });
-    const recipes = await storage.getRecipes();
+    const tenantId = await getTenantIdForUser(userId);
+    if (!tenantId) return res.status(403).json({ error: 'No tenant association found' });
+    const recipes = await storage.getRecipes(tenantId);
     res.json(recipes);
   });
 
@@ -297,8 +278,10 @@ export async function registerRoutes(
     try {
       const { userId } = await getUserIdFromRequest(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
+      const tenantId = await getTenantIdForUser(userId);
+      if (!tenantId) return res.status(403).json({ error: 'No tenant association found' });
       const input = api.recipes.create.input.parse(req.body);
-      const recipe = await storage.createRecipe(input);
+      const recipe = await storage.createRecipe({ ...input, tenantId });
       res.status(201).json(recipe);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -307,7 +290,7 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      console.error('Error creating recipe:', err);
+      logger.error({ err }, 'Error creating recipe');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -323,7 +306,7 @@ export async function registerRoutes(
   });
 
   app.put(api.recipes.update.path, async (req, res) => {
-     try {
+    try {
       const { userId } = await getUserIdFromRequest(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
       const input = api.recipes.update.input.parse(req.body);
@@ -339,7 +322,7 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      console.error('Error updating recipe:', err);
+      logger.error({ err }, 'Error updating recipe');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -351,19 +334,24 @@ export async function registerRoutes(
     res.status(204).end();
   });
 
-  // Recipe Ingredients Routes (require authentication)
+  // =====================================================
+  // RECIPE INGREDIENT ROUTES
+  // =====================================================
+
   app.post(api.recipeIngredients.create.path, async (req, res) => {
     try {
       const { userId } = await getUserIdFromRequest(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
+      const tenantId = await getTenantIdForUser(userId);
+      if (!tenantId) return res.status(403).json({ error: 'No tenant association found' });
       const recipeId = req.params.recipeId;
       const bodySchema = api.recipeIngredients.create.input.extend({
-         recipeId: z.string().default(recipeId) // inject recipeId
+        recipeId: z.string().default(recipeId), // inject recipeId
       });
 
       const input = bodySchema.parse({ ...req.body, recipeId });
 
-      const item = await storage.addRecipeIngredient(input);
+      const item = await storage.addRecipeIngredient({ ...input, tenantId });
       res.status(201).json(item);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -372,7 +360,7 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      console.error('Error adding recipe ingredient:', err);
+      logger.error({ err }, 'Error adding recipe ingredient');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -386,234 +374,6 @@ export async function registerRoutes(
 
   // Register object storage routes for file uploads
   registerObjectStorageRoutes(app);
-
-  // Stripe Routes
-  const { stripeService } = await import('./stripeService');
-  const { getStripePublishableKey } = await import('./stripeClient');
-
-  app.get('/api/stripe/publishable-key', async (req, res) => {
-    try {
-      const publishableKey = await getStripePublishableKey();
-      res.json({ publishableKey });
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  app.get('/api/stripe/products', async (req, res) => {
-    try {
-      const products = await stripeService.listProductsWithPrices();
-      res.json({ data: products });
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  app.post('/api/stripe/checkout', async (req, res) => {
-    try {
-      const { priceId, tenantId, tenantEmail, tenantName } = req.body;
-
-      if (!priceId || !tenantId || !tenantEmail) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
-
-      // Authenticate via JWT
-      const { userId } = await getUserIdFromRequest(req);
-      if (!userId) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      const userProfileResult = await db.execute(
-        sql`SELECT tenant_id, role FROM user_profiles WHERE id = ${userId}`
-      );
-      const userProfile = userProfileResult.rows[0] as any;
-      
-      if (!userProfile || userProfile.tenant_id !== tenantId) {
-        return res.status(403).json({ error: 'Not authorized for this tenant' });
-      }
-      
-      if (userProfile.role !== 'owner') {
-        return res.status(403).json({ error: 'Only owners can manage billing' });
-      }
-
-      let stripeCustomerId = null;
-      
-      const tenantResult = await storage.getTenant(tenantId);
-      if (tenantResult?.stripe_customer_id) {
-        stripeCustomerId = tenantResult.stripe_customer_id;
-      } else {
-        const customer = await stripeService.createCustomer(tenantEmail, tenantId, tenantName || 'Tenant');
-        stripeCustomerId = customer.id;
-        await storage.updateTenantStripeInfo(tenantId, { stripeCustomerId: customer.id });
-      }
-
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const session = await stripeService.createCheckoutSession(
-        stripeCustomerId,
-        priceId,
-        `${baseUrl}/billing?success=true`,
-        `${baseUrl}/billing?canceled=true`,
-        tenantId
-      );
-
-      res.json({ url: session.url });
-    } catch (error: any) {
-      console.error('Checkout error:', error);
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  app.post('/api/stripe/portal', async (req, res) => {
-    try {
-      const { tenantId } = req.body;
-
-      if (!tenantId) {
-        return res.status(400).json({ error: 'Missing tenantId' });
-      }
-
-      // Authenticate via JWT
-      const { userId } = await getUserIdFromRequest(req);
-      if (!userId) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      const userProfileResult = await db.execute(
-        sql`SELECT tenant_id, role FROM user_profiles WHERE id = ${userId}`
-      );
-      const userProfile = userProfileResult.rows[0] as any;
-      
-      if (!userProfile || userProfile.tenant_id !== tenantId) {
-        return res.status(403).json({ error: 'Not authorized for this tenant' });
-      }
-      
-      if (userProfile.role !== 'owner') {
-        return res.status(403).json({ error: 'Only owners can manage billing' });
-      }
-
-      const tenant = await storage.getTenant(tenantId);
-      if (!tenant?.stripe_customer_id) {
-        return res.status(400).json({ error: 'No Stripe customer found for this tenant' });
-      }
-
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const session = await stripeService.createCustomerPortalSession(
-        tenant.stripe_customer_id,
-        `${baseUrl}/billing`
-      );
-
-      res.json({ url: session.url });
-    } catch (error: any) {
-      console.error('Portal error:', error);
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  app.get('/api/stripe/subscription/:tenantId', async (req, res) => {
-    try {
-      // Require authentication + tenant ownership
-      const { userId } = await getUserIdFromRequest(req);
-      if (!userId) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-      const tenantId = req.params.tenantId;
-      const profileResult = await db.execute(
-        sql`SELECT tenant_id FROM user_profiles WHERE id = ${userId}::uuid AND is_active = true LIMIT 1`
-      );
-      const profile = profileResult.rows[0] as any;
-      if (!profile || profile.tenant_id !== tenantId) {
-        return res.status(403).json({ error: 'Not authorized for this tenant' });
-      }
-
-      const tenant = await storage.getTenant(tenantId);
-      if (!tenant?.stripe_subscription_id) {
-        return res.json({ subscription: null });
-      }
-
-      const subscription = await stripeService.getSubscription(tenant.stripe_subscription_id);
-      res.json({ subscription });
-    } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch subscription' });
-    }
-  });
-
-  // =====================================================
-  // BILLING DETAILS
-  // =====================================================
-
-  app.get('/api/stripe/billing-details/:tenantId', async (req, res) => {
-    try {
-      const { userId } = await getUserIdFromRequest(req);
-      if (!userId) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      const tenantId = req.params.tenantId;
-
-      // Verify user belongs to this tenant
-      const profileResult = await db.execute(
-        sql`SELECT tenant_id FROM user_profiles WHERE id = ${userId}::uuid AND is_active = true LIMIT 1`
-      );
-      const userProfile = profileResult.rows[0] as any;
-      if (!userProfile || userProfile.tenant_id !== tenantId) {
-        return res.status(403).json({ error: 'Not authorized for this tenant' });
-      }
-
-      const tenant = await storage.getTenant(tenantId);
-      if (!tenant) {
-        return res.status(404).json({ error: 'Tenant not found' });
-      }
-
-      // Get tenant plan info from DB
-      const tenantInfo = await db.execute(sql`
-        SELECT subscription_plan, subscription_status, trial_ends_at,
-               stripe_customer_id, stripe_subscription_id, stripe_subscription_status,
-               license_code_id, billable_locations, billing_interval, is_grandfathered
-        FROM tenants WHERE id = ${tenantId}
-      `);
-      const tenantData = tenantInfo.rows[0] as any;
-
-      const result: any = {
-        subscription_plan: tenantData?.subscription_plan || 'free',
-        subscription_status: tenantData?.subscription_status || 'trial',
-        trial_ends_at: tenantData?.trial_ends_at || null,
-        stripe_subscription_status: tenantData?.stripe_subscription_status || null,
-        license_code_id: tenantData?.license_code_id || null,
-        billable_locations: tenantData?.billable_locations || 1,
-        billing_interval: tenantData?.billing_interval || 'monthly',
-        is_grandfathered: tenantData?.is_grandfathered || false,
-        subscription: null,
-        upcoming_invoice: null,
-      };
-
-      // If has Stripe subscription, fetch details
-      if (tenantData?.stripe_subscription_id) {
-        result.subscription = await stripeService.getSubscriptionDetails(tenantData.stripe_subscription_id);
-      }
-
-      // If has Stripe customer, fetch upcoming invoice
-      if (tenantData?.stripe_customer_id) {
-        result.upcoming_invoice = await stripeService.getUpcomingInvoice(tenantData.stripe_customer_id);
-      }
-
-      // If redeemed via license code, fetch license info
-      if (tenantData?.license_code_id) {
-        const licenseResult = await db.execute(sql`
-          SELECT code, subscription_plan, redeemed_at, expires_at
-          FROM license_codes WHERE id = ${tenantData.license_code_id}
-        `);
-        result.license_code = licenseResult.rows[0] || null;
-      }
-
-      res.json(result);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
 
   // =====================================================
   // SQUARE INTEGRATION ROUTES
@@ -641,7 +401,7 @@ export async function registerRoutes(
 
   // --- OAuth ---
 
-  // CSRF state map for Square OAuth: maps state token → { tenantId, expiresAt }
+  // CSRF state map for Square OAuth: maps state token -> { tenantId, expiresAt }
   const squareOAuthStates = new Map<string, { tenantId: string; expiresAt: number }>();
 
   app.get('/api/square/auth-url', async (req, res) => {
@@ -666,7 +426,6 @@ export async function registerRoutes(
   });
 
   // Server-side OAuth callback — Square redirects here with ?code=...&state=stateToken
-  // This exchanges the code instantly (no SPA load delay) then redirects to the frontend.
   app.get('/api/square/oauth/callback', async (req, res) => {
     const { code, state: stateToken } = req.query;
     const frontendUrl = '/admin/integrations';
@@ -679,7 +438,9 @@ export async function registerRoutes(
     const stateData = squareOAuthStates.get(stateToken as string);
     squareOAuthStates.delete(stateToken as string); // one-time use
     if (!stateData || Date.now() > stateData.expiresAt) {
-      return res.redirect(`${frontendUrl}?square_error=${encodeURIComponent('Invalid or expired OAuth state. Please try again.')}`);
+      return res.redirect(
+        `${frontendUrl}?square_error=${encodeURIComponent('Invalid or expired OAuth state. Please try again.')}`
+      );
     }
     const tenantId = stateData.tenantId;
 
@@ -698,7 +459,7 @@ export async function registerRoutes(
 
       res.redirect(`${frontendUrl}?square_connected=true`);
     } catch (error: any) {
-      console.error('[square] OAuth callback error:', error.message);
+      logger.error({ err: error }, 'Square OAuth callback error');
       res.redirect(`${frontendUrl}?square_error=${encodeURIComponent('Failed to connect Square. Please try again.')}`);
     }
   });
@@ -711,7 +472,7 @@ export async function registerRoutes(
       await squareService.disconnectSquare(auth.tenantId);
       res.json({ success: true });
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -724,7 +485,7 @@ export async function registerRoutes(
       const status = await squareService.getSquareStatus(auth.tenantId);
       res.json(status || { connected: false });
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -744,7 +505,7 @@ export async function registerRoutes(
       await squareService.setSquareLocation(auth.tenantId, locationId);
       res.json({ success: true });
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -758,7 +519,7 @@ export async function registerRoutes(
       await squareService.toggleSquareSync(auth.tenantId, !!enabled);
       res.json({ success: true });
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -768,13 +529,27 @@ export async function registerRoutes(
       const auth = await verifySquareAdmin(req, res);
       if (!auth) return;
 
+      const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}(T[\d:.]+Z?)?$/, 'Invalid date format');
+      const syncSchema = z
+        .object({
+          startDate: isoDate,
+          endDate: isoDate,
+        })
+        .refine((d) => new Date(d.startDate) <= new Date(d.endDate), {
+          message: 'startDate must not be after endDate',
+        });
+      const parsed = syncSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid date parameters', details: parsed.error.flatten() });
+      }
+
       const result = await squareService.syncShiftsForTenant(auth.tenantId, {
-        startDate: req.body.startDate,
-        endDate: req.body.endDate,
+        startDate: parsed.data.startDate,
+        endDate: parsed.data.endDate,
       });
       res.json(result);
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -787,7 +562,7 @@ export async function registerRoutes(
       const locations = await squareService.listLocations(auth.tenantId);
       res.json(locations);
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -802,7 +577,7 @@ export async function registerRoutes(
       const members = await squareService.listTeamMembers(auth.tenantId);
       res.json(members);
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -815,7 +590,7 @@ export async function registerRoutes(
       const suggestions = await squareService.suggestEmployeeMappings(auth.tenantId);
       res.json(suggestions);
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -828,7 +603,7 @@ export async function registerRoutes(
       const mappings = await squareService.getMappings(auth.tenantId);
       res.json(mappings);
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -855,25 +630,7 @@ export async function registerRoutes(
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // =====================================================
-  // BILLING MODULES
-  // =====================================================
-
-  app.get('/api/billing/modules', async (req, res) => {
-    try {
-      const result = await db.execute(sql`
-        SELECT id, name, description, monthly_price, is_premium_only, display_order
-        FROM modules
-        ORDER BY display_order, name
-      `);
-      res.json(result.rows);
-    } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -932,7 +689,7 @@ export async function registerRoutes(
 
       res.json(result.rows[0]);
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -985,7 +742,7 @@ export async function registerRoutes(
         },
       });
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -1052,742 +809,8 @@ export async function registerRoutes(
 
       res.json({ success: true, message: 'Referral code redeemed! Your trial has been extended by 30 days.' });
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // =====================================================
-  // RESELLER & LICENSE CODE ROUTES (Platform Admin Only)
-  // =====================================================
-  
-  // Get reseller volume discount tiers
-  app.get('/api/reseller-volume-tiers', requirePlatformAdmin, async (req, res) => {
-    try {
-      const result = await db.execute(sql`
-        SELECT * FROM reseller_volume_tiers ORDER BY min_locations
-      `);
-      res.json(result.rows);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Get all resellers (platform admin only)
-  app.get('/api/resellers', requirePlatformAdmin, async (req, res) => {
-    try {
-      const resellers = await db.execute(sql`
-        SELECT * FROM resellers 
-        ORDER BY created_at DESC
-      `);
-      res.json(resellers.rows);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Get single reseller with license codes (platform admin only)
-  app.get('/api/resellers/:id', requirePlatformAdmin, async (req, res) => {
-    try {
-      const reseller = await db.execute(sql`
-        SELECT * FROM resellers WHERE id = ${req.params.id}
-      `);
-      if (!reseller.rows.length) {
-        return res.status(404).json({ error: 'Reseller not found' });
-      }
-      
-      const licenseCodes = await db.execute(sql`
-        SELECT lc.*, t.name as tenant_name, v.display_name as vertical_name
-        FROM license_codes lc
-        LEFT JOIN tenants t ON lc.tenant_id = t.id
-        LEFT JOIN verticals v ON lc.vertical_id = v.id
-        WHERE lc.reseller_id = ${req.params.id}
-        ORDER BY lc.created_at DESC
-      `);
-
-      const verticals = await db.execute(sql`
-        SELECT v.*, (SELECT COUNT(*) FROM tenants t WHERE t.vertical_id = v.id) as tenant_count
-        FROM verticals v
-        WHERE v.reseller_id = ${req.params.id}
-        ORDER BY v.created_at DESC
-      `);
-
-      const referredTenants = await db.execute(sql`
-        SELECT t.id, t.name, t.created_at, v.display_name as vertical_name
-        FROM tenants t
-        LEFT JOIN verticals v ON t.vertical_id = v.id
-        WHERE t.reseller_id = ${req.params.id}
-        ORDER BY t.created_at DESC
-      `);
-
-      res.json({
-        ...reseller.rows[0],
-        licenseCodes: licenseCodes.rows,
-        verticals: verticals.rows,
-        referredTenants: referredTenants.rows,
-      });
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Create reseller (platform admin only)
-  app.post('/api/resellers', requirePlatformAdmin, async (req, res) => {
-    try {
-      const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, revenueSharePercent, notes,
-              tier, discountPercent, minimumSeats, billingCycle, annualCommitment,
-              wholesaleRatePerSeat, cardSurchargePercent } = req.body;
-
-      const result = await db.execute(sql`
-        INSERT INTO resellers (name, contact_email, contact_name, phone, company_address, seats_total,
-                               revenue_share_percent, notes, tier, discount_percent, minimum_seats,
-                               billing_cycle, annual_commitment, wholesale_rate_per_seat,
-                               card_surcharge_percent, tier_updated_at)
-        VALUES (${name}, ${contactEmail}, ${contactName}, ${phone}, ${companyAddress}, ${seatsTotal || 0},
-                ${revenueSharePercent || 0}, ${notes}, ${tier || 'authorized'}, ${discountPercent || 20},
-                ${minimumSeats || 0}, ${billingCycle || 'monthly'}, ${annualCommitment || 0},
-                ${wholesaleRatePerSeat || 0}, ${cardSurchargePercent || 4}, NOW())
-        RETURNING *
-      `);
-
-      res.status(201).json(result.rows[0]);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Update reseller (platform admin only)
-  app.put('/api/resellers/:id', requirePlatformAdmin, async (req, res) => {
-    try {
-      const { name, contactEmail, contactName, phone, companyAddress, seatsTotal, revenueSharePercent, notes, isActive,
-              tier, discountPercent, minimumSeats, billingCycle, annualCommitment,
-              wholesaleRatePerSeat, cardSurchargePercent } = req.body;
-
-      const result = await db.execute(sql`
-        UPDATE resellers
-        SET name = ${name},
-            contact_email = ${contactEmail},
-            contact_name = ${contactName},
-            phone = ${phone},
-            company_address = ${companyAddress},
-            seats_total = ${seatsTotal},
-            revenue_share_percent = ${revenueSharePercent || 0},
-            notes = ${notes},
-            is_active = ${isActive},
-            tier = ${tier || 'authorized'},
-            discount_percent = ${discountPercent || 20},
-            minimum_seats = ${minimumSeats || 0},
-            billing_cycle = ${billingCycle || 'monthly'},
-            annual_commitment = ${annualCommitment || 0},
-            wholesale_rate_per_seat = ${wholesaleRatePerSeat || 0},
-            card_surcharge_percent = ${cardSurchargePercent || 4},
-            tier_updated_at = NOW(),
-            updated_at = NOW()
-        WHERE id = ${req.params.id}
-        RETURNING *
-      `);
-
-      if (!result.rows.length) {
-        return res.status(404).json({ error: 'Reseller not found' });
-      }
-
-      res.json(result.rows[0]);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Delete reseller (platform admin only)
-  app.delete('/api/resellers/:id', requirePlatformAdmin, async (req, res) => {
-    try {
-      await db.execute(sql`DELETE FROM resellers WHERE id = ${req.params.id}`);
-      res.status(204).end();
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Generate license codes for a reseller (platform admin only)
-  app.post('/api/resellers/:id/generate-codes', requirePlatformAdmin, async (req, res) => {
-    try {
-      const { count = 1, subscriptionPlan = 'premium', expiresAt, verticalId } = req.body;
-      const resellerId = req.params.id;
-      
-      // Check reseller exists and has available seats
-      const reseller = await db.execute(sql`
-        SELECT * FROM resellers WHERE id = ${resellerId}
-      `);
-      
-      if (!reseller.rows.length) {
-        return res.status(404).json({ error: 'Reseller not found' });
-      }
-      
-      const resellerData = reseller.rows[0] as any;
-      const availableSeats = resellerData.seats_total - resellerData.seats_used;
-      
-      // Count existing unredeemed codes
-      const unredeemedCodes = await db.execute(sql`
-        SELECT COUNT(*) as count FROM license_codes 
-        WHERE reseller_id = ${resellerId} AND redeemed_at IS NULL
-      `);
-      const pendingCodes = parseInt((unredeemedCodes.rows[0] as any).count) || 0;
-      
-      if (count > availableSeats - pendingCodes) {
-        return res.status(400).json({ 
-          error: `Cannot generate ${count} codes. Only ${availableSeats - pendingCodes} seats available.` 
-        });
-      }
-      
-      const codes = [];
-      for (let i = 0; i < count; i++) {
-        // Generate unique code
-        const codeResult = await db.execute(sql`SELECT generate_license_code() as code`);
-        const code = (codeResult.rows[0] as any).code;
-        
-        const result = await db.execute(sql`
-          INSERT INTO license_codes (code, reseller_id, subscription_plan, expires_at, vertical_id)
-          VALUES (${code}, ${resellerId}, ${subscriptionPlan}, ${expiresAt || null}, ${verticalId || null})
-          RETURNING *
-        `);
-        codes.push(result.rows[0]);
-      }
-      
-      res.status(201).json(codes);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // ── Reseller Invoicing ──────────────────────────────────────────────
-
-  // List invoices for a reseller
-  app.get('/api/resellers/:id/invoices', requirePlatformAdmin, async (req, res) => {
-    try {
-      const result = await db.execute(sql`
-        SELECT * FROM reseller_invoices
-        WHERE reseller_id = ${req.params.id}
-        ORDER BY created_at DESC
-      `);
-      res.json(result.rows);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Create invoice for a reseller
-  app.post('/api/resellers/:id/invoices', requirePlatformAdmin, async (req, res) => {
-    try {
-      const resellerId = req.params.id;
-      const { periodStart, periodEnd, dueDate, notes } = req.body;
-
-      // Fetch reseller
-      const resellerResult = await db.execute(sql`
-        SELECT * FROM resellers WHERE id = ${resellerId}
-      `);
-      const reseller = resellerResult.rows[0] as any;
-      if (!reseller) return res.status(404).json({ error: 'Reseller not found' });
-
-      const wholesaleRate = parseFloat(reseller.wholesale_rate_per_seat || '0');
-      if (wholesaleRate <= 0) {
-        return res.status(400).json({ error: 'Wholesale rate per seat must be set before creating invoices' });
-      }
-
-      // Compute billable seats: max of allocated seats and minimum floor
-      const billableSeats = Math.max(reseller.seats_total || 0, reseller.minimum_seats || 0);
-      if (billableSeats <= 0) {
-        return res.status(400).json({ error: 'No billable seats (allocate seats or set a minimum)' });
-      }
-
-      const subtotal = billableSeats * wholesaleRate;
-      const total = subtotal; // Surcharge added later if card payment
-
-      // Generate invoice number
-      const invoiceNumResult = await db.execute(sql`SELECT generate_invoice_number() as num`);
-      const invoiceNumber = (invoiceNumResult.rows[0] as any).num;
-
-      // Ensure reseller has a Stripe customer
-      let stripeCustomerId = reseller.stripe_customer_id;
-      if (!stripeCustomerId) {
-        const customer = await stripeService.createResellerCustomer(
-          reseller.contact_email,
-          resellerId,
-          reseller.name
-        );
-        stripeCustomerId = customer.id;
-        await db.execute(sql`
-          UPDATE resellers SET stripe_customer_id = ${stripeCustomerId} WHERE id = ${resellerId}
-        `);
-      }
-
-      // Create Stripe invoice
-      const stripeInvoice = await stripeService.createResellerInvoice(
-        stripeCustomerId,
-        [{
-          description: `Wholesale seats (${billableSeats} × $${wholesaleRate.toFixed(2)}/seat) — ${periodStart} to ${periodEnd}`,
-          amount: Math.round(subtotal * 100), // cents
-          quantity: 1,
-        }],
-        { resellerId, invoiceNumber },
-        30
-      );
-
-      // Insert local record
-      const result = await db.execute(sql`
-        INSERT INTO reseller_invoices (
-          reseller_id, stripe_invoice_id, invoice_number, status,
-          billable_seats, rate_per_seat, subtotal, total,
-          period_start, period_end, due_date, notes, created_by
-        )
-        VALUES (
-          ${resellerId}, ${stripeInvoice.id}, ${invoiceNumber}, 'draft',
-          ${billableSeats}, ${wholesaleRate}, ${subtotal}, ${total},
-          ${periodStart}, ${periodEnd}, ${dueDate}, ${notes || null}, ${req.body.createdBy || null}
-        )
-        RETURNING *
-      `);
-
-      res.status(201).json(result.rows[0]);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Send invoice (finalize + email to reseller)
-  app.post('/api/reseller-invoices/:id/send', requirePlatformAdmin, async (req, res) => {
-    try {
-      const invoiceResult = await db.execute(sql`
-        SELECT * FROM reseller_invoices WHERE id = ${req.params.id}
-      `);
-      const invoice = invoiceResult.rows[0] as any;
-      if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-      if (invoice.status !== 'draft') return res.status(400).json({ error: 'Only draft invoices can be sent' });
-
-      if (invoice.stripe_invoice_id) {
-        await stripeService.sendInvoice(invoice.stripe_invoice_id);
-      }
-
-      await db.execute(sql`
-        UPDATE reseller_invoices SET status = 'sent' WHERE id = ${req.params.id}
-      `);
-
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Mark invoice as paid out of band (check/ACH manual)
-  app.post('/api/reseller-invoices/:id/mark-paid', requirePlatformAdmin, async (req, res) => {
-    try {
-      const { paymentMethod, notes } = req.body;
-      const invoiceResult = await db.execute(sql`
-        SELECT * FROM reseller_invoices WHERE id = ${req.params.id}
-      `);
-      const invoice = invoiceResult.rows[0] as any;
-      if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-      if (invoice.status === 'paid') return res.status(400).json({ error: 'Invoice already paid' });
-      if (invoice.status === 'void') return res.status(400).json({ error: 'Cannot pay a voided invoice' });
-
-      // Mark paid in Stripe
-      if (invoice.stripe_invoice_id) {
-        await stripeService.markInvoicePaidOutOfBand(invoice.stripe_invoice_id);
-      }
-
-      // Update local record
-      await db.execute(sql`
-        UPDATE reseller_invoices
-        SET status = 'paid',
-            payment_method = ${paymentMethod || 'other'},
-            paid_at = NOW(),
-            notes = COALESCE(${notes || null}, notes)
-        WHERE id = ${req.params.id}
-      `);
-
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Void an invoice
-  app.post('/api/reseller-invoices/:id/void', requirePlatformAdmin, async (req, res) => {
-    try {
-      const invoiceResult = await db.execute(sql`
-        SELECT * FROM reseller_invoices WHERE id = ${req.params.id}
-      `);
-      const invoice = invoiceResult.rows[0] as any;
-      if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-      if (invoice.status === 'paid') return res.status(400).json({ error: 'Cannot void a paid invoice' });
-
-      if (invoice.stripe_invoice_id) {
-        await stripeService.voidInvoice(invoice.stripe_invoice_id);
-      }
-
-      await db.execute(sql`
-        UPDATE reseller_invoices SET status = 'void' WHERE id = ${req.params.id}
-      `);
-
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Validate a license code (public endpoint for signup flow)
-  app.get('/api/license-codes/validate/:code', licenseValidateRateLimit, async (req, res) => {
-    try {
-      const code = req.params.code.toUpperCase().replace(/-/g, '');
-      
-      const result = await db.execute(sql`
-        SELECT lc.*, r.name as reseller_name, v.display_name as vertical_name, v.slug as vertical_slug
-        FROM license_codes lc
-        JOIN resellers r ON lc.reseller_id = r.id
-        LEFT JOIN verticals v ON lc.vertical_id = v.id
-        WHERE REPLACE(lc.code, '-', '') = ${code}
-        AND lc.redeemed_at IS NULL
-        AND (lc.expires_at IS NULL OR lc.expires_at > NOW())
-        AND r.is_active = true
-      `);
-
-      if (!result.rows.length) {
-        return res.status(404).json({ valid: false, error: 'Invalid or expired license code' });
-      }
-
-      const license = result.rows[0] as any;
-      res.json({
-        valid: true,
-        code: license.code,
-        subscriptionPlan: license.subscription_plan,
-        verticalName: license.vertical_name,
-        verticalSlug: license.vertical_slug,
-      });
-    } catch (error: any) {
-      console.error('License validate error:', error);
-      res.status(500).json({ valid: false, error: 'Internal server error' });
-    }
-  });
-
-  // Redeem a license code (called during signup - requires authenticated user)
-  app.post('/api/license-codes/redeem', authRateLimit, async (req, res) => {
-    try {
-      const { code } = req.body;
-      const { userId } = await getUserIdFromRequest(req);
-
-      // Require authentication
-      if (!userId) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-      
-      if (!code) {
-        return res.status(400).json({ error: 'License code is required' });
-      }
-      
-      // Get the tenant ID server-side from the user's profile (don't trust client)
-      const userProfile = await db.execute(sql`
-        SELECT tenant_id FROM user_profiles
-        WHERE id = ${userId}::uuid
-        LIMIT 1
-      `);
-      
-      if (!userProfile.rows.length) {
-        return res.status(403).json({ error: 'User profile not found' });
-      }
-      
-      const tenantId = (userProfile.rows[0] as any).tenant_id;
-      
-      if (!tenantId) {
-        return res.status(403).json({ error: 'User has no associated tenant' });
-      }
-      
-      const result = await db.execute(sql`
-        SELECT redeem_license_code(${code}, ${tenantId}::uuid) as license_id
-      `);
-      
-      const licenseId = (result.rows[0] as any).license_id;
-      
-      if (!licenseId) {
-        return res.status(400).json({ error: 'Invalid or already redeemed license code' });
-      }
-      
-      res.json({ success: true, licenseId });
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Get all license codes (platform admin only)
-  app.get('/api/license-codes', requirePlatformAdmin, async (req, res) => {
-    try {
-      const result = await db.execute(sql`
-        SELECT lc.*, r.name as reseller_name, t.name as tenant_name
-        FROM license_codes lc
-        JOIN resellers r ON lc.reseller_id = r.id
-        LEFT JOIN tenants t ON lc.tenant_id = t.id
-        ORDER BY lc.created_at DESC
-      `);
-      res.json(result.rows);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Delete a license code (platform admin only, only if unredeemed)
-  app.delete('/api/license-codes/:id', requirePlatformAdmin, async (req, res) => {
-    try {
-      const result = await db.execute(sql`
-        DELETE FROM license_codes 
-        WHERE id = ${req.params.id} AND redeemed_at IS NULL
-        RETURNING *
-      `);
-      
-      if (!result.rows.length) {
-        return res.status(400).json({ error: 'Cannot delete redeemed license code' });
-      }
-      
-      res.status(204).end();
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // =====================================================
-  // BETA INVITE ROUTES (Platform Admin Only)
-  // =====================================================
-
-  app.post('/api/beta-invite', requirePlatformAdmin, async (req, res) => {
-    try {
-      const { email } = req.body;
-      if (!email) return res.status(400).json({ error: 'Email is required' });
-
-      // Find or create "Platform Direct" reseller for beta invites
-      let resellerResult = await db.execute(sql`
-        SELECT id FROM resellers WHERE name = 'Platform Direct' LIMIT 1
-      `);
-      let resellerId: string;
-      if (resellerResult.rows.length === 0) {
-        const created = await db.execute(sql`
-          INSERT INTO resellers (name, contact_email, contact_name, seats_total, notes)
-          VALUES ('Platform Direct', 'admin@coffeemanagementsuite.com', 'Platform', 9999, 'System reseller for direct beta invites')
-          RETURNING id
-        `);
-        resellerId = (created.rows[0] as any).id;
-      } else {
-        resellerId = (resellerResult.rows[0] as any).id;
-      }
-
-      // Generate license code
-      const codeResult = await db.execute(sql`SELECT generate_license_code() as code`);
-      const code = (codeResult.rows[0] as any).code;
-
-      // Insert license code
-      await db.execute(sql`
-        INSERT INTO license_codes (code, reseller_id, subscription_plan, invited_email, expires_at)
-        VALUES (${code}, ${resellerId}, 'beta', ${email}, NOW() + INTERVAL '90 days')
-      `);
-
-      // Send invite email — use trusted base URL (validates host header)
-      const baseUrl = getTrustedBaseUrl(req);
-      const emailResult = await sendBetaInviteEmail({
-        recipientEmail: email,
-        licenseCode: code,
-        signupUrl: `${baseUrl}/signup/${code}`,
-      });
-
-      if (!emailResult.success) {
-        // Code was created but email failed — still return success with warning
-        return res.json({ success: true, code, email, emailSent: false, emailError: emailResult.error });
-      }
-
-      res.json({ success: true, code, email, emailSent: true });
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  app.get('/api/beta-invites', requirePlatformAdmin, async (req, res) => {
-    try {
-      const result = await db.execute(sql`
-        SELECT lc.id, lc.code, lc.invited_email, lc.subscription_plan,
-               lc.redeemed_at, lc.expires_at, lc.created_at,
-               t.name as tenant_name
-        FROM license_codes lc
-        LEFT JOIN tenants t ON lc.tenant_id = t.id
-        WHERE lc.subscription_plan = 'beta'
-        ORDER BY lc.created_at DESC
-      `);
-      res.json(result.rows);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  app.delete('/api/beta-invite/:id', requirePlatformAdmin, async (req, res) => {
-    try {
-      const { id } = req.params;
-      await db.execute(sql`
-        DELETE FROM license_codes WHERE id = ${id}::uuid AND subscription_plan = 'beta'
-      `);
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // =====================================================
-  // BETA SIGNUP (Public — license code is the auth gate)
-  // =====================================================
-
-  app.post('/api/beta-signup', authRateLimit, async (req, res) => {
-    try {
-      const { code, email, password, fullName, businessName } = req.body;
-      if (!code || !email || !password || !fullName || !businessName) {
-        return res.status(400).json({ error: 'All fields are required' });
-      }
-
-      if (password.length < 8) {
-        return res.status(400).json({ error: 'Password must be at least 8 characters' });
-      }
-      if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
-        return res.status(400).json({ error: 'Password must include uppercase, lowercase, and a number' });
-      }
-
-      // 1. Validate license code
-      const cleanCode = code.toUpperCase().replace(/-/g, '');
-      const licenseResult = await db.execute(sql`
-        SELECT lc.*, r.name as reseller_name
-        FROM license_codes lc
-        JOIN resellers r ON lc.reseller_id = r.id
-        WHERE REPLACE(lc.code, '-', '') = ${cleanCode}
-        AND lc.redeemed_at IS NULL
-        AND (lc.expires_at IS NULL OR lc.expires_at > NOW())
-        AND r.is_active = true
-      `);
-
-      if (!licenseResult.rows.length) {
-        return res.status(400).json({ error: 'Invalid or expired license code' });
-      }
-
-      const license = licenseResult.rows[0] as any;
-
-      // 2. Create tenant
-      let slug = businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      let tenantResult;
-      try {
-        tenantResult = await db.execute(sql`
-          INSERT INTO tenants (name, slug, subscription_plan, subscription_status)
-          VALUES (${businessName}, ${slug}, ${license.subscription_plan}, 'active')
-          RETURNING id, name, slug
-        `);
-      } catch (slugError: any) {
-        // Slug conflict — append random suffix
-        if (slugError.message?.includes('unique') || slugError.code === '23505') {
-          slug = `${slug}-${Math.random().toString(36).substring(2, 6)}`;
-          tenantResult = await db.execute(sql`
-            INSERT INTO tenants (name, slug, subscription_plan, subscription_status)
-            VALUES (${businessName}, ${slug}, ${license.subscription_plan}, 'active')
-            RETURNING id, name, slug
-          `);
-        } else {
-          throw slugError;
-        }
-      }
-      const tenant = tenantResult.rows[0] as { id: string; name: string; slug: string };
-
-      // 3. Create tenant branding with default coffee theme
-      await db.execute(sql`
-        INSERT INTO tenant_branding (tenant_id, primary_color, secondary_color, accent_color, background_color, company_name)
-        VALUES (${tenant.id}::uuid, '#334155', '#0F172A', '#F1F5F9', '#FFFFFF', ${businessName})
-      `);
-
-      // 4. Create Supabase auth user via admin API
-      const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
-      const { data: newUserData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: fullName },
-      });
-
-      if (createError || !newUserData?.user) {
-        // Clean up tenant on failure
-        await db.execute(sql`DELETE FROM tenant_branding WHERE tenant_id = ${tenant.id}::uuid`);
-        await db.execute(sql`DELETE FROM tenants WHERE id = ${tenant.id}::uuid`);
-        const msg = createError?.message || 'Failed to create user account';
-        const friendlyMsg = msg.includes('already been registered')
-          ? 'An account with this email already exists. Please sign in instead.'
-          : msg;
-        return res.status(400).json({ error: friendlyMsg });
-      }
-
-      const userId = newUserData.user.id;
-
-      // 5. Create user_profiles row
-      await db.execute(sql`
-        INSERT INTO user_profiles (id, tenant_id, email, full_name, role, is_active)
-        VALUES (${userId}::uuid, ${tenant.id}::uuid, ${email}, ${fullName}, 'owner', true)
-      `);
-
-      // 6. Enable modules that match the plan's rollout phase
-      // Only add modules whose rollout_status is 'ga' or matches the plan tier
-      // (e.g., beta plan gets 'ga' + 'beta' modules; internal modules are admin-only)
-      const planModules = await db.execute(sql`
-        SELECT m.id FROM modules m
-        INNER JOIN subscription_plan_modules spm ON spm.module_id = m.id AND spm.plan_id = ${license.subscription_plan}
-        WHERE m.rollout_status = 'ga'
-           OR (m.rollout_status = 'beta' AND ${license.subscription_plan} IN ('beta', 'premium'))
-      `);
-      for (const mod of planModules.rows) {
-        await db.execute(sql`
-          INSERT INTO tenant_module_subscriptions (tenant_id, module_id)
-          VALUES (${tenant.id}::uuid, ${(mod as any).id})
-          ON CONFLICT DO NOTHING
-        `);
-      }
-
-      // 7. Redeem license code
-      // Note: The redeem_license_code() DB function has a WHERE clause bug that fails
-      // to match codes stored with dashes. We handle redemption inline instead.
-      await db.execute(sql`
-        UPDATE license_codes
-        SET redeemed_at = NOW(), tenant_id = ${tenant.id}::uuid
-        WHERE id = ${license.id}::uuid AND redeemed_at IS NULL
-      `);
-      await db.execute(sql`
-        UPDATE tenants
-        SET reseller_id = ${license.reseller_id}::uuid, license_code_id = ${license.id}::uuid
-        WHERE id = ${tenant.id}::uuid
-      `);
-      await db.execute(sql`
-        UPDATE resellers SET seats_used = seats_used + 1
-        WHERE id = ${license.reseller_id}::uuid
-      `);
-
-      res.status(201).json({
-        success: true,
-        tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug },
-        user: { id: userId, email },
-      });
-    } catch (error: any) {
-      console.error('Beta signup error:', error);
-      res.status(500).json({ error: 'Signup failed' });
     }
   });
 
@@ -1826,7 +849,7 @@ export async function registerRoutes(
 
       res.json({ modules: modules.rows, trend: trend.rows });
     } catch (error: any) {
-      console.error(error);
+      logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -1836,23 +859,36 @@ export async function registerRoutes(
     try {
       // Run queries individually so one failure doesn't kill the whole response
       const safeQuery = async (label: string, fn: () => Promise<any>, fallback: any = []) => {
-        try { return await fn(); }
-        catch (e: any) { console.error(`[platform-analytics] ${label} failed:`, e.message); return { rows: fallback }; }
+        try {
+          return await fn();
+        } catch (e: any) {
+          logger.error({ err: e, label }, 'Platform analytics query failed');
+          return { rows: fallback };
+        }
       };
 
-      const [tenantsByPlan, totalUsers, monthlyGrowth, moduleAdoption, resellers, plans, totalTenants] = await Promise.all([
-        safeQuery('tenantsByPlan', () => db.execute(sql`
+      const [tenantsByPlan, totalUsers, monthlyGrowth, moduleAdoption, resellers, plans, totalTenants] =
+        await Promise.all([
+          safeQuery('tenantsByPlan', () =>
+            db.execute(sql`
           SELECT subscription_plan, subscription_status, billing_interval,
                  COUNT(*)::int as count,
                  COALESCE(SUM(billable_locations), COUNT(*))::int as total_locations
           FROM tenants
           WHERE is_active = true OR subscription_status IN ('active', 'trial')
           GROUP BY subscription_plan, subscription_status, billing_interval
-        `)),
-        safeQuery('totalUsers', () => db.execute(sql`
+        `)
+          ),
+          safeQuery(
+            'totalUsers',
+            () =>
+              db.execute(sql`
           SELECT COUNT(*)::int as total_users FROM user_profiles WHERE is_active = true
-        `), [{ total_users: 0 }]),
-        safeQuery('monthlyGrowth', () => db.execute(sql`
+        `),
+            [{ total_users: 0 }]
+          ),
+          safeQuery('monthlyGrowth', () =>
+            db.execute(sql`
           SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') as month,
                  COUNT(*)::int as new_tenants,
                  SUM(CASE WHEN reseller_id IS NULL THEN 1 ELSE 0 END)::int as direct,
@@ -1861,8 +897,10 @@ export async function registerRoutes(
           WHERE created_at >= NOW() - INTERVAL '12 months'
           GROUP BY DATE_TRUNC('month', created_at)
           ORDER BY DATE_TRUNC('month', created_at)
-        `)),
-        safeQuery('moduleAdoption', () => db.execute(sql`
+        `)
+          ),
+          safeQuery('moduleAdoption', () =>
+            db.execute(sql`
           SELECT m.id as module_id, m.name as module_name,
                  COUNT(DISTINCT tms.tenant_id)::int as subscriber_count
           FROM modules m
@@ -1870,8 +908,10 @@ export async function registerRoutes(
           WHERE m.rollout_status IN ('ga', 'beta')
           GROUP BY m.id, m.name
           ORDER BY subscriber_count DESC
-        `)),
-        safeQuery('resellers', () => db.execute(sql`
+        `)
+          ),
+          safeQuery('resellers', () =>
+            db.execute(sql`
           SELECT r.id, r.name, r.tier, r.seats_used::int, r.seats_total::int,
                  r.wholesale_rate_per_seat,
                  COALESCE(SUM(CASE WHEN ri.status != 'void' THEN ri.total ELSE 0 END), 0) as total_invoiced,
@@ -1881,17 +921,25 @@ export async function registerRoutes(
           WHERE r.is_active = true
           GROUP BY r.id, r.name, r.tier, r.seats_used, r.seats_total, r.wholesale_rate_per_seat
           ORDER BY r.name
-        `)),
-        safeQuery('plans', () => db.execute(sql`
+        `)
+          ),
+          safeQuery('plans', () =>
+            db.execute(sql`
           SELECT id, name, monthly_price, annual_price
           FROM subscription_plans
           WHERE is_active = true
           ORDER BY display_order
-        `)),
-        safeQuery('totalTenants', () => db.execute(sql`
+        `)
+          ),
+          safeQuery(
+            'totalTenants',
+            () =>
+              db.execute(sql`
           SELECT COUNT(*)::int as total FROM tenants WHERE is_active = true
-        `), [{ total: 0 }]),
-      ]);
+        `),
+            [{ total: 0 }]
+          ),
+        ]);
 
       res.json({
         tenantsByPlan: tenantsByPlan.rows,
@@ -1903,8 +951,7 @@ export async function registerRoutes(
         totalActiveTenants: (totalTenants.rows[0] as any)?.total || 0,
       });
     } catch (error: any) {
-      console.error('[platform-analytics] Overview error:', error);
-      console.error(error);
+      logger.error({ err: error }, 'Platform analytics overview error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -1967,550 +1014,7 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: 'Invalid cost settings', details: error.errors });
       }
-      console.error('[platform-analytics] Save costs error:', error);
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // =====================================================
-  // VERTICAL MANAGEMENT ROUTES (Platform Admin Only)
-  // =====================================================
-
-  // Get all verticals (public for landing pages, full list for admins)
-  app.get('/api/verticals', async (req, res) => {
-    try {
-      const result = await db.execute(sql`
-        SELECT v.*, r.name as reseller_name
-        FROM verticals v
-        LEFT JOIN resellers r ON v.reseller_id = r.id
-        ORDER BY v.is_system DESC, v.created_at ASC
-      `);
-      res.json(result.rows);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Get verticals for a specific reseller
-  app.get('/api/resellers/:id/verticals', requirePlatformAdmin, async (req, res) => {
-    try {
-      const result = await db.execute(sql`
-        SELECT * FROM verticals
-        WHERE reseller_id = ${req.params.id}
-        ORDER BY created_at DESC
-      `);
-      res.json(result.rows);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Create a vertical (platform admin, optionally for a reseller)
-  app.post('/api/verticals', requirePlatformAdmin, async (req, res) => {
-    try {
-      const {
-        slug, productName, displayName, resellerId,
-        theme, terms, workflows, suggestedModules,
-        landingContent, domains, isPublished
-      } = req.body;
-
-      if (!slug || !productName || !displayName) {
-        return res.status(400).json({ error: 'slug, productName, and displayName are required' });
-      }
-
-      const result = await db.execute(sql`
-        INSERT INTO verticals (
-          slug, product_name, display_name, reseller_id, is_system,
-          theme, terms, workflows, suggested_modules,
-          landing_content, domains, is_published
-        ) VALUES (
-          ${slug}, ${productName}, ${displayName}, ${resellerId || null}, ${!resellerId},
-          ${JSON.stringify(theme || {})}::jsonb,
-          ${JSON.stringify(terms || {})}::jsonb,
-          ${JSON.stringify(workflows || {})}::jsonb,
-          ${suggestedModules || []}::text[],
-          ${JSON.stringify(landingContent || {})}::jsonb,
-          ${domains || []}::text[],
-          ${isPublished ?? false}
-        )
-        RETURNING *
-      `);
-
-      res.status(201).json(result.rows[0]);
-    } catch (error: any) {
-      if (error.message?.includes('unique')) {
-        return res.status(409).json({ error: 'A vertical with that slug already exists' });
-      }
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Update a vertical
-  app.put('/api/verticals/:id', requirePlatformAdmin, async (req, res) => {
-    try {
-      const {
-        slug, productName, displayName,
-        theme, terms, workflows, suggestedModules,
-        landingContent, domains, isPublished
-      } = req.body;
-
-      const result = await db.execute(sql`
-        UPDATE verticals SET
-          slug = COALESCE(${slug}, slug),
-          product_name = COALESCE(${productName}, product_name),
-          display_name = COALESCE(${displayName}, display_name),
-          theme = COALESCE(${theme ? JSON.stringify(theme) : null}::jsonb, theme),
-          terms = COALESCE(${terms ? JSON.stringify(terms) : null}::jsonb, terms),
-          workflows = COALESCE(${workflows ? JSON.stringify(workflows) : null}::jsonb, workflows),
-          suggested_modules = COALESCE(${suggestedModules}::text[], suggested_modules),
-          landing_content = COALESCE(${landingContent ? JSON.stringify(landingContent) : null}::jsonb, landing_content),
-          domains = COALESCE(${domains}::text[], domains),
-          is_published = COALESCE(${isPublished}, is_published),
-          updated_at = NOW()
-        WHERE id = ${req.params.id}
-        RETURNING *
-      `);
-
-      if (!result.rows.length) {
-        return res.status(404).json({ error: 'Vertical not found' });
-      }
-
-      res.json(result.rows[0]);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Delete a vertical (only non-system verticals with no tenants)
-  app.delete('/api/verticals/:id', requirePlatformAdmin, async (req, res) => {
-    try {
-      // Check for active tenants
-      const tenantCheck = await db.execute(sql`
-        SELECT COUNT(*) as count FROM tenants WHERE vertical_id = ${req.params.id}
-      `);
-      if (parseInt((tenantCheck.rows[0] as any).count) > 0) {
-        return res.status(400).json({ error: 'Cannot delete vertical with active tenants' });
-      }
-
-      const result = await db.execute(sql`
-        DELETE FROM verticals WHERE id = ${req.params.id} AND is_system = false
-        RETURNING *
-      `);
-
-      if (!result.rows.length) {
-        return res.status(400).json({ error: 'Cannot delete system verticals' });
-      }
-
-      res.status(204).end();
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Reseller analytics — signups, active tenants, revenue per vertical
-  app.get('/api/resellers/:id/analytics', requirePlatformAdmin, async (req, res) => {
-    try {
-      const resellerId = req.params.id;
-
-      // Total tenants via this reseller
-      const tenants = await db.execute(sql`
-        SELECT t.id, t.name, t.created_at, v.display_name as vertical_name,
-               lc.subscription_plan
-        FROM tenants t
-        LEFT JOIN verticals v ON t.vertical_id = v.id
-        LEFT JOIN license_codes lc ON t.license_code_id = lc.id
-        WHERE t.reseller_id = ${resellerId}
-        ORDER BY t.created_at DESC
-      `);
-
-      // Revenue share info
-      const reseller = await db.execute(sql`
-        SELECT revenue_share_percent, seats_total, seats_used
-        FROM resellers WHERE id = ${resellerId}
-      `);
-
-      // Verticals created by this reseller
-      const verticals = await db.execute(sql`
-        SELECT v.id, v.slug, v.display_name, v.is_published,
-               (SELECT COUNT(*) FROM tenants t WHERE t.vertical_id = v.id) as tenant_count
-        FROM verticals v
-        WHERE v.reseller_id = ${resellerId}
-        ORDER BY v.created_at DESC
-      `);
-
-      const resellerData = reseller.rows[0] as any;
-
-      res.json({
-        tenants: tenants.rows,
-        totalTenants: tenants.rows.length,
-        verticals: verticals.rows,
-        revenueSharePercent: parseFloat(resellerData?.revenue_share_percent || '0'),
-        seatsTotal: resellerData?.seats_total || 0,
-        seatsUsed: resellerData?.seats_used || 0,
-      });
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // =====================================================
-  // TENANT CREATION (handles existing users)
-  // =====================================================
-
-  app.post('/api/tenants', requirePlatformAdmin, async (req, res) => {
-    try {
-      const { name, slug, ownerEmail, ownerName, ownerPassword } = req.body;
-      if (!name || !slug || !ownerEmail) {
-        return res.status(400).json({ error: 'name, slug, and ownerEmail are required' });
-      }
-
-      const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-
-      // 1. Create the tenant
-      const tenantResult = await db.execute(sql`
-        INSERT INTO tenants (name, slug)
-        VALUES (${name}, ${cleanSlug})
-        RETURNING id, name, slug
-      `);
-      const tenant = tenantResult.rows[0] as { id: string; name: string; slug: string };
-
-      // 2. Create tenant branding
-      await db.execute(sql`
-        INSERT INTO tenant_branding (tenant_id, primary_color, secondary_color, accent_color, background_color, company_name)
-        VALUES (${tenant.id}::uuid, '#334155', '#0F172A', '#F1F5F9', '#FFFFFF', ${name})
-      `);
-
-      // 3. Find or create user via Supabase admin API
-      const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
-      let userId: string;
-
-      // Try to create the user first
-      const { data: newUserData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email: ownerEmail,
-        password: ownerPassword || undefined,
-        email_confirm: true,
-        user_metadata: { full_name: ownerName || ownerEmail.split('@')[0] },
-      });
-
-      if (newUserData?.user) {
-        userId = newUserData.user.id;
-      } else {
-        // User likely already exists — look them up via DB (avoids listUsers pagination issues)
-        const existingUser = await db.execute(sql`
-          SELECT id FROM auth.users WHERE email = ${ownerEmail} LIMIT 1
-        `);
-        if (!existingUser.rows.length) {
-          throw new Error(createError?.message || 'Could not find or create user with this email');
-        }
-        userId = (existingUser.rows[0] as any).id;
-      }
-
-      // 4. Upsert user_profiles — set them as owner of this tenant
-      await db.execute(sql`
-        INSERT INTO user_profiles (id, tenant_id, email, full_name, role, is_active)
-        VALUES (${userId}::uuid, ${tenant.id}::uuid, ${ownerEmail}, ${ownerName || ownerEmail.split('@')[0]}, 'owner', true)
-        ON CONFLICT (id) DO UPDATE SET
-          tenant_id = ${tenant.id}::uuid,
-          role = 'owner',
-          is_active = true
-      `);
-
-      res.status(201).json({ tenant, userId });
-    } catch (error: any) {
-      // If tenant was created but later steps failed, try to clean up
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // =====================================================
-  // PLATFORM ADMIN MANAGEMENT ROUTES
-  // =====================================================
-
-  // List all platform admins
-  app.get('/api/platform-admins', requirePlatformAdmin, async (req, res) => {
-    try {
-      const result = await db.execute(sql`
-        SELECT id, email, full_name, is_active, created_at
-        FROM platform_admins
-        ORDER BY created_at ASC
-      `);
-      res.json(result.rows);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Add a new platform admin by email
-  app.post('/api/platform-admins', requirePlatformAdmin, async (req, res) => {
-    try {
-      const { email } = req.body;
-      if (!email) {
-        return res.status(400).json({ error: 'Email is required' });
-      }
-
-      // Look up the user via DB (avoids listUsers pagination issues)
-      const authUserResult = await db.execute(sql`
-        SELECT id, email FROM auth.users WHERE email = ${email} LIMIT 1
-      `);
-      if (!authUserResult.rows.length) {
-        return res.status(404).json({ error: 'No user found with that email. They must have an account first.' });
-      }
-      const authUser = authUserResult.rows[0] as { id: string; email: string };
-
-      // Check if already a platform admin
-      const existingResult = await db.execute(sql`
-        SELECT id FROM platform_admins WHERE id = ${authUser.id}::uuid
-      `);
-
-      if (existingResult.rows.length) {
-        return res.status(409).json({ error: 'This user is already a platform admin' });
-      }
-
-      // Insert into platform_admins
-      const insertResult = await db.execute(sql`
-        INSERT INTO platform_admins (id, email, full_name, is_active)
-        VALUES (${authUser.id}::uuid, ${authUser.email}, ${req.body.full_name || null}, true)
-        RETURNING id, email, full_name, is_active, created_at
-      `);
-
-      res.status(201).json(insertResult.rows[0]);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Remove a platform admin
-  app.delete('/api/platform-admins/:id', requirePlatformAdmin, async (req, res) => {
-    try {
-      const requesterId = (req as any).userId as string;
-
-      // Prevent removing yourself
-      if (req.params.id === requesterId) {
-        return res.status(400).json({ error: 'You cannot remove yourself as a platform admin' });
-      }
-
-      const result = await db.execute(sql`
-        DELETE FROM platform_admins WHERE id = ${req.params.id}::uuid RETURNING *
-      `);
-
-      if (!result.rows.length) {
-        return res.status(404).json({ error: 'Platform admin not found' });
-      }
-
-      res.status(204).end();
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // =====================================================
-  // USER INVITE ROUTE
-  // =====================================================
-
-  app.post('/api/users/invite', authRateLimit, async (req, res) => {
-    try {
-      const { email, fullName, role, tenantId, redirectTo } = req.body;
-
-      // Authenticate via JWT (not from request body)
-      const { userId: requestingUserId } = await getUserIdFromRequest(req);
-      if (!requestingUserId) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      if (!email || !tenantId) {
-        return res.status(400).json({ error: 'Email and tenantId are required' });
-      }
-
-      // M14: Validate role is one of the allowed values
-      const VALID_ROLES = ['owner', 'manager', 'lead', 'employee'];
-      const assignedRole = VALID_ROLES.includes(role) ? role : 'employee';
-
-      // Verify the requesting user is an owner or manager of this tenant
-      const requesterResult = await db.execute(sql`
-        SELECT role FROM user_profiles
-        WHERE id = ${requestingUserId}::uuid AND tenant_id = ${tenantId}::uuid AND is_active = true
-        LIMIT 1
-      `);
-      const requesterRole = (requesterResult.rows[0] as any)?.role;
-      if (!requesterRole || !['owner', 'manager'].includes(requesterRole)) {
-        return res.status(403).json({ error: 'Only owners and managers can invite users' });
-      }
-
-      // H2: Role hierarchy — managers cannot invite owners; only owners can assign owner role
-      const ROLE_HIERARCHY: Record<string, number> = { employee: 0, lead: 1, manager: 2, owner: 3 };
-      if ((ROLE_HIERARCHY[assignedRole] || 0) > (ROLE_HIERARCHY[requesterRole] || 0)) {
-        return res.status(403).json({ error: 'Cannot invite users with a higher role than your own' });
-      }
-
-      // M11: Validate redirectTo to prevent open redirect
-      if (redirectTo) {
-        try {
-          const url = new URL(redirectTo);
-          // Use forwarded host (Codespaces proxy) or fall back to raw host
-          const trustedHost = req.get('x-forwarded-host') || req.get('host') || '';
-          if (trustedHost && url.host !== trustedHost) {
-            return res.status(400).json({ error: 'Invalid redirect URL' });
-          }
-        } catch {
-          return res.status(400).json({ error: 'Invalid redirect URL' });
-        }
-      }
-
-      const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
-      let userId: string;
-      let isNewUser = false;
-
-      // Try to invite the user (creates auth user + sends Supabase invite email)
-      const inviteOptions: any = {
-        data: { full_name: fullName || email.split('@')[0] },
-      };
-      if (redirectTo) {
-        inviteOptions.redirectTo = redirectTo;
-      }
-      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, inviteOptions);
-
-      if (inviteData?.user) {
-        userId = inviteData.user.id;
-        isNewUser = true;
-      } else {
-        // User already exists in auth — look them up via DB
-        const existingAuthUser = await db.execute(sql`
-          SELECT id FROM auth.users WHERE email = ${email} LIMIT 1
-        `);
-        if (!existingAuthUser.rows.length) {
-          throw new Error(inviteError?.message || 'Could not find or create user with this email');
-        }
-        userId = (existingAuthUser.rows[0] as any).id;
-
-        // H1: Check if user already belongs to another tenant — prevent hijacking
-        const existingProfile = await db.execute(sql`
-          SELECT tenant_id FROM user_profiles WHERE id = ${userId}::uuid AND is_active = true LIMIT 1
-        `);
-        if (existingProfile.rows.length > 0 && (existingProfile.rows[0] as any).tenant_id !== tenantId) {
-          return res.status(409).json({ error: 'This user already belongs to another organization' });
-        }
-
-        // Send password recovery email so the user can set their own password
-        const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
-        if (supabaseUrl && supabaseKey) {
-          const { createClient } = await import('@supabase/supabase-js');
-          const anonClient = createClient(supabaseUrl, supabaseKey);
-          const resetOptions: any = {};
-          if (redirectTo) {
-            resetOptions.redirectTo = redirectTo;
-          }
-          const { error: resetError } = await anonClient.auth.resetPasswordForEmail(email, resetOptions);
-          if (resetError) {
-            console.warn('Password reset email failed:', resetError.message);
-          }
-        }
-      }
-
-      // Upsert user profile — only update if user belongs to THIS tenant (prevent hijack)
-      await db.execute(sql`
-        INSERT INTO user_profiles (id, tenant_id, email, full_name, role, is_active)
-        VALUES (${userId}::uuid, ${tenantId}::uuid, ${email}, ${fullName || email.split('@')[0]}, ${assignedRole}, true)
-        ON CONFLICT (id) DO UPDATE SET
-          role = ${assignedRole},
-          full_name = ${fullName || email.split('@')[0]},
-          is_active = true
-        WHERE user_profiles.tenant_id = ${tenantId}::uuid
-      `);
-
-      res.status(201).json({ userId, email, isNewUser });
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // ── Change User Email (admin) ─────────────────────────────────
-  app.post('/api/users/change-email', authRateLimit, async (req, res) => {
-    try {
-      const { targetUserId, newEmail } = req.body;
-
-      const { userId: requestingUserId } = await getUserIdFromRequest(req);
-      if (!requestingUserId) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      if (!targetUserId || !newEmail) {
-        return res.status(400).json({ error: 'targetUserId and newEmail are required' });
-      }
-
-      // Basic email format validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(newEmail)) {
-        return res.status(400).json({ error: 'Invalid email format' });
-      }
-
-      // Load requester's profile
-      const requesterResult = await db.execute(sql`
-        SELECT role, tenant_id FROM user_profiles
-        WHERE id = ${requestingUserId}::uuid AND is_active = true
-        LIMIT 1
-      `);
-      const requester = requesterResult.rows[0] as any;
-      if (!requester || !['owner', 'manager'].includes(requester.role)) {
-        return res.status(403).json({ error: 'Only owners and managers can change user emails' });
-      }
-
-      // Load target user's profile — must be in same tenant
-      const targetResult = await db.execute(sql`
-        SELECT role, tenant_id, email FROM user_profiles
-        WHERE id = ${targetUserId}::uuid AND tenant_id = ${requester.tenant_id}::uuid AND is_active = true
-        LIMIT 1
-      `);
-      const target = targetResult.rows[0] as any;
-      if (!target) {
-        return res.status(404).json({ error: 'User not found in your organization' });
-      }
-
-      // Role hierarchy — cannot change email of someone with higher or equal role (unless owner)
-      const ROLE_HIERARCHY: Record<string, number> = { employee: 0, lead: 1, manager: 2, owner: 3 };
-      if (requester.role !== 'owner' && (ROLE_HIERARCHY[target.role] || 0) >= (ROLE_HIERARCHY[requester.role] || 0)) {
-        return res.status(403).json({ error: 'Cannot change email of a user with equal or higher role' });
-      }
-
-      // Check if new email is already in use
-      const existingUser = await db.execute(sql`
-        SELECT id FROM auth.users WHERE email = ${newEmail} LIMIT 1
-      `);
-      if (existingUser.rows.length > 0 && (existingUser.rows[0] as any).id !== targetUserId) {
-        return res.status(409).json({ error: 'This email is already in use by another account' });
-      }
-
-      // Update email in Supabase Auth
-      const supabaseAdmin = (await import('./supabaseAdmin')).getSupabaseAdmin();
-      const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
-        email: newEmail,
-        email_confirm: true,
-      });
-      if (authError) {
-        return res.status(500).json({ error: `Failed to update auth email: ${authError.message}` });
-      }
-
-      // Update email in user_profiles
-      await db.execute(sql`
-        UPDATE user_profiles SET email = ${newEmail}, updated_at = now()
-        WHERE id = ${targetUserId}::uuid AND tenant_id = ${requester.tenant_id}::uuid
-      `);
-
-      res.json({ success: true, oldEmail: target.email, newEmail });
-    } catch (error: any) {
-      console.error('Change email error:', error);
+      logger.error({ err: error }, 'Platform analytics save costs error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -2542,7 +1046,7 @@ export async function registerRoutes(
         return res.status(403).json({ error: 'Lead role or higher required' });
       }
 
-      // Fetch + parse iCal feed (webcal:// → https://) with SSRF protection
+      // Fetch + parse iCal feed (webcal:// -> https://) with SSRF protection
       const feedUrl = (sub.url as string).replace(/^webcal:\/\//i, 'https://');
       let parsedUrl: URL;
       try {
@@ -2560,8 +1064,11 @@ export async function registerRoutes(
         const { address } = await dnsPromises.lookup(parsedUrl.hostname);
         const parts = address.split('.').map(Number);
         const isPrivate =
-          address === '127.0.0.1' || address === '0.0.0.0' ||
-          address.startsWith('::') || address.startsWith('fe80') || address.startsWith('fc00') ||
+          address === '127.0.0.1' ||
+          address === '0.0.0.0' ||
+          address.startsWith('::') ||
+          address.startsWith('fe80') ||
+          address.startsWith('fc00') ||
           parts[0] === 10 ||
           (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
           (parts[0] === 192 && parts[1] === 168) ||
@@ -2635,549 +1142,18 @@ export async function registerRoutes(
           SET sync_error = ${err.message || 'Unknown error'}, updated_at = NOW()
           WHERE id = ${subscriptionId}::uuid
         `);
-      } catch { /* ignore */ }
-      console.error('iCal sync error:', err);
+      } catch {
+        /* ignore */
+      }
+      logger.error({ err }, 'iCal sync error');
       res.status(500).json({ error: 'Failed to sync iCal feed' });
     }
   });
 
-  // ─── KIOSK ENDPOINTS ──────────────────────────────────────
+  // =====================================================
+  // LOCATION CLONE ENDPOINT
+  // =====================================================
 
-  // Kiosk session tokens — issued after PIN verification, required for all actions
-  const kioskSessions = new Map<string, { tenantId: string; employeeId: string; expiresAt: number }>();
-  const KIOSK_SESSION_TTL = 15 * 60 * 1000; // 15 minutes
-
-  function verifyKioskSession(token: string | undefined, tenantId: string, employeeId: string): boolean {
-    if (!token) return false;
-    const session = kioskSessions.get(token);
-    if (!session) return false;
-    if (Date.now() > session.expiresAt) {
-      kioskSessions.delete(token);
-      return false;
-    }
-    return session.tenantId === tenantId && session.employeeId === employeeId;
-  }
-
-  // Periodic cleanup of expired kiosk sessions and rate limit entries
-  setInterval(() => {
-    const now = Date.now();
-    kioskSessions.forEach((session, key) => {
-      if (now > session.expiresAt) kioskSessions.delete(key);
-    });
-    kioskRateLimit.forEach((entry, key) => {
-      if (now >= entry.resetTime) kioskRateLimit.delete(key);
-    });
-    feedbackRateLimit.forEach((entry, key) => {
-      if (now >= entry.resetTime) feedbackRateLimit.delete(key);
-    });
-  }, 5 * 60 * 1000); // every 5 minutes
-
-  // Rate limiting for PIN attempts
-  const kioskRateLimit = new Map<string, { count: number; resetTime: number }>();
-  function checkKioskRate(ip: string): boolean {
-    const now = Date.now();
-    const entry = kioskRateLimit.get(ip);
-    if (!entry || now >= entry.resetTime) {
-      kioskRateLimit.set(ip, { count: 1, resetTime: now + 60_000 });
-      return true;
-    }
-    if (entry.count >= 10) return false;
-    entry.count++;
-    return true;
-  }
-
-  // POST /api/kiosk/verify — validate store code, return tenant info
-  app.post('/api/kiosk/verify', kioskVerifyRateLimit, async (req, res) => {
-    try {
-      const { code } = req.body;
-      if (!code || typeof code !== 'string') {
-        return res.status(400).json({ error: 'Store code is required' });
-      }
-      const result = await db.execute(sql`
-        SELECT t.id, t.name, tb.logo_url
-        FROM tenants t
-        LEFT JOIN tenant_branding tb ON tb.tenant_id = t.id
-        WHERE UPPER(t.kiosk_code) = UPPER(${code.trim()})
-        LIMIT 1
-      `);
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Store not found' });
-      }
-      const row = result.rows[0] as any;
-      res.json({ tenantId: row.id, tenantName: row.name, logoUrl: row.logo_url || null });
-    } catch (err: any) {
-      res.status(500).json({ error: 'Server error' });
-    }
-  });
-
-  // POST /api/kiosk/punch — look up employee by PIN, return clock status
-  app.post('/api/kiosk/punch', async (req, res) => {
-    try {
-      const ip = req.ip || req.socket.remoteAddress || 'unknown';
-      if (!checkKioskRate(ip)) {
-        return res.status(429).json({ error: 'Too many attempts. Try again in a minute.' });
-      }
-      const { tenantId, pin } = req.body;
-      if (!tenantId || !pin) {
-        return res.status(400).json({ error: 'Missing tenantId or pin' });
-      }
-
-      // Look up in user_profiles first, then tip_employees
-      let emp: { id: string; fullName: string; avatarUrl: string | null; role: string; source: 'user_profile' | 'tip_employee' } | null = null;
-
-      const upResult = await db.execute(sql`
-        SELECT id, full_name, avatar_url, role
-        FROM user_profiles
-        WHERE tenant_id = ${tenantId}::uuid AND kiosk_pin = ${pin} AND is_active = true
-        LIMIT 1
-      `);
-      if (upResult.rows.length > 0) {
-        const r = upResult.rows[0] as any;
-        emp = { id: r.id, fullName: r.full_name, avatarUrl: r.avatar_url, role: r.role, source: 'user_profile' };
-      } else {
-        // Check tip_employees
-        const teResult = await db.execute(sql`
-          SELECT id, name, avatar_url
-          FROM tip_employees
-          WHERE tenant_id = ${tenantId}::uuid AND kiosk_pin = ${pin} AND is_active = true
-          LIMIT 1
-        `);
-        if (teResult.rows.length > 0) {
-          const r = teResult.rows[0] as any;
-          emp = { id: r.id, fullName: r.name, avatarUrl: r.avatar_url || null, role: 'employee', source: 'tip_employee' };
-        }
-      }
-
-      if (!emp) {
-        return res.status(401).json({ error: 'Invalid PIN' });
-      }
-
-      // Check for active clock entry (could be under employee_id or tip_employee_id)
-      const entryResult = emp.source === 'user_profile'
-        ? await db.execute(sql`
-            SELECT tce.id, tce.clock_in,
-                   tcb.id AS break_id, tcb.break_start
-            FROM time_clock_entries tce
-            LEFT JOIN time_clock_breaks tcb
-              ON tcb.time_clock_entry_id = tce.id AND tcb.break_end IS NULL
-            WHERE tce.employee_id = ${emp.id}::uuid
-              AND tce.tenant_id = ${tenantId}::uuid
-              AND tce.clock_out IS NULL
-            ORDER BY tce.clock_in DESC
-            LIMIT 1
-          `)
-        : await db.execute(sql`
-            SELECT tce.id, tce.clock_in,
-                   tcb.id AS break_id, tcb.break_start
-            FROM time_clock_entries tce
-            LEFT JOIN time_clock_breaks tcb
-              ON tcb.time_clock_entry_id = tce.id AND tcb.break_end IS NULL
-            WHERE tce.tip_employee_id = ${emp.id}::uuid
-              AND tce.tenant_id = ${tenantId}::uuid
-              AND tce.clock_out IS NULL
-            ORDER BY tce.clock_in DESC
-            LIMIT 1
-          `);
-
-      let status: 'clocked_out' | 'clocked_in' | 'on_break' = 'clocked_out';
-      let activeEntryId: string | null = null;
-      let clockInTime: string | null = null;
-      let activeBreakId: string | null = null;
-      let breakStartTime: string | null = null;
-
-      if (entryResult.rows.length > 0) {
-        const row = entryResult.rows[0] as any;
-        activeEntryId = row.id;
-        clockInTime = row.clock_in;
-        if (row.break_id) {
-          status = 'on_break';
-          activeBreakId = row.break_id;
-          breakStartTime = row.break_start;
-        } else {
-          status = 'clocked_in';
-        }
-      }
-
-      // Issue a kiosk session token after successful PIN verification
-      const kioskToken = crypto.randomBytes(32).toString('hex');
-      kioskSessions.set(kioskToken, {
-        tenantId,
-        employeeId: emp.id,
-        expiresAt: Date.now() + KIOSK_SESSION_TTL,
-      });
-
-      res.json({
-        employee: { id: emp.id, fullName: emp.fullName, avatarUrl: emp.avatarUrl, role: emp.role, source: emp.source },
-        status,
-        activeEntryId,
-        clockInTime,
-        activeBreakId,
-        breakStartTime,
-        kioskToken,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: 'Server error' });
-    }
-  });
-
-  // POST /api/kiosk/clock-in
-  app.post('/api/kiosk/clock-in', async (req, res) => {
-    try {
-      const { tenantId, employeeId, source, employeeName, kioskToken } = req.body;
-      if (!tenantId || !employeeId) {
-        return res.status(400).json({ error: 'Missing tenantId or employeeId' });
-      }
-      if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
-        return res.status(401).json({ error: 'Invalid or expired kiosk session' });
-      }
-      const isTipEmployee = source === 'tip_employee';
-
-      // Verify employee belongs to tenant
-      const empCheck = isTipEmployee
-        ? await db.execute(sql`SELECT name FROM tip_employees WHERE id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid AND is_active = true LIMIT 1`)
-        : await db.execute(sql`SELECT full_name as name FROM user_profiles WHERE id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid AND is_active = true LIMIT 1`);
-      if (empCheck.rows.length === 0) {
-        return res.status(403).json({ error: 'Invalid employee' });
-      }
-      const name = employeeName || (empCheck.rows[0] as any).name;
-
-      // Verify not already clocked in
-      const idCol = isTipEmployee ? 'tip_employee_id' : 'employee_id';
-      const openCheck = await db.execute(
-        isTipEmployee
-          ? sql`SELECT 1 FROM time_clock_entries WHERE tip_employee_id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid AND clock_out IS NULL LIMIT 1`
-          : sql`SELECT 1 FROM time_clock_entries WHERE employee_id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid AND clock_out IS NULL LIMIT 1`
-      );
-      if (openCheck.rows.length > 0) {
-        return res.status(409).json({ error: 'Already clocked in' });
-      }
-
-      const result = isTipEmployee
-        ? await db.execute(sql`
-            INSERT INTO time_clock_entries (tenant_id, tip_employee_id, employee_name, clock_in)
-            VALUES (${tenantId}::uuid, ${employeeId}::uuid, ${name}, NOW())
-            RETURNING id, clock_in
-          `)
-        : await db.execute(sql`
-            INSERT INTO time_clock_entries (tenant_id, employee_id, employee_name, clock_in)
-            VALUES (${tenantId}::uuid, ${employeeId}::uuid, ${name}, NOW())
-            RETURNING id, clock_in
-          `);
-      const row = result.rows[0] as any;
-      res.json({ success: true, entryId: row.id, clockIn: row.clock_in });
-    } catch (err: any) {
-      res.status(500).json({ error: 'Failed to clock in' });
-    }
-  });
-
-  // POST /api/kiosk/clock-out
-  app.post('/api/kiosk/clock-out', async (req, res) => {
-    try {
-      const { tenantId, employeeId, entryId, kioskToken } = req.body;
-      if (!tenantId || !employeeId || !entryId) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
-      if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
-        return res.status(401).json({ error: 'Invalid or expired kiosk session' });
-      }
-      // End any active breaks
-      await db.execute(sql`
-        UPDATE time_clock_breaks
-        SET break_end = NOW()
-        WHERE time_clock_entry_id = ${entryId}::uuid AND break_end IS NULL
-      `);
-      // Clock out
-      const result = await db.execute(sql`
-        UPDATE time_clock_entries
-        SET clock_out = NOW(), updated_at = NOW()
-        WHERE id = ${entryId}::uuid AND employee_id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid
-        RETURNING clock_out
-      `);
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Entry not found' });
-      }
-      const row = result.rows[0] as any;
-      res.json({ success: true, clockOut: row.clock_out });
-    } catch (err: any) {
-      res.status(500).json({ error: 'Failed to clock out' });
-    }
-  });
-
-  // POST /api/kiosk/break-start
-  app.post('/api/kiosk/break-start', async (req, res) => {
-    try {
-      const { tenantId, employeeId, entryId, kioskToken } = req.body;
-      if (!tenantId || !employeeId || !entryId) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
-      if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
-        return res.status(401).json({ error: 'Invalid or expired kiosk session' });
-      }
-      // Verify entry belongs to this employee and tenant
-      const entryCheck = await db.execute(sql`
-        SELECT 1 FROM time_clock_entries
-        WHERE id = ${entryId}::uuid
-        AND tenant_id = ${tenantId}::uuid
-        AND (employee_id = ${employeeId}::uuid OR tip_employee_id = ${employeeId}::uuid)
-        AND clock_out IS NULL
-        LIMIT 1
-      `);
-      if (entryCheck.rows.length === 0) {
-        return res.status(403).json({ error: 'Entry not found' });
-      }
-      // Verify no active break
-      const activeBreak = await db.execute(sql`
-        SELECT 1 FROM time_clock_breaks
-        WHERE time_clock_entry_id = ${entryId}::uuid AND break_end IS NULL
-        LIMIT 1
-      `);
-      if (activeBreak.rows.length > 0) {
-        return res.status(409).json({ error: 'Already on break' });
-      }
-      const result = await db.execute(sql`
-        INSERT INTO time_clock_breaks (tenant_id, time_clock_entry_id, break_start, break_type)
-        VALUES (${tenantId}::uuid, ${entryId}::uuid, NOW(), 'break')
-        RETURNING id, break_start
-      `);
-      const row = result.rows[0] as any;
-      res.json({ success: true, breakId: row.id, breakStart: row.break_start });
-    } catch (err: any) {
-      res.status(500).json({ error: 'Failed to start break' });
-    }
-  });
-
-  // POST /api/kiosk/break-end
-  app.post('/api/kiosk/break-end', async (req, res) => {
-    try {
-      const { tenantId, breakId, employeeId, kioskToken } = req.body;
-      if (!tenantId || !breakId || !employeeId) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
-      if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
-        return res.status(401).json({ error: 'Invalid or expired kiosk session' });
-      }
-      // Verify break belongs to an entry owned by this employee
-      const breakCheck = await db.execute(sql`
-        SELECT 1 FROM time_clock_breaks tcb
-        JOIN time_clock_entries tce ON tcb.time_clock_entry_id = tce.id
-        WHERE tcb.id = ${breakId}::uuid
-        AND tcb.tenant_id = ${tenantId}::uuid
-        AND (tce.employee_id = ${employeeId}::uuid OR tce.tip_employee_id = ${employeeId}::uuid)
-        AND tcb.break_end IS NULL
-        LIMIT 1
-      `);
-      if (breakCheck.rows.length === 0) {
-        return res.status(403).json({ error: 'Break not found' });
-      }
-      const result = await db.execute(sql`
-        UPDATE time_clock_breaks
-        SET break_end = NOW()
-        WHERE id = ${breakId}::uuid AND tenant_id = ${tenantId}::uuid AND break_end IS NULL
-        RETURNING break_end
-      `);
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Break not found' });
-      }
-      const row = result.rows[0] as any;
-      res.json({ success: true, breakEnd: row.break_end });
-    } catch (err: any) {
-      res.status(500).json({ error: 'Failed to end break' });
-    }
-  });
-
-  // GET /api/kiosk/my-hours — employee's time entries for a date range
-  app.get('/api/kiosk/my-hours', async (req, res) => {
-    try {
-      const { tenantId, employeeId, source, start, end, kioskToken } = req.query as Record<string, string>;
-      if (!tenantId || !employeeId || !start || !end) {
-        return res.status(400).json({ error: 'Missing required query params' });
-      }
-      if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
-        return res.status(401).json({ error: 'Invalid or expired kiosk session' });
-      }
-      const isTip = source === 'tip_employee';
-      const result = await db.execute(
-        isTip
-          ? sql`
-              SELECT tce.id, tce.clock_in, tce.clock_out, tce.notes,
-                     COALESCE(
-                       json_agg(
-                         json_build_object('id', tcb.id, 'break_start', tcb.break_start, 'break_end', tcb.break_end)
-                       ) FILTER (WHERE tcb.id IS NOT NULL),
-                       '[]'
-                     ) AS breaks,
-                     CASE WHEN EXISTS (
-                       SELECT 1 FROM time_clock_edit_requests tcer
-                       WHERE tcer.entry_id = tce.id AND tcer.status = 'pending'
-                     ) THEN true ELSE false END AS has_pending_edit
-              FROM time_clock_entries tce
-              LEFT JOIN time_clock_breaks tcb ON tcb.time_clock_entry_id = tce.id
-              WHERE tce.tip_employee_id = ${employeeId}::uuid
-                AND tce.tenant_id = ${tenantId}::uuid
-                AND tce.clock_in >= ${start}::date
-                AND tce.clock_in < (${end}::date + INTERVAL '1 day')
-              GROUP BY tce.id
-              ORDER BY tce.clock_in ASC
-            `
-          : sql`
-              SELECT tce.id, tce.clock_in, tce.clock_out, tce.notes,
-                     COALESCE(
-                       json_agg(
-                         json_build_object('id', tcb.id, 'break_start', tcb.break_start, 'break_end', tcb.break_end)
-                       ) FILTER (WHERE tcb.id IS NOT NULL),
-                       '[]'
-                     ) AS breaks,
-                     CASE WHEN EXISTS (
-                       SELECT 1 FROM time_clock_edit_requests tcer
-                       WHERE tcer.entry_id = tce.id AND tcer.status = 'pending'
-                     ) THEN true ELSE false END AS has_pending_edit
-              FROM time_clock_entries tce
-              LEFT JOIN time_clock_breaks tcb ON tcb.time_clock_entry_id = tce.id
-              WHERE tce.employee_id = ${employeeId}::uuid
-                AND tce.tenant_id = ${tenantId}::uuid
-                AND tce.clock_in >= ${start}::date
-                AND tce.clock_in < (${end}::date + INTERVAL '1 day')
-              GROUP BY tce.id
-              ORDER BY tce.clock_in ASC
-            `
-      );
-      res.json(result.rows);
-    } catch (err: any) {
-      res.status(500).json({ error: 'Failed to fetch hours' });
-    }
-  });
-
-  // POST /api/kiosk/edit-request — submit a time clock edit request
-  app.post('/api/kiosk/edit-request', async (req, res) => {
-    try {
-      const { tenantId, employeeId, entryId, correctedClockIn, correctedClockOut, reason, kioskToken } = req.body;
-      if (!tenantId || !employeeId || !entryId || !reason) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
-      if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
-        return res.status(401).json({ error: 'Invalid or expired kiosk session' });
-      }
-      // Verify entry belongs to employee
-      const entryCheck = await db.execute(sql`
-        SELECT 1 FROM time_clock_entries
-        WHERE id = ${entryId}::uuid AND employee_id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid
-        LIMIT 1
-      `);
-      if (entryCheck.rows.length === 0) {
-        return res.status(404).json({ error: 'Entry not found' });
-      }
-      const result = await db.execute(sql`
-        INSERT INTO time_clock_edit_requests (tenant_id, entry_id, requested_by, corrected_clock_in, corrected_clock_out, reason, status)
-        VALUES (${tenantId}::uuid, ${entryId}::uuid, ${employeeId}::uuid,
-                ${correctedClockIn || null}::timestamptz, ${correctedClockOut || null}::timestamptz,
-                ${reason}, 'pending')
-        RETURNING id
-      `);
-      const row = result.rows[0] as any;
-      res.json({ success: true, requestId: row.id });
-    } catch (err: any) {
-      res.status(500).json({ error: 'Failed to submit edit request' });
-    }
-  });
-
-  // POST /api/kiosk/update-pin — manager/owner updates employee PIN (requires auth)
-  app.post('/api/kiosk/update-pin', async (req, res) => {
-    try {
-      // Authenticate via JWT — only managers/owners can update PINs
-      const { userId: authUserId } = await getUserIdFromRequest(req);
-      if (!authUserId) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      const { userId: targetUserId, tenantId, newPin } = req.body;
-      if (!targetUserId || !tenantId || !newPin) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
-
-      // Verify requester is manager/owner of this tenant
-      const requesterResult = await db.execute(sql`
-        SELECT role FROM user_profiles
-        WHERE id = ${authUserId}::uuid AND tenant_id = ${tenantId}::uuid AND is_active = true
-        LIMIT 1
-      `);
-      const requester = requesterResult.rows[0] as any;
-      if (!requester || !['owner', 'manager'].includes(requester.role)) {
-        return res.status(403).json({ error: 'Only owners and managers can update PINs' });
-      }
-
-      if (!/^\d{4}$/.test(newPin)) {
-        return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
-      }
-      // Check uniqueness within tenant
-      const dupCheck = await db.execute(sql`
-        SELECT 1 FROM user_profiles
-        WHERE tenant_id = ${tenantId}::uuid AND kiosk_pin = ${newPin} AND is_active = true AND id != ${targetUserId}::uuid
-        LIMIT 1
-      `);
-      if (dupCheck.rows.length > 0) {
-        return res.status(409).json({ error: 'PIN already in use by another employee' });
-      }
-      await db.execute(sql`
-        UPDATE user_profiles SET kiosk_pin = ${newPin}, updated_at = NOW()
-        WHERE id = ${targetUserId}::uuid AND tenant_id = ${tenantId}::uuid
-      `);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: 'Failed to update PIN' });
-    }
-  });
-
-  // POST /api/kiosk/set-code — owner sets kiosk store code (requires auth)
-  app.post('/api/kiosk/set-code', async (req, res) => {
-    try {
-      // Authenticate via JWT — only owners can set kiosk code
-      const { userId: authUserId } = await getUserIdFromRequest(req);
-      if (!authUserId) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      const { tenantId, kioskCode } = req.body;
-      if (!tenantId) {
-        return res.status(400).json({ error: 'Missing tenantId' });
-      }
-
-      // Verify requester is owner of this tenant
-      const requesterResult = await db.execute(sql`
-        SELECT role FROM user_profiles
-        WHERE id = ${authUserId}::uuid AND tenant_id = ${tenantId}::uuid AND is_active = true
-        LIMIT 1
-      `);
-      const requester = requesterResult.rows[0] as any;
-      if (!requester || requester.role !== 'owner') {
-        return res.status(403).json({ error: 'Only owners can set the kiosk code' });
-      }
-
-      const code = (kioskCode || '').trim().toUpperCase();
-      if (code && (code.length < 2 || code.length > 10 || !/^[A-Z0-9]+$/.test(code))) {
-        return res.status(400).json({ error: 'Code must be 2-10 alphanumeric characters' });
-      }
-      // Check uniqueness
-      if (code) {
-        const dupCheck = await db.execute(sql`
-          SELECT 1 FROM tenants WHERE UPPER(kiosk_code) = ${code} AND id != ${tenantId}::uuid
-          LIMIT 1
-        `);
-        if (dupCheck.rows.length > 0) {
-          return res.status(409).json({ error: 'Code already in use by another store' });
-        }
-      }
-      await db.execute(sql`
-        UPDATE tenants SET kiosk_code = ${code || null} WHERE id = ${tenantId}::uuid
-      `);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: 'Failed to set kiosk code' });
-    }
-  });
-
-  // Location Clone Endpoint
-  // POST /api/locations/clone
-  // Copies recipes/ingredients, overhead settings, and/or equipment+tasks from one child location to another
   app.post('/api/locations/clone', async (req, res) => {
     try {
       // 1. Auth
@@ -3255,8 +1231,7 @@ export async function registerRoutes(
       // --- Clone Recipes & Ingredients ---
       if (cloneOptions.recipes) {
         // 1. ingredient_categories
-        const { data: ingCats } = await admin
-          .from('ingredient_categories').select('*').eq('tenant_id', sourceTenantId);
+        const { data: ingCats } = await admin.from('ingredient_categories').select('*').eq('tenant_id', sourceTenantId);
         const ingCatMap = new Map<string, string>();
         if (ingCats && ingCats.length > 0) {
           const inserts = ingCats.map(({ id, tenant_id: _tid, ...rest }) => {
@@ -3269,8 +1244,7 @@ export async function registerRoutes(
         }
 
         // 2. ingredients
-        const { data: ingredients } = await admin
-          .from('ingredients').select('*').eq('tenant_id', sourceTenantId);
+        const { data: ingredients } = await admin.from('ingredients').select('*').eq('tenant_id', sourceTenantId);
         const ingredientMap = new Map<string, string>();
         if (ingredients && ingredients.length > 0) {
           const inserts = ingredients.map(({ id, tenant_id: _tid, category_id, ...rest }) => {
@@ -3289,8 +1263,7 @@ export async function registerRoutes(
         }
 
         // 3. product_categories
-        const { data: prodCats } = await admin
-          .from('product_categories').select('*').eq('tenant_id', sourceTenantId);
+        const { data: prodCats } = await admin.from('product_categories').select('*').eq('tenant_id', sourceTenantId);
         const prodCatMap = new Map<string, string>();
         if (prodCats && prodCats.length > 0) {
           const inserts = prodCats.map(({ id, tenant_id: _tid, ...rest }) => {
@@ -3303,8 +1276,7 @@ export async function registerRoutes(
         }
 
         // 4. product_sizes
-        const { data: sizes } = await admin
-          .from('product_sizes').select('*').eq('tenant_id', sourceTenantId);
+        const { data: sizes } = await admin.from('product_sizes').select('*').eq('tenant_id', sourceTenantId);
         const sizeMap = new Map<string, string>();
         if (sizes && sizes.length > 0) {
           const inserts = sizes.map(({ id, tenant_id: _tid, ...rest }) => {
@@ -3317,8 +1289,7 @@ export async function registerRoutes(
         }
 
         // 5. base_templates
-        const { data: templates } = await admin
-          .from('base_templates').select('*').eq('tenant_id', sourceTenantId);
+        const { data: templates } = await admin.from('base_templates').select('*').eq('tenant_id', sourceTenantId);
         const templateMap = new Map<string, string>();
         if (templates && templates.length > 0) {
           const inserts = templates.map(({ id, tenant_id: _tid, ...rest }) => {
@@ -3335,7 +1306,10 @@ export async function registerRoutes(
           const { data: bti } = await admin
             .from('base_template_ingredients')
             .select('*')
-            .in('base_template_id', templates.map((t: any) => t.id));
+            .in(
+              'base_template_id',
+              templates.map((t: any) => t.id)
+            );
           if (bti && bti.length > 0) {
             const inserts = bti.map(({ id: _id, base_template_id, ingredient_id, ...rest }: any) => ({
               ...rest,
@@ -3349,8 +1323,7 @@ export async function registerRoutes(
         }
 
         // 7. recipes
-        const { data: recipes } = await admin
-          .from('recipes').select('*').eq('tenant_id', sourceTenantId);
+        const { data: recipes } = await admin.from('recipes').select('*').eq('tenant_id', sourceTenantId);
         const recipeMap = new Map<string, string>();
         if (recipes && recipes.length > 0) {
           const inserts = recipes.map(({ id, tenant_id: _tid, base_template_id, category_id, ...rest }: any) => {
@@ -3372,23 +1345,26 @@ export async function registerRoutes(
 
           // 8. recipe_ingredients
           const { data: recipeIngredients } = await admin
-            .from('recipe_ingredients').select('*').in('recipe_id', sourceRecipeIds);
+            .from('recipe_ingredients')
+            .select('*')
+            .in('recipe_id', sourceRecipeIds);
           if (recipeIngredients && recipeIngredients.length > 0) {
-            const inserts = recipeIngredients.map(({ id: _id, recipe_id, ingredient_id, syrup_recipe_id, size_id, ...rest }: any) => ({
-              ...rest,
-              id: crypto.randomUUID(),
-              recipe_id: recipeMap.get(recipe_id) ?? recipe_id,
-              ingredient_id: ingredient_id ? (ingredientMap.get(ingredient_id) ?? ingredient_id) : null,
-              syrup_recipe_id: syrup_recipe_id ? (recipeMap.get(syrup_recipe_id) ?? syrup_recipe_id) : null,
-              size_id: size_id ? (sizeMap.get(size_id) ?? size_id) : null,
-            }));
+            const inserts = recipeIngredients.map(
+              ({ id: _id, recipe_id, ingredient_id, syrup_recipe_id, size_id, ...rest }: any) => ({
+                ...rest,
+                id: crypto.randomUUID(),
+                recipe_id: recipeMap.get(recipe_id) ?? recipe_id,
+                ingredient_id: ingredient_id ? (ingredientMap.get(ingredient_id) ?? ingredient_id) : null,
+                syrup_recipe_id: syrup_recipe_id ? (recipeMap.get(syrup_recipe_id) ?? syrup_recipe_id) : null,
+                size_id: size_id ? (sizeMap.get(size_id) ?? size_id) : null,
+              })
+            );
             const { error } = await admin.from('recipe_ingredients').insert(inserts);
             if (error) throw new Error(`Recipe ingredients clone failed: ${error.message}`);
           }
 
           // 9. recipe_size_bases
-          const { data: rsb } = await admin
-            .from('recipe_size_bases').select('*').in('recipe_id', sourceRecipeIds);
+          const { data: rsb } = await admin.from('recipe_size_bases').select('*').in('recipe_id', sourceRecipeIds);
           if (rsb && rsb.length > 0) {
             const inserts = rsb.map(({ id, recipe_id, size_id, base_template_id, ...rest }: any) => ({
               ...rest,
@@ -3402,8 +1378,7 @@ export async function registerRoutes(
           }
 
           // 10. recipe_size_pricing
-          const { data: rsp } = await admin
-            .from('recipe_size_pricing').select('*').in('recipe_id', sourceRecipeIds);
+          const { data: rsp } = await admin.from('recipe_size_pricing').select('*').in('recipe_id', sourceRecipeIds);
           if (rsp && rsp.length > 0) {
             const inserts = rsp.map(({ id: _id, recipe_id, size_id, ...rest }: any) => ({
               ...rest,
@@ -3419,8 +1394,7 @@ export async function registerRoutes(
 
       // --- Clone Equipment & Maintenance Tasks ---
       if (cloneOptions.equipment) {
-        const { data: equipmentItems } = await admin
-          .from('equipment').select('*').eq('tenant_id', sourceTenantId);
+        const { data: equipmentItems } = await admin.from('equipment').select('*').eq('tenant_id', sourceTenantId);
         const equipmentMap = new Map<string, string>();
         if (equipmentItems && equipmentItems.length > 0) {
           const inserts = equipmentItems.map(({ id, tenant_id: _tid, ...rest }: any) => {
@@ -3435,7 +1409,10 @@ export async function registerRoutes(
           const { data: tasks } = await admin
             .from('maintenance_tasks')
             .select('*')
-            .in('equipment_id', equipmentItems.map((e: any) => e.id));
+            .in(
+              'equipment_id',
+              equipmentItems.map((e: any) => e.id)
+            );
           if (tasks && tasks.length > 0) {
             const taskInserts = tasks.map(({ id: _id, tenant_id: _tid, equipment_id, ...rest }: any) => ({
               ...rest,
@@ -3452,28 +1429,42 @@ export async function registerRoutes(
 
       res.json({ success: true, counts });
     } catch (err: any) {
-      console.error('[location-clone] Error:', err);
+      logger.error({ err }, 'Location clone error');
       res.status(500).json({ error: err.message || 'Clone failed' });
     }
   });
 
   // Auto-close bug reports that have been "resolved" for 14+ days
-  setInterval(async () => {
-    try {
-      const result = await db.execute(sql`
+  setInterval(
+    async () => {
+      try {
+        const result = await db.execute(sql`
         UPDATE bug_reports
         SET status = 'closed'
         WHERE status = 'resolved'
           AND updated_at < now() - interval '14 days'
       `);
-      const count = (result as any).rowCount ?? 0;
-      if (count > 0) {
-        console.log(`[auto-close] Closed ${count} resolved bug report(s) older than 14 days`);
+        const count = (result as any).rowCount ?? 0;
+        if (count > 0) {
+          logger.info({ count }, 'Auto-closed resolved bug reports older than 14 days');
+        }
+      } catch (err: any) {
+        logger.error({ err }, 'Auto-close bug reports error');
       }
-    } catch (err: any) {
-      console.error('[auto-close] Error:', err.message);
-    }
-  }, 60 * 60 * 1000); // check every hour
+    },
+    60 * 60 * 1000
+  ); // check every hour
+
+  // Periodic cleanup of feedbackRateLimit map
+  setInterval(
+    () => {
+      const now = Date.now();
+      feedbackRateLimit.forEach((entry, key) => {
+        if (now >= entry.resetTime) feedbackRateLimit.delete(key);
+      });
+    },
+    5 * 60 * 1000
+  ); // every 5 minutes
 
   // =====================================================
   // QuickBooks Online Integration
@@ -3497,31 +1488,58 @@ export async function registerRoutes(
       res.status(401).json({ error: 'Unauthorized' });
       return null;
     }
-    const tenantId = req.query.tenantId as string || req.params.tenantId || req.body?.tenantId;
+    const tenantId = (req.query.tenantId as string) || req.params.tenantId || req.body?.tenantId;
     if (!tenantId) {
       res.status(400).json({ error: 'tenantId required' });
       return null;
     }
-    // Verify user has manager+ role for this tenant
     const supabaseAdmin = getSupabaseAdmin();
-    const { data: assignment } = await supabaseAdmin
-      .from('user_tenant_assignments')
-      .select('role')
-      .eq('user_id', userId)
-      .eq('tenant_id', tenantId)
-      .single();
-    if (!assignment || !['owner', 'manager'].includes(assignment.role)) {
-      // Also allow platform admins
+
+    // Primary check: verify user's tenant_id from user_profiles
+    const { data: profile } = await supabaseAdmin
+      .from('user_profiles')
+      .select('tenant_id, role')
+      .eq('id', userId)
+      .maybeSingle();
+
+    let hasAccess = false;
+
+    if (profile && profile.tenant_id === tenantId) {
+      // User's primary tenant matches — check role
+      if (['owner', 'manager'].includes(profile.role)) {
+        hasAccess = true;
+      }
+    }
+
+    // Fall through to user_tenant_assignments for multi-location scenarios
+    if (!hasAccess) {
+      const { data: assignment } = await supabaseAdmin
+        .from('user_tenant_assignments')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('tenant_id', tenantId)
+        .single();
+      if (assignment && ['owner', 'manager'].includes(assignment.role)) {
+        hasAccess = true;
+      }
+    }
+
+    // Also allow platform admins
+    if (!hasAccess) {
       const { data: adminCheck } = await supabaseAdmin
         .from('platform_admins')
         .select('id')
         .eq('id', userId)
         .eq('is_active', true)
         .maybeSingle();
-      if (!adminCheck) {
-        res.status(403).json({ error: 'Manager or owner role required' });
-        return null;
+      if (adminCheck) {
+        hasAccess = true;
       }
+    }
+
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Manager or owner role required' });
+      return null;
     }
     return { userId, tenantId };
   }
@@ -3541,7 +1559,7 @@ export async function registerRoutes(
       const url = qboService.getQboAuthUrl(stateToken);
       res.json({ url });
     } catch (error: any) {
-      console.error('[qbo] Auth URL error:', error.message);
+      logger.error({ err: error }, 'QBO auth URL error');
       res.status(500).json({ error: 'Failed to generate auth URL' });
     }
   });
@@ -3559,7 +1577,9 @@ export async function registerRoutes(
     const stateData = qboOAuthStates.get(stateToken as string);
     qboOAuthStates.delete(stateToken as string);
     if (!stateData || Date.now() > stateData.expiresAt) {
-      return res.redirect(`${frontendUrl}&qbo_error=${encodeURIComponent('Invalid or expired OAuth state. Please try again.')}`);
+      return res.redirect(
+        `${frontendUrl}&qbo_error=${encodeURIComponent('Invalid or expired OAuth state. Please try again.')}`
+      );
     }
 
     try {
@@ -3572,12 +1592,12 @@ export async function registerRoutes(
         tokens.realmId || (realmId as string) || '',
         tokens.accessToken,
         tokens.refreshToken,
-        tokens.expiresAt,
+        tokens.expiresAt
       );
 
       res.redirect(`${frontendUrl}&qbo_connected=true`);
     } catch (error: any) {
-      console.error('[qbo] OAuth callback error:', error.message);
+      logger.error({ err: error }, 'QBO OAuth callback error');
       res.redirect(`${frontendUrl}&qbo_error=${encodeURIComponent('Failed to connect QuickBooks. Please try again.')}`);
     }
   });
@@ -3591,7 +1611,7 @@ export async function registerRoutes(
       const status = await qboService.getQboStatus(auth.tenantId);
       res.json(status);
     } catch (error: any) {
-      console.error('[qbo] Status error:', error.message);
+      logger.error({ err: error }, 'QBO status error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -3605,7 +1625,7 @@ export async function registerRoutes(
       await qboService.disconnectQbo(auth.tenantId);
       res.json({ success: true });
     } catch (error: any) {
-      console.error('[qbo] Disconnect error:', error.message);
+      logger.error({ err: error }, 'QBO disconnect error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -3619,7 +1639,7 @@ export async function registerRoutes(
       const result = await qboService.syncChartOfAccounts(auth.tenantId);
       res.json(result);
     } catch (error: any) {
-      console.error('[qbo] Sync CoA error:', error.message);
+      logger.error({ err: error }, 'QBO sync CoA error');
       res.status(500).json({ error: error.message || 'Sync failed' });
     }
   });
@@ -3642,7 +1662,7 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: 'Invalid request data' });
       }
-      console.error('[qbo] Sync actuals error:', error.message);
+      logger.error({ err: error }, 'QBO sync actuals error');
       res.status(500).json({ error: error.message || 'Sync failed' });
     }
   });
@@ -3703,7 +1723,7 @@ export async function registerRoutes(
       }> = [];
 
       for (const driver of drivers) {
-        const months = driver.apply_months || [1,2,3,4,5,6,7,8,9,10,11,12];
+        const months = driver.apply_months || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         for (const month of months) {
           let amount = 0;
           switch (driver.driver_type) {
@@ -3743,7 +1763,7 @@ export async function registerRoutes(
 
       // Bulk upsert
       if (upserts.length > 0) {
-        const withTimestamp = upserts.map(u => ({ ...u, updated_at: new Date().toISOString() }));
+        const withTimestamp = upserts.map((u) => ({ ...u, updated_at: new Date().toISOString() }));
         const { error: uErr } = await supabaseAdmin
           .from('budget_forecast_line_items')
           .upsert(withTimestamp, { onConflict: 'tenant_id,scenario_id,account_id,month' });
@@ -3755,7 +1775,7 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: 'Invalid request data' });
       }
-      console.error('[forecast] Apply drivers error:', error.message);
+      logger.error({ err: error }, 'Forecast apply drivers error');
       res.status(500).json({ error: error.message || 'Failed to apply drivers' });
     }
   });
@@ -3783,12 +1803,14 @@ export async function registerRoutes(
         csv: z.string().min(1),
         tenantId: z.string().uuid(),
         fileName: z.string().min(1),
-        columnMapping: z.object({
-          name: z.number().int().min(0),
-          type: z.number().int().min(0).optional(),
-          detailType: z.number().int().min(0).optional(),
-          number: z.number().int().min(0).optional(),
-        }).optional(),
+        columnMapping: z
+          .object({
+            name: z.number().int().min(0),
+            type: z.number().int().min(0).optional(),
+            detailType: z.number().int().min(0).optional(),
+            number: z.number().int().min(0).optional(),
+          })
+          .optional(),
         replaceExisting: z.boolean().optional(),
       });
       const { csv, tenantId, fileName, columnMapping, replaceExisting } = schema.parse(req.body);
@@ -3824,8 +1846,7 @@ export async function registerRoutes(
         return fields;
       };
 
-      // QBO exports have title rows before the real headers (e.g. "Account List,,,,,").
-      // Find the header row: first line where at least 3 fields have non-empty values.
+      // QBO exports have title rows before the real headers
       let headerIdx = 0;
       for (let i = 0; i < Math.min(allLines.length, 10); i++) {
         const fields = parseCSVLine(allLines[i]);
@@ -3848,17 +1869,20 @@ export async function registerRoutes(
         detailIdx = columnMapping.detailType ?? -1;
         numberIdx = columnMapping.number ?? -1;
       } else {
-        // QBO uses "Account #", "Full name", "Type", "Detail type"
-        numberIdx = headers.findIndex((h) => h === 'account' || h === 'number' || h === 'accountnumber' || h === 'acctnum');
-        nameIdx = headers.findIndex((h, idx) =>
-          idx !== numberIdx && (h === 'fullname' || h === 'accountname' || h === 'name' || h === 'account')
+        numberIdx = headers.findIndex(
+          (h) => h === 'account' || h === 'number' || h === 'accountnumber' || h === 'acctnum'
+        );
+        nameIdx = headers.findIndex(
+          (h, idx) => idx !== numberIdx && (h === 'fullname' || h === 'accountname' || h === 'name' || h === 'account')
         );
         typeIdx = headers.findIndex((h) => h === 'type' || h === 'accounttype');
         detailIdx = headers.findIndex((h) => h === 'detailtype' || h === 'detail');
       }
 
       if (nameIdx === -1) {
-        return res.status(400).json({ error: 'CSV must have an "Account" or "Name" column. Use column mapping if your headers differ.' });
+        return res
+          .status(400)
+          .json({ error: 'CSV must have an "Account" or "Name" column. Use column mapping if your headers differ.' });
       }
 
       // Map QBO types to internal types
@@ -3874,10 +1898,7 @@ export async function registerRoutes(
 
       // Replace existing: delete all current accounts for this tenant first
       if (replaceExisting) {
-        await supabaseAdmin
-          .from('budget_chart_of_accounts')
-          .delete()
-          .eq('tenant_id', tenantId);
+        await supabaseAdmin.from('budget_chart_of_accounts').delete().eq('tenant_id', tenantId);
       }
 
       const imported: any[] = [];
@@ -3885,7 +1906,7 @@ export async function registerRoutes(
       let skipped = 0;
 
       // Track parent accounts by name for hierarchy
-      const parentMap = new Map<string, string>(); // fullName → id
+      const parentMap = new Map<string, string>(); // fullName -> id
 
       for (let i = 1; i < lines.length; i++) {
         const fields = parseCSVLine(lines[i]);
@@ -3895,13 +1916,13 @@ export async function registerRoutes(
           continue;
         }
 
-        // Skip summary/footer rows (e.g. "TOTAL", timestamp lines)
+        // Skip summary/footer rows
         if (rawName.toUpperCase() === 'TOTAL' || rawName.startsWith('"') || rawName.startsWith(' ')) {
           skipped++;
           continue;
         }
 
-        // Handle QBO sub-account notation (colon-separated: "Cost of Goods Sold:Coffee Beans")
+        // Handle QBO sub-account notation (colon-separated)
         const nameParts = rawName.split(':').map((p) => p.trim());
         const accountName = nameParts[nameParts.length - 1];
         const parentPath = nameParts.length > 1 ? nameParts.slice(0, -1).join(':') : null;
@@ -3960,7 +1981,7 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: 'Invalid request data', details: error.errors });
       }
-      console.error('[budget-import] Error:', error.message);
+      logger.error({ err: error }, 'Budget import error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -3970,98 +1991,80 @@ export async function registerRoutes(
 
 // Seed function
 async function seedDatabase() {
-  const existingIngredients = await storage.getIngredients();
+  // Look up the first tenant to use for seed data; skip seeding if no tenants exist.
+  const tenantResult = await db.execute(sql`SELECT id FROM tenants LIMIT 1`);
+  const seedTenantId = (tenantResult.rows[0] as any)?.id as string | undefined;
+  if (!seedTenantId) return;
+
+  const existingIngredients = await storage.getIngredients(seedTenantId);
   if (existingIngredients.length === 0) {
     const flour = await storage.createIngredient({
-      name: "All-Purpose Flour",
-      unit: "kg",
-      cost: "2.50",
-      quantity: "1",
+      tenantId: seedTenantId,
+      name: 'All-Purpose Flour',
+      unit: 'kg',
+      cost: '2.50',
+      quantity: '1',
     });
 
     const sugar = await storage.createIngredient({
-      name: "Granulated Sugar",
-      unit: "kg",
-      cost: "1.80",
-      quantity: "1",
+      tenantId: seedTenantId,
+      name: 'Granulated Sugar',
+      unit: 'kg',
+      cost: '1.80',
+      quantity: '1',
     });
 
     const butter = await storage.createIngredient({
-      name: "Unsalted Butter",
-      unit: "g",
-      cost: "4.50",
-      quantity: "500",
+      tenantId: seedTenantId,
+      name: 'Unsalted Butter',
+      unit: 'g',
+      cost: '4.50',
+      quantity: '500',
     });
 
     const eggs = await storage.createIngredient({
-      name: "Large Eggs",
-      unit: "each",
-      cost: "3.00",
-      quantity: "12",
+      tenantId: seedTenantId,
+      name: 'Large Eggs',
+      unit: 'each',
+      cost: '3.00',
+      quantity: '12',
     });
 
     const cookieRecipe = await storage.createRecipe({
-      name: "Sugar Cookies",
-      description: "Mix ingredients. Bake at 350F for 10-12 minutes."
+      tenantId: seedTenantId,
+      name: 'Sugar Cookies',
+      description: 'Mix ingredients. Bake at 350F for 10-12 minutes.',
     });
 
     await storage.addRecipeIngredient({
+      tenantId: seedTenantId,
       recipeId: cookieRecipe.id,
       ingredientId: flour.id,
-      quantity: "0.4" // 400g
+      quantity: '0.4', // 400g
     });
 
     await storage.addRecipeIngredient({
+      tenantId: seedTenantId,
       recipeId: cookieRecipe.id,
       ingredientId: sugar.id,
-      quantity: "0.2" // 200g
+      quantity: '0.2', // 200g
     });
 
     await storage.addRecipeIngredient({
+      tenantId: seedTenantId,
       recipeId: cookieRecipe.id,
       ingredientId: butter.id,
-      quantity: "225" // 225g
+      quantity: '225', // 225g
     });
-     
+
     await storage.addRecipeIngredient({
+      tenantId: seedTenantId,
       recipeId: cookieRecipe.id,
       ingredientId: eggs.id,
-      quantity: "1" // 1 egg
+      quantity: '1', // 1 egg
     });
   }
 }
 
 // Call seed
 // seedDatabase().catch(console.error);
-
-// Coffee Order Email Route
-const sendOrderEmailSchema = z.object({
-  vendorEmail: z.string().email(),
-  ccEmail: z.string().email().optional().or(z.literal('')),
-  vendorName: z.string(),
-  orderItems: z.array(z.object({
-    name: z.string(),
-    size: z.string(),
-    quantity: z.number(),
-    price: z.number(),
-    retailLabels: z.number().optional(),
-    category: z.string().optional(),
-  })),
-  totalUnits: z.number(),
-  totalCost: z.number(),
-  notes: z.string().optional(),
-  tenantName: z.string().optional()
-});
-
-// Feedback Email Schema
-const sendFeedbackEmailSchema = z.object({
-  feedbackType: z.enum(['bug', 'suggestion', 'general']),
-  subject: z.string(),
-  description: z.string().min(1, 'Description is required'),
-  pageUrl: z.string().optional(),
-  browserInfo: z.string().optional(),
-  userEmail: z.string().email().optional(),
-  userName: z.string().optional(),
-  tenantId: z.string().optional(),
-  tenantName: z.string().optional()
-});

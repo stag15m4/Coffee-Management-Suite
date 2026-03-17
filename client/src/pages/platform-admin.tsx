@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -44,13 +45,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatRelativeTime, getActivityColor } from '@/hooks/use-store-profile';
 import { getTrialStatus } from '@/hooks/use-trial-status';
 import { colors } from '@/lib/colors';
@@ -82,10 +77,7 @@ function matchVertical(name: string, verticals: VerticalOption[]): VerticalOptio
   const lower = name.toLowerCase();
 
   for (const v of verticals) {
-    const words = [
-      ...v.slug.split('-'),
-      ...v.display_name.toLowerCase().split(/\s+/),
-    ];
+    const words = [...v.slug.split('-'), ...v.display_name.toLowerCase().split(/\s+/)];
     if (words.some((w) => w.length >= 3 && lower.includes(w))) {
       return v;
     }
@@ -210,8 +202,8 @@ export default function PlatformAdmin() {
       supabase.from('user_tenant_assignments').select('tenant_id').eq('user_id', user.id).eq('is_active', true),
     ]);
     const ids = new Set<string>();
-    profileResult.data?.forEach(p => ids.add(p.tenant_id));
-    assignmentsResult.data?.forEach(a => ids.add(a.tenant_id));
+    profileResult.data?.forEach((p) => ids.add(p.tenant_id));
+    assignmentsResult.data?.forEach((a) => ids.add(a.tenant_id));
     setMyTenantIds(ids);
   };
 
@@ -255,9 +247,9 @@ export default function PlatformAdmin() {
         console.error(`Error loading admins: ${res.status} ${res.statusText}`, errBody);
         setAdminsError(`API returned ${res.status}: ${errBody}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading admins:', error);
-      setAdminsError(error.message);
+      setAdminsError(getErrorMessage(error));
     } finally {
       setAdminsLoading(false);
     }
@@ -276,9 +268,9 @@ export default function PlatformAdmin() {
         console.error(`Error loading beta invites: ${res.status} ${res.statusText}`, errBody);
         setBetaInvitesError(`API returned ${res.status}: ${errBody}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading beta invites:', error);
-      setBetaInvitesError(error.message);
+      setBetaInvitesError(getErrorMessage(error));
     } finally {
       setBetaInvitesLoading(false);
     }
@@ -321,8 +313,8 @@ export default function PlatformAdmin() {
       setShowBetaInviteDialog(false);
       setBetaInviteEmail('');
       loadBetaInvites();
-    } catch (error: any) {
-      toast({ title: 'Error sending invite', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error sending invite', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSendingBetaInvite(false);
     }
@@ -342,8 +334,8 @@ export default function PlatformAdmin() {
       }
       toast({ title: 'Invite deleted' });
       loadBetaInvites();
-    } catch (error: any) {
-      toast({ title: 'Error deleting invite', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error deleting invite', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -373,8 +365,8 @@ export default function PlatformAdmin() {
       setNewAdminEmail('');
       setNewAdminName('');
       loadAdmins();
-    } catch (error: any) {
-      toast({ title: 'Error adding admin', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error adding admin', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setAddingAdmin(false);
     }
@@ -396,24 +388,21 @@ export default function PlatformAdmin() {
 
       toast({ title: 'Platform admin removed' });
       loadAdmins();
-    } catch (error: any) {
-      toast({ title: 'Error removing admin', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error removing admin', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setRemovingAdminId(null);
     }
   };
 
   const updateModuleRollout = async (moduleId: string, status: 'internal' | 'beta' | 'ga') => {
-    const { error } = await supabase
-      .from('modules')
-      .update({ rollout_status: status })
-      .eq('id', moduleId);
+    const { error } = await supabase.from('modules').update({ rollout_status: status }).eq('id', moduleId);
 
     if (error) {
-      toast({ title: 'Error updating module rollout', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error updating module rollout', description: getErrorMessage(error), variant: 'destructive' });
     } else {
       toast({ title: `${moduleId} set to ${status.toUpperCase()}` });
-      setModules(prev => prev.map(m => m.id === moduleId ? { ...m, rollout_status: status } : m));
+      setModules((prev) => prev.map((m) => (m.id === moduleId ? { ...m, rollout_status: status } : m)));
     }
   };
 
@@ -474,7 +463,10 @@ export default function PlatformAdmin() {
 
     setCreatingVertical(true);
     try {
-      const slug = displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const slug = displayName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
       const productName = displayName.replace(/\s+/g, '') + 'Suite';
 
       const res = await fetch('/api/verticals', {
@@ -502,8 +494,8 @@ export default function PlatformAdmin() {
       setShowCreateVertical(false);
       setNewVerticalName('');
       toast({ title: `Vertical "${displayName}" created` });
-    } catch (error: any) {
-      toast({ title: 'Error creating vertical', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error creating vertical', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setCreatingVertical(false);
     }
@@ -511,7 +503,7 @@ export default function PlatformAdmin() {
 
   const toggleModule = (moduleId: string) => {
     if (selectedModules.includes(moduleId)) {
-      setSelectedModules(selectedModules.filter(m => m !== moduleId));
+      setSelectedModules(selectedModules.filter((m) => m !== moduleId));
     } else {
       setSelectedModules([...selectedModules, moduleId]);
     }
@@ -522,7 +514,7 @@ export default function PlatformAdmin() {
     if (selectedPlan === 'beta') return 0;
     if (selectedPlan === 'free') return 0;
     return selectedModules.reduce((total, moduleId) => {
-      const module = modules.find(m => m.id === moduleId);
+      const module = modules.find((m) => m.id === moduleId);
       const price = parseFloat(String(module?.monthly_price || 0)) || 0;
       return total + price;
     }, 0);
@@ -530,7 +522,7 @@ export default function PlatformAdmin() {
 
   const saveSubscriptionSettings = async () => {
     if (!selectedTenant) return;
-    
+
     setSavingSubscription(true);
     try {
       const newName = editTenantName.trim();
@@ -553,16 +545,10 @@ export default function PlatformAdmin() {
 
       // Keep branding company_name in sync with tenant name
       if (newName !== selectedTenant.name) {
-        await supabase
-          .from('tenant_branding')
-          .update({ company_name: newName })
-          .eq('tenant_id', selectedTenant.id);
+        await supabase.from('tenant_branding').update({ company_name: newName }).eq('tenant_id', selectedTenant.id);
       }
 
-      await supabase
-        .from('tenant_module_subscriptions')
-        .delete()
-        .eq('tenant_id', selectedTenant.id);
+      await supabase.from('tenant_module_subscriptions').delete().eq('tenant_id', selectedTenant.id);
 
       // For premium and beta plans, enable ALL modules
       // For alacarte, enable only selected modules
@@ -570,20 +556,18 @@ export default function PlatformAdmin() {
 
       if (selectedPlan === 'premium' || selectedPlan === 'beta') {
         // Enable all modules for premium and beta plans
-        modulesToInsert = modules.map(m => m.id);
+        modulesToInsert = modules.map((m) => m.id);
       } else if (selectedPlan === 'alacarte' && selectedModules.length > 0) {
         modulesToInsert = selectedModules;
       }
 
       if (modulesToInsert.length > 0) {
-        const subsToInsert = modulesToInsert.map(moduleId => ({
+        const subsToInsert = modulesToInsert.map((moduleId) => ({
           tenant_id: selectedTenant.id,
-          module_id: moduleId
+          module_id: moduleId,
         }));
 
-        const { error: subError } = await supabase
-          .from('tenant_module_subscriptions')
-          .insert(subsToInsert);
+        const { error: subError } = await supabase.from('tenant_module_subscriptions').insert(subsToInsert);
 
         if (subError) throw subError;
       }
@@ -612,10 +596,7 @@ export default function PlatformAdmin() {
       const tenantsWithStats = await Promise.all(
         (tenantsData || []).map(async (tenant) => {
           const [{ count }, { data: loginData }, { data: assignmentData }] = await Promise.all([
-            supabase
-              .from('user_profiles')
-              .select('*', { count: 'exact', head: true })
-              .eq('tenant_id', tenant.id),
+            supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
             supabase
               .from('user_profiles')
               .select('last_login_at')
@@ -655,12 +636,12 @@ export default function PlatformAdmin() {
       const totalUsers = tenantsWithStats.reduce((sum, t) => sum + (t.user_count || 0), 0);
       setStats({
         totalTenants: tenantsWithStats.length,
-        activeTenants: tenantsWithStats.filter(t => t.is_active).length,
+        activeTenants: tenantsWithStats.filter((t) => t.is_active).length,
         totalUsers,
-        trialTenants: tenantsWithStats.filter(t => t.subscription_status === 'trial').length,
+        trialTenants: tenantsWithStats.filter((t) => t.subscription_status === 'trial').length,
       });
-    } catch (error: any) {
-      toast({ title: 'Error loading tenants', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error loading tenants', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -700,8 +681,8 @@ export default function PlatformAdmin() {
       setOwnerName('');
       setOwnerPassword('');
       loadTenants();
-    } catch (error: any) {
-      toast({ title: 'Error creating tenant', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error creating tenant', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setCreating(false);
     }
@@ -709,16 +690,13 @@ export default function PlatformAdmin() {
 
   const toggleTenantActive = async (tenantId: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
-        .from('tenants')
-        .update({ is_active: !currentStatus })
-        .eq('id', tenantId);
+      const { error } = await supabase.from('tenants').update({ is_active: !currentStatus }).eq('id', tenantId);
 
       if (error) throw error;
       toast({ title: `Tenant ${!currentStatus ? 'activated' : 'deactivated'}` });
       loadTenants();
-    } catch (error: any) {
-      toast({ title: 'Error updating tenant', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating tenant', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -742,8 +720,12 @@ export default function PlatformAdmin() {
           <div className="flex items-center gap-3">
             <Settings className="w-8 h-8" style={{ color: colors.gold }} />
             <div>
-              <h1 className="text-xl font-bold" style={{ color: colors.brown }} data-testid="text-platform-admin-title">Platform Admin</h1>
-              <p className="text-sm hidden sm:block" style={{ color: colors.brownLight }}>{platformAdmin?.email}</p>
+              <h1 className="text-xl font-bold" style={{ color: colors.brown }} data-testid="text-platform-admin-title">
+                Platform Admin
+              </h1>
+              <p className="text-sm hidden sm:block" style={{ color: colors.brownLight }}>
+                {platformAdmin?.email}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -807,8 +789,16 @@ export default function PlatformAdmin() {
             <div className="flex items-center gap-3">
               <Building2 className="w-5 h-5 shrink-0" style={{ color: colors.gold }} />
               <div>
-                <p className="text-xs" style={{ color: colors.brownLight }}>Businesses</p>
-                <p className="text-2xl font-bold leading-tight" style={{ color: colors.brown }} data-testid="text-total-tenants">{stats.totalTenants}</p>
+                <p className="text-xs" style={{ color: colors.brownLight }}>
+                  Businesses
+                </p>
+                <p
+                  className="text-2xl font-bold leading-tight"
+                  style={{ color: colors.brown }}
+                  data-testid="text-total-tenants"
+                >
+                  {stats.totalTenants}
+                </p>
               </div>
             </div>
           </Card>
@@ -816,8 +806,16 @@ export default function PlatformAdmin() {
             <div className="flex items-center gap-3">
               <CheckCircle className="w-5 h-5 shrink-0" style={{ color: colors.green }} />
               <div>
-                <p className="text-xs" style={{ color: colors.brownLight }}>Active</p>
-                <p className="text-2xl font-bold leading-tight" style={{ color: colors.brown }} data-testid="text-active-tenants">{stats.activeTenants}</p>
+                <p className="text-xs" style={{ color: colors.brownLight }}>
+                  Active
+                </p>
+                <p
+                  className="text-2xl font-bold leading-tight"
+                  style={{ color: colors.brown }}
+                  data-testid="text-active-tenants"
+                >
+                  {stats.activeTenants}
+                </p>
               </div>
             </div>
           </Card>
@@ -825,8 +823,16 @@ export default function PlatformAdmin() {
             <div className="flex items-center gap-3">
               <Users className="w-5 h-5 shrink-0" style={{ color: colors.gold }} />
               <div>
-                <p className="text-xs" style={{ color: colors.brownLight }}>Users</p>
-                <p className="text-2xl font-bold leading-tight" style={{ color: colors.brown }} data-testid="text-total-users">{stats.totalUsers}</p>
+                <p className="text-xs" style={{ color: colors.brownLight }}>
+                  Users
+                </p>
+                <p
+                  className="text-2xl font-bold leading-tight"
+                  style={{ color: colors.brown }}
+                  data-testid="text-total-users"
+                >
+                  {stats.totalUsers}
+                </p>
               </div>
             </div>
           </Card>
@@ -834,8 +840,16 @@ export default function PlatformAdmin() {
             <div className="flex items-center gap-3">
               <Activity className="w-5 h-5 shrink-0" style={{ color: colors.yellow }} />
               <div>
-                <p className="text-xs" style={{ color: colors.brownLight }}>On Trial</p>
-                <p className="text-2xl font-bold leading-tight" style={{ color: colors.brown }} data-testid="text-trial-tenants">{stats.trialTenants}</p>
+                <p className="text-xs" style={{ color: colors.brownLight }}>
+                  On Trial
+                </p>
+                <p
+                  className="text-2xl font-bold leading-tight"
+                  style={{ color: colors.brown }}
+                  data-testid="text-trial-tenants"
+                >
+                  {stats.trialTenants}
+                </p>
               </div>
             </div>
           </Card>
@@ -844,574 +858,713 @@ export default function PlatformAdmin() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr,380px] gap-6">
           {/* Left Column: Admins, Beta Invites, Businesses */}
           <div>
-
-        {/* Platform Admins Section */}
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
-            <ShieldCheck className="w-5 h-5" style={{ color: colors.gold }} />
-            Platform Admins
-          </h2>
-          <Dialog open={showAddAdminDialog} onOpenChange={setShowAddAdminDialog}>
-            <DialogTrigger asChild>
-              <Button style={{ backgroundColor: colors.gold, color: colors.white }} data-testid="button-add-admin">
-                <UserPlus className="w-4 h-4 mr-2" />
-                Add Admin
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Add Platform Admin</DialogTitle>
-                <DialogDescription style={{ color: colors.brownLight }}>
-                  Add an existing user as a platform admin. They must already have an account.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="admin-email">Email Address</Label>
-                  <Input
-                    id="admin-email"
-                    type="email"
-                    value={newAdminEmail}
-                    onChange={(e) => setNewAdminEmail(e.target.value)}
-                    placeholder="user@example.com"
-                    style={{ backgroundColor: colors.inputBg }}
-                    data-testid="input-admin-email"
-                  />
-                </div>
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="admin-name">Full Name (optional)</Label>
-                  <Input
-                    id="admin-name"
-                    value={newAdminName}
-                    onChange={(e) => setNewAdminName(e.target.value)}
-                    placeholder="Jane Doe"
-                    style={{ backgroundColor: colors.inputBg }}
-                    data-testid="input-admin-name"
-                  />
-                </div>
-                <Button
-                  onClick={handleAddAdmin}
-                  disabled={addingAdmin}
-                  className="w-full"
-                  style={{ backgroundColor: colors.gold, color: colors.white }}
-                  data-testid="button-confirm-add-admin"
-                >
-                  {addingAdmin ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Add Platform Admin
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-          {admins.map((admin, idx) => (
-            <div
-              key={admin.id}
-              className="px-4 py-3 flex items-center justify-between"
-              style={{ borderBottom: idx < admins.length - 1 ? `1px solid ${colors.creamDark}` : undefined }}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: colors.cream }}>
-                  <ShieldCheck className="w-4 h-4" style={{ color: colors.gold }} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>{admin.full_name || admin.email}</h3>
-                  <p className="text-xs" style={{ color: colors.brownLight }}>{admin.email}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge
-                  className="text-xs px-1.5 py-0"
-                  style={admin.is_active
-                    ? { backgroundColor: colors.green, color: '#fff' }
-                    : { backgroundColor: colors.creamDark, color: colors.brown }
-                  }
-                >
-                  {admin.is_active ? 'Active' : 'Inactive'}
-                </Badge>
-                {admin.id !== user?.id && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => handleRemoveAdmin(admin.id)}
-                    disabled={removingAdminId === admin.id}
-                    style={{ borderColor: colors.red, color: colors.red }}
-                    data-testid={`button-remove-admin-${admin.id}`}
-                  >
-                    {removingAdminId === admin.id ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3.5 h-3.5" />
-                    )}
+            {/* Platform Admins Section */}
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
+                <ShieldCheck className="w-5 h-5" style={{ color: colors.gold }} />
+                Platform Admins
+              </h2>
+              <Dialog open={showAddAdminDialog} onOpenChange={setShowAddAdminDialog}>
+                <DialogTrigger asChild>
+                  <Button style={{ backgroundColor: colors.gold, color: colors.white }} data-testid="button-add-admin">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Add Admin
                   </Button>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {adminsLoading && admins.length === 0 && (
-            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
-              <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
-              Loading platform admins...
-            </div>
-          )}
-          {adminsError && (
-            <div className="py-4 text-center">
-              <p className="font-medium text-sm mb-1" style={{ color: colors.red }}>Failed to load platform admins</p>
-              <p className="text-xs" style={{ color: colors.brownLight }}>{adminsError}</p>
-              <Button variant="outline" size="sm" className="mt-2 h-7 text-xs" onClick={loadAdmins} style={{ borderColor: colors.gold, color: colors.gold }}>Retry</Button>
-            </div>
-          )}
-          {!adminsLoading && !adminsError && admins.length === 0 && (
-            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
-              No platform admins found.
-            </div>
-          )}
-        </Card>
-
-        {/* Beta Invites Section */}
-        <div className="flex items-center justify-between mb-3 mt-6">
-          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
-            <FlaskConical className="w-5 h-5" style={{ color: colors.gold }} />
-            Beta Invites
-          </h2>
-          <Dialog open={showBetaInviteDialog} onOpenChange={setShowBetaInviteDialog}>
-            <DialogTrigger asChild>
-              <Button style={{ backgroundColor: colors.gold, color: colors.white }}>
-                <Send className="w-4 h-4 mr-2" />
-                Send Invite
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Send Beta Invite</DialogTitle>
-                <DialogDescription style={{ color: colors.brownLight }}>
-                  Send a beta access code to a new tester via email.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="beta-email">Email Address</Label>
-                  <Input
-                    id="beta-email"
-                    type="email"
-                    value={betaInviteEmail}
-                    onChange={(e) => setBetaInviteEmail(e.target.value)}
-                    placeholder="tester@example.com"
-                    style={{ backgroundColor: colors.inputBg }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSendBetaInvite()}
-                  />
-                </div>
-                <Button
-                  onClick={handleSendBetaInvite}
-                  disabled={sendingBetaInvite}
-                  className="w-full"
-                  style={{ backgroundColor: colors.gold, color: colors.white }}
-                >
-                  {sendingBetaInvite ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail className="w-4 h-4 mr-2" />}
-                  Send Beta Invite
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-          {[...betaInvites].sort((a: any, b: any) => (a.invited_email || '').localeCompare(b.invited_email || '')).map((invite: any, idx: number, arr: any[]) => (
-            <div
-              key={invite.id}
-              className="px-4 py-3 flex items-center justify-between"
-              style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${colors.creamDark}` : undefined }}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: colors.cream }}>
-                  <Mail className="w-4 h-4" style={{ color: colors.gold }} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>{invite.invited_email || 'No email'}</h3>
-                  <p className="text-xs font-mono" style={{ color: colors.brownLight }}>{invite.code}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge
-                  className="text-xs px-1.5 py-0"
-                  style={invite.tenant_name
-                    ? { backgroundColor: colors.green, color: '#fff' }
-                    : { backgroundColor: '#dbeafe', color: '#2563eb' }
-                  }
-                >
-                  {invite.tenant_name ? 'Redeemed' : 'Pending'}
-                </Badge>
-                {invite.tenant_name && (
-                  <span className="text-xs hidden sm:inline" style={{ color: colors.brownLight }}>{invite.tenant_name}</span>
-                )}
-                <span className="text-xs hidden sm:inline" style={{ color: colors.brownLight }}>
-                  {new Date(invite.created_at).toLocaleDateString()}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDeleteBetaInvite(invite.id, invite.invited_email)}
-                  className="h-7 w-7 p-0"
-                  style={{ color: colors.brownLight }}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            </div>
-          ))}
-          {betaInvitesLoading && betaInvites.length === 0 && (
-            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
-              <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
-              Loading beta invites...
-            </div>
-          )}
-          {betaInvitesError && (
-            <div className="py-4 text-center">
-              <p className="font-medium text-sm mb-1" style={{ color: colors.red }}>Failed to load beta invites</p>
-              <p className="text-xs" style={{ color: colors.brownLight }}>{betaInvitesError}</p>
-              <Button variant="outline" size="sm" className="mt-2 h-7 text-xs" onClick={loadBetaInvites} style={{ borderColor: colors.gold, color: colors.gold }}>Retry</Button>
-            </div>
-          )}
-          {!betaInvitesLoading && !betaInvitesError && betaInvites.length === 0 && (
-            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
-              No beta invites sent yet. Click "Send Invite" to invite a beta tester.
-            </div>
-          )}
-        </Card>
-
-        {/* Businesses Section */}
-        <div className="flex items-center justify-between mb-3 mt-6">
-          <h2 className="text-lg font-bold" style={{ color: colors.brown }}>Businesses</h2>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setHideInactive(!hideInactive)}
-              style={{
-                borderColor: hideInactive ? colors.gold : colors.creamDark,
-                color: hideInactive ? colors.gold : colors.brownLight,
-              }}
-            >
-              {hideInactive ? <Eye className="w-4 h-4 mr-1.5" /> : <EyeOff className="w-4 h-4 mr-1.5" />}
-              {hideInactive ? 'Show Inactive' : 'Hide Inactive'}
-            </Button>
-          <Dialog open={showNewTenantDialog} onOpenChange={setShowNewTenantDialog}>
-            <DialogTrigger asChild>
-              <Button style={{ backgroundColor: colors.gold, color: colors.white }} data-testid="button-add-business">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Business
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Create New Business</DialogTitle>
-                <DialogDescription style={{ color: colors.brownLight }}>
-                  Set up a new tenant with their owner account
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="tenant-name">Business Name</Label>
-                  <Input
-                    id="tenant-name"
-                    value={newTenantName}
-                    onChange={(e) => {
-                      setNewTenantName(e.target.value);
-                      setNewTenantSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-'));
-                    }}
-                    placeholder="Acme Coffee Shop"
-                    style={{ backgroundColor: colors.inputBg }}
-                    data-testid="input-tenant-name"
-                  />
-                </div>
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="tenant-slug">URL Slug</Label>
-                  <Input
-                    id="tenant-slug"
-                    value={newTenantSlug}
-                    onChange={(e) => setNewTenantSlug(e.target.value)}
-                    placeholder="acme-coffee"
-                    style={{ backgroundColor: colors.inputBg }}
-                    data-testid="input-tenant-slug"
-                  />
-                </div>
-                <hr style={{ borderColor: colors.creamDark }} />
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="owner-name">Owner Name</Label>
-                  <Input
-                    id="owner-name"
-                    value={ownerName}
-                    onChange={(e) => setOwnerName(e.target.value)}
-                    placeholder="John Smith"
-                    style={{ backgroundColor: colors.inputBg }}
-                    data-testid="input-owner-name"
-                  />
-                </div>
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="owner-email">Owner Email</Label>
-                  <Input
-                    id="owner-email"
-                    type="email"
-                    value={ownerEmail}
-                    onChange={(e) => setOwnerEmail(e.target.value)}
-                    placeholder="owner@example.com"
-                    style={{ backgroundColor: colors.inputBg }}
-                    data-testid="input-owner-email"
-                  />
-                </div>
-                <div>
-                  <Label style={{ color: colors.brown }} htmlFor="owner-password">Temporary Password</Label>
-                  <Input
-                    id="owner-password"
-                    type="password"
-                    value={ownerPassword}
-                    onChange={(e) => setOwnerPassword(e.target.value)}
-                    placeholder="Leave blank if user already exists"
-                    style={{ backgroundColor: colors.inputBg }}
-                    data-testid="input-owner-password"
-                  />
-                  <p className="text-xs mt-1" style={{ color: colors.brownLight }}>Only needed for new users. Existing accounts will be linked automatically.</p>
-                </div>
-                <Button
-                  onClick={handleCreateTenant}
-                  disabled={creating}
-                  className="w-full"
-                  style={{ backgroundColor: colors.gold, color: colors.white }}
-                  data-testid="button-create-tenant"
-                >
-                  {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Create Business
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-          </div>
-        </div>
-
-        <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-          {(hideInactive ? tenants.filter(t => t.is_active) : tenants).sort((a, b) => a.name.localeCompare(b.name)).map((tenant, idx, arr) => (
-            <div
-              key={tenant.id}
-              className="px-4 py-3 cursor-pointer hover:bg-opacity-50 transition-colors"
-              style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${colors.creamDark}` : undefined, backgroundColor: 'transparent' }}
-              onClick={() => openSubscriptionDialog(tenant)}
-              data-testid={`card-tenant-${tenant.id}`}
-            >
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: colors.cream }}>
-                    <Building2 className="w-4 h-4" style={{ color: colors.gold }} />
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl" style={{ color: colors.brown }}>
+                      Add Platform Admin
+                    </DialogTitle>
+                    <DialogDescription style={{ color: colors.brownLight }}>
+                      Add an existing user as a platform admin. They must already have an account.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div>
+                      <Label style={{ color: colors.brown }} htmlFor="admin-email">
+                        Email Address
+                      </Label>
+                      <Input
+                        id="admin-email"
+                        type="email"
+                        value={newAdminEmail}
+                        onChange={(e) => setNewAdminEmail(e.target.value)}
+                        placeholder="user@example.com"
+                        style={{ backgroundColor: colors.inputBg }}
+                        data-testid="input-admin-email"
+                      />
+                    </div>
+                    <div>
+                      <Label style={{ color: colors.brown }} htmlFor="admin-name">
+                        Full Name (optional)
+                      </Label>
+                      <Input
+                        id="admin-name"
+                        value={newAdminName}
+                        onChange={(e) => setNewAdminName(e.target.value)}
+                        placeholder="Jane Doe"
+                        style={{ backgroundColor: colors.inputBg }}
+                        data-testid="input-admin-name"
+                      />
+                    </div>
+                    <Button
+                      onClick={handleAddAdmin}
+                      disabled={addingAdmin}
+                      className="w-full"
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                      data-testid="button-confirm-add-admin"
+                    >
+                      {addingAdmin ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Add Platform Admin
+                    </Button>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-sm" style={{ color: colors.brown }} data-testid={`text-tenant-name-${tenant.id}`}>{tenant.name}</h3>
-                    <p className="text-xs" style={{ color: colors.brownLight }}>{tenant.slug}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between sm:justify-end gap-3">
-                  <div className="text-left sm:text-right">
-                    <p className="text-xs" style={{ color: colors.brownLight }}>{tenant.user_count} users</p>
-                    <p className="text-xs" style={{ color: getActivityColor(tenant.last_login_at ?? null) }}>
-                      {formatRelativeTime(tenant.last_login_at ?? null)}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mt-0.5">
-                      <Badge
-                        className="text-xs px-1.5 py-0"
-                        style={tenant.is_active
-                          ? { backgroundColor: colors.green, color: '#fff' }
-                          : { backgroundColor: colors.creamDark, color: colors.brown }
-                        }
-                      >
-                        {tenant.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <Badge className="text-xs px-1.5 py-0" variant="outline" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
-                        {tenant.subscription_status || 'trial'}
-                      </Badge>
-                      {(() => {
-                        const ts = getTrialStatus(tenant);
-                        if (!ts.isTrial || ts.trialDaysLeft === null) return null;
-                        return (
-                          <Badge
-                            className="text-xs px-1.5 py-0"
-                            variant="outline"
-                            style={{
-                              backgroundColor: ts.trialExpired ? '#fef2f2' : ts.trialUrgent ? '#fffbeb' : '#eff6ff',
-                              color: ts.trialExpired ? '#dc2626' : ts.trialUrgent ? '#d97706' : '#2563eb',
-                              borderColor: ts.trialExpired ? '#fca5a5' : ts.trialUrgent ? '#fcd34d' : '#93c5fd',
-                            }}
-                          >
-                            <Clock className="w-3 h-3 mr-1" />
-                            {ts.trialExpired ? 'Expired' : `${ts.trialDaysLeft}d`}
-                          </Badge>
-                        );
-                      })()}
-                      {tenant.vertical_name && (
-                        <Badge className="text-xs px-1.5 py-0" variant="outline" style={{ borderColor: colors.gold, color: colors.gold }}>
-                          {tenant.vertical_name}
-                        </Badge>
-                      )}
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              {admins.map((admin, idx) => (
+                <div
+                  key={admin.id}
+                  className="px-4 py-3 flex items-center justify-between"
+                  style={{ borderBottom: idx < admins.length - 1 ? `1px solid ${colors.creamDark}` : undefined }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: colors.cream }}
+                    >
+                      <ShieldCheck className="w-4 h-4" style={{ color: colors.gold }} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>
+                        {admin.full_name || admin.email}
+                      </h3>
+                      <p className="text-xs" style={{ color: colors.brownLight }}>
+                        {admin.email}
+                      </p>
                     </div>
                   </div>
+                  <div className="flex items-center gap-3">
+                    <Badge
+                      className="text-xs px-1.5 py-0"
+                      style={
+                        admin.is_active
+                          ? { backgroundColor: colors.green, color: '#fff' }
+                          : { backgroundColor: colors.creamDark, color: colors.brown }
+                      }
+                    >
+                      {admin.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                    {admin.id !== user?.id && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => handleRemoveAdmin(admin.id)}
+                        disabled={removingAdminId === admin.id}
+                        style={{ borderColor: colors.red, color: colors.red }}
+                        data-testid={`button-remove-admin-${admin.id}`}
+                      >
+                        {removingAdminId === admin.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {adminsLoading && admins.length === 0 && (
+                <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+                  <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                  Loading platform admins...
+                </div>
+              )}
+              {adminsError && (
+                <div className="py-4 text-center">
+                  <p className="font-medium text-sm mb-1" style={{ color: colors.red }}>
+                    Failed to load platform admins
+                  </p>
+                  <p className="text-xs" style={{ color: colors.brownLight }}>
+                    {adminsError}
+                  </p>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (user && !myTenantIds.has(tenant.id)) {
-                        await supabase.from('user_tenant_assignments').upsert({
-                          user_id: user.id,
-                          tenant_id: tenant.id,
-                          role: 'owner',
-                          is_active: true,
-                        }, { onConflict: 'user_id,tenant_id' });
-                        setMyTenantIds((prev) => { const next = new Set(Array.from(prev)); next.add(tenant.id); return next; });
-                      }
-                      await enterTenantView(tenant.id);
-                      setLocation('/');
-                    }}
-                    style={{ backgroundColor: colors.gold, color: colors.white }}
-                    data-testid={`button-go-to-tenant-${tenant.id}`}
+                    className="mt-2 h-7 text-xs"
+                    onClick={loadAdmins}
+                    style={{ borderColor: colors.gold, color: colors.gold }}
                   >
-                    <ExternalLink className="w-3.5 h-3.5 mr-1" /> View
+                    Retry
                   </Button>
-                  <Settings className="w-4 h-4 shrink-0" style={{ color: colors.brownLight }} />
                 </div>
+              )}
+              {!adminsLoading && !adminsError && admins.length === 0 && (
+                <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+                  No platform admins found.
+                </div>
+              )}
+            </Card>
+
+            {/* Beta Invites Section */}
+            <div className="flex items-center justify-between mb-3 mt-6">
+              <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
+                <FlaskConical className="w-5 h-5" style={{ color: colors.gold }} />
+                Beta Invites
+              </h2>
+              <Dialog open={showBetaInviteDialog} onOpenChange={setShowBetaInviteDialog}>
+                <DialogTrigger asChild>
+                  <Button style={{ backgroundColor: colors.gold, color: colors.white }}>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Invite
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl" style={{ color: colors.brown }}>
+                      Send Beta Invite
+                    </DialogTitle>
+                    <DialogDescription style={{ color: colors.brownLight }}>
+                      Send a beta access code to a new tester via email.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div>
+                      <Label style={{ color: colors.brown }} htmlFor="beta-email">
+                        Email Address
+                      </Label>
+                      <Input
+                        id="beta-email"
+                        type="email"
+                        value={betaInviteEmail}
+                        onChange={(e) => setBetaInviteEmail(e.target.value)}
+                        placeholder="tester@example.com"
+                        style={{ backgroundColor: colors.inputBg }}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendBetaInvite()}
+                      />
+                    </div>
+                    <Button
+                      onClick={handleSendBetaInvite}
+                      disabled={sendingBetaInvite}
+                      className="w-full"
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                    >
+                      {sendingBetaInvite ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Mail className="w-4 h-4 mr-2" />
+                      )}
+                      Send Beta Invite
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              {[...betaInvites]
+                .sort((a: any, b: any) => (a.invited_email || '').localeCompare(b.invited_email || ''))
+                .map((invite: any, idx: number, arr: any[]) => (
+                  <div
+                    key={invite.id}
+                    className="px-4 py-3 flex items-center justify-between"
+                    style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${colors.creamDark}` : undefined }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: colors.cream }}
+                      >
+                        <Mail className="w-4 h-4" style={{ color: colors.gold }} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>
+                          {invite.invited_email || 'No email'}
+                        </h3>
+                        <p className="text-xs font-mono" style={{ color: colors.brownLight }}>
+                          {invite.code}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge
+                        className="text-xs px-1.5 py-0"
+                        style={
+                          invite.tenant_name
+                            ? { backgroundColor: colors.green, color: '#fff' }
+                            : { backgroundColor: '#dbeafe', color: '#2563eb' }
+                        }
+                      >
+                        {invite.tenant_name ? 'Redeemed' : 'Pending'}
+                      </Badge>
+                      {invite.tenant_name && (
+                        <span className="text-xs hidden sm:inline" style={{ color: colors.brownLight }}>
+                          {invite.tenant_name}
+                        </span>
+                      )}
+                      <span className="text-xs hidden sm:inline" style={{ color: colors.brownLight }}>
+                        {new Date(invite.created_at).toLocaleDateString()}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteBetaInvite(invite.id, invite.invited_email)}
+                        className="h-7 w-7 p-0"
+                        style={{ color: colors.brownLight }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              {betaInvitesLoading && betaInvites.length === 0 && (
+                <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+                  <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                  Loading beta invites...
+                </div>
+              )}
+              {betaInvitesError && (
+                <div className="py-4 text-center">
+                  <p className="font-medium text-sm mb-1" style={{ color: colors.red }}>
+                    Failed to load beta invites
+                  </p>
+                  <p className="text-xs" style={{ color: colors.brownLight }}>
+                    {betaInvitesError}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 h-7 text-xs"
+                    onClick={loadBetaInvites}
+                    style={{ borderColor: colors.gold, color: colors.gold }}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              )}
+              {!betaInvitesLoading && !betaInvitesError && betaInvites.length === 0 && (
+                <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+                  No beta invites sent yet. Click "Send Invite" to invite a beta tester.
+                </div>
+              )}
+            </Card>
+
+            {/* Businesses Section */}
+            <div className="flex items-center justify-between mb-3 mt-6">
+              <h2 className="text-lg font-bold" style={{ color: colors.brown }}>
+                Businesses
+              </h2>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setHideInactive(!hideInactive)}
+                  style={{
+                    borderColor: hideInactive ? colors.gold : colors.creamDark,
+                    color: hideInactive ? colors.gold : colors.brownLight,
+                  }}
+                >
+                  {hideInactive ? <Eye className="w-4 h-4 mr-1.5" /> : <EyeOff className="w-4 h-4 mr-1.5" />}
+                  {hideInactive ? 'Show Inactive' : 'Hide Inactive'}
+                </Button>
+                <Dialog open={showNewTenantDialog} onOpenChange={setShowNewTenantDialog}>
+                  <DialogTrigger asChild>
+                    <Button
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                      data-testid="button-add-business"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Business
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl" style={{ color: colors.brown }}>
+                        Create New Business
+                      </DialogTitle>
+                      <DialogDescription style={{ color: colors.brownLight }}>
+                        Set up a new tenant with their owner account
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                      <div>
+                        <Label style={{ color: colors.brown }} htmlFor="tenant-name">
+                          Business Name
+                        </Label>
+                        <Input
+                          id="tenant-name"
+                          value={newTenantName}
+                          onChange={(e) => {
+                            setNewTenantName(e.target.value);
+                            setNewTenantSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-'));
+                          }}
+                          placeholder="Acme Coffee Shop"
+                          style={{ backgroundColor: colors.inputBg }}
+                          data-testid="input-tenant-name"
+                        />
+                      </div>
+                      <div>
+                        <Label style={{ color: colors.brown }} htmlFor="tenant-slug">
+                          URL Slug
+                        </Label>
+                        <Input
+                          id="tenant-slug"
+                          value={newTenantSlug}
+                          onChange={(e) => setNewTenantSlug(e.target.value)}
+                          placeholder="acme-coffee"
+                          style={{ backgroundColor: colors.inputBg }}
+                          data-testid="input-tenant-slug"
+                        />
+                      </div>
+                      <hr style={{ borderColor: colors.creamDark }} />
+                      <div>
+                        <Label style={{ color: colors.brown }} htmlFor="owner-name">
+                          Owner Name
+                        </Label>
+                        <Input
+                          id="owner-name"
+                          value={ownerName}
+                          onChange={(e) => setOwnerName(e.target.value)}
+                          placeholder="John Smith"
+                          style={{ backgroundColor: colors.inputBg }}
+                          data-testid="input-owner-name"
+                        />
+                      </div>
+                      <div>
+                        <Label style={{ color: colors.brown }} htmlFor="owner-email">
+                          Owner Email
+                        </Label>
+                        <Input
+                          id="owner-email"
+                          type="email"
+                          value={ownerEmail}
+                          onChange={(e) => setOwnerEmail(e.target.value)}
+                          placeholder="owner@example.com"
+                          style={{ backgroundColor: colors.inputBg }}
+                          data-testid="input-owner-email"
+                        />
+                      </div>
+                      <div>
+                        <Label style={{ color: colors.brown }} htmlFor="owner-password">
+                          Temporary Password
+                        </Label>
+                        <Input
+                          id="owner-password"
+                          type="password"
+                          value={ownerPassword}
+                          onChange={(e) => setOwnerPassword(e.target.value)}
+                          placeholder="Leave blank if user already exists"
+                          style={{ backgroundColor: colors.inputBg }}
+                          data-testid="input-owner-password"
+                        />
+                        <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                          Only needed for new users. Existing accounts will be linked automatically.
+                        </p>
+                      </div>
+                      <Button
+                        onClick={handleCreateTenant}
+                        disabled={creating}
+                        className="w-full"
+                        style={{ backgroundColor: colors.gold, color: colors.white }}
+                        data-testid="button-create-tenant"
+                      >
+                        {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        Create Business
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
-          ))}
 
-          {tenants.length === 0 && !loading && (
-            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
-              No businesses yet. Click "Add Business" to create your first tenant.
-            </div>
-          )}
-          {hideInactive && tenants.length > 0 && tenants.every(t => !t.is_active) && (
-            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
-              All businesses are inactive. Click "Show Inactive" to see them.
-            </div>
-          )}
-        </Card>
+            <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              {(hideInactive ? tenants.filter((t) => t.is_active) : tenants)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((tenant, idx, arr) => (
+                  <div
+                    key={tenant.id}
+                    className="px-4 py-3 cursor-pointer hover:bg-opacity-50 transition-colors"
+                    style={{
+                      borderBottom: idx < arr.length - 1 ? `1px solid ${colors.creamDark}` : undefined,
+                      backgroundColor: 'transparent',
+                    }}
+                    onClick={() => openSubscriptionDialog(tenant)}
+                    data-testid={`card-tenant-${tenant.id}`}
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: colors.cream }}
+                        >
+                          <Building2 className="w-4 h-4" style={{ color: colors.gold }} />
+                        </div>
+                        <div className="min-w-0">
+                          <h3
+                            className="font-semibold text-sm"
+                            style={{ color: colors.brown }}
+                            data-testid={`text-tenant-name-${tenant.id}`}
+                          >
+                            {tenant.name}
+                          </h3>
+                          <p className="text-xs" style={{ color: colors.brownLight }}>
+                            {tenant.slug}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between sm:justify-end gap-3">
+                        <div className="text-left sm:text-right">
+                          <p className="text-xs" style={{ color: colors.brownLight }}>
+                            {tenant.user_count} users
+                          </p>
+                          <p className="text-xs" style={{ color: getActivityColor(tenant.last_login_at ?? null) }}>
+                            {formatRelativeTime(tenant.last_login_at ?? null)}
+                          </p>
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            <Badge
+                              className="text-xs px-1.5 py-0"
+                              style={
+                                tenant.is_active
+                                  ? { backgroundColor: colors.green, color: '#fff' }
+                                  : { backgroundColor: colors.creamDark, color: colors.brown }
+                              }
+                            >
+                              {tenant.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                            <Badge
+                              className="text-xs px-1.5 py-0"
+                              variant="outline"
+                              style={{ borderColor: colors.creamDark, color: colors.brownLight }}
+                            >
+                              {tenant.subscription_status || 'trial'}
+                            </Badge>
+                            {(() => {
+                              const ts = getTrialStatus(tenant);
+                              if (!ts.isTrial || ts.trialDaysLeft === null) return null;
+                              return (
+                                <Badge
+                                  className="text-xs px-1.5 py-0"
+                                  variant="outline"
+                                  style={{
+                                    backgroundColor: ts.trialExpired
+                                      ? '#fef2f2'
+                                      : ts.trialUrgent
+                                        ? '#fffbeb'
+                                        : '#eff6ff',
+                                    color: ts.trialExpired ? '#dc2626' : ts.trialUrgent ? '#d97706' : '#2563eb',
+                                    borderColor: ts.trialExpired ? '#fca5a5' : ts.trialUrgent ? '#fcd34d' : '#93c5fd',
+                                  }}
+                                >
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  {ts.trialExpired ? 'Expired' : `${ts.trialDaysLeft}d`}
+                                </Badge>
+                              );
+                            })()}
+                            {tenant.vertical_name && (
+                              <Badge
+                                className="text-xs px-1.5 py-0"
+                                variant="outline"
+                                style={{ borderColor: colors.gold, color: colors.gold }}
+                              >
+                                {tenant.vertical_name}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (user && !myTenantIds.has(tenant.id)) {
+                              await supabase.from('user_tenant_assignments').upsert(
+                                {
+                                  user_id: user.id,
+                                  tenant_id: tenant.id,
+                                  role: 'owner',
+                                  is_active: true,
+                                },
+                                { onConflict: 'user_id,tenant_id' }
+                              );
+                              setMyTenantIds((prev) => {
+                                const next = new Set(Array.from(prev));
+                                next.add(tenant.id);
+                                return next;
+                              });
+                            }
+                            await enterTenantView(tenant.id);
+                            setLocation('/');
+                          }}
+                          style={{ backgroundColor: colors.gold, color: colors.white }}
+                          data-testid={`button-go-to-tenant-${tenant.id}`}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 mr-1" /> View
+                        </Button>
+                        <Settings className="w-4 h-4 shrink-0" style={{ color: colors.brownLight }} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
 
+              {tenants.length === 0 && !loading && (
+                <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+                  No businesses yet. Click "Add Business" to create your first tenant.
+                </div>
+              )}
+              {hideInactive && tenants.length > 0 && tenants.every((t) => !t.is_active) && (
+                <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+                  All businesses are inactive. Click "Show Inactive" to see them.
+                </div>
+              )}
+            </Card>
           </div>
           {/* Right Column: Module Rollout, Usage Analytics */}
           <div className="lg:sticky lg:top-4 lg:self-start">
-
-        {/* Module Rollout Section */}
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
-            <Layers className="w-5 h-5" style={{ color: colors.gold }} />
-            Module Rollout
-          </h2>
-        </div>
-
-        <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-          {modules.map((module, idx) => {
-            const statusColors = {
-              internal: { bg: colors.creamDark, text: colors.brown, label: 'Internal' },
-              beta: { bg: '#dbeafe', text: '#2563eb', label: 'Beta' },
-              ga: { bg: '#dcfce7', text: '#16a34a', label: 'GA' },
-            };
-            const status = statusColors[module.rollout_status] || statusColors.ga;
-
-            return (
-              <div
-                key={module.id}
-                className="px-4 py-3 flex items-center justify-between"
-                style={{ borderBottom: idx < modules.length - 1 ? `1px solid ${colors.creamDark}` : undefined }}
-              >
-                <div className="flex items-center gap-3">
-                  <div>
-                    <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>{module.name}</h3>
-                    <p className="text-xs" style={{ color: colors.brownLight }}>{module.id}</p>
-                  </div>
-                  <Badge className="text-xs px-1.5 py-0" style={{ backgroundColor: status.bg, color: status.text }}>
-                    {status.label}
-                  </Badge>
-                </div>
-                <Select
-                  value={module.rollout_status}
-                  onValueChange={(value) => updateModuleRollout(module.id, value as 'internal' | 'beta' | 'ga')}
-                >
-                  <SelectTrigger className="w-[120px] h-8 text-sm" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="internal">Internal</SelectItem>
-                    <SelectItem value="beta">Beta</SelectItem>
-                    <SelectItem value="ga">GA</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            );
-          })}
-
-          {modules.length === 0 && (
-            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
-              Loading modules...
+            {/* Module Rollout Section */}
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
+                <Layers className="w-5 h-5" style={{ color: colors.gold }} />
+                Module Rollout
+              </h2>
             </div>
-          )}
-        </Card>
 
-        {/* Usage Analytics Section */}
-        <div className="flex items-center justify-between mb-3 mt-6">
-          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
-            <BarChart3 className="w-5 h-5" style={{ color: colors.gold }} />
-            Usage Analytics
-          </h2>
-          <div className="flex items-center gap-2">
-            {[7, 30].map((d) => (
-              <Button
-                key={d}
-                variant={analyticsDays === d ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  setAnalyticsDays(d);
-                  loadModuleUsage(d);
-                }}
-                style={analyticsDays === d
-                  ? { backgroundColor: colors.gold, color: colors.white }
-                  : { borderColor: colors.creamDark, color: colors.brown }
-                }
-              >
-                {d}d
-              </Button>
-            ))}
-          </div>
-        </div>
+            <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              {modules.map((module, idx) => {
+                const statusColors = {
+                  internal: { bg: colors.creamDark, text: colors.brown, label: 'Internal' },
+                  beta: { bg: '#dbeafe', text: '#2563eb', label: 'Beta' },
+                  ga: { bg: '#dcfce7', text: '#16a34a', label: 'GA' },
+                };
+                const status = statusColors[module.rollout_status] || statusColors.ga;
 
-        <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
-          {moduleUsage.length > 0 ? (
-            <div className="px-4 py-3">
-              <div className="grid grid-cols-4 gap-3 mb-2">
-                <span className="text-xs font-semibold uppercase" style={{ color: colors.brownLight }}>Module</span>
-                <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>Visits</span>
-                <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>Users</span>
-                <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>Tenants</span>
-              </div>
-              {moduleUsage.map((m: any) => {
-                const mod = modules.find((mod) => mod.id === m.module_id);
                 return (
-                  <div key={m.module_id} className="grid grid-cols-4 gap-3 py-1.5 rounded" style={{ backgroundColor: colors.cream }}>
-                    <div className="pl-2">
-                      <p className="font-medium text-sm" style={{ color: colors.brown }}>{mod?.name || m.module_id}</p>
+                  <div
+                    key={module.id}
+                    className="px-4 py-3 flex items-center justify-between"
+                    style={{ borderBottom: idx < modules.length - 1 ? `1px solid ${colors.creamDark}` : undefined }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <h3 className="font-semibold text-sm" style={{ color: colors.brown }}>
+                          {module.name}
+                        </h3>
+                        <p className="text-xs" style={{ color: colors.brownLight }}>
+                          {module.id}
+                        </p>
+                      </div>
+                      <Badge className="text-xs px-1.5 py-0" style={{ backgroundColor: status.bg, color: status.text }}>
+                        {status.label}
+                      </Badge>
                     </div>
-                    <p className="text-center text-sm font-semibold" style={{ color: colors.brown }}>{m.visit_count}</p>
-                    <p className="text-center text-sm font-semibold" style={{ color: colors.brown }}>{m.unique_users}</p>
-                    <p className="text-center text-sm font-semibold" style={{ color: colors.brown }}>{m.tenant_count}</p>
+                    <Select
+                      value={module.rollout_status}
+                      onValueChange={(value) => updateModuleRollout(module.id, value as 'internal' | 'beta' | 'ga')}
+                    >
+                      <SelectTrigger
+                        className="w-[120px] h-8 text-sm"
+                        style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="internal">Internal</SelectItem>
+                        <SelectItem value="beta">Beta</SelectItem>
+                        <SelectItem value="ga">GA</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 );
               })}
-            </div>
-          ) : (
-            <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
-              No module usage data for the last {analyticsDays} days.
-            </div>
-          )}
-        </Card>
 
+              {modules.length === 0 && (
+                <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+                  Loading modules...
+                </div>
+              )}
+            </Card>
+
+            {/* Usage Analytics Section */}
+            <div className="flex items-center justify-between mb-3 mt-6">
+              <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: colors.brown }}>
+                <BarChart3 className="w-5 h-5" style={{ color: colors.gold }} />
+                Usage Analytics
+              </h2>
+              <div className="flex items-center gap-2">
+                {[7, 30].map((d) => (
+                  <Button
+                    key={d}
+                    variant={analyticsDays === d ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setAnalyticsDays(d);
+                      loadModuleUsage(d);
+                    }}
+                    style={
+                      analyticsDays === d
+                        ? { backgroundColor: colors.gold, color: colors.white }
+                        : { borderColor: colors.creamDark, color: colors.brown }
+                    }
+                  >
+                    {d}d
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <Card className="mb-6" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
+              {moduleUsage.length > 0 ? (
+                <div className="px-4 py-3">
+                  <div className="grid grid-cols-4 gap-3 mb-2">
+                    <span className="text-xs font-semibold uppercase" style={{ color: colors.brownLight }}>
+                      Module
+                    </span>
+                    <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>
+                      Visits
+                    </span>
+                    <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>
+                      Users
+                    </span>
+                    <span className="text-xs font-semibold uppercase text-center" style={{ color: colors.brownLight }}>
+                      Tenants
+                    </span>
+                  </div>
+                  {moduleUsage.map((m: any) => {
+                    const mod = modules.find((mod) => mod.id === m.module_id);
+                    return (
+                      <div
+                        key={m.module_id}
+                        className="grid grid-cols-4 gap-3 py-1.5 rounded"
+                        style={{ backgroundColor: colors.cream }}
+                      >
+                        <div className="pl-2">
+                          <p className="font-medium text-sm" style={{ color: colors.brown }}>
+                            {mod?.name || m.module_id}
+                          </p>
+                        </div>
+                        <p className="text-center text-sm font-semibold" style={{ color: colors.brown }}>
+                          {m.visit_count}
+                        </p>
+                        <p className="text-center text-sm font-semibold" style={{ color: colors.brown }}>
+                          {m.unique_users}
+                        </p>
+                        <p className="text-center text-sm font-semibold" style={{ color: colors.brown }}>
+                          {m.tenant_count}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-6 text-center text-sm" style={{ color: colors.brownLight }}>
+                  No module usage data for the last {analyticsDays} days.
+                </div>
+              )}
+            </Card>
           </div>
         </div>
 
@@ -1419,7 +1572,9 @@ export default function PlatformAdmin() {
         <Dialog open={showSubscriptionDialog} onOpenChange={setShowSubscriptionDialog}>
           <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-2xl" style={{ color: colors.brown }}>Manage Business</DialogTitle>
+              <DialogTitle className="text-2xl" style={{ color: colors.brown }}>
+                Manage Business
+              </DialogTitle>
               <DialogDescription style={{ color: colors.brownLight }}>
                 Configure settings, vertical, plan, and modules
               </DialogDescription>
@@ -1427,7 +1582,9 @@ export default function PlatformAdmin() {
             <div className="space-y-6 mt-4">
               {/* Business Name */}
               <div>
-                <Label className="mb-2 block" style={{ color: colors.brown }} htmlFor="edit-tenant-name">Business Name</Label>
+                <Label className="mb-2 block" style={{ color: colors.brown }} htmlFor="edit-tenant-name">
+                  Business Name
+                </Label>
                 <Input
                   id="edit-tenant-name"
                   value={editTenantName}
@@ -1440,7 +1597,9 @@ export default function PlatformAdmin() {
 
               {/* Vertical Assignment */}
               <div>
-                <Label className="mb-2 block" style={{ color: colors.brown }}>Business Vertical</Label>
+                <Label className="mb-2 block" style={{ color: colors.brown }}>
+                  Business Vertical
+                </Label>
                 <Select
                   value={selectedVerticalId || 'none'}
                   onValueChange={(value) => {
@@ -1462,7 +1621,9 @@ export default function PlatformAdmin() {
                   <SelectContent>
                     <SelectItem value="none">No vertical assigned</SelectItem>
                     {verticals.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>{v.display_name}</SelectItem>
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.display_name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1511,7 +1672,10 @@ export default function PlatformAdmin() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => { setShowCreateVertical(false); setNewVerticalName(''); }}
+                      onClick={() => {
+                        setShowCreateVertical(false);
+                        setNewVerticalName('');
+                      }}
                     >
                       Cancel
                     </Button>
@@ -1531,12 +1695,20 @@ export default function PlatformAdmin() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-lg" style={{ color: colors.brown }}>Premium Suite</p>
-                    <p className="text-sm" style={{ color: colors.brownLight }}>All {modules.length} modules including Recipe Costing</p>
+                    <p className="font-semibold text-lg" style={{ color: colors.brown }}>
+                      Premium Suite
+                    </p>
+                    <p className="text-sm" style={{ color: colors.brownLight }}>
+                      All {modules.length} modules including Recipe Costing
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-bold" style={{ color: colors.gold }}>$99.99</p>
-                    <p className="text-xs" style={{ color: colors.brownLight }}>/month</p>
+                    <p className="text-xl font-bold" style={{ color: colors.gold }}>
+                      $99.99
+                    </p>
+                    <p className="text-xs" style={{ color: colors.brownLight }}>
+                      /month
+                    </p>
                   </div>
                 </div>
                 <Switch
@@ -1559,15 +1731,27 @@ export default function PlatformAdmin() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-lg" style={{ color: colors.brown }}>Beta</p>
-                    <p className="text-sm" style={{ color: colors.brownLight }}>Full access for beta testing</p>
-                    <Badge variant="outline" style={{ borderColor: '#3b82f6', color: '#2563eb' }} className="text-xs mt-1">
+                    <p className="font-semibold text-lg" style={{ color: colors.brown }}>
+                      Beta
+                    </p>
+                    <p className="text-sm" style={{ color: colors.brownLight }}>
+                      Full access for beta testing
+                    </p>
+                    <Badge
+                      variant="outline"
+                      style={{ borderColor: '#3b82f6', color: '#2563eb' }}
+                      className="text-xs mt-1"
+                    >
                       Beta Plan
                     </Badge>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-bold" style={{ color: colors.green }}>FREE</p>
-                    <p className="text-xs" style={{ color: colors.brownLight }}>unpublished</p>
+                    <p className="text-xl font-bold" style={{ color: colors.green }}>
+                      FREE
+                    </p>
+                    <p className="text-xs" style={{ color: colors.brownLight }}>
+                      unpublished
+                    </p>
                   </div>
                 </div>
                 <Switch
@@ -1591,8 +1775,12 @@ export default function PlatformAdmin() {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold" style={{ color: colors.brown }}>Free Trial</p>
-                      <p className="text-sm" style={{ color: colors.brownLight }}>14-day trial with all features</p>
+                      <p className="font-semibold" style={{ color: colors.brown }}>
+                        Free Trial
+                      </p>
+                      <p className="text-sm" style={{ color: colors.brownLight }}>
+                        14-day trial with all features
+                      </p>
                     </div>
                     <Badge style={{ backgroundColor: colors.green, color: '#fff' }}>FREE</Badge>
                   </div>
@@ -1602,7 +1790,9 @@ export default function PlatformAdmin() {
               {/* À La Carte Modules */}
               {selectedPlan !== 'premium' && selectedPlan !== 'beta' && selectedPlan !== 'free' && (
                 <div>
-                  <Label className="mb-3 block" style={{ color: colors.brown }}>À La Carte Modules</Label>
+                  <Label className="mb-3 block" style={{ color: colors.brown }}>
+                    À La Carte Modules
+                  </Label>
                   <div className="space-y-3">
                     {modules.map((module) => {
                       const isSelected = selectedModules.includes(module.id);
@@ -1619,15 +1809,23 @@ export default function PlatformAdmin() {
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <p className="font-medium text-sm" style={{ color: colors.brown }}>{module.name}</p>
+                              <p className="font-medium text-sm" style={{ color: colors.brown }}>
+                                {module.name}
+                              </p>
                               {isPremiumOnly && (
-                                <Badge variant="outline" style={{ borderColor: colors.gold, color: colors.gold }} className="text-xs">
+                                <Badge
+                                  variant="outline"
+                                  style={{ borderColor: colors.gold, color: colors.gold }}
+                                  className="text-xs"
+                                >
                                   Premium Only
                                 </Badge>
                               )}
                             </div>
                             <p className="text-xs" style={{ color: colors.brownLight }}>
-                              {isPremiumOnly ? 'Available in Premium Suite' : `$${parseFloat(String(module.monthly_price || 0)).toFixed(2)}/mo`}
+                              {isPremiumOnly
+                                ? 'Available in Premium Suite'
+                                : `$${parseFloat(String(module.monthly_price || 0)).toFixed(2)}/mo`}
                             </p>
                           </div>
                           <Switch
@@ -1646,12 +1844,20 @@ export default function PlatformAdmin() {
               {/* Premium/Test & Eval modules preview */}
               {(selectedPlan === 'premium' || selectedPlan === 'beta') && (
                 <div>
-                  <Label className="mb-3 block" style={{ color: colors.brown }}>Included Modules</Label>
+                  <Label className="mb-3 block" style={{ color: colors.brown }}>
+                    Included Modules
+                  </Label>
                   <div className="space-y-2">
                     {modules.map((module) => (
-                      <div key={module.id} className="flex items-center gap-2 p-2 rounded-xl" style={{ backgroundColor: colors.cream }}>
+                      <div
+                        key={module.id}
+                        className="flex items-center gap-2 p-2 rounded-xl"
+                        style={{ backgroundColor: colors.cream }}
+                      >
                         <CheckCircle className="w-4 h-4" style={{ color: colors.green }} />
-                        <span className="text-sm" style={{ color: colors.brown }}>{module.name}</span>
+                        <span className="text-sm" style={{ color: colors.brown }}>
+                          {module.name}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -1659,8 +1865,13 @@ export default function PlatformAdmin() {
               )}
 
               {/* Monthly Total */}
-              <div className="flex items-center justify-between p-4 rounded-xl" style={{ backgroundColor: colors.cream }}>
-                <span className="font-semibold" style={{ color: colors.brown }}>Monthly Total</span>
+              <div
+                className="flex items-center justify-between p-4 rounded-xl"
+                style={{ backgroundColor: colors.cream }}
+              >
+                <span className="font-semibold" style={{ color: colors.brown }}>
+                  Monthly Total
+                </span>
                 <span className="text-2xl font-bold" style={{ color: colors.green }}>
                   ${calculateMonthlyTotal().toFixed(2)}
                 </span>
@@ -1682,9 +1893,10 @@ export default function PlatformAdmin() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  style={selectedTenant.is_active
-                    ? { borderColor: colors.red, color: colors.red }
-                    : { borderColor: colors.green, color: colors.green }
+                  style={
+                    selectedTenant.is_active
+                      ? { borderColor: colors.red, color: colors.red }
+                      : { borderColor: colors.green, color: colors.green }
                   }
                   onClick={async () => {
                     await toggleTenantActive(selectedTenant.id, selectedTenant.is_active);
@@ -1693,9 +1905,13 @@ export default function PlatformAdmin() {
                   data-testid={`button-toggle-tenant-${selectedTenant.id}`}
                 >
                   {selectedTenant.is_active ? (
-                    <><XCircle className="w-4 h-4 mr-1" /> Deactivate Business</>
+                    <>
+                      <XCircle className="w-4 h-4 mr-1" /> Deactivate Business
+                    </>
                   ) : (
-                    <><CheckCircle className="w-4 h-4 mr-1" /> Activate Business</>
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-1" /> Activate Business
+                    </>
                   )}
                 </Button>
               )}

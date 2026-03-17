@@ -34,12 +34,8 @@ export function EditRequestDialog({ entry, onClose }: EditRequestDialogProps) {
   const inParts = splitLocal(entry.clock_in);
   const [clockInDate, setClockInDate] = useState(inParts.date);
   const [clockInTime, setClockInTime] = useState(inParts.time);
-  const [clockOutDate, setClockOutDate] = useState(
-    entry.clock_out ? splitLocal(entry.clock_out).date : inParts.date
-  );
-  const [clockOutTime, setClockOutTime] = useState(
-    entry.clock_out ? splitLocal(entry.clock_out).time : ''
-  );
+  const [clockOutDate, setClockOutDate] = useState(entry.clock_out ? splitLocal(entry.clock_out).date : inParts.date);
+  const [clockOutTime, setClockOutTime] = useState(entry.clock_out ? splitLocal(entry.clock_out).time : '');
   const [reason, setReason] = useState('');
 
   const handleSubmit = useCallback(async () => {
@@ -58,7 +54,11 @@ export function EditRequestDialog({ entry, onClose }: EditRequestDialogProps) {
     const clockOutChanged = newClockOut !== entry.clock_out;
 
     if (!clockInChanged && !clockOutChanged) {
-      toast({ title: 'No changes detected', description: 'Adjust the clock-in or clock-out time.', variant: 'destructive' });
+      toast({
+        title: 'No changes detected',
+        description: 'Adjust the clock-in or clock-out time.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -89,49 +89,80 @@ export function EditRequestDialog({ entry, onClose }: EditRequestDialogProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-2 rounded-lg text-sm" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
-            <p className="font-medium" style={{ color: colors.brown }}>Current entry:</p>
-            <p>In: {formatTimestamp(entry.clock_in)} &middot; {new Date(entry.clock_in).toLocaleDateString([], { month: 'short', day: 'numeric' })}</p>
-            <p>Out: {entry.clock_out ? `${formatTimestamp(entry.clock_out)} · ${new Date(entry.clock_out).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : 'Not clocked out'}</p>
+            <p className="font-medium" style={{ color: colors.brown }}>
+              Current entry:
+            </p>
+            <p>
+              In: {formatTimestamp(entry.clock_in)} &middot;{' '}
+              {new Date(entry.clock_in).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+            </p>
+            <p>
+              Out:{' '}
+              {entry.clock_out
+                ? `${formatTimestamp(entry.clock_out)} · ${new Date(entry.clock_out).toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+                : 'Not clocked out'}
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label style={{ color: colors.brown }}>Corrected Clock In</Label>
             <div className="flex gap-2">
-              <Input type="date" value={clockInDate}
+              <Input
+                type="date"
+                value={clockInDate}
                 onChange={(e) => setClockInDate(e.target.value)}
                 className="flex-1"
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-              <Input type="time" value={clockInTime}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
+              <Input
+                type="time"
+                value={clockInTime}
                 onChange={(e) => setClockInTime(e.target.value)}
                 className="w-28"
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
             </div>
           </div>
           <div className="space-y-1.5">
             <Label style={{ color: colors.brown }}>Corrected Clock Out</Label>
             <div className="flex gap-2">
-              <Input type="date" value={clockOutDate}
+              <Input
+                type="date"
+                value={clockOutDate}
                 onChange={(e) => setClockOutDate(e.target.value)}
                 className="flex-1"
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
-              <Input type="time" value={clockOutTime}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
+              <Input
+                type="time"
+                value={clockOutTime}
                 onChange={(e) => setClockOutTime(e.target.value)}
                 className="w-28"
-                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }} />
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+              />
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label style={{ color: colors.brown }}>Reason <span style={{ color: colors.red }}>*</span></Label>
-            <Textarea value={reason} placeholder="e.g. Forgot to clock out, clocked in late..."
+            <Label style={{ color: colors.brown }}>
+              Reason <span style={{ color: colors.red }}>*</span>
+            </Label>
+            <Textarea
+              value={reason}
+              placeholder="e.g. Forgot to clock out, clocked in late..."
               onChange={(e) => setReason(e.target.value)}
-              style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }} rows={2} />
+              style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+              rows={2}
+            />
           </div>
           <div className="flex gap-2 pt-2">
-            <Button onClick={handleSubmit} disabled={createEdit.isPending}
-              style={{ backgroundColor: colors.gold, color: colors.white }} className="flex-1">
+            <Button
+              onClick={handleSubmit}
+              disabled={createEdit.isPending}
+              style={{ backgroundColor: colors.gold, color: colors.white }}
+              className="flex-1"
+            >
               <Check className="w-4 h-4 mr-1" /> Submit Request
             </Button>
-            <Button variant="outline" onClick={onClose}
-              style={{ borderColor: colors.creamDark, color: colors.brown }}>
+            <Button variant="outline" onClick={onClose} style={{ borderColor: colors.creamDark, color: colors.brown }}>
               Cancel
             </Button>
           </div>

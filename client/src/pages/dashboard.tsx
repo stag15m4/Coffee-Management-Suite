@@ -39,10 +39,17 @@ function ManagerOwnerDashboard() {
   const isOwner = hasRole?.('owner');
 
   // Owner aggregate metrics
-  const ownerAggregates = locations.length > 1 ? {
-    totalEmployees: queries.reduce((sum, q) => sum + (q?.data?.employeeCount || 0), 0),
-    totalOverdue: queries.reduce((sum, q) => sum + (q?.data?.redFlags?.overdueMaintenanceCount || 0) + (q?.data?.redFlags?.overdueTaskCount || 0), 0),
-  } : null;
+  const ownerAggregates =
+    locations.length > 1
+      ? {
+          totalEmployees: queries.reduce((sum, q) => sum + (q?.data?.employeeCount || 0), 0),
+          totalOverdue: queries.reduce(
+            (sum, q) =>
+              sum + (q?.data?.redFlags?.overdueMaintenanceCount || 0) + (q?.data?.redFlags?.overdueTaskCount || 0),
+            0
+          ),
+        }
+      : null;
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -70,10 +77,7 @@ function ManagerOwnerDashboard() {
         {/* Welcome + refresh */}
         <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <h2
-              className="text-2xl font-bold mb-1"
-              style={{ color: colors.brown }}
-            >
+            <h2 className="text-2xl font-bold mb-1" style={{ color: colors.brown }}>
               Welcome, {profile?.full_name?.split(' ')[0] || 'User'}
             </h2>
             <p style={{ color: colors.brownLight }}>
@@ -90,9 +94,7 @@ function ManagerOwnerDashboard() {
             style={{ borderColor: colors.creamDark, color: colors.brown }}
             data-testid="button-refresh"
           >
-            <RefreshCw
-              className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`}
-            />
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -121,9 +123,11 @@ function ManagerOwnerDashboard() {
                       backgroundColor: trialExpired ? '#fee2e2' : trialUrgent ? '#fef3c7' : colors.cream,
                     }}
                   >
-                    {trialExpired
-                      ? <Clock className="w-5 h-5" style={{ color: '#dc2626' }} />
-                      : <Sparkles className="w-5 h-5" style={{ color: colors.gold }} />}
+                    {trialExpired ? (
+                      <Clock className="w-5 h-5" style={{ color: '#dc2626' }} />
+                    ) : (
+                      <Sparkles className="w-5 h-5" style={{ color: colors.gold }} />
+                    )}
                   </div>
                   <div>
                     <p className="font-semibold" style={{ color: trialExpired ? '#dc2626' : colors.brown }}>
@@ -139,18 +143,13 @@ function ManagerOwnerDashboard() {
                   </div>
                 </div>
                 <Link href="/billing">
-                  <Button
-                    size="sm"
-                    style={{ backgroundColor: colors.gold, color: colors.white }}
-                  >
+                  <Button size="sm" style={{ backgroundColor: colors.gold, color: colors.white }}>
                     {trialExpired ? 'Subscribe Now' : 'View Plans'}
                     <ArrowRight className="w-4 h-4 ml-1" />
                   </Button>
                 </Link>
               </div>
-              {!trialExpired && (
-                <Progress value={trialProgress} className="h-1.5 mt-3" />
-              )}
+              {!trialExpired && <Progress value={trialProgress} className="h-1.5 mt-3" />}
             </CardContent>
           </Card>
         )}
@@ -160,36 +159,61 @@ function ManagerOwnerDashboard() {
           <div className="grid grid-cols-3 gap-4 mb-6">
             <Card>
               <CardContent className="pt-5 pb-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: colors.cream }}
+                >
                   <Building2 className="w-5 h-5" style={{ color: colors.brown }} />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold" style={{ color: colors.brown }}>{locations.length}</div>
-                  <div className="text-xs" style={{ color: colors.brownLight }}>Locations</div>
+                  <div className="text-2xl font-bold" style={{ color: colors.brown }}>
+                    {locations.length}
+                  </div>
+                  <div className="text-xs" style={{ color: colors.brownLight }}>
+                    Locations
+                  </div>
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-5 pb-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: colors.cream }}
+                >
                   <Users className="w-5 h-5" style={{ color: colors.brown }} />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold" style={{ color: colors.brown }}>{ownerAggregates.totalEmployees}</div>
-                  <div className="text-xs" style={{ color: colors.brownLight }}>Team members</div>
+                  <div className="text-2xl font-bold" style={{ color: colors.brown }}>
+                    {ownerAggregates.totalEmployees}
+                  </div>
+                  <div className="text-xs" style={{ color: colors.brownLight }}>
+                    Team members
+                  </div>
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-5 pb-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: ownerAggregates.totalOverdue > 0 ? '#fef2f2' : colors.cream }}>
-                  <AlertTriangle className="w-5 h-5" style={{ color: ownerAggregates.totalOverdue > 0 ? '#ef4444' : colors.brownLight }} />
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: ownerAggregates.totalOverdue > 0 ? '#fef2f2' : colors.cream }}
+                >
+                  <AlertTriangle
+                    className="w-5 h-5"
+                    style={{ color: ownerAggregates.totalOverdue > 0 ? '#ef4444' : colors.brownLight }}
+                  />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold" style={{ color: ownerAggregates.totalOverdue > 0 ? '#ef4444' : colors.brown }}>
+                  <div
+                    className="text-2xl font-bold"
+                    style={{ color: ownerAggregates.totalOverdue > 0 ? '#ef4444' : colors.brown }}
+                  >
                     {ownerAggregates.totalOverdue}
                   </div>
-                  <div className="text-xs" style={{ color: colors.brownLight }}>Overdue items</div>
+                  <div className="text-xs" style={{ color: colors.brownLight }}>
+                    Overdue items
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase-queries";
-import { useAuth } from "@/contexts/AuthContext";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase-queries';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface Ingredient {
   id: string;
@@ -21,11 +21,7 @@ export function useIngredients() {
     queryFn: async () => {
       if (!tenant?.id) return [];
 
-      const { data, error } = await supabase
-        .from('ingredients')
-        .select('*')
-        .eq('tenant_id', tenant.id)
-        .order('name');
+      const { data, error } = await supabase.from('ingredients').select('*').eq('tenant_id', tenant.id).order('name');
 
       if (error) throw error;
       return data as Ingredient[];
@@ -71,7 +67,7 @@ export function useCreateIngredient() {
         .from('ingredients')
         .insert({
           ...data,
-          tenant_id: tenant.id
+          tenant_id: tenant.id,
         })
         .select()
         .single();
@@ -119,17 +115,11 @@ export function useDeleteIngredient() {
       if (!tenant?.id) throw new Error('No tenant context');
 
       // Add timeout to prevent hanging
-      const deletePromise = supabase
-        .from('ingredients')
-        .delete()
-        .eq('id', id)
-        .eq('tenant_id', tenant.id);
+      const deletePromise = supabase.from('ingredients').delete().eq('id', id).eq('tenant_id', tenant.id);
 
       const { error } = await Promise.race([
         deletePromise,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Delete operation timeout')), 5000)
-        )
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Delete operation timeout')), 5000)),
       ]);
 
       if (error) throw error;

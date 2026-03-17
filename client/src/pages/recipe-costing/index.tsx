@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useMemo, useCallback } from 'react';
 import { useSearch, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
@@ -46,20 +47,21 @@ import {
 import { colors } from '@/lib/colors';
 import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
 import { calculateCostPerUsageUnit } from './utils';
-import type {
-  Ingredient,
-  Recipe,
-  OverheadSettings,
-  OverheadItem,
-  RecipeSizeBase,
-  RecipeIngredient,
-} from './types';
+import type { Ingredient, Recipe, OverheadSettings, OverheadItem, RecipeSizeBase, RecipeIngredient } from './types';
 
 // ---------------------------------------------------------------------------
 // Tab button
 // ---------------------------------------------------------------------------
 
-const TabButton = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
+const TabButton = ({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) => (
   <button
     onClick={onClick}
     className="px-6 py-3 font-semibold rounded-t-lg transition-all"
@@ -95,9 +97,12 @@ export default function RecipeCostingPage() {
   const searchString = useSearch();
   const [, setLocation] = useLocation();
   const activeTab = new URLSearchParams(searchString).get('tab') || 'pricing';
-  const setActiveTab = useCallback((tab: string) => {
-    setLocation(`/recipe-costing?tab=${tab}`);
-  }, [setLocation]);
+  const setActiveTab = useCallback(
+    (tab: string) => {
+      setLocation(`/recipe-costing?tab=${tab}`);
+    },
+    [setLocation]
+  );
   const queryClient = useQueryClient();
   const { profile, tenant, branding, primaryTenant, adminViewingTenant } = useAuth();
   const { confirm, ConfirmDialog } = useConfirmDialog();
@@ -110,23 +115,35 @@ export default function RecipeCostingPage() {
 
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
-  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Recipe Costing');
+  const displayName = isChildLocation ? tenant?.name : branding?.company_name || tenant?.name || 'Recipe Costing';
   const orgName = primaryTenant?.name || branding?.company_name || '';
 
   // ---------------------------------------------------------------------------
   // Data hooks
   // ---------------------------------------------------------------------------
 
-  const { data: ingredientCategories = [], isLoading: loadingCategories, isError: errorCategories } = useIngredientCategories();
+  const {
+    data: ingredientCategories = [],
+    isLoading: loadingCategories,
+    isError: errorCategories,
+  } = useIngredientCategories();
   const { data: ingredients = [], isLoading: loadingIngredients, isError: errorIngredients } = useIngredients();
-  const { data: productCategories = [], isLoading: loadingProductCategories, isError: errorProductCategories } = useProductCategories();
+  const {
+    data: productCategories = [],
+    isLoading: loadingProductCategories,
+    isError: errorProductCategories,
+  } = useProductCategories();
   const { data: baseTemplates = [], isLoading: loadingBaseTemplates, isError: errorBaseTemplates } = useBaseTemplates();
   const { data: productSizes = [], isLoading: loadingProductSizes, isError: errorProductSizes } = useProductSizes();
   const { data: recipes = [], isLoading: loadingRecipes, isError: errorRecipes } = useRecipes();
   const { data: overhead, isLoading: loadingOverhead, isError: errorOverhead } = useOverhead();
   const { data: overheadItems = [], isLoading: loadingOverheadItems } = useOverheadItems();
   const { data: pricingData = [], isLoading: loadingPricing, isError: errorPricing } = useRecipePricing();
-  const { data: recipeSizeBases = [], isLoading: loadingRecipeSizeBases, isError: errorRecipeSizeBases } = useRecipeSizeBases();
+  const {
+    data: recipeSizeBases = [],
+    isLoading: loadingRecipeSizeBases,
+    isError: errorRecipeSizeBases,
+  } = useRecipeSizeBases();
   const { data: cashActivity = [] } = useCashActivityRevenue();
   const { data: storeHours } = useStoreOperatingHours(tenant?.id);
   const { data: recipeVendors = [] } = useRecipeVendors();
@@ -148,10 +165,7 @@ export default function RecipeCostingPage() {
   // Computed values
   // ---------------------------------------------------------------------------
 
-  const autoHours = useMemo(
-    () => computeHoursFromStoreProfile(storeHours || []),
-    [storeHours],
-  );
+  const autoHours = useMemo(() => computeHoursFromStoreProfile(storeHours || []), [storeHours]);
 
   const calculatedCostPerMinute = useMemo(() => {
     let operatingDays: number;
@@ -173,18 +187,37 @@ export default function RecipeCostingPage() {
       let monthlyAmount = 0;
       const amount = Number(item.amount) || 0;
       switch (item.frequency) {
-        case 'daily': monthlyAmount = amount * daysPerMonth; break;
-        case 'weekly': monthlyAmount = amount * weeksPerMonth; break;
-        case 'bi-weekly': monthlyAmount = amount * (weeksPerMonth / 2); break;
-        case 'monthly': monthlyAmount = amount; break;
-        case 'quarterly': monthlyAmount = amount / 3; break;
-        case 'annual': monthlyAmount = amount / 12; break;
+        case 'daily':
+          monthlyAmount = amount * daysPerMonth;
+          break;
+        case 'weekly':
+          monthlyAmount = amount * weeksPerMonth;
+          break;
+        case 'bi-weekly':
+          monthlyAmount = amount * (weeksPerMonth / 2);
+          break;
+        case 'monthly':
+          monthlyAmount = amount;
+          break;
+        case 'quarterly':
+          monthlyAmount = amount / 3;
+          break;
+        case 'annual':
+          monthlyAmount = amount / 12;
+          break;
       }
       return total + monthlyAmount;
     }, 0);
 
     return minutesPerMonth > 0 ? monthlyTotal / minutesPerMonth : 0;
-  }, [overhead?.operating_days_per_week, overhead?.hours_open_per_day, overhead?.use_store_hours, autoHours, storeHours, overheadItems]);
+  }, [
+    overhead?.operating_days_per_week,
+    overhead?.hours_open_per_day,
+    overhead?.use_store_hours,
+    autoHours,
+    storeHours,
+    overheadItems,
+  ]);
 
   const enhancedOverhead = useMemo(() => {
     if (!overhead) return overhead;
@@ -202,13 +235,27 @@ export default function RecipeCostingPage() {
   // Loading / error
   // ---------------------------------------------------------------------------
 
-  const loading = loadingCategories || loadingIngredients || loadingProductCategories ||
-                  loadingBaseTemplates || loadingProductSizes || loadingRecipes ||
-                  loadingOverhead || loadingPricing || loadingRecipeSizeBases;
+  const loading =
+    loadingCategories ||
+    loadingIngredients ||
+    loadingProductCategories ||
+    loadingBaseTemplates ||
+    loadingProductSizes ||
+    loadingRecipes ||
+    loadingOverhead ||
+    loadingPricing ||
+    loadingRecipeSizeBases;
 
-  const hasError = errorCategories || errorIngredients || errorProductCategories ||
-                   errorBaseTemplates || errorProductSizes || errorRecipes ||
-                   errorOverhead || errorPricing || errorRecipeSizeBases;
+  const hasError =
+    errorCategories ||
+    errorIngredients ||
+    errorProductCategories ||
+    errorBaseTemplates ||
+    errorProductSizes ||
+    errorRecipes ||
+    errorOverhead ||
+    errorPricing ||
+    errorRecipeSizeBases;
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -217,8 +264,8 @@ export default function RecipeCostingPage() {
   const handleUpdateIngredient = async (id: string, updates: Partial<Ingredient>) => {
     try {
       await updateIngredientMutation.mutateAsync({ id, updates: updates as Record<string, any> });
-    } catch (error: any) {
-      toast({ title: 'Error updating ingredient', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating ingredient', description: getErrorMessage(error), variant: 'destructive' });
       throw error;
     }
   };
@@ -226,8 +273,8 @@ export default function RecipeCostingPage() {
   const handleAddIngredient = async (ingredient: Partial<Ingredient>) => {
     try {
       await addIngredientMutation.mutateAsync({ ...ingredient, tenant_id: profile?.tenant_id } as Record<string, any>);
-    } catch (error: any) {
-      toast({ title: 'Error adding ingredient', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error adding ingredient', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -239,8 +286,8 @@ export default function RecipeCostingPage() {
     try {
       if (!overhead?.id) return;
       await updateOverheadMutation.mutateAsync({ id: overhead.id, updates });
-    } catch (error: any) {
-      toast({ title: 'Error updating overhead', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating overhead', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -252,52 +299,55 @@ export default function RecipeCostingPage() {
         tenant_id: profile.tenant_id,
         sort_order: overheadItems.length,
       });
-    } catch (error: any) {
-      toast({ title: 'Error adding overhead item', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error adding overhead item', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
-  const handleUpdateOverheadItem = async (id: string, updates: { name?: string; amount?: number; frequency?: string }) => {
+  const handleUpdateOverheadItem = async (
+    id: string,
+    updates: { name?: string; amount?: number; frequency?: string }
+  ) => {
     try {
       await updateOverheadItemMutation.mutateAsync({ id, updates });
-    } catch (error: any) {
-      toast({ title: 'Error updating overhead item', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating overhead item', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
   const handleDeleteOverheadItem = async (id: string) => {
     try {
       await deleteOverheadItemMutation.mutateAsync(id);
-    } catch (error: any) {
-      toast({ title: 'Error deleting overhead item', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error deleting overhead item', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
   const handleUpdatePricing = async (recipeId: string, sizeId: string, salePrice: number) => {
     try {
-      const existing = pricingData.find(p => p.recipe_id === recipeId && p.size_id === sizeId);
+      const existing = pricingData.find((p) => p.recipe_id === recipeId && p.size_id === sizeId);
       await updateRecipePricingMutation.mutateAsync({
         recipeId,
         sizeId,
         salePrice,
         existingId: existing?.id,
       });
-    } catch (error: any) {
-      toast({ title: 'Error updating price', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating price', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
   const handleUpdateRecipeSizeBase = async (recipeId: string, sizeId: string, baseTemplateId: string | null) => {
     try {
-      const existing = recipeSizeBases.find(rsb => rsb.recipe_id === recipeId && rsb.size_id === sizeId);
+      const existing = recipeSizeBases.find((rsb) => rsb.recipe_id === recipeId && rsb.size_id === sizeId);
       await updateRecipeSizeBaseMutation.mutateAsync({
         recipeId,
         sizeId,
         baseTemplateId,
         existingId: existing?.id,
       });
-    } catch (error: any) {
-      toast({ title: 'Error updating base', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating base', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -326,7 +376,7 @@ export default function RecipeCostingPage() {
       if (recipeError) throw recipeError;
 
       if (recipe.recipe_ingredients && recipe.recipe_ingredients.length > 0) {
-        const ingredientInserts = recipe.recipe_ingredients.map(ri => ({
+        const ingredientInserts = recipe.recipe_ingredients.map((ri) => ({
           recipe_id: newRecipe.id,
           ingredient_id: ri.ingredient_id || null,
           syrup_recipe_id: ri.syrup_recipe_id || null,
@@ -334,41 +384,47 @@ export default function RecipeCostingPage() {
           quantity: ri.quantity,
           unit: ri.unit,
         }));
-        const { error: ingError } = await supabase
-          .from('recipe_ingredients')
-          .insert(ingredientInserts);
+        const { error: ingError } = await supabase.from('recipe_ingredients').insert(ingredientInserts);
         if (ingError) throw ingError;
       }
 
-      const recipeBases = recipeSizeBases.filter(rsb => rsb.recipe_id === recipe.id);
+      const recipeBases = recipeSizeBases.filter((rsb) => rsb.recipe_id === recipe.id);
       if (recipeBases.length > 0) {
-        const baseInserts = recipeBases.map(rsb => ({
+        const baseInserts = recipeBases.map((rsb) => ({
           recipe_id: newRecipe.id,
           size_id: rsb.size_id,
           base_template_id: rsb.base_template_id,
         }));
-        const { error: baseError } = await supabase
-          .from('recipe_size_bases')
-          .insert(baseInserts);
+        const { error: baseError } = await supabase.from('recipe_size_bases').insert(baseInserts);
         if (baseError) throw baseError;
       }
 
       invalidateRecipeData();
-    } catch (error: any) {
-      toast({ title: 'Error duplicating recipe', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error duplicating recipe', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
   const handleDeleteRecipe = async (recipeId: string) => {
-    const name = recipes.find(r => r.id === recipeId)?.name || 'this recipe';
-    if (!await confirm({ title: `Delete ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) {
+    const name = recipes.find((r) => r.id === recipeId)?.name || 'this recipe';
+    if (
+      !(await confirm({
+        title: `Delete ${name}?`,
+        description: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      }))
+    ) {
       return;
     }
     try {
       const { error: ingError } = await supabase.from('recipe_ingredients').delete().eq('recipe_id', recipeId);
       if (ingError) throw ingError;
 
-      const { error: syrupIngError } = await supabase.from('recipe_ingredients').delete().eq('syrup_recipe_id', recipeId);
+      const { error: syrupIngError } = await supabase
+        .from('recipe_ingredients')
+        .delete()
+        .eq('syrup_recipe_id', recipeId);
       if (syrupIngError) throw syrupIngError;
 
       const { error: baseError } = await supabase.from('recipe_size_bases').delete().eq('recipe_id', recipeId);
@@ -381,32 +437,39 @@ export default function RecipeCostingPage() {
       if (error) throw error;
       invalidateRecipeData();
       showDeleteUndoToast({ itemName: name, undo: { type: 'none' } });
-    } catch (error: any) {
-      toast({ title: 'Error deleting recipe', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error deleting recipe', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
-  const handleAddRecipe = async (recipe: { name: string; category_id: string; base_template_id?: string; is_bulk_recipe?: boolean }) => {
+  const handleAddRecipe = async (recipe: {
+    name: string;
+    category_id: string;
+    base_template_id?: string;
+    is_bulk_recipe?: boolean;
+  }) => {
     try {
-      const { error } = await supabase
-        .from('recipes')
-        .insert({
-          name: recipe.name,
-          category_id: recipe.category_id,
-          base_template_id: recipe.base_template_id || null,
-          is_active: true,
-          is_bulk_recipe: recipe.is_bulk_recipe || false,
-          tenant_id: profile?.tenant_id,
-        });
+      const { error } = await supabase.from('recipes').insert({
+        name: recipe.name,
+        category_id: recipe.category_id,
+        base_template_id: recipe.base_template_id || null,
+        is_active: true,
+        is_bulk_recipe: recipe.is_bulk_recipe || false,
+        tenant_id: profile?.tenant_id,
+      });
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
-    } catch (error: any) {
-      toast({ title: 'Error adding recipe', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error adding recipe', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
-  const handleCreateRecipeFromIngredients = async (data: { name: string; category_id: string; ingredient_ids: string[] }) => {
+  const handleCreateRecipeFromIngredients = async (data: {
+    name: string;
+    category_id: string;
+    ingredient_ids: string[];
+  }) => {
     try {
       const { data: newRecipe, error } = await supabase
         .from('recipes')
@@ -423,12 +486,12 @@ export default function RecipeCostingPage() {
       if (error) throw error;
 
       // Add selected ingredients to all non-bulk sizes with quantity 1
-      const nonBulkSizes = productSizes.filter(s => !s.name.toLowerCase().includes('bulk'));
+      const nonBulkSizes = productSizes.filter((s) => !s.name.toLowerCase().includes('bulk'));
       if (nonBulkSizes.length > 0 && data.ingredient_ids.length > 0) {
-        const inserts = data.ingredient_ids.flatMap(ingredientId => {
-          const ingredient = ingredients.find(i => i.id === ingredientId);
+        const inserts = data.ingredient_ids.flatMap((ingredientId) => {
+          const ingredient = ingredients.find((i) => i.id === ingredientId);
           const unit = ingredient?.usage_unit || ingredient?.unit || 'oz';
-          return nonBulkSizes.map(size => ({
+          return nonBulkSizes.map((size) => ({
             recipe_id: newRecipe.id,
             ingredient_id: ingredientId,
             size_id: size.id,
@@ -442,22 +505,28 @@ export default function RecipeCostingPage() {
 
       invalidateRecipeData();
       setActiveTab('recipes');
-    } catch (error: any) {
-      toast({ title: 'Error creating recipe', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error creating recipe', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
-  const handleUpdateRecipe = async (id: string, updates: { name?: string; category_id?: string; base_template_id?: string | null; is_bulk_recipe?: boolean; minutes_per_drink?: number | null }) => {
+  const handleUpdateRecipe = async (
+    id: string,
+    updates: {
+      name?: string;
+      category_id?: string;
+      base_template_id?: string | null;
+      is_bulk_recipe?: boolean;
+      minutes_per_drink?: number | null;
+    }
+  ) => {
     try {
-      const { error } = await supabase
-        .from('recipes')
-        .update(updates)
-        .eq('id', id);
+      const { error } = await supabase.from('recipes').update(updates).eq('id', id);
 
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
-    } catch (error: any) {
-      toast({ title: 'Error updating recipe', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating recipe', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -470,59 +539,78 @@ export default function RecipeCostingPage() {
         .limit(1);
       const nextOrder = (maxOrder?.[0]?.display_order || 0) + 1;
 
-      const { error } = await supabase
-        .from('product_sizes')
-        .insert({ name, size_value: oz, display_order: nextOrder, product_type: 'bulk', tenant_id: profile?.tenant_id });
+      const { error } = await supabase.from('product_sizes').insert({
+        name,
+        size_value: oz,
+        display_order: nextOrder,
+        product_type: 'bulk',
+        tenant_id: profile?.tenant_id,
+      });
 
       if (error) {
         console.error('Supabase error adding bulk size:', error);
-        toast({ title: 'Error adding bulk size', description: error.message + ' Make sure your Supabase RLS policies allow inserts on the product_sizes table.', variant: 'destructive' });
+        toast({
+          title: 'Error adding bulk size',
+          description:
+            getErrorMessage(error) + ' Make sure your Supabase RLS policies allow inserts on the product_sizes table.',
+          variant: 'destructive',
+        });
         return false;
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.productSizes });
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error in handleAddBulkSize:', error);
-      toast({ title: 'Error adding bulk size', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error adding bulk size', description: getErrorMessage(error), variant: 'destructive' });
       return false;
     }
   };
 
   const handleDeleteBulkSize = async (sizeId: string) => {
-    const name = productSizes.find(s => s.id === sizeId)?.name || 'this batch size';
-    if (!await confirm({ title: `Delete ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) return;
+    const name = productSizes.find((s) => s.id === sizeId)?.name || 'this batch size';
+    if (
+      !(await confirm({
+        title: `Delete ${name}?`,
+        description: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      }))
+    )
+      return;
     try {
-      const { error: ingredientError } = await supabase
-        .from('recipe_ingredients')
-        .delete()
-        .eq('size_id', sizeId);
+      const { error: ingredientError } = await supabase.from('recipe_ingredients').delete().eq('size_id', sizeId);
 
       if (ingredientError) {
         console.error('Error deleting associated ingredients:', ingredientError);
-        toast({ title: 'Error removing ingredients for this size', description: ingredientError.message, variant: 'destructive' });
+        toast({
+          title: 'Error removing ingredients for this size',
+          description: ingredientError.message,
+          variant: 'destructive',
+        });
         return;
       }
 
-      const { error } = await supabase
-        .from('product_sizes')
-        .delete()
-        .eq('id', sizeId);
+      const { error } = await supabase.from('product_sizes').delete().eq('id', sizeId);
 
       if (error) {
         console.error('Supabase error deleting bulk size:', error);
-        toast({ title: 'Error deleting bulk size', description: error.message, variant: 'destructive' });
+        toast({ title: 'Error deleting bulk size', description: getErrorMessage(error), variant: 'destructive' });
         return;
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.productSizes });
       queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
       showDeleteUndoToast({ itemName: name, undo: { type: 'none' } });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error in handleDeleteBulkSize:', error);
-      toast({ title: 'Error deleting bulk size', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error deleting bulk size', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
-  const handleAddProductSize = async (size: { name: string; size_value: number; product_type: string }): Promise<string> => {
+  const handleAddProductSize = async (size: {
+    name: string;
+    size_value: number;
+    product_type: string;
+  }): Promise<string> => {
     const { data: maxOrder } = await supabase
       .from('product_sizes')
       .select('display_order')
@@ -532,7 +620,13 @@ export default function RecipeCostingPage() {
 
     const { data, error } = await supabase
       .from('product_sizes')
-      .insert({ name: size.name, size_value: size.size_value, display_order: nextOrder, product_type: size.product_type, tenant_id: profile?.tenant_id })
+      .insert({
+        name: size.name,
+        size_value: size.size_value,
+        display_order: nextOrder,
+        product_type: size.product_type,
+        tenant_id: profile?.tenant_id,
+      })
       .select('id')
       .single();
 
@@ -555,90 +649,105 @@ export default function RecipeCostingPage() {
     try {
       let tenantId = profile?.tenant_id;
       if (!tenantId) {
-        const { data: existingTemplates } = await supabase
-          .from('base_templates')
-          .select('tenant_id')
-          .limit(1);
+        const { data: existingTemplates } = await supabase.from('base_templates').select('tenant_id').limit(1);
         tenantId = existingTemplates?.[0]?.tenant_id;
       }
 
       if (!tenantId) {
-        toast({ title: 'Unable to determine your tenant', description: 'Please refresh the page and try again.', variant: 'destructive' });
+        toast({
+          title: 'Unable to determine your tenant',
+          description: 'Please refresh the page and try again.',
+          variant: 'destructive',
+        });
         return;
       }
 
-      const { error } = await supabase
-        .from('base_templates')
-        .insert({
-          name: template.name,
-          drink_type: template.drink_type,
-          description: template.description || null,
-          is_active: true,
-          tenant_id: tenantId,
-        });
+      const { error } = await supabase.from('base_templates').insert({
+        name: template.name,
+        drink_type: template.drink_type,
+        description: template.description || null,
+        is_active: true,
+        tenant_id: tenantId,
+      });
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error adding base template:', error);
-      toast({ title: 'Error adding base template', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error adding base template', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
-  const handleAddTemplateIngredient = async (ingredient: { base_template_id: string; ingredient_id: string; size_id: string; quantity: number; unit?: string }) => {
+  const handleAddTemplateIngredient = async (ingredient: {
+    base_template_id: string;
+    ingredient_id: string;
+    size_id: string;
+    quantity: number;
+    unit?: string;
+  }) => {
     try {
-      const { error } = await supabase
-        .from('base_template_ingredients')
-        .insert({
-          base_template_id: ingredient.base_template_id,
-          ingredient_id: ingredient.ingredient_id,
-          size_id: ingredient.size_id,
-          quantity: ingredient.quantity,
-          unit: ingredient.unit || 'each',
-        });
+      const { error } = await supabase.from('base_template_ingredients').insert({
+        base_template_id: ingredient.base_template_id,
+        ingredient_id: ingredient.ingredient_id,
+        size_id: ingredient.size_id,
+        quantity: ingredient.quantity,
+        unit: ingredient.unit || 'each',
+      });
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
-    } catch (error: any) {
-      toast({ title: 'Error adding template ingredient', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error adding template ingredient', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
   const handleDeleteTemplateIngredient = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('base_template_ingredients')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('base_template_ingredients').delete().eq('id', id);
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
-    } catch (error: any) {
-      toast({ title: 'Error deleting template ingredient', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({
+        title: 'Error deleting template ingredient',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
     }
   };
 
   const handleDeleteBaseTemplate = async (id: string) => {
-    const name = baseTemplates.find(t => t.id === id)?.name || 'this base template';
-    if (!await confirm({ title: `Delete ${name}?`, description: 'This will also remove all its ingredients.', confirmLabel: 'Delete', variant: 'destructive' })) {
+    const name = baseTemplates.find((t) => t.id === id)?.name || 'this base template';
+    if (
+      !(await confirm({
+        title: `Delete ${name}?`,
+        description: 'This will also remove all its ingredients.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      }))
+    ) {
       return;
     }
     try {
-      const { error } = await supabase
-        .from('base_templates')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('base_templates').delete().eq('id', id);
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.baseTemplates });
       showDeleteUndoToast({ itemName: name, undo: { type: 'none' } });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting base template:', error);
-      toast({ title: 'Error deleting base template', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error deleting base template', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
-  const handleAddRecipeIngredient = async (ingredient: { recipe_id: string; ingredient_id?: string | null; size_id: string; quantity: number; unit?: string; syrup_recipe_id?: string | null }) => {
+  const handleAddRecipeIngredient = async (ingredient: {
+    recipe_id: string;
+    ingredient_id?: string | null;
+    size_id: string;
+    quantity: number;
+    unit?: string;
+    syrup_recipe_id?: string | null;
+  }) => {
     try {
       const insertData: Record<string, any> = {
         recipe_id: ingredient.recipe_id,
@@ -653,56 +762,59 @@ export default function RecipeCostingPage() {
         insertData.syrup_recipe_id = ingredient.syrup_recipe_id;
       }
 
-      const { error } = await supabase
-        .from('recipe_ingredients')
-        .insert(insertData);
+      const { error } = await supabase.from('recipe_ingredients').insert(insertData);
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
-    } catch (error: any) {
-      toast({ title: 'Error adding recipe ingredient', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error adding recipe ingredient', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
   const handleDeleteIngredient = async (id: string) => {
-    const ingredient = ingredients.find(i => i.id === id);
+    const ingredient = ingredients.find((i) => i.id === id);
     const name = ingredient?.name || 'this ingredient';
-    if (!await confirm({ title: `Delete ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'destructive' })) return;
+    if (
+      !(await confirm({
+        title: `Delete ${name}?`,
+        description: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      }))
+    )
+      return;
     try {
-      const savedData = ingredient ? (() => {
-        const { category_name, cost_per_unit, cost_per_usage_unit, ...tableColumns } = ingredient as Record<string, unknown>;
-        return { ...tableColumns, tenant_id: tableColumns.tenant_id || profile?.tenant_id };
-      })() : null;
-      const { error } = await supabase
-        .from('ingredients')
-        .delete()
-        .eq('id', id);
+      const savedData = ingredient
+        ? (() => {
+            const { category_name, cost_per_unit, cost_per_usage_unit, ...tableColumns } = ingredient as Record<
+              string,
+              unknown
+            >;
+            return { ...tableColumns, tenant_id: tableColumns.tenant_id || profile?.tenant_id };
+          })()
+        : null;
+      const { error } = await supabase.from('ingredients').delete().eq('id', id);
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.ingredients });
       showDeleteUndoToast({
         itemName: name,
-        undo: savedData
-          ? { type: 'reinsert', table: 'ingredients', data: savedData }
-          : { type: 'none' },
+        undo: savedData ? { type: 'reinsert', table: 'ingredients', data: savedData } : { type: 'none' },
         invalidateKeys: [queryKeys.ingredients],
       });
-    } catch (error: any) {
-      toast({ title: 'Error deleting ingredient', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error deleting ingredient', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
   const handleDeleteRecipeIngredient = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('recipe_ingredients')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('recipe_ingredients').delete().eq('id', id);
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
-    } catch (error: any) {
-      toast({ title: 'Error deleting recipe ingredient', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error deleting recipe ingredient', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -718,7 +830,9 @@ export default function RecipeCostingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
         <div className="text-center p-8 rounded-lg max-w-md" style={{ backgroundColor: colors.white }}>
-          <h2 className="text-xl font-bold mb-2" style={{ color: colors.brown }}>Connection Issue</h2>
+          <h2 className="text-xl font-bold mb-2" style={{ color: colors.brown }}>
+            Connection Issue
+          </h2>
           <p className="mb-4" style={{ color: colors.brownLight }}>
             Unable to load Menu Cost Manager data. This could be:
           </p>
@@ -862,9 +976,17 @@ export default function RecipeCostingPage() {
             recipeVendors={recipeVendors}
             tenantId={tenant?.id || ''}
             onUpdateIngredientCost={handleUpdateIngredientCost}
-            onAddVendor={async (v) => { const result = await addVendorMutation.mutateAsync(v); return result; }}
-            onUpdateVendor={async (id, updates) => { const result = await updateVendorMutation.mutateAsync({ id, updates }); return result; }}
-            onDeleteVendor={async (id) => { await deleteVendorMutation.mutateAsync(id); }}
+            onAddVendor={async (v) => {
+              const result = await addVendorMutation.mutateAsync(v);
+              return result;
+            }}
+            onUpdateVendor={async (id, updates) => {
+              const result = await updateVendorMutation.mutateAsync({ id, updates });
+              return result;
+            }}
+            onDeleteVendor={async (id) => {
+              await deleteVendorMutation.mutateAsync(id);
+            }}
           />
         )}
         {activeTab === 'overhead' && isManagerOrOwner && (
@@ -902,7 +1024,9 @@ export default function RecipeCostingPage() {
               Settings
             </SheetTitle>
             <div className="flex gap-1 mt-3 flex-wrap">
-              {SETTINGS_SECTIONS.filter(s => s.id !== 'overhead' || profile?.role === 'owner' || profile?.role === 'manager').map(section => (
+              {SETTINGS_SECTIONS.filter(
+                (s) => s.id !== 'overhead' || profile?.role === 'owner' || profile?.role === 'manager'
+              ).map((section) => (
                 <button
                   key={section.id}
                   onClick={() => setSettingsSection(section.id)}
@@ -949,9 +1073,17 @@ export default function RecipeCostingPage() {
                 recipeVendors={recipeVendors}
                 tenantId={tenant?.id || ''}
                 onUpdateIngredientCost={handleUpdateIngredientCost}
-                onAddVendor={async (v) => { const result = await addVendorMutation.mutateAsync(v); return result; }}
-                onUpdateVendor={async (id, updates) => { const result = await updateVendorMutation.mutateAsync({ id, updates }); return result; }}
-                onDeleteVendor={async (id) => { await deleteVendorMutation.mutateAsync(id); }}
+                onAddVendor={async (v) => {
+                  const result = await addVendorMutation.mutateAsync(v);
+                  return result;
+                }}
+                onUpdateVendor={async (id, updates) => {
+                  const result = await updateVendorMutation.mutateAsync({ id, updates });
+                  return result;
+                }}
+                onDeleteVendor={async (id) => {
+                  await deleteVendorMutation.mutateAsync(id);
+                }}
               />
             )}
             {settingsSection === 'settings' && (

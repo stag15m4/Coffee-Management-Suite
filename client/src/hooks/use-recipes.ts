@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase-queries";
-import { useAuth } from "@/contexts/AuthContext";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase-queries';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface Recipe {
   id: string;
@@ -39,11 +39,7 @@ export function useRecipes() {
     queryFn: async () => {
       if (!tenant?.id) return [];
 
-      const { data, error } = await supabase
-        .from('recipes')
-        .select('*')
-        .eq('tenant_id', tenant.id)
-        .order('name');
+      const { data, error } = await supabase.from('recipes').select('*').eq('tenant_id', tenant.id).order('name');
 
       if (error) throw error;
       return data as Recipe[];
@@ -74,20 +70,22 @@ export function useRecipe(id: string) {
 
       const { data: recipeIngredients, error: riError } = await supabase
         .from('recipe_ingredients')
-        .select(`
+        .select(
+          `
           id,
           recipe_id,
           ingredient_id,
           quantity,
           ingredient:ingredients(*)
-        `)
+        `
+        )
         .eq('recipe_id', id);
 
       if (riError) throw riError;
 
       return {
         ...recipe,
-        ingredients: recipeIngredients || []
+        ingredients: recipeIngredients || [],
       } as RecipeWithIngredients;
     },
     enabled: !!tenant?.id && !!id,
@@ -107,7 +105,7 @@ export function useCreateRecipe() {
         .insert({
           name: data.name,
           description: data.description || null,
-          tenant_id: tenant.id
+          tenant_id: tenant.id,
         })
         .select()
         .single();
@@ -155,18 +153,11 @@ export function useDeleteRecipe() {
     mutationFn: async (id: string) => {
       if (!tenant?.id) throw new Error('No tenant context');
 
-      const { error: riError } = await supabase
-        .from('recipe_ingredients')
-        .delete()
-        .eq('recipe_id', id);
+      const { error: riError } = await supabase.from('recipe_ingredients').delete().eq('recipe_id', id);
 
       if (riError) throw riError;
 
-      const { error } = await supabase
-        .from('recipes')
-        .delete()
-        .eq('id', id)
-        .eq('tenant_id', tenant.id);
+      const { error } = await supabase.from('recipes').delete().eq('id', id).eq('tenant_id', tenant.id);
 
       if (error) throw error;
     },
@@ -181,7 +172,15 @@ export function useAddRecipeIngredient() {
   const { tenant } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ recipeId, ingredientId, quantity }: { recipeId: string; ingredientId: string; quantity: number }) => {
+    mutationFn: async ({
+      recipeId,
+      ingredientId,
+      quantity,
+    }: {
+      recipeId: string;
+      ingredientId: string;
+      quantity: number;
+    }) => {
       if (!tenant?.id) throw new Error('No tenant context');
 
       const { data, error } = await supabase
@@ -189,7 +188,7 @@ export function useAddRecipeIngredient() {
         .insert({
           recipe_id: recipeId,
           ingredient_id: ingredientId,
-          quantity: quantity.toString()
+          quantity: quantity.toString(),
         })
         .select()
         .single();
@@ -212,17 +211,11 @@ export function useDeleteRecipeIngredient() {
       if (!tenant?.id) throw new Error('No tenant context');
 
       // Add timeout to prevent hanging
-      const deletePromise = supabase
-        .from('recipe_ingredients')
-        .delete()
-        .eq('id', id)
-        .eq('recipe_id', recipeId); // Ensure ingredient belongs to specified recipe
+      const deletePromise = supabase.from('recipe_ingredients').delete().eq('id', id).eq('recipe_id', recipeId); // Ensure ingredient belongs to specified recipe
 
       const { error } = await Promise.race([
         deletePromise,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Delete operation timeout')), 5000)
-        )
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Delete operation timeout')), 5000)),
       ]);
 
       if (error) throw error;

@@ -4,8 +4,17 @@ import { useNavigation, type NavItem } from './NavigationProvider';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeProvider';
 import {
-  ChevronDown, Lock, LogOut, MapPin, Check,
-  Settings, ArrowLeft, User, Sparkles, Clock, type LucideIcon,
+  ChevronDown,
+  Lock,
+  LogOut,
+  MapPin,
+  Check,
+  Settings,
+  ArrowLeft,
+  User,
+  Sparkles,
+  Clock,
+  type LucideIcon,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { useTrialStatus } from '@/hooks/use-trial-status';
@@ -18,16 +27,8 @@ export function DesktopSidebar({ className }: { className?: string }) {
   const [location, setLocation] = useLocation();
   const searchString = useSearch(); // Track search params so sidebar re-renders on tab change
   const { primaryItems, settingsItems, utilityItems, adminItems } = useNavigation();
-  const {
-    profile,
-    tenant,
-    accessibleLocations,
-    switchLocation,
-    signOut,
-    hasRole,
-    adminViewingTenant,
-    exitTenantView,
-  } = useAuth();
+  const { profile, tenant, accessibleLocations, switchLocation, signOut, hasRole, adminViewingTenant, exitTenantView } =
+    useAuth();
   const { meta } = useTheme();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -44,8 +45,7 @@ export function DesktopSidebar({ className }: { className?: string }) {
   useEffect(() => {
     if (!locationDropdownOpen) return;
     const handler = (e: MouseEvent) => {
-      if (locationRef.current && !locationRef.current.contains(e.target as Node))
-        setLocationDropdownOpen(false);
+      if (locationRef.current && !locationRef.current.contains(e.target as Node)) setLocationDropdownOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -53,7 +53,7 @@ export function DesktopSidebar({ className }: { className?: string }) {
 
   return (
     <aside
-      className={className || "hidden lg:flex w-56 flex-shrink-0 flex-col h-screen sticky top-0 border-r"}
+      className={className || 'hidden lg:flex w-56 flex-shrink-0 flex-col h-screen sticky top-0 border-r'}
       style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-accent-dark)' }}
     >
       {/* Back to Admin banner */}
@@ -85,10 +85,7 @@ export function DesktopSidebar({ className }: { className?: string }) {
                 {displayName.substring(0, 2).toUpperCase()}
               </div>
             )}
-            <span
-              className="text-sm font-bold truncate max-w-full"
-              style={{ color: 'var(--color-secondary)' }}
-            >
+            <span className="text-sm font-bold truncate max-w-full" style={{ color: 'var(--color-secondary)' }}>
               {displayName}
             </span>
           </button>
@@ -149,12 +146,8 @@ export function DesktopSidebar({ className }: { className?: string }) {
                 color: trialExpired ? '#dc2626' : trialUrgent ? '#d97706' : '#2563eb',
               }}
             >
-              {trialExpired
-                ? <Clock className="w-3 h-3" />
-                : <Sparkles className="w-3 h-3" />}
-              {trialExpired
-                ? 'Trial expired'
-                : `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
+              {trialExpired ? <Clock className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+              {trialExpired ? 'Trial expired' : `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
             </button>
           </Link>
         )}
@@ -196,10 +189,7 @@ export function DesktopSidebar({ className }: { className?: string }) {
             <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
               <SheetContent side="left" className="w-72 p-0">
                 <div className="p-4 border-b" style={{ borderColor: 'var(--color-accent-dark)' }}>
-                  <SheetTitle
-                    className="text-sm font-semibold"
-                    style={{ color: 'var(--color-secondary)' }}
-                  >
+                  <SheetTitle className="text-sm font-semibold" style={{ color: 'var(--color-secondary)' }}>
                     Settings
                   </SheetTitle>
                 </div>
@@ -236,10 +226,15 @@ export function DesktopSidebar({ className }: { className?: string }) {
         {/* User + Sign out */}
         <div className="pt-1 mt-1 border-t" style={{ borderColor: 'var(--color-accent-dark)' }}>
           <div className="flex items-center gap-2.5 px-2 py-2">
-            <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--color-accent)' }}>
-              {profile?.avatar_url
-                ? <img src={profile.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" />
-                : <User className="w-3.5 h-3.5" style={{ color: 'var(--color-secondary-light)' }} />}
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: 'var(--color-accent)' }}
+            >
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" />
+              ) : (
+                <User className="w-3.5 h-3.5" style={{ color: 'var(--color-secondary-light)' }} />
+              )}
             </div>
             <span className="text-sm font-medium truncate" style={{ color: 'var(--color-secondary)' }}>
               {profile?.full_name?.split(' ')[0] || 'Profile'}
@@ -263,7 +258,15 @@ export function DesktopSidebar({ className }: { className?: string }) {
 // SidebarNavItem — handles expandable items with tabs
 // ---------------------------------------------------------------------------
 
-function SidebarNavItem({ item, currentPath, searchString }: { item: NavItem; currentPath: string; searchString: string }) {
+function SidebarNavItem({
+  item,
+  currentPath,
+  searchString,
+}: {
+  item: NavItem;
+  currentPath: string;
+  searchString: string;
+}) {
   const isOnPage = currentPath === item.href;
   const hasTabs = item.tabs && item.tabs.length > 0;
   const [expanded, setExpanded] = useState(isOnPage);
@@ -289,21 +292,11 @@ function SidebarNavItem({ item, currentPath, searchString }: { item: NavItem; cu
 
   // Simple item (no tabs)
   if (!hasTabs) {
-    return (
-      <SidebarLink
-        href={item.href}
-        label={item.label}
-        icon={item.icon}
-        isActive={isOnPage}
-        badge={item.badge}
-      />
-    );
+    return <SidebarLink href={item.href} label={item.label} icon={item.icon} isActive={isOnPage} badge={item.badge} />;
   }
 
   // Expandable item with sub-tabs — use searchString from wouter for reactivity
-  const activeTab = isOnPage
-    ? new URLSearchParams(searchString).get('tab') || item.tabs![0].id
-    : null;
+  const activeTab = isOnPage ? new URLSearchParams(searchString).get('tab') || item.tabs![0].id : null;
 
   return (
     <div>
@@ -324,7 +317,8 @@ function SidebarNavItem({ item, currentPath, searchString }: { item: NavItem; cu
               <span
                 className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
                 style={{
-                  backgroundColor: item.badge === 'Beta' ? '#3b82f6' : item.badge === 'Internal' ? '#6b7280' : 'var(--color-primary)',
+                  backgroundColor:
+                    item.badge === 'Beta' ? '#3b82f6' : item.badge === 'Internal' ? '#6b7280' : 'var(--color-primary)',
                   color: 'white',
                 }}
               >
@@ -338,9 +332,7 @@ function SidebarNavItem({ item, currentPath, searchString }: { item: NavItem; cu
           style={{ color: 'var(--color-secondary-light)' }}
           onClick={() => setExpanded(!expanded)}
         >
-          <ChevronDown
-            className={`w-3.5 h-3.5 transition-transform ${expanded ? '' : '-rotate-90'}`}
-          />
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? '' : '-rotate-90'}`} />
         </button>
       </div>
 

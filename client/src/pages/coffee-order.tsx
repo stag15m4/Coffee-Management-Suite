@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -57,7 +58,7 @@ export default function CoffeeOrder() {
 
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
-  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const displayName = isChildLocation ? tenant?.name : branding?.company_name || tenant?.name || 'Erwin Mills Coffee';
   const orgName = primaryTenant?.name || branding?.company_name || '';
   const { toast } = useToast();
   const { confirm, ConfirmDialog } = useConfirmDialog();
@@ -78,24 +79,40 @@ export default function CoffeeOrder() {
 
   // Vendor form state (for add/edit)
   const [editingVendorId, setEditingVendorId] = useState<string | null>(null);
-  const [vendorForm, setVendorForm] = useState({ display_name: '', contact_email: '', cc_email: '', supports_retail_labels: true });
+  const [vendorForm, setVendorForm] = useState({
+    display_name: '',
+    contact_email: '',
+    cc_email: '',
+    supports_retail_labels: true,
+  });
   const [addingVendor, setAddingVendor] = useState(false);
-  const [newVendorForm, setNewVendorForm] = useState({ display_name: '', contact_email: '', cc_email: '', supports_retail_labels: true });
+  const [newVendorForm, setNewVendorForm] = useState({
+    display_name: '',
+    contact_email: '',
+    cc_email: '',
+    supports_retail_labels: true,
+  });
 
   const [newProduct, setNewProduct] = useState({ name: '', size: '', category: '', default_price: '' });
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editProductForm, setEditProductForm] = useState({ name: '', size: '', category: '', default_price: '' });
 
   // Derived: selected vendor object
-  const selectedVendor = useMemo(() => vendors.find(v => v.id === selectedVendorId) || null, [vendors, selectedVendorId]);
+  const selectedVendor = useMemo(
+    () => vendors.find((v) => v.id === selectedVendorId) || null,
+    [vendors, selectedVendorId]
+  );
 
   // Derived: products for selected vendor
-  const products = useMemo(() => allProducts.filter(p => p.vendor_id === selectedVendorId), [allProducts, selectedVendorId]);
+  const products = useMemo(
+    () => allProducts.filter((p) => p.vendor_id === selectedVendorId),
+    [allProducts, selectedVendorId]
+  );
 
   // Derived: order history for selected vendor
   const vendorHistory = useMemo(() => {
     if (!selectedVendorId) return orderHistory;
-    return orderHistory.filter(o => o.vendor_id === selectedVendorId);
+    return orderHistory.filter((o) => o.vendor_id === selectedVendorId);
   }, [orderHistory, selectedVendorId]);
 
   useEffect(() => {
@@ -106,70 +123,78 @@ export default function CoffeeOrder() {
     }
   }, [tenant?.id]);
 
-  const loadData = useCallback(async (silent = false) => {
-    if (!tenant?.id) {
-      setLoading(false);
-      return;
-    }
-    if (!silent) setLoading(true);
-    try {
-      const [vendorRes, productsRes, historyRes] = await Promise.all([
-        supabase
-          .from('tenant_coffee_vendors')
-          .select('*')
-          .eq('tenant_id', tenant.id)
-          .order('created_at'),
-        supabase
-          .from('tenant_coffee_products')
-          .select('*')
-          .eq('tenant_id', tenant.id)
-          .eq('is_active', true)
-          .order('display_order'),
-        supabase
-          .from('coffee_order_history')
-          .select('*')
-          .eq('tenant_id', tenant.id)
-          .order('order_date', { ascending: false })
-          .limit(50)
-      ]);
-
-      if (vendorRes.error) toast({ title: 'Failed to load vendors', description: vendorRes.error.message, variant: 'destructive' });
-      if (productsRes.error) toast({ title: 'Failed to load products', description: productsRes.error.message, variant: 'destructive' });
-      if (historyRes.error) toast({ title: 'Failed to load order history', description: historyRes.error.message, variant: 'destructive' });
-
-      const loadedVendors: CoffeeVendor[] = (vendorRes.data || []).map((v: any) => ({
-        ...v,
-        supports_retail_labels: v.supports_retail_labels ?? true,
-      }));
-      setVendors(loadedVendors);
-
-      // Auto-select first vendor if none selected or selected no longer exists
-      if (loadedVendors.length > 0) {
-        setSelectedVendorId(prev => {
-          if (prev && loadedVendors.some(v => v.id === prev)) return prev;
-          return loadedVendors[0].id;
-        });
-      } else {
-        setSelectedVendorId(null);
+  const loadData = useCallback(
+    async (silent = false) => {
+      if (!tenant?.id) {
+        setLoading(false);
+        return;
       }
+      if (!silent) setLoading(true);
+      try {
+        const [vendorRes, productsRes, historyRes] = await Promise.all([
+          supabase.from('tenant_coffee_vendors').select('*').eq('tenant_id', tenant.id).order('created_at'),
+          supabase
+            .from('tenant_coffee_products')
+            .select('*')
+            .eq('tenant_id', tenant.id)
+            .eq('is_active', true)
+            .order('display_order'),
+          supabase
+            .from('coffee_order_history')
+            .select('*')
+            .eq('tenant_id', tenant.id)
+            .order('order_date', { ascending: false })
+            .limit(50),
+        ]);
 
-      if (productsRes.data) {
-        setAllProducts(productsRes.data.map((p: any) => ({
-          ...p,
-          default_price: parseFloat(String(p.default_price || 0))
-        })));
-      }
+        if (vendorRes.error)
+          toast({ title: 'Failed to load vendors', description: vendorRes.error.message, variant: 'destructive' });
+        if (productsRes.error)
+          toast({ title: 'Failed to load products', description: productsRes.error.message, variant: 'destructive' });
+        if (historyRes.error)
+          toast({
+            title: 'Failed to load order history',
+            description: historyRes.error.message,
+            variant: 'destructive',
+          });
 
-      if (historyRes.data) {
-        setOrderHistory(historyRes.data);
+        const loadedVendors: CoffeeVendor[] = (vendorRes.data || []).map((v: any) => ({
+          ...v,
+          supports_retail_labels: v.supports_retail_labels ?? true,
+        }));
+        setVendors(loadedVendors);
+
+        // Auto-select first vendor if none selected or selected no longer exists
+        if (loadedVendors.length > 0) {
+          setSelectedVendorId((prev) => {
+            if (prev && loadedVendors.some((v) => v.id === prev)) return prev;
+            return loadedVendors[0].id;
+          });
+        } else {
+          setSelectedVendorId(null);
+        }
+
+        if (productsRes.data) {
+          setAllProducts(
+            productsRes.data.map((p: any) => ({
+              ...p,
+              default_price: parseFloat(String(p.default_price || 0)),
+            }))
+          );
+        }
+
+        if (historyRes.data) {
+          setOrderHistory(historyRes.data);
+        }
+      } catch (error: unknown) {
+        console.error('Error loading coffee data:', error);
+        toast({ title: 'Error loading data', description: getErrorMessage(error), variant: 'destructive' });
+      } finally {
+        setLoading(false);
       }
-    } catch (error: any) {
-      console.error('Error loading coffee data:', error);
-      toast({ title: 'Error loading data', description: error.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [tenant?.id, toast]);
+    },
+    [tenant?.id, toast]
+  );
 
   // Refresh data when app resumes from background (iPad multitasking)
   useAppResume(() => {
@@ -207,7 +232,7 @@ export default function CoffeeOrder() {
           contact_email: vendorForm.contact_email || '',
           cc_email: vendorForm.cc_email || '',
           supports_retail_labels: vendorForm.supports_retail_labels,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', vendorId)
         .eq('tenant_id', tenant.id);
@@ -216,8 +241,8 @@ export default function CoffeeOrder() {
       toast({ title: 'Vendor settings saved' });
       setEditingVendorId(null);
       loadData();
-    } catch (error: any) {
-      toast({ title: 'Error saving vendor', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error saving vendor', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -250,22 +275,25 @@ export default function CoffeeOrder() {
       // Select the new vendor
       if (data?.id) setSelectedVendorId(data.id);
       loadData();
-    } catch (error: any) {
-      toast({ title: 'Error adding vendor', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error adding vendor', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
   };
 
   const deleteVendor = async (vendorId: string) => {
-    const vendorToDelete = vendors.find(v => v.id === vendorId);
+    const vendorToDelete = vendors.find((v) => v.id === vendorId);
     const name = vendorToDelete?.display_name || 'this vendor';
-    if (!await confirm({
-      title: `Remove ${name}?`,
-      description: 'This will also remove all products and order history for this vendor. This cannot be undone.',
-      confirmLabel: 'Remove',
-      variant: 'destructive'
-    })) return;
+    if (
+      !(await confirm({
+        title: `Remove ${name}?`,
+        description: 'This will also remove all products and order history for this vendor. This cannot be undone.',
+        confirmLabel: 'Remove',
+        variant: 'destructive',
+      }))
+    )
+      return;
 
     try {
       const { error } = await supabase
@@ -282,8 +310,8 @@ export default function CoffeeOrder() {
         setRetailLabels({});
       }
       loadData();
-    } catch (error: any) {
-      toast({ title: 'Error removing vendor', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error removing vendor', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -326,25 +354,23 @@ export default function CoffeeOrder() {
       const sizeValue = newProduct.size.trim() || 'unit';
       const categoryValue = normalizeCategory(newProduct.category || sizeValue);
       const sku = `${newProduct.name.trim().toLowerCase().replace(/\s+/g, '-')}-${sizeValue.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
-      const { error } = await supabase
-        .from('tenant_coffee_products')
-        .insert({
-          tenant_id: tenant.id,
-          vendor_id: selectedVendorId,
-          sku,
-          name: newProduct.name.trim(),
-          size: sizeValue,
-          category: categoryValue,
-          default_price: price,
-          display_order: products.length
-        });
+      const { error } = await supabase.from('tenant_coffee_products').insert({
+        tenant_id: tenant.id,
+        vendor_id: selectedVendorId,
+        sku,
+        name: newProduct.name.trim(),
+        size: sizeValue,
+        category: categoryValue,
+        default_price: price,
+        display_order: products.length,
+      });
 
       if (error) throw error;
       toast({ title: 'Product added' });
       setNewProduct({ name: '', size: '', category: '', default_price: '' });
       loadData();
-    } catch (error: any) {
-      toast({ title: 'Error adding product', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error adding product', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -372,7 +398,7 @@ export default function CoffeeOrder() {
           size: sizeValue,
           category: categoryValue,
           default_price: price,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', productId)
         .eq('tenant_id', tenant.id);
@@ -381,8 +407,8 @@ export default function CoffeeOrder() {
       toast({ title: 'Product updated' });
       setEditingProductId(null);
       loadData();
-    } catch (error: any) {
-      toast({ title: 'Error updating product', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating product', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -390,8 +416,16 @@ export default function CoffeeOrder() {
 
   const deleteProduct = async (productId: string) => {
     if (!tenant?.id) return;
-    const name = products.find(p => p.id === productId)?.name || 'this product';
-    if (!await confirm({ title: `Remove ${name}?`, description: 'This cannot be undone.', confirmLabel: 'Remove', variant: 'destructive' })) return;
+    const name = products.find((p) => p.id === productId)?.name || 'this product';
+    if (
+      !(await confirm({
+        title: `Remove ${name}?`,
+        description: 'This cannot be undone.',
+        confirmLabel: 'Remove',
+        variant: 'destructive',
+      }))
+    )
+      return;
 
     try {
       const { error } = await supabase
@@ -407,8 +441,8 @@ export default function CoffeeOrder() {
         onReload: loadData,
       });
       loadData();
-    } catch (error: any) {
-      toast({ title: 'Error removing product', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error removing product', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -418,7 +452,7 @@ export default function CoffeeOrder() {
       name: product.name,
       size: product.size,
       category: product.category,
-      default_price: product.default_price.toString()
+      default_price: product.default_price.toString(),
     });
   };
 
@@ -427,7 +461,7 @@ export default function CoffeeOrder() {
   // =====================================================
 
   const updateQty = (productId: string, delta: number) => {
-    setOrderItems(prev => {
+    setOrderItems((prev) => {
       const current = prev[productId] || 0;
       const newQty = Math.max(0, current + delta);
       if (newQty === 0) {
@@ -440,7 +474,7 @@ export default function CoffeeOrder() {
 
   const setQty = (productId: string, value: string) => {
     const qty = Math.max(0, parseInt(value) || 0);
-    setOrderItems(prev => {
+    setOrderItems((prev) => {
       if (qty === 0) {
         const { [productId]: _, ...rest } = prev;
         return rest;
@@ -453,7 +487,7 @@ export default function CoffeeOrder() {
     const count = Math.max(0, parseInt(value) || 0);
     const maxQty = orderItems[productId] || 0;
     const clamped = Math.min(count, maxQty);
-    setRetailLabels(prev => {
+    setRetailLabels((prev) => {
       if (clamped === 0) {
         const { [productId]: _, ...rest } = prev;
         return rest;
@@ -464,7 +498,7 @@ export default function CoffeeOrder() {
 
   // Auto-clamp retail labels when quantity decreases or item is removed
   useEffect(() => {
-    setRetailLabels(prev => {
+    setRetailLabels((prev) => {
       const updated = { ...prev };
       let changed = false;
       for (const [productId, labelCount] of Object.entries(updated)) {
@@ -484,7 +518,7 @@ export default function CoffeeOrder() {
   const calculateTotalCost = () => {
     let total = 0;
     for (const [id, qty] of Object.entries(orderItems)) {
-      const product = allProducts.find(p => p.id === id);
+      const product = allProducts.find((p) => p.id === id);
       const price = product?.default_price || 0;
       total += price * qty;
     }
@@ -504,7 +538,7 @@ export default function CoffeeOrder() {
     return sum + (orderItems[id] ? count : 0);
   }, 0);
   const total12ozUnits = Object.entries(orderItems).reduce((sum, [id, qty]) => {
-    const product = allProducts.find(p => p.id === id);
+    const product = allProducts.find((p) => p.id === id);
     return sum + (normalizeCategory(product?.category || '') === '12oz' ? qty : 0);
   }, 0);
   const totalRetailLabelsAll = totalRetailLabels5lb + total12ozUnits;
@@ -523,27 +557,25 @@ export default function CoffeeOrder() {
     try {
       const retailLabelsToSave = showRetailLabels && Object.keys(retailLabels).length > 0 ? retailLabels : null;
 
-      const { error } = await supabase
-        .from('coffee_order_history')
-        .insert({
-          tenant_id: tenant.id,
-          vendor_id: selectedVendorId,
-          items: orderItems,
-          retail_labels: retailLabelsToSave,
-          units: totalUnits,
-          total_cost: totalCost,
-          notes: orderNotes || null,
-          sent_to_vendor: sentToVendor,
-          vendor_email: sentToVendor ? selectedVendor?.contact_email : null
-        });
+      const { error } = await supabase.from('coffee_order_history').insert({
+        tenant_id: tenant.id,
+        vendor_id: selectedVendorId,
+        items: orderItems,
+        retail_labels: retailLabelsToSave,
+        units: totalUnits,
+        total_cost: totalCost,
+        notes: orderNotes || null,
+        sent_to_vendor: sentToVendor,
+        vendor_email: sentToVendor ? selectedVendor?.contact_email : null,
+      });
 
       if (error) throw error;
 
       toast({ title: sentToVendor ? 'Order sent and saved!' : 'Order saved to history' });
       clearOrder();
       loadData();
-    } catch (error: any) {
-      toast({ title: 'Error saving order', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error saving order', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -566,7 +598,7 @@ export default function CoffeeOrder() {
       const orderItemsForEmail = Object.entries(orderItems)
         .filter(([_, qty]) => qty > 0)
         .map(([productId, qty]) => {
-          const product = allProducts.find(p => p.id === productId);
+          const product = allProducts.find((p) => p.id === productId);
           const productCategory = normalizeCategory(product?.category || '');
           const is12oz = productCategory === '12oz';
           return {
@@ -574,7 +606,7 @@ export default function CoffeeOrder() {
             size: product?.size || '',
             quantity: qty,
             price: product?.default_price || 0,
-            retailLabels: showRetailLabels ? (is12oz ? qty : (retailLabels[productId] || 0)) : undefined,
+            retailLabels: showRetailLabels ? (is12oz ? qty : retailLabels[productId] || 0) : undefined,
             category: productCategory,
           };
         });
@@ -591,8 +623,8 @@ export default function CoffeeOrder() {
           totalUnits,
           totalCost,
           notes: orderNotes,
-          tenantName: tenant?.name || 'Customer'
-        })
+          tenantName: tenant?.name || 'Customer',
+        }),
       });
 
       const result = await response.json();
@@ -604,14 +636,14 @@ export default function CoffeeOrder() {
         toast({
           title: 'Failed to send email',
           description: result.error || 'Unknown error',
-          variant: 'destructive'
+          variant: 'destructive',
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Failed to send order',
-        description: error.message,
-        variant: 'destructive'
+        description: getErrorMessage(error),
+        variant: 'destructive',
       });
     } finally {
       setSaving(false);
@@ -643,25 +675,31 @@ export default function CoffeeOrder() {
 
     const hasLabels = showRetailLabels;
     let csv = hasLabels ? 'Date,Units,Total Cost,Items,Retail Labels\n' : 'Date,Units,Total Cost,Items\n';
-    vendorHistory.forEach(order => {
+    vendorHistory.forEach((order) => {
       const date = new Date(order.order_date).toLocaleDateString('en-US');
       const cost = order.total_cost ? order.total_cost.toFixed(2) : '0.00';
       const orderRetailLabels = order.retail_labels || {};
-      const items = Object.entries(order.items).map(([id, qty]) => {
-        const product = allProducts.find(p => p.id === id);
-        return product ? `${product.name} ${product.size} x${qty}` : `Unknown x${qty}`;
-      }).filter(Boolean).join('; ');
+      const items = Object.entries(order.items)
+        .map(([id, qty]) => {
+          const product = allProducts.find((p) => p.id === id);
+          return product ? `${product.name} ${product.size} x${qty}` : `Unknown x${qty}`;
+        })
+        .filter(Boolean)
+        .join('; ');
 
       if (hasLabels) {
-        const labels = Object.entries(order.items).map(([id, qty]) => {
-          const product = allProducts.find(p => p.id === id);
-          const productCategory = normalizeCategory(product?.category || '');
-          const retailCount = productCategory === '12oz' ? qty : (orderRetailLabels[id] || 0);
-          if (retailCount > 0) {
-            return `${product?.name || 'Unknown'}: ${retailCount} retail`;
-          }
-          return null;
-        }).filter(Boolean).join('; ');
+        const labels = Object.entries(order.items)
+          .map(([id, qty]) => {
+            const product = allProducts.find((p) => p.id === id);
+            const productCategory = normalizeCategory(product?.category || '');
+            const retailCount = productCategory === '12oz' ? qty : orderRetailLabels[id] || 0;
+            if (retailCount > 0) {
+              return `${product?.name || 'Unknown'}: ${retailCount} retail`;
+            }
+            return null;
+          })
+          .filter(Boolean)
+          .join('; ');
         csv += `"${date}",${order.units},$${cost},"${items}","${labels || 'none'}"\n`;
       } else {
         csv += `"${date}",${order.units},$${cost},"${items}"\n`;
@@ -671,7 +709,7 @@ export default function CoffeeOrder() {
     const blob = new Blob([csv], { type: 'text/csv' });
     const csvUrl = URL.createObjectURL(blob);
 
-    const dates = vendorHistory.map(o => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
+    const dates = vendorHistory.map((o) => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
     const startDate = dates[0].toLocaleDateString('en-US');
     const endDate = dates[dates.length - 1].toLocaleDateString('en-US');
 
@@ -774,15 +812,26 @@ export default function CoffeeOrder() {
     let grandTotalUnits = 0;
     let grandTotalCost = 0;
 
-    const productTotals: Record<string, { name: string; size: string; qty: number; totalCost: number; unitPrice: number; retailLabels: number; category: string }> = {};
+    const productTotals: Record<
+      string,
+      {
+        name: string;
+        size: string;
+        qty: number;
+        totalCost: number;
+        unitPrice: number;
+        retailLabels: number;
+        category: string;
+      }
+    > = {};
 
-    vendorHistory.forEach(order => {
+    vendorHistory.forEach((order) => {
       grandTotalUnits += order.units || 0;
       grandTotalCost += order.total_cost || 0;
       const orderRetailLabels = order.retail_labels || {};
 
       Object.entries(order.items).forEach(([id, qty]) => {
-        const product = allProducts.find(p => p.id === id);
+        const product = allProducts.find((p) => p.id === id);
         const unitPrice = product?.default_price || 0;
         const lineTotal = unitPrice * (qty as number);
         const productCategory = normalizeCategory(product?.category || '');
@@ -804,18 +853,18 @@ export default function CoffeeOrder() {
           if (productCategory === '12oz') {
             productTotals[id].retailLabels += qty as number;
           } else {
-            productTotals[id].retailLabels += (orderRetailLabels[id] || 0);
+            productTotals[id].retailLabels += orderRetailLabels[id] || 0;
           }
         }
       });
     });
 
-    const dates = vendorHistory.map(o => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
+    const dates = vendorHistory.map((o) => new Date(o.order_date)).sort((a, b) => a.getTime() - b.getTime());
     const startDate = dates[0].toLocaleDateString('en-US');
     const endDate = dates[dates.length - 1].toLocaleDateString('en-US');
 
-    const sortedOrders = [...vendorHistory].sort((a, b) =>
-      new Date(b.order_date).getTime() - new Date(a.order_date).getTime()
+    const sortedOrders = [...vendorHistory].sort(
+      (a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()
     );
 
     const retailLabelHeader = hasLabels ? '<th>Retail Labels</th>' : '';
@@ -956,7 +1005,8 @@ export default function CoffeeOrder() {
             <tbody>
               ${Object.values(productTotals)
                 .sort((a, b) => b.qty - a.qty)
-                .map(p => `
+                .map(
+                  (p) => `
                   <tr>
                     <td>${p.name}</td>
                     <td>${p.size}</td>
@@ -965,7 +1015,9 @@ export default function CoffeeOrder() {
                     <td>${p.unitPrice > 0 ? formatCurrency(p.unitPrice) : '-'}</td>
                     <td>${p.totalCost > 0 ? formatCurrency(p.totalCost) : '-'}</td>
                   </tr>
-                `).join('')}
+                `
+                )
+                .join('')}
               <tr class="total-row">
                 <td colspan="${retailLabelColspan}">GRAND TOTAL</td>
                 <td>${grandTotalUnits}</td>
@@ -978,7 +1030,9 @@ export default function CoffeeOrder() {
         </div>
 
         <!-- INDIVIDUAL ORDER PAGES -->
-        ${sortedOrders.map((order, index) => `
+        ${sortedOrders
+          .map(
+            (order, index) => `
           <div class="page">
             <div class="header">
               <h1>${escapeHtml(tenant?.name) || 'Order Report'}</h1>
@@ -991,7 +1045,7 @@ export default function CoffeeOrder() {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
-                day: 'numeric'
+                day: 'numeric',
               })}</h3>
               <div class="order-total">Total: ${order.total_cost ? formatCurrency(order.total_cost) : '-'}</div>
             </div>
@@ -1001,16 +1055,15 @@ export default function CoffeeOrder() {
                 <tr><th>Product</th><th>Size</th><th>Qty</th>${retailLabelHeader}<th>Unit Price</th><th>Line Total</th></tr>
               </thead>
               <tbody>
-                ${Object.entries(order.items).map(([id, qty]) => {
-                  const product = allProducts.find(p => p.id === id);
-                  const unitPrice = product?.default_price || 0;
-                  const lineTotal = unitPrice * (qty as number);
-                  const productCategory = normalizeCategory(product?.category || '');
-                  const orderRetailLabels = order.retail_labels || {};
-                  const retailCount = productCategory === '12oz'
-                    ? qty as number
-                    : (orderRetailLabels[id] || 0);
-                  return `
+                ${Object.entries(order.items)
+                  .map(([id, qty]) => {
+                    const product = allProducts.find((p) => p.id === id);
+                    const unitPrice = product?.default_price || 0;
+                    const lineTotal = unitPrice * (qty as number);
+                    const productCategory = normalizeCategory(product?.category || '');
+                    const orderRetailLabels = order.retail_labels || {};
+                    const retailCount = productCategory === '12oz' ? (qty as number) : orderRetailLabels[id] || 0;
+                    return `
                     <tr>
                       <td>${escapeHtml(product?.name) || 'Unknown Product'}</td>
                       <td>${product?.size || '-'}</td>
@@ -1020,7 +1073,8 @@ export default function CoffeeOrder() {
                       <td>${lineTotal > 0 ? formatCurrency(lineTotal) : '-'}</td>
                     </tr>
                   `;
-                }).join('')}
+                  })
+                  .join('')}
                 <tr class="total-row">
                   <td colspan="${retailLabelColspan}">ORDER TOTAL</td>
                   <td>${order.units}</td>
@@ -1031,14 +1085,20 @@ export default function CoffeeOrder() {
               </tbody>
             </table>
 
-            ${order.notes ? `
+            ${
+              order.notes
+                ? `
               <div class="section-title">Order Notes</div>
               <p style="padding: 15px; background: #FDF8F0; border-radius: 8px; font-style: italic;">
                 ${escapeHtml(order.notes)}
               </p>
-            ` : ''}
+            `
+                : ''
+            }
           </div>
-        `).join('')}
+        `
+          )
+          .join('')}
       </body>
       </html>
     `;
@@ -1054,11 +1114,14 @@ export default function CoffeeOrder() {
   // DERIVED UI DATA
   // =====================================================
 
-  const categories = Array.from(new Set(products.map(p => p.category))).sort();
-  const productsByCategory = categories.reduce((acc, cat) => {
-    acc[cat] = products.filter(p => p.category === cat);
-    return acc;
-  }, {} as Record<string, CoffeeProduct[]>);
+  const categories = Array.from(new Set(products.map((p) => p.category))).sort();
+  const productsByCategory = categories.reduce(
+    (acc, cat) => {
+      acc[cat] = products.filter((p) => p.category === cat);
+      return acc;
+    },
+    {} as Record<string, CoffeeProduct[]>
+  );
 
   if (loading) {
     return <CoffeeLoader fullScreen text="Loading..." />;
@@ -1085,7 +1148,7 @@ export default function CoffeeOrder() {
         {/* VENDOR TABS */}
         {vendors.length > 1 && (
           <div className="flex gap-2 mb-5 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
-            {vendors.map(v => (
+            {vendors.map((v) => (
               <button
                 key={v.id}
                 onClick={() => switchVendor(v.id)}
@@ -1106,24 +1169,30 @@ export default function CoffeeOrder() {
 
         <div className="flex gap-3 mb-6 flex-wrap">
           <button
-            onClick={() => { setShowSettings(!showSettings); setShowHistory(false); }}
+            onClick={() => {
+              setShowSettings(!showSettings);
+              setShowHistory(false);
+            }}
             className="px-5 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: showSettings ? colors.gold : colors.white,
               color: showSettings ? colors.white : colors.brown,
-              border: `1px solid ${colors.creamDark}`
+              border: `1px solid ${colors.creamDark}`,
             }}
             data-testid="button-settings"
           >
             Settings
           </button>
           <button
-            onClick={() => { setShowHistory(!showHistory); setShowSettings(false); }}
+            onClick={() => {
+              setShowHistory(!showHistory);
+              setShowSettings(false);
+            }}
             className="px-5 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: showHistory ? colors.gold : colors.white,
               color: showHistory ? colors.white : colors.brown,
-              border: `1px solid ${colors.creamDark}`
+              border: `1px solid ${colors.creamDark}`,
             }}
             data-testid="button-history"
           >
@@ -1135,7 +1204,7 @@ export default function CoffeeOrder() {
             style={{
               backgroundColor: colors.white,
               color: colors.red,
-              border: `1px solid ${colors.red}`
+              border: `1px solid ${colors.red}`,
             }}
             data-testid="button-clear"
           >
@@ -1145,48 +1214,73 @@ export default function CoffeeOrder() {
 
         {/* ==================== SETTINGS PANEL ==================== */}
         {showSettings && (
-          <div className="rounded-lg p-6 mb-5" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}`, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-            <h2 className="text-lg font-semibold pb-3 mb-5 border-b-2" style={{ color: colors.brown, borderColor: colors.gold }}>
+          <div
+            className="rounded-lg p-6 mb-5"
+            style={{
+              backgroundColor: colors.white,
+              border: `1px solid ${colors.creamDark}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            }}
+          >
+            <h2
+              className="text-lg font-semibold pb-3 mb-5 border-b-2"
+              style={{ color: colors.brown, borderColor: colors.gold }}
+            >
               Settings
             </h2>
 
             {/* Vendor Management */}
-            <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>Vendors</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>
+              Vendors
+            </h3>
 
             {/* Existing vendors */}
             <div className="space-y-3 mb-4">
-              {vendors.map(v => (
-                <div key={v.id} className="rounded-lg p-4" style={{ backgroundColor: v.id === selectedVendorId ? '#FFF8E1' : colors.inputBg, border: `1px solid ${v.id === selectedVendorId ? colors.gold : colors.creamDark}` }}>
+              {vendors.map((v) => (
+                <div
+                  key={v.id}
+                  className="rounded-lg p-4"
+                  style={{
+                    backgroundColor: v.id === selectedVendorId ? '#FFF8E1' : colors.inputBg,
+                    border: `1px solid ${v.id === selectedVendorId ? colors.gold : colors.creamDark}`,
+                  }}
+                >
                   {editingVendorId === v.id ? (
                     <div className="space-y-3">
                       <div className="grid gap-3 md:grid-cols-2">
                         <div>
-                          <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>Vendor Name</label>
+                          <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>
+                            Vendor Name
+                          </label>
                           <Input
                             type="text"
                             placeholder="e.g., Five Star Coffee"
                             value={vendorForm.display_name}
-                            onChange={(e) => setVendorForm(prev => ({ ...prev, display_name: e.target.value }))}
+                            onChange={(e) => setVendorForm((prev) => ({ ...prev, display_name: e.target.value }))}
                             style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>Vendor Email</label>
+                          <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>
+                            Vendor Email
+                          </label>
                           <Input
                             type="email"
                             placeholder="orders@vendor.com"
                             value={vendorForm.contact_email}
-                            onChange={(e) => setVendorForm(prev => ({ ...prev, contact_email: e.target.value }))}
+                            onChange={(e) => setVendorForm((prev) => ({ ...prev, contact_email: e.target.value }))}
                             style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>CC Email (optional)</label>
+                          <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>
+                            CC Email (optional)
+                          </label>
                           <Input
                             type="email"
                             placeholder="your@email.com"
                             value={vendorForm.cc_email}
-                            onChange={(e) => setVendorForm(prev => ({ ...prev, cc_email: e.target.value }))}
+                            onChange={(e) => setVendorForm((prev) => ({ ...prev, cc_email: e.target.value }))}
                             style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                           />
                         </div>
@@ -1195,11 +1289,15 @@ export default function CoffeeOrder() {
                             <input
                               type="checkbox"
                               checked={vendorForm.supports_retail_labels}
-                              onChange={(e) => setVendorForm(prev => ({ ...prev, supports_retail_labels: e.target.checked }))}
+                              onChange={(e) =>
+                                setVendorForm((prev) => ({ ...prev, supports_retail_labels: e.target.checked }))
+                              }
                               className="w-4 h-4 rounded"
                               style={{ accentColor: colors.gold }}
                             />
-                            <span className="text-sm" style={{ color: colors.brown }}>Retail Labels (CoB)</span>
+                            <span className="text-sm" style={{ color: colors.brown }}>
+                              Retail Labels (CoB)
+                            </span>
                           </label>
                         </div>
                       </div>
@@ -1224,12 +1322,21 @@ export default function CoffeeOrder() {
                   ) : (
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="font-semibold" style={{ color: colors.brown }}>{v.display_name}</span>
+                        <span className="font-semibold" style={{ color: colors.brown }}>
+                          {v.display_name}
+                        </span>
                         {v.contact_email && (
-                          <span className="ml-2 text-sm" style={{ color: colors.brownLight }}>{v.contact_email}</span>
+                          <span className="ml-2 text-sm" style={{ color: colors.brownLight }}>
+                            {v.contact_email}
+                          </span>
                         )}
                         {v.supports_retail_labels && (
-                          <span className="ml-2 text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: localColors.teal, color: 'white' }}>CoB Labels</span>
+                          <span
+                            className="ml-2 text-xs px-2 py-0.5 rounded-full"
+                            style={{ backgroundColor: localColors.teal, color: 'white' }}
+                          >
+                            CoB Labels
+                          </span>
                         )}
                       </div>
                       <div className="flex gap-2">
@@ -1248,36 +1355,47 @@ export default function CoffeeOrder() {
 
             {/* Add new vendor */}
             {addingVendor ? (
-              <div className="rounded-lg p-4 mb-6" style={{ backgroundColor: colors.inputBg, border: `1px dashed ${colors.gold}` }}>
-                <h4 className="text-sm font-medium mb-3" style={{ color: colors.brown }}>Add New Vendor</h4>
+              <div
+                className="rounded-lg p-4 mb-6"
+                style={{ backgroundColor: colors.inputBg, border: `1px dashed ${colors.gold}` }}
+              >
+                <h4 className="text-sm font-medium mb-3" style={{ color: colors.brown }}>
+                  Add New Vendor
+                </h4>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div>
-                    <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>Vendor Name</label>
+                    <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>
+                      Vendor Name
+                    </label>
                     <Input
                       type="text"
                       placeholder="e.g., Maola Milk"
                       value={newVendorForm.display_name}
-                      onChange={(e) => setNewVendorForm(prev => ({ ...prev, display_name: e.target.value }))}
+                      onChange={(e) => setNewVendorForm((prev) => ({ ...prev, display_name: e.target.value }))}
                       style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>Vendor Email</label>
+                    <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>
+                      Vendor Email
+                    </label>
                     <Input
                       type="email"
                       placeholder="orders@vendor.com"
                       value={newVendorForm.contact_email}
-                      onChange={(e) => setNewVendorForm(prev => ({ ...prev, contact_email: e.target.value }))}
+                      onChange={(e) => setNewVendorForm((prev) => ({ ...prev, contact_email: e.target.value }))}
                       style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>CC Email (optional)</label>
+                    <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>
+                      CC Email (optional)
+                    </label>
                     <Input
                       type="email"
                       placeholder="your@email.com"
                       value={newVendorForm.cc_email}
-                      onChange={(e) => setNewVendorForm(prev => ({ ...prev, cc_email: e.target.value }))}
+                      onChange={(e) => setNewVendorForm((prev) => ({ ...prev, cc_email: e.target.value }))}
                       style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                     />
                   </div>
@@ -1286,11 +1404,15 @@ export default function CoffeeOrder() {
                       <input
                         type="checkbox"
                         checked={newVendorForm.supports_retail_labels}
-                        onChange={(e) => setNewVendorForm(prev => ({ ...prev, supports_retail_labels: e.target.checked }))}
+                        onChange={(e) =>
+                          setNewVendorForm((prev) => ({ ...prev, supports_retail_labels: e.target.checked }))
+                        }
                         className="w-4 h-4 rounded"
                         style={{ accentColor: colors.gold }}
                       />
-                      <span className="text-sm" style={{ color: colors.brown }}>Retail Labels (CoB)</span>
+                      <span className="text-sm" style={{ color: colors.brown }}>
+                        Retail Labels (CoB)
+                      </span>
                     </label>
                   </div>
                 </div>
@@ -1304,7 +1426,15 @@ export default function CoffeeOrder() {
                     Add Vendor
                   </button>
                   <button
-                    onClick={() => { setAddingVendor(false); setNewVendorForm({ display_name: '', contact_email: '', cc_email: '', supports_retail_labels: true }); }}
+                    onClick={() => {
+                      setAddingVendor(false);
+                      setNewVendorForm({
+                        display_name: '',
+                        contact_email: '',
+                        cc_email: '',
+                        supports_retail_labels: true,
+                      });
+                    }}
                     className="px-4 py-2 rounded-md text-sm font-medium"
                     style={{ color: colors.brownLight }}
                   >
@@ -1332,14 +1462,19 @@ export default function CoffeeOrder() {
                   Add and manage products for {selectedVendor.display_name}. Set prices for each item.
                 </p>
 
-                <div className="rounded-lg p-4 mb-4" style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}` }}>
-                  <h4 className="text-sm font-medium mb-3" style={{ color: colors.brown }}>Add New Product</h4>
+                <div
+                  className="rounded-lg p-4 mb-4"
+                  style={{ backgroundColor: colors.inputBg, border: `1px solid ${colors.creamDark}` }}
+                >
+                  <h4 className="text-sm font-medium mb-3" style={{ color: colors.brown }}>
+                    Add New Product
+                  </h4>
                   <div className="grid gap-3 md:grid-cols-5">
                     <Input
                       type="text"
                       placeholder="Product Name"
                       value={newProduct.name}
-                      onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => setNewProduct((prev) => ({ ...prev, name: e.target.value }))}
                       style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                       data-testid="input-new-product-name"
                     />
@@ -1347,7 +1482,7 @@ export default function CoffeeOrder() {
                       type="text"
                       placeholder="Size (e.g., 5lb)"
                       value={newProduct.size}
-                      onChange={(e) => setNewProduct(prev => ({ ...prev, size: e.target.value }))}
+                      onChange={(e) => setNewProduct((prev) => ({ ...prev, size: e.target.value }))}
                       style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                       data-testid="input-new-product-size"
                     />
@@ -1355,7 +1490,7 @@ export default function CoffeeOrder() {
                       type="text"
                       placeholder="Category"
                       value={newProduct.category}
-                      onChange={(e) => setNewProduct(prev => ({ ...prev, category: e.target.value }))}
+                      onChange={(e) => setNewProduct((prev) => ({ ...prev, category: e.target.value }))}
                       style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                       data-testid="input-new-product-category"
                     />
@@ -1364,7 +1499,7 @@ export default function CoffeeOrder() {
                       placeholder="Price"
                       inputMode="decimal"
                       value={newProduct.default_price}
-                      onChange={(e) => setNewProduct(prev => ({ ...prev, default_price: e.target.value }))}
+                      onChange={(e) => setNewProduct((prev) => ({ ...prev, default_price: e.target.value }))}
                       style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                       data-testid="input-new-product-price"
                     />
@@ -1382,7 +1517,7 @@ export default function CoffeeOrder() {
 
                 {products.length > 0 && (
                   <div className="space-y-2">
-                    {products.map(product => (
+                    {products.map((product) => (
                       <div
                         key={product.id}
                         className="flex items-center justify-between px-4 py-3 rounded-md"
@@ -1395,7 +1530,7 @@ export default function CoffeeOrder() {
                                 type="text"
                                 placeholder="Name"
                                 value={editProductForm.name}
-                                onChange={(e) => setEditProductForm(prev => ({ ...prev, name: e.target.value }))}
+                                onChange={(e) => setEditProductForm((prev) => ({ ...prev, name: e.target.value }))}
                                 className="flex-1 min-w-[100px]"
                                 style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                               />
@@ -1403,7 +1538,7 @@ export default function CoffeeOrder() {
                                 type="text"
                                 placeholder="Size"
                                 value={editProductForm.size}
-                                onChange={(e) => setEditProductForm(prev => ({ ...prev, size: e.target.value }))}
+                                onChange={(e) => setEditProductForm((prev) => ({ ...prev, size: e.target.value }))}
                                 className="w-16"
                                 style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                               />
@@ -1411,7 +1546,7 @@ export default function CoffeeOrder() {
                                 type="text"
                                 placeholder="Category"
                                 value={editProductForm.category}
-                                onChange={(e) => setEditProductForm(prev => ({ ...prev, category: e.target.value }))}
+                                onChange={(e) => setEditProductForm((prev) => ({ ...prev, category: e.target.value }))}
                                 className="w-16"
                                 style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                               />
@@ -1420,7 +1555,9 @@ export default function CoffeeOrder() {
                                 placeholder="Price"
                                 inputMode="decimal"
                                 value={editProductForm.default_price}
-                                onChange={(e) => setEditProductForm(prev => ({ ...prev, default_price: e.target.value }))}
+                                onChange={(e) =>
+                                  setEditProductForm((prev) => ({ ...prev, default_price: e.target.value }))
+                                }
                                 className="w-16"
                                 style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                               />
@@ -1437,8 +1574,13 @@ export default function CoffeeOrder() {
                         ) : (
                           <>
                             <span className="font-medium" style={{ color: colors.brown }}>
-                              {product.name} <span className="font-normal" style={{ color: colors.brownLight }}>{product.size}</span>
-                              <span className="ml-2 text-sm" style={{ color: colors.gold }}>{formatCurrency(product.default_price)}</span>
+                              {product.name}{' '}
+                              <span className="font-normal" style={{ color: colors.brownLight }}>
+                                {product.size}
+                              </span>
+                              <span className="ml-2 text-sm" style={{ color: colors.gold }}>
+                                {formatCurrency(product.default_price)}
+                              </span>
                             </span>
                             <div className="flex gap-2">
                               <button onClick={() => startEditProduct(product)} style={{ color: localColors.teal }}>
@@ -1461,8 +1603,18 @@ export default function CoffeeOrder() {
 
         {/* ==================== HISTORY PANEL ==================== */}
         {showHistory && (
-          <div className="rounded-lg p-6 mb-5" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}`, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-            <h2 className="text-lg font-semibold pb-3 mb-5 border-b-2" style={{ color: colors.brown, borderColor: colors.gold }}>
+          <div
+            className="rounded-lg p-6 mb-5"
+            style={{
+              backgroundColor: colors.white,
+              border: `1px solid ${colors.creamDark}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            }}
+          >
+            <h2
+              className="text-lg font-semibold pb-3 mb-5 border-b-2"
+              style={{ color: colors.brown, borderColor: colors.gold }}
+            >
               Order History {selectedVendor ? `— ${selectedVendor.display_name}` : ''}
             </h2>
             <div className="flex gap-3 mb-4">
@@ -1490,12 +1642,13 @@ export default function CoffeeOrder() {
               <div className="text-center py-8 space-y-2">
                 <ShoppingCart className="w-8 h-8 mx-auto" style={{ color: colors.brownLight }} />
                 <p className="text-sm" style={{ color: colors.brownLight }}>
-                  No orders yet{selectedVendor ? ` for ${selectedVendor.display_name}` : ''}. Place your first order below!
+                  No orders yet{selectedVendor ? ` for ${selectedVendor.display_name}` : ''}. Place your first order
+                  below!
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
-                {vendorHistory.slice(0, 10).map(order => (
+                {vendorHistory.slice(0, 10).map((order) => (
                   <div
                     key={order.id}
                     className="flex justify-between items-center px-4 py-3 rounded-md"
@@ -1503,12 +1656,19 @@ export default function CoffeeOrder() {
                   >
                     <div>
                       <div className="font-medium" style={{ color: colors.brown }}>
-                        {new Date(order.order_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        {new Date(order.order_date).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
                       </div>
                       <div className="text-sm" style={{ color: colors.brownLight }}>
                         {order.units} units{order.total_cost ? ` - ${formatCurrency(order.total_cost)}` : ''}
                         {showRetailLabels && order.retail_labels && Object.keys(order.retail_labels).length > 0 && (
-                          <span className="ml-1" style={{ color: localColors.teal }}> (retail labels)</span>
+                          <span className="ml-1" style={{ color: localColors.teal }}>
+                            {' '}
+                            (retail labels)
+                          </span>
                         )}
                       </div>
                     </div>
@@ -1528,20 +1688,35 @@ export default function CoffeeOrder() {
         )}
 
         {/* ==================== ORDER BUILDER ==================== */}
-        <div className="rounded-lg p-6" style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}`, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-          <h2 className="text-lg font-semibold pb-3 mb-5 border-b-2" style={{ color: colors.brown, borderColor: colors.gold }}>
+        <div
+          className="rounded-lg p-6"
+          style={{
+            backgroundColor: colors.white,
+            border: `1px solid ${colors.creamDark}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+          }}
+        >
+          <h2
+            className="text-lg font-semibold pb-3 mb-5 border-b-2"
+            style={{ color: colors.brown, borderColor: colors.gold }}
+          >
             {selectedVendor ? `${selectedVendor.display_name} — Weekly Order` : 'Weekly Order'}
           </h2>
 
           {!hasVendors ? (
             <div className="text-center py-10 space-y-3">
               <Store className="w-10 h-10 mx-auto" style={{ color: colors.brownLight }} />
-              <h3 className="text-lg font-semibold" style={{ color: colors.brown }}>No vendors configured yet</h3>
+              <h3 className="text-lg font-semibold" style={{ color: colors.brown }}>
+                No vendors configured yet
+              </h3>
               <p className="text-sm max-w-sm mx-auto" style={{ color: colors.brownLight }}>
                 Add a vendor in Settings to start placing orders.
               </p>
               <button
-                onClick={() => { setShowSettings(true); setAddingVendor(true); }}
+                onClick={() => {
+                  setShowSettings(true);
+                  setAddingVendor(true);
+                }}
                 className="px-6 py-3 rounded-lg font-semibold"
                 style={{ backgroundColor: colors.gold, color: colors.white }}
               >
@@ -1551,7 +1726,9 @@ export default function CoffeeOrder() {
           ) : !hasProducts ? (
             <div className="text-center py-10 space-y-3">
               <Coffee className="w-10 h-10 mx-auto" style={{ color: colors.brownLight }} />
-              <h3 className="text-lg font-semibold" style={{ color: colors.brown }}>No products configured yet</h3>
+              <h3 className="text-lg font-semibold" style={{ color: colors.brown }}>
+                No products configured yet
+              </h3>
               <p className="text-sm max-w-sm mx-auto" style={{ color: colors.brownLight }}>
                 Add products for {vendorName} in Settings to start placing orders.
               </p>
@@ -1566,9 +1743,11 @@ export default function CoffeeOrder() {
             </div>
           ) : (
             <>
-              {categories.map(category => (
+              {categories.map((category) => (
                 <div key={category} className="mb-8">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide mb-4" style={{ color: colors.gold }}>{category}</h3>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide mb-4" style={{ color: colors.gold }}>
+                    {category}
+                  </h3>
                   <div className="space-y-3">
                     {productsByCategory[category].map((product: CoffeeProduct) => {
                       const qty = orderItems[product.id] || 0;
@@ -1581,12 +1760,17 @@ export default function CoffeeOrder() {
                             style={{
                               backgroundColor: qty > 0 ? '#F5E6C8' : colors.inputBg,
                               border: qty > 0 ? `2px solid ${colors.gold}` : `1px solid ${colors.creamDark}`,
-                              borderRadius: (is5lb && qty > 0) ? '8px 8px 0 0' : '8px',
+                              borderRadius: is5lb && qty > 0 ? '8px 8px 0 0' : '8px',
                             }}
                           >
                             <span className="font-medium" style={{ color: colors.brown }}>
-                              {product.name} <span className="font-normal" style={{ color: colors.brownLight }}>{product.size}</span>
-                              <span className="ml-2 text-xs" style={{ color: colors.gold }}>{formatCurrency(product.default_price)}</span>
+                              {product.name}{' '}
+                              <span className="font-normal" style={{ color: colors.brownLight }}>
+                                {product.size}
+                              </span>
+                              <span className="ml-2 text-xs" style={{ color: colors.gold }}>
+                                {formatCurrency(product.default_price)}
+                              </span>
                             </span>
                             <div className="flex items-center gap-2">
                               <button
@@ -1635,9 +1819,7 @@ export default function CoffeeOrder() {
                             >
                               <span className="text-xs font-medium" style={{ color: colors.brownLight }}>
                                 Retail Labels
-                                <span className="ml-1 font-normal">
-                                  ({qty - retailCount} generic)
-                                </span>
+                                <span className="ml-1 font-normal">({qty - retailCount} generic)</span>
                               </span>
                               <div className="flex items-center gap-2">
                                 <button
@@ -1662,7 +1844,9 @@ export default function CoffeeOrder() {
                                   style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
                                 />
                                 <button
-                                  onClick={() => setRetailLabelCount(product.id, String(Math.min(qty, retailCount + 1)))}
+                                  onClick={() =>
+                                    setRetailLabelCount(product.id, String(Math.min(qty, retailCount + 1)))
+                                  }
                                   className="w-6 h-6 rounded flex items-center justify-center text-sm font-semibold"
                                   style={{ backgroundColor: localColors.teal, color: colors.white }}
                                 >
@@ -1678,7 +1862,9 @@ export default function CoffeeOrder() {
                 </div>
               ))}
 
-              <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>Notes</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: colors.gold }}>
+                Notes
+              </h3>
               <textarea
                 placeholder="Add any special instructions or notes for this order..."
                 value={orderNotes}
@@ -1691,18 +1877,27 @@ export default function CoffeeOrder() {
               <div className="rounded-lg p-5 mb-5" style={{ backgroundColor: '#F5E6C8' }}>
                 <div className="flex justify-between mb-2">
                   <span style={{ color: colors.brownLight }}>Items Selected:</span>
-                  <span className="font-semibold" style={{ color: colors.brown }}>{totalItems}</span>
+                  <span className="font-semibold" style={{ color: colors.brown }}>
+                    {totalItems}
+                  </span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span style={{ color: colors.brownLight }}>Total Units:</span>
-                  <span className="font-semibold" style={{ color: colors.brown }}>{totalUnits}</span>
+                  <span className="font-semibold" style={{ color: colors.brown }}>
+                    {totalUnits}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span style={{ color: colors.brownLight }}>Total Cost:</span>
-                  <span className="font-semibold text-lg" style={{ color: colors.brown }}>{formatCurrency(totalCost)}</span>
+                  <span className="font-semibold text-lg" style={{ color: colors.brown }}>
+                    {formatCurrency(totalCost)}
+                  </span>
                 </div>
                 {showRetailLabels && totalRetailLabelsAll > 0 && (
-                  <div className="flex justify-between mt-2 pt-2" style={{ borderTop: `1px solid ${colors.creamDark}` }}>
+                  <div
+                    className="flex justify-between mt-2 pt-2"
+                    style={{ borderTop: `1px solid ${colors.creamDark}` }}
+                  >
                     <span style={{ color: colors.brownLight }}>Retail Labels:</span>
                     <span className="font-semibold" style={{ color: colors.brown }}>
                       {totalRetailLabelsAll}
@@ -1721,10 +1916,13 @@ export default function CoffeeOrder() {
                 disabled={totalItems === 0 || saving}
                 className="w-full py-3 rounded-lg text-base font-semibold mb-3 transition-all"
                 style={{
-                  background: totalItems === 0 ? colors.creamDark : `linear-gradient(135deg, ${colors.gold} 0%, ${colors.goldDark} 100%)`,
+                  background:
+                    totalItems === 0
+                      ? colors.creamDark
+                      : `linear-gradient(135deg, ${colors.gold} 0%, ${colors.goldDark} 100%)`,
                   color: totalItems === 0 ? '#999' : colors.brown,
                   boxShadow: totalItems === 0 ? 'none' : `0 4px 12px rgba(212, 168, 75, 0.4)`,
-                  cursor: totalItems === 0 ? 'not-allowed' : 'pointer'
+                  cursor: totalItems === 0 ? 'not-allowed' : 'pointer',
                 }}
                 data-testid="button-send-order"
               >
@@ -1737,7 +1935,7 @@ export default function CoffeeOrder() {
                 style={{
                   backgroundColor: totalItems === 0 ? colors.creamDark : '#666',
                   color: totalItems === 0 ? '#999' : colors.white,
-                  cursor: totalItems === 0 ? 'not-allowed' : 'pointer'
+                  cursor: totalItems === 0 ? 'not-allowed' : 'pointer',
                 }}
                 data-testid="button-save-history"
               >

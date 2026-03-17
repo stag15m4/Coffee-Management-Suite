@@ -17,12 +17,13 @@ async function createProducts() {
 
   const premiumProduct = await stripe.products.create({
     name: 'Premium Suite',
-    description: 'All 6 modules including Recipe Costing, Tip Payout, Cash Deposit, Coffee Ordering, Equipment Maintenance, and Admin Tasks. Up to 5 locations.',
+    description:
+      'All 6 modules including Recipe Costing, Tip Payout, Cash Deposit, Coffee Ordering, Equipment Maintenance, and Admin Tasks. Up to 5 locations.',
     metadata: {
       plan_id: 'premium',
       max_locations: '5',
-      modules: 'recipe-costing,tip-payout,cash-deposit,bulk-ordering,equipment-maintenance,admin-tasks'
-    }
+      modules: 'recipe-costing,tip-payout,cash-deposit,bulk-ordering,equipment-maintenance,admin-tasks',
+    },
   });
 
   const premiumMonthlyPrice = await stripe.prices.create({
@@ -30,7 +31,7 @@ async function createProducts() {
     unit_amount: 9999,
     currency: 'usd',
     recurring: { interval: 'month' },
-    metadata: { billing_period: 'monthly' }
+    metadata: { billing_period: 'monthly' },
   });
 
   const premiumAnnualPrice = await stripe.prices.create({
@@ -38,7 +39,7 @@ async function createProducts() {
     unit_amount: 99999,
     currency: 'usd',
     recurring: { interval: 'year' },
-    metadata: { billing_period: 'annual' }
+    metadata: { billing_period: 'annual' },
   });
 
   console.log('Created Premium Suite product:', premiumProduct.id);
@@ -51,8 +52,8 @@ async function createProducts() {
     metadata: {
       plan_id: 'beta',
       max_locations: '3',
-      modules: 'recipe-costing,tip-payout,cash-deposit,bulk-ordering,equipment-maintenance,admin-tasks'
-    }
+      modules: 'recipe-costing,tip-payout,cash-deposit,bulk-ordering,equipment-maintenance,admin-tasks',
+    },
   });
 
   const betaPrice = await stripe.prices.create({
@@ -60,7 +61,7 @@ async function createProducts() {
     unit_amount: 4999,
     currency: 'usd',
     recurring: { interval: 'month' },
-    metadata: { billing_period: 'monthly' }
+    metadata: { billing_period: 'monthly' },
   });
 
   console.log('Created Beta product:', betaProduct.id);
@@ -72,15 +73,15 @@ async function createProducts() {
     description: 'Track ingredients, create recipes, and calculate precise food costs.',
     metadata: {
       plan_id: 'alacarte',
-      module_id: 'recipe-costing'
-    }
+      module_id: 'recipe-costing',
+    },
   });
 
   const recipeCostPrice = await stripe.prices.create({
     product: recipeCostProduct.id,
     unit_amount: 1999,
     currency: 'usd',
-    recurring: { interval: 'month' }
+    recurring: { interval: 'month' },
   });
 
   console.log('Created Recipe Cost Manager module:', recipeCostProduct.id, '$19.99/mo');
@@ -90,15 +91,15 @@ async function createProducts() {
     description: 'Calculate and distribute employee tips efficiently.',
     metadata: {
       plan_id: 'alacarte',
-      module_id: 'tip-payout'
-    }
+      module_id: 'tip-payout',
+    },
   });
 
   const tipPayoutPrice = await stripe.prices.create({
     product: tipPayoutProduct.id,
     unit_amount: 1999,
     currency: 'usd',
-    recurring: { interval: 'month' }
+    recurring: { interval: 'month' },
   });
 
   console.log('Created Tip Payout module:', tipPayoutProduct.id, '$19.99/mo');
@@ -108,15 +109,15 @@ async function createProducts() {
     description: 'Track cash deposits and reconciliation.',
     metadata: {
       plan_id: 'alacarte',
-      module_id: 'cash-deposit'
-    }
+      module_id: 'cash-deposit',
+    },
   });
 
   const cashDepositPrice = await stripe.prices.create({
     product: cashDepositProduct.id,
     unit_amount: 1999,
     currency: 'usd',
-    recurring: { interval: 'month' }
+    recurring: { interval: 'month' },
   });
 
   console.log('Created Cash Deposit module:', cashDepositProduct.id, '$19.99/mo');
@@ -126,15 +127,15 @@ async function createProducts() {
     description: 'Manage wholesale coffee orders efficiently.',
     metadata: {
       plan_id: 'alacarte',
-      module_id: 'bulk-ordering'
-    }
+      module_id: 'bulk-ordering',
+    },
   });
 
   const coffeeOrderPrice = await stripe.prices.create({
     product: coffeeOrderProduct.id,
     unit_amount: 1999,
     currency: 'usd',
-    recurring: { interval: 'month' }
+    recurring: { interval: 'month' },
   });
 
   console.log('Created Coffee Ordering module:', coffeeOrderProduct.id, '$19.99/mo');
@@ -144,15 +145,15 @@ async function createProducts() {
     description: 'Schedule and track equipment upkeep.',
     metadata: {
       plan_id: 'alacarte',
-      module_id: 'equipment-maintenance'
-    }
+      module_id: 'equipment-maintenance',
+    },
   });
 
   const equipmentPrice = await stripe.prices.create({
     product: equipmentProduct.id,
     unit_amount: 1999,
     currency: 'usd',
-    recurring: { interval: 'month' }
+    recurring: { interval: 'month' },
   });
 
   console.log('Created Equipment Maintenance module:', equipmentProduct.id, '$19.99/mo');
@@ -162,15 +163,15 @@ async function createProducts() {
     description: 'Comprehensive task management and delegation.',
     metadata: {
       plan_id: 'alacarte',
-      module_id: 'admin-tasks'
-    }
+      module_id: 'admin-tasks',
+    },
   });
 
   const adminTasksPrice = await stripe.prices.create({
     product: adminTasksProduct.id,
     unit_amount: 1999,
     currency: 'usd',
-    recurring: { interval: 'month' }
+    recurring: { interval: 'month' },
   });
 
   console.log('Created Admin Tasks module:', adminTasksProduct.id, '$19.99/mo');

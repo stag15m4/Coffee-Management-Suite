@@ -1,22 +1,12 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   useChartOfAccounts,
   useFiscalYears,
@@ -185,8 +175,8 @@ export default function BudgetEntryTab({ tenantId, coaTenantId }: Props) {
       setSelectedFYId(fy.id);
       setShowNewFYDialog(false);
       toast({ title: `${year} budget created` });
-    } catch (err: any) {
-      toast({ title: 'Failed to create', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to create', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -218,8 +208,8 @@ export default function BudgetEntryTab({ tenantId, coaTenantId }: Props) {
       }));
       await bulkUpsert.mutateAsync(items);
       toast({ title: `Copied ${items.length} entries from ${prevFY.year}` });
-    } catch (err: any) {
-      toast({ title: 'Copy failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Copy failed', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -262,10 +252,7 @@ export default function BudgetEntryTab({ tenantId, coaTenantId }: Props) {
           <Label className="text-sm font-medium whitespace-nowrap" style={{ color: colors.brown }}>
             Fiscal Year:
           </Label>
-          <Select
-            value={selectedFYId || selectedFY?.id || ''}
-            onValueChange={setSelectedFYId}
-          >
+          <Select value={selectedFYId || selectedFY?.id || ''} onValueChange={setSelectedFYId}>
             <SelectTrigger className="w-[140px]" style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
               <SelectValue placeholder="Select year" />
             </SelectTrigger>
@@ -303,12 +290,14 @@ export default function BudgetEntryTab({ tenantId, coaTenantId }: Props) {
         {selectedFY && accounts.length > 0 && (
           <Button
             variant="outline"
-            onClick={() => exportBudgetPdf({
-              title: `${selectedFY.year} Annual Budget`,
-              year: selectedFY.year,
-              accounts,
-              cellMap,
-            })}
+            onClick={() =>
+              exportBudgetPdf({
+                title: `${selectedFY.year} Annual Budget`,
+                year: selectedFY.year,
+                accounts,
+                cellMap,
+              })
+            }
             style={{ borderColor: colors.gold, color: colors.brown }}
           >
             <Download className="w-4 h-4 mr-1" />
@@ -317,10 +306,23 @@ export default function BudgetEntryTab({ tenantId, coaTenantId }: Props) {
         )}
 
         {selectedFY && (
-          <span className="text-xs ml-auto px-2 py-1 rounded" style={{
-            backgroundColor: selectedFY.status === 'approved' ? colors.green + '20' : selectedFY.status === 'locked' ? colors.red + '20' : colors.cream,
-            color: selectedFY.status === 'approved' ? colors.green : selectedFY.status === 'locked' ? colors.red : colors.brownLight,
-          }}>
+          <span
+            className="text-xs ml-auto px-2 py-1 rounded"
+            style={{
+              backgroundColor:
+                selectedFY.status === 'approved'
+                  ? colors.green + '20'
+                  : selectedFY.status === 'locked'
+                    ? colors.red + '20'
+                    : colors.cream,
+              color:
+                selectedFY.status === 'approved'
+                  ? colors.green
+                  : selectedFY.status === 'locked'
+                    ? colors.red
+                    : colors.brownLight,
+            }}
+          >
             {selectedFY.status.charAt(0).toUpperCase() + selectedFY.status.slice(1)}
           </span>
         )}
@@ -334,7 +336,11 @@ export default function BudgetEntryTab({ tenantId, coaTenantId }: Props) {
           <h3 className="text-lg font-semibold mb-1" style={{ color: colors.brown }}>
             Create a fiscal year to get started
           </h3>
-          <Button onClick={() => setShowNewFYDialog(true)} className="mt-3" style={{ backgroundColor: colors.gold, color: '#fff' }}>
+          <Button
+            onClick={() => setShowNewFYDialog(true)}
+            className="mt-3"
+            style={{ backgroundColor: colors.gold, color: '#fff' }}
+          >
             <Plus className="w-4 h-4 mr-2" />
             Create {new Date().getFullYear()} Budget
           </Button>
@@ -383,30 +389,45 @@ export default function BudgetEntryTab({ tenantId, coaTenantId }: Props) {
                 ))}
 
                 {/* Gross Profit row (Revenue - COGS) */}
-                {accounts.some((a) => a.account_type === 'Revenue') && accounts.some((a) => a.account_type === 'COGS') && (
-                  <tr style={{ backgroundColor: colors.cream, fontWeight: 600 }}>
-                    <td className="py-2 px-3 sticky left-0 z-10" style={{ backgroundColor: colors.cream, color: colors.brown }}>
-                      Gross Profit
-                    </td>
-                    {MONTH_LABELS.map((_, i) => {
-                      const val = getColumnTotal('Revenue', i + 1) - getColumnTotal('COGS', i + 1);
-                      return (
-                        <td key={i} className="text-right py-2 px-2" style={{ color: val >= 0 ? colors.green : colors.red }}>
-                          {formatCurrency(val)}
-                        </td>
-                      );
-                    })}
-                    <td className="text-right py-2 px-3" style={{
-                      color: (getTypeAnnualTotal('Revenue') - getTypeAnnualTotal('COGS')) >= 0 ? colors.green : colors.red
-                    }}>
-                      {formatCurrency(getTypeAnnualTotal('Revenue') - getTypeAnnualTotal('COGS'))}
-                    </td>
-                  </tr>
-                )}
+                {accounts.some((a) => a.account_type === 'Revenue') &&
+                  accounts.some((a) => a.account_type === 'COGS') && (
+                    <tr style={{ backgroundColor: colors.cream, fontWeight: 600 }}>
+                      <td
+                        className="py-2 px-3 sticky left-0 z-10"
+                        style={{ backgroundColor: colors.cream, color: colors.brown }}
+                      >
+                        Gross Profit
+                      </td>
+                      {MONTH_LABELS.map((_, i) => {
+                        const val = getColumnTotal('Revenue', i + 1) - getColumnTotal('COGS', i + 1);
+                        return (
+                          <td
+                            key={i}
+                            className="text-right py-2 px-2"
+                            style={{ color: val >= 0 ? colors.green : colors.red }}
+                          >
+                            {formatCurrency(val)}
+                          </td>
+                        );
+                      })}
+                      <td
+                        className="text-right py-2 px-3"
+                        style={{
+                          color:
+                            getTypeAnnualTotal('Revenue') - getTypeAnnualTotal('COGS') >= 0 ? colors.green : colors.red,
+                        }}
+                      >
+                        {formatCurrency(getTypeAnnualTotal('Revenue') - getTypeAnnualTotal('COGS'))}
+                      </td>
+                    </tr>
+                  )}
 
                 {/* Net Income row */}
                 <tr style={{ backgroundColor: colors.goldLight, fontWeight: 700 }}>
-                  <td className="py-2 px-3 sticky left-0 z-10" style={{ backgroundColor: colors.goldLight, color: colors.brown }}>
+                  <td
+                    className="py-2 px-3 sticky left-0 z-10"
+                    style={{ backgroundColor: colors.goldLight, color: colors.brown }}
+                  >
                     Net Income
                   </td>
                   {MONTH_LABELS.map((_, i) => {
@@ -417,16 +438,33 @@ export default function BudgetEntryTab({ tenantId, coaTenantId }: Props) {
                     const other = getColumnTotal('Other', m);
                     const net = revenue - cogs - expense - other;
                     return (
-                      <td key={i} className="text-right py-2 px-2" style={{ color: net >= 0 ? colors.green : colors.red }}>
+                      <td
+                        key={i}
+                        className="text-right py-2 px-2"
+                        style={{ color: net >= 0 ? colors.green : colors.red }}
+                      >
                         {formatCurrency(net)}
                       </td>
                     );
                   })}
-                  <td className="text-right py-2 px-3" style={{
-                    color: (getTypeAnnualTotal('Revenue') - getTypeAnnualTotal('COGS') - getTypeAnnualTotal('Expense') - getTypeAnnualTotal('Other')) >= 0 ? colors.green : colors.red
-                  }}>
+                  <td
+                    className="text-right py-2 px-3"
+                    style={{
+                      color:
+                        getTypeAnnualTotal('Revenue') -
+                          getTypeAnnualTotal('COGS') -
+                          getTypeAnnualTotal('Expense') -
+                          getTypeAnnualTotal('Other') >=
+                        0
+                          ? colors.green
+                          : colors.red,
+                    }}
+                  >
                     {formatCurrency(
-                      getTypeAnnualTotal('Revenue') - getTypeAnnualTotal('COGS') - getTypeAnnualTotal('Expense') - getTypeAnnualTotal('Other')
+                      getTypeAnnualTotal('Revenue') -
+                        getTypeAnnualTotal('COGS') -
+                        getTypeAnnualTotal('Expense') -
+                        getTypeAnnualTotal('Other')
                     )}
                   </td>
                 </tr>
@@ -463,7 +501,11 @@ export default function BudgetEntryTab({ tenantId, coaTenantId }: Props) {
               disabled={createFiscalYear.isPending}
               style={{ backgroundColor: colors.gold, color: '#fff' }}
             >
-              {createFiscalYear.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+              {createFiscalYear.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4 mr-2" />
+              )}
               Create Budget
             </Button>
           </div>

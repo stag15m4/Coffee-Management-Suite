@@ -37,21 +37,24 @@ export function TimeClockTab({
   const [localExempt, setLocalExempt] = useState(isExempt);
   const { toast } = useToast();
 
-  const handleToggleTimeClock = useCallback(async (enabled: boolean) => {
-    const newExempt = !enabled;
-    setLocalExempt(newExempt);
-    try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ is_exempt: newExempt, updated_at: new Date().toISOString() })
-        .eq('id', currentUserId);
-      if (error) throw error;
-      toast({ title: enabled ? 'Time clock enabled' : 'Time clock disabled' });
-    } catch {
-      setLocalExempt(!newExempt);
-      toast({ title: 'Error', description: 'Failed to update setting.', variant: 'destructive' });
-    }
-  }, [currentUserId, toast]);
+  const handleToggleTimeClock = useCallback(
+    async (enabled: boolean) => {
+      const newExempt = !enabled;
+      setLocalExempt(newExempt);
+      try {
+        const { error } = await supabase
+          .from('user_profiles')
+          .update({ is_exempt: newExempt, updated_at: new Date().toISOString() })
+          .eq('id', currentUserId);
+        if (error) throw error;
+        toast({ title: enabled ? 'Time clock enabled' : 'Time clock disabled' });
+      } catch {
+        setLocalExempt(!newExempt);
+        toast({ title: 'Error', description: 'Failed to update setting.', variant: 'destructive' });
+      }
+    },
+    [currentUserId, toast]
+  );
 
   // Only show the self-service toggle for managers/owners
   const showToggle = canViewAll;
@@ -87,11 +90,10 @@ export function TimeClockTab({
 
         {showToggle && (
           <div className="flex items-center gap-2 ml-auto">
-            <Label className="text-xs" style={{ color: colors.brownLight }}>My time clock</Label>
-            <Switch
-              checked={!localExempt}
-              onCheckedChange={handleToggleTimeClock}
-            />
+            <Label className="text-xs" style={{ color: colors.brownLight }}>
+              My time clock
+            </Label>
+            <Switch checked={!localExempt} onCheckedChange={handleToggleTimeClock} />
           </div>
         )}
       </div>

@@ -21,12 +21,15 @@ export function useModuleRollout() {
       });
   }, []);
 
-  const getRolloutBadge = useCallback((moduleId: ModuleId): string | undefined => {
-    const status = statuses[moduleId];
-    if (status === 'beta') return 'Beta';
-    if (status === 'internal') return 'Internal';
-    return undefined;
-  }, [statuses]);
+  const getRolloutBadge = useCallback(
+    (moduleId: ModuleId): string | undefined => {
+      const status = statuses[moduleId];
+      if (status === 'beta') return 'Beta';
+      if (status === 'internal') return 'Internal';
+      return undefined;
+    },
+    [statuses]
+  );
 
   return { statuses, getRolloutBadge };
 }

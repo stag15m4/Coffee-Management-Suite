@@ -39,7 +39,8 @@ function mapRequest(r: any): TimeOffRequest {
   };
 }
 
-const REQUEST_SELECT = '*, employee:user_profiles!employee_id(full_name, avatar_url, manager_id), reviewer:user_profiles!reviewed_by(full_name)';
+const REQUEST_SELECT =
+  '*, employee:user_profiles!employee_id(full_name, avatar_url, manager_id), reviewer:user_profiles!reviewed_by(full_name)';
 
 export function useTimeOffRequests(statusFilter?: TimeOffRequest['status']) {
   const { tenant } = useAuth();
@@ -113,7 +114,15 @@ export function useReviewTimeOffRequest() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, status, review_notes }: { id: string; status: 'approved' | 'denied'; review_notes?: string }) => {
+    mutationFn: async ({
+      id,
+      status,
+      review_notes,
+    }: {
+      id: string;
+      status: 'approved' | 'denied';
+      review_notes?: string;
+    }) => {
       if (!user?.id) throw new Error('No user');
       const { data, error } = await supabase
         .from('time_off_requests')

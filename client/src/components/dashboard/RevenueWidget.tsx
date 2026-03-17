@@ -99,10 +99,7 @@ export function RevenueWidget() {
               ) : (
                 <TrendingDown className="w-4 h-4" style={{ color: colors.red }} />
               )}
-              <span
-                className="text-sm font-medium"
-                style={{ color: data.trend === 'up' ? colors.green : colors.red }}
-              >
+              <span className="text-sm font-medium" style={{ color: data.trend === 'up' ? colors.green : colors.red }}>
                 {Math.abs(data.percentChange).toFixed(1)}%
               </span>
               <span className="text-sm" style={{ color: colors.brownLight }}>

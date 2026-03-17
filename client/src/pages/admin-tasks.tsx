@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -24,13 +25,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  ArrowLeft, 
-  Plus, 
-  Settings, 
-  Clock, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  ArrowLeft,
+  Plus,
+  Settings,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
   Calendar,
   Trash2,
   Edit2,
@@ -47,7 +48,7 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
-  Lock
+  Lock,
 } from 'lucide-react';
 import { colors } from '@/lib/colors';
 import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
@@ -119,13 +120,13 @@ type TaskDueStatus = 'overdue' | 'due-soon' | 'upcoming' | 'no-date';
 function getTaskDueStatus(task: AdminTask): TaskDueStatus {
   if (!task.due_date) return 'no-date';
   if (task.status === 'completed' || task.status === 'cancelled') return 'no-date';
-  
+
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const dueDate = new Date(task.due_date);
   dueDate.setHours(0, 0, 0, 0);
   const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  
+
   if (daysUntilDue < 0) return 'overdue';
   if (daysUntilDue <= 3) return 'due-soon';
   return 'upcoming';
@@ -133,19 +134,27 @@ function getTaskDueStatus(task: AdminTask): TaskDueStatus {
 
 function getStatusColor(status: TaskDueStatus) {
   switch (status) {
-    case 'overdue': return colors.red;
-    case 'due-soon': return colors.yellow;
-    case 'upcoming': return colors.green;
-    case 'no-date': return colors.brownLight;
+    case 'overdue':
+      return colors.red;
+    case 'due-soon':
+      return colors.yellow;
+    case 'upcoming':
+      return colors.green;
+    case 'no-date':
+      return colors.brownLight;
   }
 }
 
 function getPriorityColor(priority: string) {
   switch (priority) {
-    case 'high': return colors.red;
-    case 'medium': return colors.yellow;
-    case 'low': return colors.green;
-    default: return colors.brownLight;
+    case 'high':
+      return colors.red;
+    case 'medium':
+      return colors.yellow;
+    case 'low':
+      return colors.green;
+    default:
+      return colors.brownLight;
   }
 }
 
@@ -156,7 +165,7 @@ function formatDueDate(date: string | null): string {
   now.setHours(0, 0, 0, 0);
   d.setHours(0, 0, 0, 0);
   const daysUntilDue = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  
+
   if (daysUntilDue < 0) return `${Math.abs(daysUntilDue)} days overdue`;
   if (daysUntilDue === 0) return 'Due today';
   if (daysUntilDue === 1) return 'Due tomorrow';
@@ -165,19 +174,19 @@ function formatDueDate(date: string | null): string {
 
 export default function AdminTasks() {
   const { tenant, profile, branding, primaryTenant } = useAuth();
-  
+
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
-  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const displayName = isChildLocation ? tenant?.name : branding?.company_name || tenant?.name || 'Erwin Mills Coffee';
   const orgName = primaryTenant?.name || branding?.company_name || '';
   const { toast } = useToast();
   const { uploadFile, isUploading } = useUpload();
-  
+
   const [categories, setCategories] = useState<TaskCategory[]>([]);
   const [users, setUsers] = useState<TaskUser[]>([]);
   const [tasks, setTasks] = useState<AdminTask[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [showSettings, setShowSettings] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showAdvancedFields, setShowAdvancedFields] = useState(false);
@@ -187,18 +196,18 @@ export default function AdminTasks() {
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [history, setHistory] = useState<TaskHistory[]>([]);
   const [newComment, setNewComment] = useState('');
-  
+
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('active');
   const [filterAssignee, setFilterAssignee] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('due_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  
+
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryColor, setNewCategoryColor] = useState('#C9A227');
   const [editingCategory, setEditingCategory] = useState<TaskCategory | null>(null);
-  
+
   const [taskForm, setTaskForm] = useState<{
     title: string;
     description: string;
@@ -222,160 +231,172 @@ export default function AdminTasks() {
     document_url: '',
     document_name: '',
     estimated_cost: '',
-    is_admin_only: false
+    is_admin_only: false,
   });
-  
+
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  
-  const withRetry = useCallback(async <T,>(
-    operationFn: () => PromiseLike<T>,
-    timeoutMs: number = 30000,
-    retries: number = 2
-  ): Promise<T> => {
-    let lastError: Error | null = null;
-    
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      let timeoutId: ReturnType<typeof setTimeout> | null = null;
-      try {
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('Request timed out. Please try again.')), timeoutMs);
-        });
-        
-        const result = await Promise.race([
-          Promise.resolve(operationFn()),
-          timeoutPromise
-        ]);
-        if (timeoutId) clearTimeout(timeoutId);
-        return result;
-      } catch (err) {
-        if (timeoutId) clearTimeout(timeoutId);
-        lastError = err as Error;
-        const msg = lastError.message?.toLowerCase() || '';
-        const isNetworkError = msg.includes('network') || msg.includes('fetch') || 
-          msg.includes('load failed') || msg.includes('timeout') || msg.includes('connection');
-        
-        if (isNetworkError && attempt < retries) {
-          await supabase.auth.refreshSession();
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-          continue;
+
+  const withRetry = useCallback(
+    async <T,>(operationFn: () => PromiseLike<T>, timeoutMs: number = 30000, retries: number = 2): Promise<T> => {
+      let lastError: Error | null = null;
+
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        try {
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('Request timed out. Please try again.')), timeoutMs);
+          });
+
+          const result = await Promise.race([Promise.resolve(operationFn()), timeoutPromise]);
+          if (timeoutId) clearTimeout(timeoutId);
+          return result;
+        } catch (err) {
+          if (timeoutId) clearTimeout(timeoutId);
+          lastError = err as Error;
+          const msg = lastError.message?.toLowerCase() || '';
+          const isNetworkError =
+            msg.includes('network') ||
+            msg.includes('fetch') ||
+            msg.includes('load failed') ||
+            msg.includes('timeout') ||
+            msg.includes('connection');
+
+          if (isNetworkError && attempt < retries) {
+            await supabase.auth.refreshSession();
+            await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+            continue;
+          }
+          throw lastError;
         }
-        throw lastError;
       }
-    }
-    throw lastError;
-  }, []);
-  
+      throw lastError;
+    },
+    []
+  );
+
   useEffect(() => {
     if (tenant?.id) {
       loadData();
     }
   }, [tenant?.id]);
-  
-  const loadData = useCallback(async (silent = false) => {
-    if (!tenant?.id) return;
-    if (!silent) setLoading(true);
-    
-    try {
-      const [categoriesRes, usersRes, tasksRes] = await Promise.all([
-        supabase.from('admin_task_categories').select('*').eq('tenant_id', tenant.id).order('name'),
-        supabase.from('user_profiles').select('id, full_name, email, role').eq('tenant_id', tenant.id).eq('is_active', true),
-        supabase.from('admin_tasks').select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false })
-      ]);
-      
-      if (categoriesRes.error) throw categoriesRes.error;
-      if (usersRes.error) throw usersRes.error;
-      if (tasksRes.error) throw tasksRes.error;
-      
-      setCategories(categoriesRes.data || []);
-      setUsers(usersRes.data || []);
-      setTasks(tasksRes.data || []);
-    } catch (error: any) {
-      toast({ title: 'Error loading data', description: error.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [tenant?.id, toast]);
-  
+
+  const loadData = useCallback(
+    async (silent = false) => {
+      if (!tenant?.id) return;
+      if (!silent) setLoading(true);
+
+      try {
+        const [categoriesRes, usersRes, tasksRes] = await Promise.all([
+          supabase.from('admin_task_categories').select('*').eq('tenant_id', tenant.id).order('name'),
+          supabase
+            .from('user_profiles')
+            .select('id, full_name, email, role')
+            .eq('tenant_id', tenant.id)
+            .eq('is_active', true),
+          supabase.from('admin_tasks').select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
+        ]);
+
+        if (categoriesRes.error) throw categoriesRes.error;
+        if (usersRes.error) throw usersRes.error;
+        if (tasksRes.error) throw tasksRes.error;
+
+        setCategories(categoriesRes.data || []);
+        setUsers(usersRes.data || []);
+        setTasks(tasksRes.data || []);
+      } catch (error: unknown) {
+        toast({ title: 'Error loading data', description: getErrorMessage(error), variant: 'destructive' });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [tenant?.id, toast]
+  );
+
   // Refresh data when app resumes from background (iPad multitasking)
   useAppResume(() => {
     if (tenant?.id) {
       loadData(true);
     }
   }, [tenant?.id, loadData]);
-  
+
   // Refresh data when location changes
   useLocationChange(() => {
     loadData();
   }, [loadData]);
-  
+
   const loadTaskDetails = async (taskId: string) => {
     try {
       const [commentsRes, historyRes] = await Promise.all([
-        supabase.from('admin_task_comments').select('*').eq('task_id', taskId).order('created_at', { ascending: false }),
-        supabase.from('admin_task_history').select('*').eq('task_id', taskId).order('created_at', { ascending: false })
+        supabase
+          .from('admin_task_comments')
+          .select('*')
+          .eq('task_id', taskId)
+          .order('created_at', { ascending: false }),
+        supabase.from('admin_task_history').select('*').eq('task_id', taskId).order('created_at', { ascending: false }),
       ]);
-      
+
       setComments(commentsRes.data || []);
       setHistory(historyRes.data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading task details:', error);
     }
   };
-  
+
   const handleAddCategory = async () => {
     if (!tenant?.id || !newCategoryName.trim()) return;
-    
+
     try {
       const { error } = await supabase.from('admin_task_categories').insert({
         tenant_id: tenant.id,
         name: newCategoryName.trim(),
         color: newCategoryColor,
-        is_default: false
+        is_default: false,
       });
-      
+
       if (error) throw error;
       toast({ title: 'Category added' });
       setNewCategoryName('');
       setNewCategoryColor('#C9A227');
       loadData();
-    } catch (error: any) {
-      toast({ title: 'Error adding category', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error adding category', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
-  
+
   const handleUpdateCategory = async () => {
     if (!editingCategory) return;
-    
+
     try {
-      const { error } = await supabase.from('admin_task_categories')
+      const { error } = await supabase
+        .from('admin_task_categories')
         .update({ name: editingCategory.name, color: editingCategory.color })
         .eq('id', editingCategory.id);
-      
+
       if (error) throw error;
       toast({ title: 'Category updated' });
       setEditingCategory(null);
       loadData();
-    } catch (error: any) {
-      toast({ title: 'Error updating category', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating category', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
-  
+
   const handleDeleteCategory = async (categoryId: string) => {
     try {
       const { error } = await supabase.from('admin_task_categories').delete().eq('id', categoryId);
       if (error) throw error;
       toast({ title: 'Category deleted' });
       loadData();
-    } catch (error: any) {
-      toast({ title: 'Error deleting category', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error deleting category', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
-  
+
   const handleSubmitTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenant?.id || !profile?.id || !taskForm.title.trim()) return;
-    
+
     setIsSaving(true);
     setSaveError(null);
     try {
@@ -384,7 +405,7 @@ export default function AdminTasks() {
         title: taskForm.title.trim(),
         description: taskForm.description.trim() || null,
         category_id: taskForm.category_id || null,
-        assigned_to: taskForm.is_admin_only ? null : (taskForm.assigned_to || null),
+        assigned_to: taskForm.is_admin_only ? null : taskForm.assigned_to || null,
         priority: taskForm.priority,
         due_date: taskForm.due_date || null,
         recurrence: taskForm.recurrence,
@@ -392,76 +413,76 @@ export default function AdminTasks() {
         document_name: taskForm.document_name || null,
         estimated_cost: taskForm.estimated_cost ? parseFloat(taskForm.estimated_cost) : null,
         is_admin_only: taskForm.is_admin_only,
-        created_by: editingTask ? editingTask.created_by : profile.id
+        created_by: editingTask ? editingTask.created_by : profile.id,
       };
-      
+
       if (editingTask) {
-        const { error } = await withRetry(() => supabase.from('admin_tasks')
-          .update({ ...taskData, updated_at: new Date().toISOString() })
-          .eq('id', editingTask.id));
+        const { error } = await withRetry(() =>
+          supabase
+            .from('admin_tasks')
+            .update({ ...taskData, updated_at: new Date().toISOString() })
+            .eq('id', editingTask.id)
+        );
         if (error) throw error;
-        
+
         await logTaskHistory(editingTask.id, 'updated', null, null);
         toast({ title: 'Task updated' });
       } else {
-        const { data, error } = await withRetry(() => supabase.from('admin_tasks')
-          .insert(taskData)
-          .select()
-          .single());
+        const { data, error } = await withRetry(() => supabase.from('admin_tasks').insert(taskData).select().single());
         if (error) throw error;
-        
+
         await logTaskHistory(data.id, 'created', null, null);
         toast({ title: 'Task created' });
       }
-      
+
       resetTaskForm();
       loadData();
-    } catch (error: any) {
-      setSaveError(error.message);
-      toast({ title: 'Error saving task', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      setSaveError(getErrorMessage(error));
+      toast({ title: 'Error saving task', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
   };
-  
+
   const handleStatusChange = async (task: AdminTask, newStatus: string) => {
     setIsSaving(true);
     setSaveError(null);
     try {
-      const updates: any = { 
-        status: newStatus, 
-        updated_at: new Date().toISOString() 
+      const updates: any = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
       };
-      
+
       if (newStatus === 'completed') {
         updates.completed_at = new Date().toISOString();
         updates.completed_by = profile?.id;
-        
+
         if (task.recurrence !== 'none' && task.due_date) {
           const nextDate = calculateNextRecurrence(task.due_date, task.recurrence);
-          const { error: insertError } = await withRetry(() => supabase.from('admin_tasks').insert({
-            tenant_id: task.tenant_id,
-            title: task.title,
-            description: task.description,
-            category_id: task.category_id,
-            assigned_to: task.is_admin_only ? null : task.assigned_to,
-            priority: task.priority,
-            due_date: nextDate,
-            recurrence: task.recurrence,
-            parent_task_id: task.id,
-            created_by: task.created_by,
-            is_admin_only: task.is_admin_only
-          }));
+          const { error: insertError } = await withRetry(() =>
+            supabase.from('admin_tasks').insert({
+              tenant_id: task.tenant_id,
+              title: task.title,
+              description: task.description,
+              category_id: task.category_id,
+              assigned_to: task.is_admin_only ? null : task.assigned_to,
+              priority: task.priority,
+              due_date: nextDate,
+              recurrence: task.recurrence,
+              parent_task_id: task.id,
+              created_by: task.created_by,
+              is_admin_only: task.is_admin_only,
+            })
+          );
           if (insertError) console.error('Error creating recurring task:', insertError);
         }
       }
-      
-      const { error } = await withRetry(() => supabase.from('admin_tasks')
-        .update(updates)
-        .eq('id', task.id));
-      
+
+      const { error } = await withRetry(() => supabase.from('admin_tasks').update(updates).eq('id', task.id));
+
       if (error) throw error;
-      
+
       await logTaskHistory(task.id, 'status_changed', task.status, newStatus);
       toast({ title: `Task marked as ${newStatus.replace('_', ' ')}` });
       loadData();
@@ -469,31 +490,42 @@ export default function AdminTasks() {
         setSelectedTask({ ...task, status: newStatus as any });
         loadTaskDetails(task.id);
       }
-    } catch (error: any) {
-      setSaveError(error.message);
-      toast({ title: 'Error updating status', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      setSaveError(getErrorMessage(error));
+      toast({ title: 'Error updating status', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
   };
-  
+
   const calculateNextRecurrence = (currentDue: string, recurrence: string): string => {
     const date = new Date(currentDue);
     switch (recurrence) {
-      case 'daily': date.setDate(date.getDate() + 1); break;
-      case 'weekly': date.setDate(date.getDate() + 7); break;
-      case 'monthly': date.setMonth(date.getMonth() + 1); break;
-      case 'quarterly': date.setMonth(date.getMonth() + 3); break;
-      case 'yearly': date.setFullYear(date.getFullYear() + 1); break;
+      case 'daily':
+        date.setDate(date.getDate() + 1);
+        break;
+      case 'weekly':
+        date.setDate(date.getDate() + 7);
+        break;
+      case 'monthly':
+        date.setMonth(date.getMonth() + 1);
+        break;
+      case 'quarterly':
+        date.setMonth(date.getMonth() + 3);
+        break;
+      case 'yearly':
+        date.setFullYear(date.getFullYear() + 1);
+        break;
     }
     return date.toISOString().split('T')[0];
   };
-  
+
   const handleCompletionDateChange = async (task: AdminTask, dateStr: string) => {
     if (!dateStr) return;
     try {
       const completedAt = new Date(dateStr + 'T12:00:00').toISOString();
-      const { error } = await supabase.from('admin_tasks')
+      const { error } = await supabase
+        .from('admin_tasks')
         .update({ completed_at: completedAt, updated_at: new Date().toISOString() })
         .eq('id', task.id);
       if (error) throw error;
@@ -504,8 +536,8 @@ export default function AdminTasks() {
       if (selectedTask?.id === task.id) {
         setSelectedTask({ ...task, completed_at: completedAt });
       }
-    } catch (error: any) {
-      toast({ title: 'Error updating completion date', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error updating completion date', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -516,33 +548,33 @@ export default function AdminTasks() {
       toast({ title: 'Task deleted' });
       setSelectedTask(null);
       loadData();
-    } catch (error: any) {
-      toast({ title: 'Error deleting task', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error deleting task', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
-  
+
   const handleAddComment = async () => {
     if (!selectedTask || !profile?.id || !newComment.trim()) return;
-    
+
     try {
       const { error } = await supabase.from('admin_task_comments').insert({
         tenant_id: tenant?.id,
         task_id: selectedTask.id,
         user_id: profile.id,
-        content: newComment.trim()
+        content: newComment.trim(),
       });
-      
+
       if (error) throw error;
-      
+
       await logTaskHistory(selectedTask.id, 'comment_added', null, newComment.trim().substring(0, 50));
       toast({ title: 'Comment added' });
       setNewComment('');
       loadTaskDetails(selectedTask.id);
-    } catch (error: any) {
-      toast({ title: 'Error adding comment', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error adding comment', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
-  
+
   const logTaskHistory = async (taskId: string, action: string, oldValue: string | null, newValue: string | null) => {
     try {
       await supabase.from('admin_task_history').insert({
@@ -551,24 +583,24 @@ export default function AdminTasks() {
         user_id: profile?.id,
         action,
         old_value: oldValue,
-        new_value: newValue
+        new_value: newValue,
       });
     } catch (error) {
       console.error('Error logging history:', error);
     }
   };
-  
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     const result = await uploadFile(file);
     if (result) {
-      setTaskForm(prev => ({ ...prev, document_url: result.objectPath, document_name: file.name }));
+      setTaskForm((prev) => ({ ...prev, document_url: result.objectPath, document_name: file.name }));
       toast({ title: 'Document uploaded' });
     }
   };
-  
+
   const resetTaskForm = () => {
     setTaskForm({
       title: '',
@@ -581,13 +613,13 @@ export default function AdminTasks() {
       document_url: '',
       document_name: '',
       estimated_cost: '',
-      is_admin_only: false
+      is_admin_only: false,
     });
     setEditingTask(null);
     setShowTaskForm(false);
     setShowAdvancedFields(false);
   };
-  
+
   const openEditTask = (task: AdminTask) => {
     setEditingTask(task);
     setTaskForm({
@@ -601,69 +633,84 @@ export default function AdminTasks() {
       document_url: task.document_url || '',
       document_name: task.document_name || '',
       estimated_cost: task.estimated_cost?.toString() || '',
-      is_admin_only: task.is_admin_only || false
+      is_admin_only: task.is_admin_only || false,
     });
     setShowTaskForm(true);
     // Auto-expand advanced fields if any have values
-    setShowAdvancedFields(!!(task.description || task.category_id || task.priority !== 'medium' || task.recurrence !== 'none' || task.estimated_cost || task.document_url));
+    setShowAdvancedFields(
+      !!(
+        task.description ||
+        task.category_id ||
+        task.priority !== 'medium' ||
+        task.recurrence !== 'none' ||
+        task.estimated_cost ||
+        task.document_url
+      )
+    );
   };
 
   const openTaskDetails = (task: AdminTask) => {
     setSelectedTask(task);
     loadTaskDetails(task.id);
   };
-  
-  const filteredTasks = tasks.filter(task => {
-    if (filterCategory !== 'all' && task.category_id !== filterCategory) return false;
-    if (filterStatus === 'active' && (task.status === 'completed' || task.status === 'cancelled')) return false;
-    if (filterStatus !== 'all' && filterStatus !== 'active' && task.status !== filterStatus) return false;
-    if (filterAssignee !== 'all' && task.assigned_to !== filterAssignee) return false;
-    if (filterPriority !== 'all' && task.priority !== filterPriority) return false;
-    return true;
-  }).sort((a, b) => {
-    let comparison = 0;
-    switch (sortBy) {
-      case 'due_date':
-        if (!a.due_date && !b.due_date) comparison = 0;
-        else if (!a.due_date) comparison = 1;
-        else if (!b.due_date) comparison = -1;
-        else comparison = new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-        break;
-      case 'priority':
-        const priorityOrder = { high: 0, medium: 1, low: 2 };
-        comparison = priorityOrder[a.priority] - priorityOrder[b.priority];
-        break;
-      case 'title':
-        comparison = a.title.localeCompare(b.title);
-        break;
-      case 'created_at':
-        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        break;
-    }
-    return sortOrder === 'asc' ? comparison : -comparison;
-  });
-  
-  const overdueTasks = tasks.filter(t => getTaskDueStatus(t) === 'overdue' && t.status !== 'completed' && t.status !== 'cancelled');
-  const dueSoonTasks = tasks.filter(t => getTaskDueStatus(t) === 'due-soon' && t.status !== 'completed' && t.status !== 'cancelled');
-  
+
+  const filteredTasks = tasks
+    .filter((task) => {
+      if (filterCategory !== 'all' && task.category_id !== filterCategory) return false;
+      if (filterStatus === 'active' && (task.status === 'completed' || task.status === 'cancelled')) return false;
+      if (filterStatus !== 'all' && filterStatus !== 'active' && task.status !== filterStatus) return false;
+      if (filterAssignee !== 'all' && task.assigned_to !== filterAssignee) return false;
+      if (filterPriority !== 'all' && task.priority !== filterPriority) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'due_date':
+          if (!a.due_date && !b.due_date) comparison = 0;
+          else if (!a.due_date) comparison = 1;
+          else if (!b.due_date) comparison = -1;
+          else comparison = new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+          break;
+        case 'priority':
+          const priorityOrder = { high: 0, medium: 1, low: 2 };
+          comparison = priorityOrder[a.priority] - priorityOrder[b.priority];
+          break;
+        case 'title':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case 'created_at':
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+  const overdueTasks = tasks.filter(
+    (t) => getTaskDueStatus(t) === 'overdue' && t.status !== 'completed' && t.status !== 'cancelled'
+  );
+  const dueSoonTasks = tasks.filter(
+    (t) => getTaskDueStatus(t) === 'due-soon' && t.status !== 'completed' && t.status !== 'cancelled'
+  );
+
   const getUserName = (userId: string | null) => {
     if (!userId) return 'Unassigned';
-    const user = users.find(u => u.id === userId);
+    const user = users.find((u) => u.id === userId);
     return user?.full_name || user?.email || 'Unknown';
   };
-  
+
   const getCategoryName = (categoryId: string | null) => {
     if (!categoryId) return 'Uncategorized';
-    const category = categories.find(c => c.id === categoryId);
+    const category = categories.find((c) => c.id === categoryId);
     return category?.name || 'Unknown';
   };
-  
+
   const getCategoryColor = (categoryId: string | null) => {
     if (!categoryId) return colors.brownLight;
-    const category = categories.find(c => c.id === categoryId);
+    const category = categories.find((c) => c.id === categoryId);
     return category?.color || colors.brownLight;
   };
-  
+
   if (loading) {
     return <CoffeeLoader fullScreen text="Loading..." />;
   }
@@ -695,7 +742,10 @@ export default function AdminTasks() {
             </Button>
             <Button
               size="sm"
-              onClick={() => { resetTaskForm(); setShowTaskForm(true); }}
+              onClick={() => {
+                resetTaskForm();
+                setShowTaskForm(true);
+              }}
               style={{ backgroundColor: colors.gold, color: colors.white }}
               data-testid="button-new-task"
             >
@@ -726,15 +776,19 @@ export default function AdminTasks() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {overdueTasks.slice(0, 3).map(task => (
-                    <div 
-                      key={task.id} 
+                  {overdueTasks.slice(0, 3).map((task) => (
+                    <div
+                      key={task.id}
                       className="p-2 rounded cursor-pointer hover:opacity-80"
                       style={{ backgroundColor: colors.cream }}
                       onClick={() => openTaskDetails(task)}
                     >
-                      <p className="font-medium text-sm" style={{ color: colors.brown }}>{task.title}</p>
-                      <p className="text-xs" style={{ color: colors.red }}>{formatDueDate(task.due_date)}</p>
+                      <p className="font-medium text-sm" style={{ color: colors.brown }}>
+                        {task.title}
+                      </p>
+                      <p className="text-xs" style={{ color: colors.red }}>
+                        {formatDueDate(task.due_date)}
+                      </p>
                     </div>
                   ))}
                   {overdueTasks.length > 3 && (
@@ -754,15 +808,19 @@ export default function AdminTasks() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {dueSoonTasks.slice(0, 3).map(task => (
-                    <div 
-                      key={task.id} 
+                  {dueSoonTasks.slice(0, 3).map((task) => (
+                    <div
+                      key={task.id}
                       className="p-2 rounded cursor-pointer hover:opacity-80"
                       style={{ backgroundColor: colors.cream }}
                       onClick={() => openTaskDetails(task)}
                     >
-                      <p className="font-medium text-sm" style={{ color: colors.brown }}>{task.title}</p>
-                      <p className="text-xs" style={{ color: colors.yellow }}>{formatDueDate(task.due_date)}</p>
+                      <p className="font-medium text-sm" style={{ color: colors.brown }}>
+                        {task.title}
+                      </p>
+                      <p className="text-xs" style={{ color: colors.yellow }}>
+                        {formatDueDate(task.due_date)}
+                      </p>
                     </div>
                   ))}
                   {dueSoonTasks.length > 3 && (
@@ -775,7 +833,7 @@ export default function AdminTasks() {
             )}
           </div>
         )}
-        
+
         {showSettings && (
           <Card style={{ backgroundColor: colors.white }}>
             <CardHeader>
@@ -791,7 +849,6 @@ export default function AdminTasks() {
                   <Input
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
-
                     placeholder="Category name"
                     style={{ backgroundColor: colors.inputBg }}
                     data-testid="input-new-category"
@@ -803,7 +860,6 @@ export default function AdminTasks() {
                     type="color"
                     value={newCategoryColor}
                     onChange={(e) => setNewCategoryColor(e.target.value)}
-
                     className="w-16 h-9 p-1"
                     data-testid="input-category-color"
                   />
@@ -817,16 +873,19 @@ export default function AdminTasks() {
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
-              
+
               <div className="space-y-2">
-                {categories.map(category => (
-                  <div key={category.id} className="flex items-center gap-2 p-2 rounded" style={{ backgroundColor: colors.cream }}>
+                {categories.map((category) => (
+                  <div
+                    key={category.id}
+                    className="flex items-center gap-2 p-2 rounded"
+                    style={{ backgroundColor: colors.cream }}
+                  >
                     {editingCategory?.id === category.id ? (
                       <>
                         <Input
                           value={editingCategory.name}
                           onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-      
                           className="flex-1"
                           style={{ backgroundColor: colors.inputBg }}
                         />
@@ -834,7 +893,6 @@ export default function AdminTasks() {
                           type="color"
                           value={editingCategory.color}
                           onChange={(e) => setEditingCategory({ ...editingCategory, color: e.target.value })}
-      
                           className="w-12 h-8 p-1"
                         />
                         <Button size="icon" variant="ghost" onClick={handleUpdateCategory}>
@@ -847,9 +905,13 @@ export default function AdminTasks() {
                     ) : (
                       <>
                         <div className="w-4 h-4 rounded" style={{ backgroundColor: category.color }} />
-                        <span className="flex-1" style={{ color: colors.brown }}>{category.name}</span>
+                        <span className="flex-1" style={{ color: colors.brown }}>
+                          {category.name}
+                        </span>
                         {category.is_default && (
-                          <Badge variant="secondary" className="text-xs">Default</Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            Default
+                          </Badge>
                         )}
                         <Button size="icon" variant="ghost" onClick={() => setEditingCategory(category)}>
                           <Edit2 className="w-4 h-4" style={{ color: colors.brownLight }} />
@@ -867,7 +929,7 @@ export default function AdminTasks() {
             </CardContent>
           </Card>
         )}
-        
+
         {showTaskForm && (
           <Card style={{ backgroundColor: colors.white }}>
             <CardHeader>
@@ -883,8 +945,7 @@ export default function AdminTasks() {
                     <Label style={{ color: colors.brown }}>Title *</Label>
                     <Input
                       value={taskForm.title}
-                      onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))}
-
+                      onChange={(e) => setTaskForm((prev) => ({ ...prev, title: e.target.value }))}
                       placeholder="Task title"
                       required
                       style={{ backgroundColor: colors.inputBg }}
@@ -896,7 +957,11 @@ export default function AdminTasks() {
                     <Switch
                       checked={taskForm.is_admin_only}
                       onCheckedChange={(checked) => {
-                        setTaskForm(prev => ({ ...prev, is_admin_only: checked, assigned_to: checked ? '' : prev.assigned_to }));
+                        setTaskForm((prev) => ({
+                          ...prev,
+                          is_admin_only: checked,
+                          assigned_to: checked ? '' : prev.assigned_to,
+                        }));
                       }}
                       data-testid="switch-admin-only"
                     />
@@ -905,26 +970,31 @@ export default function AdminTasks() {
                       Admin Only
                     </Label>
                     {taskForm.is_admin_only && (
-                      <span className="text-xs" style={{ color: colors.brownLight }}>This task cannot be delegated</span>
+                      <span className="text-xs" style={{ color: colors.brownLight }}>
+                        This task cannot be delegated
+                      </span>
                     )}
                   </div>
 
                   {!taskForm.is_admin_only && (
-                  <div>
-                    <Label style={{ color: colors.brown }}>Assign To</Label>
-                    <Select value={taskForm.assigned_to} onValueChange={(v) => setTaskForm(prev => ({ ...prev, assigned_to: v }))}>
-                      <SelectTrigger style={{ backgroundColor: colors.inputBg }} data-testid="select-assignee">
-                        <SelectValue placeholder="Select assignee" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {users.map(user => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.full_name || user.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div>
+                      <Label style={{ color: colors.brown }}>Assign To</Label>
+                      <Select
+                        value={taskForm.assigned_to}
+                        onValueChange={(v) => setTaskForm((prev) => ({ ...prev, assigned_to: v }))}
+                      >
+                        <SelectTrigger style={{ backgroundColor: colors.inputBg }} data-testid="select-assignee">
+                          <SelectValue placeholder="Select assignee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.full_name || user.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   )}
 
                   <div>
@@ -932,8 +1002,7 @@ export default function AdminTasks() {
                     <Input
                       type="date"
                       value={taskForm.due_date}
-                      onChange={(e) => setTaskForm(prev => ({ ...prev, due_date: e.target.value }))}
-
+                      onChange={(e) => setTaskForm((prev) => ({ ...prev, due_date: e.target.value }))}
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                       data-testid="input-due-date"
                     />
@@ -947,124 +1016,149 @@ export default function AdminTasks() {
                   style={{ color: colors.brownLight }}
                   onClick={() => setShowAdvancedFields(!showAdvancedFields)}
                 >
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showAdvancedFields ? 'rotate-0' : '-rotate-90'}`} />
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${showAdvancedFields ? 'rotate-0' : '-rotate-90'}`}
+                  />
                   More options
-                  {!showAdvancedFields && (taskForm.description || taskForm.category_id || taskForm.priority !== 'medium' || taskForm.recurrence !== 'none' || taskForm.estimated_cost || taskForm.document_url) ? (
-                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: colors.cream, color: colors.brown }}>has values</span>
+                  {!showAdvancedFields &&
+                  (taskForm.description ||
+                    taskForm.category_id ||
+                    taskForm.priority !== 'medium' ||
+                    taskForm.recurrence !== 'none' ||
+                    taskForm.estimated_cost ||
+                    taskForm.document_url) ? (
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded"
+                      style={{ backgroundColor: colors.cream, color: colors.brown }}
+                    >
+                      has values
+                    </span>
                   ) : null}
                 </button>
 
                 {showAdvancedFields && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <Label style={{ color: colors.brown }}>Description</Label>
-                    <Textarea
-                      value={taskForm.description}
-                      onChange={(e) => setTaskForm(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Task description..."
-                      rows={3}
-                      style={{ backgroundColor: colors.inputBg }}
-                      data-testid="input-task-description"
-                    />
-                  </div>
-
-                  <div>
-                    <Label style={{ color: colors.brown }}>Category</Label>
-                    <Select value={taskForm.category_id} onValueChange={(v) => setTaskForm(prev => ({ ...prev, category_id: v }))}>
-                      <SelectTrigger style={{ backgroundColor: colors.inputBg }} data-testid="select-category">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(cat => (
-                          <SelectItem key={cat.id} value={cat.id}>
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded" style={{ backgroundColor: cat.color }} />
-                              {cat.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label style={{ color: colors.brown }}>Priority</Label>
-                    <Select value={taskForm.priority} onValueChange={(v: any) => setTaskForm(prev => ({ ...prev, priority: v }))}>
-                      <SelectTrigger style={{ backgroundColor: colors.inputBg }} data-testid="select-priority">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label style={{ color: colors.brown }}>Recurrence</Label>
-                    <Select value={taskForm.recurrence} onValueChange={(v: any) => setTaskForm(prev => ({ ...prev, recurrence: v }))}>
-                      <SelectTrigger style={{ backgroundColor: colors.inputBg }} data-testid="select-recurrence">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                        <SelectItem value="yearly">Yearly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label style={{ color: colors.brown }}>Estimated Cost</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: colors.brownLight }}>$</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={taskForm.estimated_cost}
-                        onChange={(e) => setTaskForm(prev => ({ ...prev, estimated_cost: e.target.value }))}
-
-                        inputMode="numeric"
-                        placeholder="0.00"
-                        className="pl-7"
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <Label style={{ color: colors.brown }}>Description</Label>
+                      <Textarea
+                        value={taskForm.description}
+                        onChange={(e) => setTaskForm((prev) => ({ ...prev, description: e.target.value }))}
+                        placeholder="Task description..."
+                        rows={3}
                         style={{ backgroundColor: colors.inputBg }}
-                        data-testid="input-estimated-cost"
+                        data-testid="input-task-description"
                       />
                     </div>
-                    <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
-                      Approximate cost for expense forecasting
-                    </p>
-                  </div>
 
-                  <div data-spotlight="task-attachment">
-                    <Label style={{ color: colors.brown }}>Attachment</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="file"
-                        onChange={handleFileUpload}
-
-                        disabled={isUploading}
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                        className="flex-1"
-                        style={{ backgroundColor: colors.inputBg }}
-                        data-testid="input-attachment"
-                      />
+                    <div>
+                      <Label style={{ color: colors.brown }}>Category</Label>
+                      <Select
+                        value={taskForm.category_id}
+                        onValueChange={(v) => setTaskForm((prev) => ({ ...prev, category_id: v }))}
+                      >
+                        <SelectTrigger style={{ backgroundColor: colors.inputBg }} data-testid="select-category">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded" style={{ backgroundColor: cat.color }} />
+                                {cat.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    {taskForm.document_name && (
-                      <p className="text-xs mt-1" style={{ color: colors.green }}>
-                        <FileText className="w-3 h-3 inline mr-1" />
-                        {taskForm.document_name}
+
+                    <div>
+                      <Label style={{ color: colors.brown }}>Priority</Label>
+                      <Select
+                        value={taskForm.priority}
+                        onValueChange={(v: any) => setTaskForm((prev) => ({ ...prev, priority: v }))}
+                      >
+                        <SelectTrigger style={{ backgroundColor: colors.inputBg }} data-testid="select-priority">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label style={{ color: colors.brown }}>Recurrence</Label>
+                      <Select
+                        value={taskForm.recurrence}
+                        onValueChange={(v: any) => setTaskForm((prev) => ({ ...prev, recurrence: v }))}
+                      >
+                        <SelectTrigger style={{ backgroundColor: colors.inputBg }} data-testid="select-recurrence">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="quarterly">Quarterly</SelectItem>
+                          <SelectItem value="yearly">Yearly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label style={{ color: colors.brown }}>Estimated Cost</Label>
+                      <div className="relative">
+                        <span
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-sm"
+                          style={{ color: colors.brownLight }}
+                        >
+                          $
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={taskForm.estimated_cost}
+                          onChange={(e) => setTaskForm((prev) => ({ ...prev, estimated_cost: e.target.value }))}
+                          inputMode="numeric"
+                          placeholder="0.00"
+                          className="pl-7"
+                          style={{ backgroundColor: colors.inputBg }}
+                          data-testid="input-estimated-cost"
+                        />
+                      </div>
+                      <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                        Approximate cost for expense forecasting
                       </p>
-                    )}
+                    </div>
+
+                    <div data-spotlight="task-attachment">
+                      <Label style={{ color: colors.brown }}>Attachment</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="file"
+                          onChange={handleFileUpload}
+                          disabled={isUploading}
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          className="flex-1"
+                          style={{ backgroundColor: colors.inputBg }}
+                          data-testid="input-attachment"
+                        />
+                      </div>
+                      {taskForm.document_name && (
+                        <p className="text-xs mt-1" style={{ color: colors.green }}>
+                          <FileText className="w-3 h-3 inline mr-1" />
+                          {taskForm.document_name}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
                 )}
-                
+
                 <div className="flex gap-2">
                   <Button
                     type="submit"
@@ -1087,7 +1181,7 @@ export default function AdminTasks() {
             </CardContent>
           </Card>
         )}
-        
+
         <Card style={{ backgroundColor: colors.white }}>
           <CardHeader className="pb-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1102,12 +1196,14 @@ export default function AdminTasks() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                
+
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                   <SelectTrigger className="w-28" style={{ backgroundColor: colors.inputBg }}>
                     <SelectValue placeholder="Status" />
@@ -1121,7 +1217,7 @@ export default function AdminTasks() {
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 <Select value={filterPriority} onValueChange={setFilterPriority}>
                   <SelectTrigger className="w-28" style={{ backgroundColor: colors.inputBg }}>
                     <SelectValue placeholder="Priority" />
@@ -1133,7 +1229,7 @@ export default function AdminTasks() {
                     <SelectItem value="low">Low</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1152,7 +1248,10 @@ export default function AdminTasks() {
                 <p style={{ color: colors.brownLight }}>No tasks found</p>
                 <Button
                   className="mt-2"
-                  onClick={() => { resetTaskForm(); setShowTaskForm(true); }}
+                  onClick={() => {
+                    resetTaskForm();
+                    setShowTaskForm(true);
+                  }}
                   style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   <Plus className="w-4 h-4 mr-1" />
@@ -1161,16 +1260,16 @@ export default function AdminTasks() {
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredTasks.map(task => {
+                {filteredTasks.map((task) => {
                   const dueStatus = getTaskDueStatus(task);
                   return (
                     <div
                       key={task.id}
                       className="p-3 rounded border cursor-pointer hover:shadow-md transition-shadow"
-                      style={{ 
-                        backgroundColor: colors.cream, 
+                      style={{
+                        backgroundColor: colors.cream,
                         borderColor: task.status === 'completed' ? colors.green : getStatusColor(dueStatus),
-                        borderLeftWidth: 4
+                        borderLeftWidth: 4,
                       }}
                       onClick={() => openTaskDetails(task)}
                       data-testid={`task-item-${task.id}`}
@@ -1178,36 +1277,42 @@ export default function AdminTasks() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span 
+                            <span
                               className={`font-medium ${task.status === 'completed' ? 'line-through' : ''}`}
                               style={{ color: colors.brown }}
                             >
                               {task.title}
                             </span>
                             {task.estimated_cost != null && Number(task.estimated_cost) > 0 && (
-                              <Badge 
+                              <Badge
                                 variant="outline"
                                 className="text-xs font-semibold"
-                                style={{ 
-                                  borderColor: colors.gold, 
+                                style={{
+                                  borderColor: colors.gold,
                                   color: colors.brown,
-                                  backgroundColor: colors.cream 
+                                  backgroundColor: colors.cream,
                                 }}
                               >
                                 ~${Number(task.estimated_cost).toFixed(2)}
                               </Badge>
                             )}
-                            <Badge 
-                              variant="outline" 
+                            <Badge
+                              variant="outline"
                               className="text-xs"
-                              style={{ borderColor: getCategoryColor(task.category_id), color: getCategoryColor(task.category_id) }}
+                              style={{
+                                borderColor: getCategoryColor(task.category_id),
+                                color: getCategoryColor(task.category_id),
+                              }}
                             >
                               {getCategoryName(task.category_id)}
                             </Badge>
-                            <Badge 
-                              variant="outline" 
+                            <Badge
+                              variant="outline"
                               className="text-xs"
-                              style={{ borderColor: getPriorityColor(task.priority), color: getPriorityColor(task.priority) }}
+                              style={{
+                                borderColor: getPriorityColor(task.priority),
+                                color: getPriorityColor(task.priority),
+                              }}
                             >
                               {task.priority}
                             </Badge>
@@ -1226,10 +1331,10 @@ export default function AdminTasks() {
                           </div>
                           <div className="flex items-center gap-4 mt-1 text-xs" style={{ color: colors.brownLight }}>
                             {!task.is_admin_only && (
-                            <span className="flex items-center gap-1">
-                              <Users className="w-3 h-3" />
-                              {getUserName(task.assigned_to)}
-                            </span>
+                              <span className="flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {getUserName(task.assigned_to)}
+                              </span>
                             )}
                             <span className="flex items-center gap-1" style={{ color: getStatusColor(dueStatus) }}>
                               <Calendar className="w-3 h-3" />
@@ -1273,7 +1378,7 @@ export default function AdminTasks() {
             )}
           </CardContent>
         </Card>
-        
+
         {selectedTask && (
           <Card style={{ backgroundColor: colors.white }}>
             <CardHeader>
@@ -1282,11 +1387,14 @@ export default function AdminTasks() {
                   <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
                     {selectedTask.title}
                     {selectedTask.status === 'completed' && (
-                      <Badge style={{ backgroundColor: colors.green }} className="text-white">Completed</Badge>
+                      <Badge style={{ backgroundColor: colors.green }} className="text-white">
+                        Completed
+                      </Badge>
                     )}
                     {selectedTask.is_admin_only && (
                       <Badge style={{ backgroundColor: colors.brown }} className="text-white text-xs">
-                        <Lock className="w-3 h-3 mr-1" />Admin Only
+                        <Lock className="w-3 h-3 mr-1" />
+                        Admin Only
                       </Badge>
                     )}
                   </CardTitle>
@@ -1295,10 +1403,10 @@ export default function AdminTasks() {
                       {getCategoryName(selectedTask.category_id)}
                     </Badge>
                     {!selectedTask.is_admin_only && (
-                    <>
-                    <span>|</span>
-                    <span>Assigned to: {getUserName(selectedTask.assigned_to)}</span>
-                    </>
+                      <>
+                        <span>|</span>
+                        <span>Assigned to: {getUserName(selectedTask.assigned_to)}</span>
+                      </>
                     )}
                     <span>|</span>
                     <span style={{ color: getStatusColor(getTaskDueStatus(selectedTask)) }}>
@@ -1309,10 +1417,7 @@ export default function AdminTasks() {
                 <div className="flex gap-1">
                   {selectedTask.status !== 'completed' && (
                     <>
-                      <Select 
-                        value={selectedTask.status} 
-                        onValueChange={(v) => handleStatusChange(selectedTask, v)}
-                      >
+                      <Select value={selectedTask.status} onValueChange={(v) => handleStatusChange(selectedTask, v)}>
                         <SelectTrigger className="w-32">
                           <SelectValue />
                         </SelectTrigger>
@@ -1333,11 +1438,7 @@ export default function AdminTasks() {
                   >
                     <Trash2 className="w-4 h-4" style={{ color: colors.red }} />
                   </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setSelectedTask(null)}
-                  >
+                  <Button size="icon" variant="ghost" onClick={() => setSelectedTask(null)}>
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
@@ -1347,10 +1448,12 @@ export default function AdminTasks() {
               {selectedTask.description && (
                 <div>
                   <Label style={{ color: colors.brown }}>Description</Label>
-                  <p className="mt-1" style={{ color: colors.brownLight }}>{selectedTask.description}</p>
+                  <p className="mt-1" style={{ color: colors.brownLight }}>
+                    {selectedTask.description}
+                  </p>
                 </div>
               )}
-              
+
               {selectedTask.status === 'completed' && selectedTask.completed_at && (
                 <div>
                   <Label className="flex items-center gap-1" style={{ color: colors.brown }}>
@@ -1370,9 +1473,9 @@ export default function AdminTasks() {
               {selectedTask.document_url && (
                 <div>
                   <Label style={{ color: colors.brown }}>Attachment</Label>
-                  <a 
-                    href={selectedTask.document_url} 
-                    target="_blank" 
+                  <a
+                    href={selectedTask.document_url}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-sm mt-1 hover:underline"
                     style={{ color: colors.gold }}
@@ -1383,7 +1486,7 @@ export default function AdminTasks() {
                   </a>
                 </div>
               )}
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="flex items-center gap-1" style={{ color: colors.brown }}>
@@ -1391,7 +1494,7 @@ export default function AdminTasks() {
                     Comments ({comments.length})
                   </Label>
                   <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
-                    {comments.map(comment => (
+                    {comments.map((comment) => (
                       <div key={comment.id} className="p-2 rounded text-sm" style={{ backgroundColor: colors.cream }}>
                         <div className="flex justify-between text-xs" style={{ color: colors.brownLight }}>
                           <span>{getUserName(comment.user_id)}</span>
@@ -1401,14 +1504,15 @@ export default function AdminTasks() {
                       </div>
                     ))}
                     {comments.length === 0 && (
-                      <p className="text-sm" style={{ color: colors.brownLight }}>No comments yet</p>
+                      <p className="text-sm" style={{ color: colors.brownLight }}>
+                        No comments yet
+                      </p>
                     )}
                   </div>
                   <div className="flex gap-2 mt-2">
                     <Input
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
-  
                       placeholder="Add a comment..."
                       style={{ backgroundColor: colors.inputBg }}
                       data-testid="input-comment"
@@ -1423,25 +1527,25 @@ export default function AdminTasks() {
                     </Button>
                   </div>
                 </div>
-                
+
                 <div>
                   <Label className="flex items-center gap-1" style={{ color: colors.brown }}>
                     <History className="w-4 h-4" />
                     History
                   </Label>
                   <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
-                    {history.map(entry => (
+                    {history.map((entry) => (
                       <div key={entry.id} className="text-xs p-1" style={{ color: colors.brownLight }}>
-                        <span className="font-medium">{getUserName(entry.user_id)}</span>
-                        {' '}{entry.action.replace('_', ' ')}
+                        <span className="font-medium">{getUserName(entry.user_id)}</span>{' '}
+                        {entry.action.replace('_', ' ')}
                         {entry.new_value && ` → ${entry.new_value}`}
-                        <span className="ml-2 opacity-75">
-                          {new Date(entry.created_at).toLocaleString()}
-                        </span>
+                        <span className="ml-2 opacity-75">{new Date(entry.created_at).toLocaleString()}</span>
                       </div>
                     ))}
                     {history.length === 0 && (
-                      <p className="text-sm" style={{ color: colors.brownLight }}>No history yet</p>
+                      <p className="text-sm" style={{ color: colors.brownLight }}>
+                        No history yet
+                      </p>
                     )}
                   </div>
                 </div>
@@ -1450,18 +1554,18 @@ export default function AdminTasks() {
           </Card>
         )}
       </main>
-      
+
       <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
         <AlertDialogContent style={{ backgroundColor: colors.cream }}>
           <AlertDialogHeader>
             <AlertDialogTitle style={{ color: colors.brown }}>Delete Task</AlertDialogTitle>
             <AlertDialogDescription style={{ color: colors.brownLight }}>
-              Are you sure you want to delete "{taskToDelete?.title}"? This action cannot be undone. 
-              All comments and history for this task will also be deleted.
+              Are you sure you want to delete "{taskToDelete?.title}"? This action cannot be undone. All comments and
+              history for this task will also be deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel 
+            <AlertDialogCancel
               style={{ borderColor: colors.gold, color: colors.brown }}
               data-testid="button-cancel-delete"
             >

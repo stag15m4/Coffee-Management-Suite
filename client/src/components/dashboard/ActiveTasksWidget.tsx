@@ -33,13 +33,15 @@ export function ActiveTasksWidget() {
       // Get tasks assigned to current user that are pending or in_progress
       const { data: tasks, error: tasksError } = await supabase
         .from('admin_tasks')
-        .select(`
+        .select(
+          `
           id,
           title,
           priority,
           due_date,
           category:admin_task_categories(name, color)
-        `)
+        `
+        )
         .eq('tenant_id', tenant.id)
         .eq('assigned_to', profile.id)
         .in('status', ['pending', 'in_progress'])
@@ -48,7 +50,15 @@ export function ActiveTasksWidget() {
 
       if (tasksError) throw tasksError;
 
-      const formattedTasks: Task[] = (tasks || []).map((task: any) => ({
+      interface TaskRow {
+        id: string;
+        title: string;
+        priority: string;
+        due_date: string | null;
+        category: { name: string; color: string } | null;
+      }
+
+      const formattedTasks: Task[] = ((tasks || []) as unknown as TaskRow[]).map((task) => ({
         id: task.id,
         title: task.title,
         priority: task.priority,
@@ -117,10 +127,7 @@ export function ActiveTasksWidget() {
               {data.tasks.map((task) => {
                 const dueInfo = task.due_date ? formatDueDate(task.due_date) : null;
                 return (
-                  <div
-                    key={task.id}
-                    className="flex items-start gap-2 p-2 rounded hover:bg-gray-50 transition-colors"
-                  >
+                  <div key={task.id} className="flex items-start gap-2 p-2 rounded hover:bg-gray-50 transition-colors">
                     <Circle
                       className="w-3 h-3 mt-1 flex-shrink-0"
                       style={{ color: getPriorityColor(task.priority) }}
@@ -144,7 +151,10 @@ export function ActiveTasksWidget() {
                         )}
                         {dueInfo && (
                           <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" style={{ color: dueInfo.isOverdue ? colors.red : colors.brownLight }} />
+                            <Clock
+                              className="w-3 h-3"
+                              style={{ color: dueInfo.isOverdue ? colors.red : colors.brownLight }}
+                            />
                             <span
                               className="text-xs"
                               style={{ color: dueInfo.isOverdue ? colors.red : colors.brownLight }}

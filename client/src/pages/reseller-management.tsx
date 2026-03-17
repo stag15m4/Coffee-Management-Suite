@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
@@ -41,13 +42,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { colors } from '@/lib/colors';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
@@ -284,10 +279,10 @@ export default function ResellerManagement() {
         const error = await response.json();
         throw new Error(error.error || 'Failed to create reseller');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -297,7 +292,7 @@ export default function ResellerManagement() {
 
   const handleUpdateReseller = async () => {
     if (!selectedReseller) return;
-    
+
     try {
       setProcessing(true);
       const response = await fetch(`/api/resellers/${selectedReseller.id}`, {
@@ -316,10 +311,10 @@ export default function ResellerManagement() {
         const error = await response.json();
         throw new Error(error.error || 'Failed to update reseller');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -328,13 +323,20 @@ export default function ResellerManagement() {
   };
 
   const handleDeleteReseller = async (id: string) => {
-    const name = resellers.find(r => r.id === id)?.name || 'this reseller';
-    if (!await confirm({ title: `Delete ${name}?`, description: 'This will also delete all their license codes.', confirmLabel: 'Delete', variant: 'destructive' })) {
+    const name = resellers.find((r) => r.id === id)?.name || 'this reseller';
+    if (
+      !(await confirm({
+        title: `Delete ${name}?`,
+        description: 'This will also delete all their license codes.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      }))
+    ) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/resellers/${id}`, { 
+      const response = await fetch(`/api/resellers/${id}`, {
         method: 'DELETE',
         headers: await getAuthHeaders(),
       });
@@ -373,9 +375,9 @@ export default function ResellerManagement() {
 
       if (response.ok) {
         const codes = await response.json();
-        toast({ 
-          title: 'Success', 
-          description: `Generated ${codes.length} license code(s)` 
+        toast({
+          title: 'Success',
+          description: `Generated ${codes.length} license code(s)`,
         });
         setShowGenerateCodesDialog(false);
         setGenerateForm({ count: 1, subscriptionPlan: 'premium', expiresAt: '', verticalId: '' });
@@ -384,10 +386,10 @@ export default function ResellerManagement() {
         const error = await response.json();
         throw new Error(error.error || 'Failed to generate codes');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -397,7 +399,7 @@ export default function ResellerManagement() {
 
   const handleDeleteLicenseCode = async (id: string) => {
     try {
-      const response = await fetch(`/api/license-codes/${id}`, { 
+      const response = await fetch(`/api/license-codes/${id}`, {
         method: 'DELETE',
         headers: await getAuthHeaders(),
       });
@@ -410,10 +412,10 @@ export default function ResellerManagement() {
         const error = await response.json();
         throw new Error(error.error || 'Cannot delete redeemed code');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -444,8 +446,8 @@ export default function ResellerManagement() {
         const error = await response.json();
         throw new Error(error.error || 'Failed to create invoice');
       }
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setProcessing(false);
     }
@@ -465,8 +467,8 @@ export default function ResellerManagement() {
         const error = await response.json();
         throw new Error(error.error || 'Failed to send invoice');
       }
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setProcessing(false);
     }
@@ -490,15 +492,23 @@ export default function ResellerManagement() {
         const error = await response.json();
         throw new Error(error.error || 'Failed to mark invoice paid');
       }
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setProcessing(false);
     }
   };
 
   const handleVoidInvoice = async (invoiceId: string) => {
-    if (!await confirm({ title: 'Void this invoice?', description: 'This cannot be undone.', confirmLabel: 'Void', variant: 'destructive' })) return;
+    if (
+      !(await confirm({
+        title: 'Void this invoice?',
+        description: 'This cannot be undone.',
+        confirmLabel: 'Void',
+        variant: 'destructive',
+      }))
+    )
+      return;
     try {
       setProcessing(true);
       const response = await fetch(`/api/reseller-invoices/${invoiceId}/void`, {
@@ -512,8 +522,8 @@ export default function ResellerManagement() {
         const error = await response.json();
         throw new Error(error.error || 'Failed to void invoice');
       }
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setProcessing(false);
     }
@@ -521,12 +531,22 @@ export default function ResellerManagement() {
 
   const getInvoiceStatusBadge = (status: string) => {
     switch (status) {
-      case 'draft': return <Badge variant="secondary">Draft</Badge>;
-      case 'sent': return <Badge style={{ backgroundColor: '#3b82f6', color: 'white' }}>Sent</Badge>;
-      case 'paid': return <Badge style={{ backgroundColor: colors.green, color: 'white' }}>Paid</Badge>;
-      case 'overdue': return <Badge style={{ backgroundColor: '#ef4444', color: 'white' }}>Overdue</Badge>;
-      case 'void': return <Badge variant="outline" className="line-through">Void</Badge>;
-      default: return <Badge variant="secondary">{status}</Badge>;
+      case 'draft':
+        return <Badge variant="secondary">Draft</Badge>;
+      case 'sent':
+        return <Badge style={{ backgroundColor: '#3b82f6', color: 'white' }}>Sent</Badge>;
+      case 'paid':
+        return <Badge style={{ backgroundColor: colors.green, color: 'white' }}>Paid</Badge>;
+      case 'overdue':
+        return <Badge style={{ backgroundColor: '#ef4444', color: 'white' }}>Overdue</Badge>;
+      case 'void':
+        return (
+          <Badge variant="outline" className="line-through">
+            Void
+          </Badge>
+        );
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
@@ -591,16 +611,17 @@ export default function ResellerManagement() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => { setView('list'); setSelectedReseller(null); }}
+              onClick={() => {
+                setView('list');
+                setSelectedReseller(null);
+              }}
               data-testid="button-back"
             >
               <ChevronLeft className="w-5 h-5" />
             </Button>
           )}
           <div>
-            <h1 className="text-2xl font-bold">
-              Wholesale Partners
-            </h1>
+            <h1 className="text-2xl font-bold">Wholesale Partners</h1>
             <p className="text-sm text-muted-foreground">
               {view === 'list' ? 'Manage resellers and license codes' : selectedReseller?.name}
             </p>
@@ -615,11 +636,7 @@ export default function ResellerManagement() {
             <LayoutDashboard className="w-4 h-4 mr-2" />
             My Dashboard
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => setLocation('/platform-admin')}
-            data-testid="button-platform-admin"
-          >
+          <Button variant="outline" onClick={() => setLocation('/platform-admin')} data-testid="button-platform-admin">
             <Building2 className="w-4 h-4 mr-2" />
             Admin Dashboard
           </Button>
@@ -650,7 +667,10 @@ export default function ResellerManagement() {
                   Refresh
                 </Button>
                 <Button
-                  onClick={() => { resetResellerForm(); setShowNewResellerDialog(true); }}
+                  onClick={() => {
+                    resetResellerForm();
+                    setShowNewResellerDialog(true);
+                  }}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6 py-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5"
                   data-testid="button-add-reseller"
                 >
@@ -670,8 +690,8 @@ export default function ResellerManagement() {
                 </Card>
               ) : (
                 resellers.map((reseller) => (
-                  <Card 
-                    key={reseller.id} 
+                  <Card
+                    key={reseller.id}
                     className="cursor-pointer hover-elevate"
                     onClick={() => loadResellerDetail(reseller.id)}
                     data-testid={`card-reseller-${reseller.id}`}
@@ -688,7 +708,9 @@ export default function ResellerManagement() {
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="font-semibold">{reseller.seats_used} / {reseller.seats_total}</p>
+                          <p className="font-semibold">
+                            {reseller.seats_used} / {reseller.seats_total}
+                          </p>
                           <p className="text-sm text-muted-foreground">Seats Used</p>
                         </div>
                         <Badge variant={reseller.is_active ? 'default' : 'secondary'}>
@@ -701,353 +723,398 @@ export default function ResellerManagement() {
               )}
             </div>
           </>
-        ) : selectedReseller && (
-          <>
-            <div className="grid md:grid-cols-5 gap-4 mb-6">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Tier</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Badge
-                    className="text-base px-3 py-1"
-                    style={{
-                      backgroundColor: selectedReseller.tier === 'gold' ? '#EAB308' :
-                        selectedReseller.tier === 'silver' ? '#9CA3AF' : colors.gold,
-                      color: 'white',
-                    }}
-                  >
-                    {(selectedReseller.tier || 'authorized').charAt(0).toUpperCase() + (selectedReseller.tier || 'authorized').slice(1)}
-                  </Badge>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {selectedReseller.discount_percent || 20}% discount
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Seats</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{selectedReseller.seats_total}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Seats Used</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{selectedReseller.seats_used}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Available</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-green-600">
-                    {selectedReseller.seats_total - selectedReseller.seats_used}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Revenue Share</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold" style={{ color: colors.gold }}>
-                    {selectedReseller.revenue_share_percent || 0}%
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Partner Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <Label className="text-muted-foreground">Contact Email</Label>
-                    <p>{selectedReseller.contact_email}</p>
-                  </div>
-                  {selectedReseller.contact_name && (
-                    <div>
-                      <Label className="text-muted-foreground">Contact Name</Label>
-                      <p>{selectedReseller.contact_name}</p>
-                    </div>
-                  )}
-                  {selectedReseller.phone && (
-                    <div>
-                      <Label className="text-muted-foreground">Phone</Label>
-                      <p>{selectedReseller.phone}</p>
-                    </div>
-                  )}
-                  {selectedReseller.company_address && (
-                    <div>
-                      <Label className="text-muted-foreground">Address</Label>
-                      <p>{selectedReseller.company_address}</p>
-                    </div>
-                  )}
-                  {selectedReseller.notes && (
-                    <div>
-                      <Label className="text-muted-foreground">Notes</Label>
-                      <p>{selectedReseller.notes}</p>
-                    </div>
-                  )}
-                  <div className="flex gap-2 pt-4">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => openEditDialog(selectedReseller)}
-                      data-testid="button-edit-reseller"
+        ) : (
+          selectedReseller && (
+            <>
+              <div className="grid md:grid-cols-5 gap-4 mb-6">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Tier</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Badge
+                      className="text-base px-3 py-1"
+                      style={{
+                        backgroundColor:
+                          selectedReseller.tier === 'gold'
+                            ? '#EAB308'
+                            : selectedReseller.tier === 'silver'
+                              ? '#9CA3AF'
+                              : colors.gold,
+                        color: 'white',
+                      }}
                     >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
-                    <Button 
-                      variant="destructive" 
-                      onClick={() => handleDeleteReseller(selectedReseller.id)}
-                      data-testid="button-delete-reseller"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                      {(selectedReseller.tier || 'authorized').charAt(0).toUpperCase() +
+                        (selectedReseller.tier || 'authorized').slice(1)}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {selectedReseller.discount_percent || 20}% discount
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Seats</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">{selectedReseller.seats_total}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Seats Used</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">{selectedReseller.seats_used}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Available</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-green-600">
+                      {selectedReseller.seats_total - selectedReseller.seats_used}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Revenue Share</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold" style={{ color: colors.gold }}>
+                      {selectedReseller.revenue_share_percent || 0}%
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-              <Card>
+              <div className="grid md:grid-cols-2 gap-6 mb-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Partner Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-muted-foreground">Contact Email</Label>
+                      <p>{selectedReseller.contact_email}</p>
+                    </div>
+                    {selectedReseller.contact_name && (
+                      <div>
+                        <Label className="text-muted-foreground">Contact Name</Label>
+                        <p>{selectedReseller.contact_name}</p>
+                      </div>
+                    )}
+                    {selectedReseller.phone && (
+                      <div>
+                        <Label className="text-muted-foreground">Phone</Label>
+                        <p>{selectedReseller.phone}</p>
+                      </div>
+                    )}
+                    {selectedReseller.company_address && (
+                      <div>
+                        <Label className="text-muted-foreground">Address</Label>
+                        <p>{selectedReseller.company_address}</p>
+                      </div>
+                    )}
+                    {selectedReseller.notes && (
+                      <div>
+                        <Label className="text-muted-foreground">Notes</Label>
+                        <p>{selectedReseller.notes}</p>
+                      </div>
+                    )}
+                    <div className="flex gap-2 pt-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => openEditDialog(selectedReseller)}
+                        data-testid="button-edit-reseller"
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => handleDeleteReseller(selectedReseller.id)}
+                        data-testid="button-delete-reseller"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+                    <CardTitle>License Codes</CardTitle>
+                    <Button
+                      size="sm"
+                      onClick={() => setShowGenerateCodesDialog(true)}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                      data-testid="button-generate-codes"
+                    >
+                      <Key className="w-4 h-4 mr-2" />
+                      Generate Codes
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {licenseCodes.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-4">No license codes yet</p>
+                    ) : (
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {licenseCodes.map((code) => (
+                          <div
+                            key={code.id}
+                            className="flex items-center justify-between p-2 bg-muted rounded-md"
+                            data-testid={`license-code-${code.id}`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <code className="font-mono text-sm">{code.code}</code>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => copyToClipboard(code.code)}
+                                data-testid={`button-copy-code-${code.id}`}
+                              >
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {code.vertical_name && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Store className="w-3 h-3 mr-1" />
+                                  {code.vertical_name}
+                                </Badge>
+                              )}
+                              {code.redeemed_at ? (
+                                <Badge variant="secondary">Redeemed: {code.tenant_name || 'Unknown'}</Badge>
+                              ) : (
+                                <>
+                                  <Badge variant="outline" className="bg-green-100 text-green-800">
+                                    Available
+                                  </Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => handleDeleteLicenseCode(code.id)}
+                                    data-testid={`button-delete-code-${code.id}`}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Custom Verticals */}
+              <div className="grid md:grid-cols-2 gap-6 mb-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+                    <CardTitle className="flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      Custom Verticals
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {resellerVerticals.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-4">
+                        No custom verticals yet. Verticals created for this reseller will appear here.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {resellerVerticals.map((v) => (
+                          <div key={v.id} className="flex items-center justify-between p-3 bg-muted rounded-md">
+                            <div>
+                              <p className="font-medium">{v.display_name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {v.product_name} &middot; /{v.slug}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                <Users className="w-3 h-3 mr-1" />
+                                {v.tenant_count} tenants
+                              </Badge>
+                              <Badge variant={v.is_published ? 'default' : 'secondary'}>
+                                {v.is_published ? 'Published' : 'Draft'}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Referred Tenants */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4" />
+                      Referred Tenants
+                    </CardTitle>
+                    <Badge variant="outline">{referredTenants.length} total</Badge>
+                  </CardHeader>
+                  <CardContent>
+                    {referredTenants.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-4">
+                        No tenants have redeemed codes from this reseller yet.
+                      </p>
+                    ) : (
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {referredTenants.map((t) => (
+                          <div key={t.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                            <div>
+                              <p className="font-medium text-sm">{t.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Joined {new Date(t.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            {t.vertical_name && (
+                              <Badge variant="outline" className="text-xs">
+                                {t.vertical_name}
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Invoices */}
+              <Card className="mb-6">
                 <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-                  <CardTitle>License Codes</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Invoices
+                  </CardTitle>
                   <Button
                     size="sm"
-                    onClick={() => setShowGenerateCodesDialog(true)}
+                    onClick={() => setShowCreateInvoiceDialog(true)}
+                    disabled={!selectedReseller.wholesale_rate_per_seat}
                     className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                    data-testid="button-generate-codes"
                   >
-                    <Key className="w-4 h-4 mr-2" />
-                    Generate Codes
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    Create Invoice
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  {licenseCodes.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">No license codes yet</p>
+                  {!selectedReseller.wholesale_rate_per_seat ? (
+                    <p className="text-muted-foreground text-center py-4">
+                      Set a wholesale rate per seat (edit reseller) before creating invoices.
+                    </p>
+                  ) : invoices.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">
+                      No invoices yet. Click "Create Invoice" to generate one.
+                    </p>
                   ) : (
-                    <div className="space-y-2 max-h-80 overflow-y-auto">
-                      {licenseCodes.map((code) => (
-                        <div 
-                          key={code.id} 
-                          className="flex items-center justify-between p-2 bg-muted rounded-md"
-                          data-testid={`license-code-${code.id}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <code className="font-mono text-sm">{code.code}</code>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6"
-                              onClick={() => copyToClipboard(code.code)}
-                              data-testid={`button-copy-code-${code.id}`}
-                            >
-                              <Copy className="w-3 h-3" />
-                            </Button>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {code.vertical_name && (
-                              <Badge variant="outline" className="text-xs">
-                                <Store className="w-3 h-3 mr-1" />
-                                {code.vertical_name}
-                              </Badge>
-                            )}
-                            {code.redeemed_at ? (
-                              <Badge variant="secondary">
-                                Redeemed: {code.tenant_name || 'Unknown'}
-                              </Badge>
-                            ) : (
-                              <>
-                                <Badge variant="outline" className="bg-green-100 text-green-800">
-                                  Available
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {invoices.map((inv) => (
+                        <div key={inv.id} className="flex items-center justify-between p-3 bg-muted rounded-md">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-mono text-sm font-medium">{inv.invoice_number}</span>
+                              {getInvoiceStatusBadge(inv.status)}
+                              {inv.payment_method && inv.status === 'paid' && (
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {inv.payment_method}
                                 </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {inv.billable_seats} seats × ${parseFloat(String(inv.rate_per_seat)).toFixed(2)}/seat{' '}
+                              &middot; {new Date(inv.period_start + 'T00:00:00').toLocaleDateString()} —{' '}
+                              {new Date(inv.period_end + 'T00:00:00').toLocaleDateString()}
+                            </p>
+                            {inv.notes && inv.status === 'paid' && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{inv.notes}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            <span className="font-semibold text-sm" style={{ color: colors.brown }}>
+                              ${parseFloat(String(inv.total)).toFixed(2)}
+                            </span>
+                            {inv.status === 'draft' && (
+                              <>
                                 <Button
-                                  variant="ghost"
+                                  variant="outline"
                                   size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => handleDeleteLicenseCode(code.id)}
-                                  data-testid={`button-delete-code-${code.id}`}
+                                  className="h-7 w-7"
+                                  onClick={() => handleSendInvoice(inv.id)}
+                                  disabled={processing}
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  <Send className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => handleVoidInvoice(inv.id)}
+                                  disabled={processing}
+                                >
+                                  <Ban className="w-3.5 h-3.5" />
                                 </Button>
                               </>
                             )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Custom Verticals */}
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-                  <CardTitle className="flex items-center gap-2">
-                    <Globe className="w-4 h-4" />
-                    Custom Verticals
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {resellerVerticals.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">
-                      No custom verticals yet. Verticals created for this reseller will appear here.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {resellerVerticals.map((v) => (
-                        <div key={v.id} className="flex items-center justify-between p-3 bg-muted rounded-md">
-                          <div>
-                            <p className="font-medium">{v.display_name}</p>
-                            <p className="text-xs text-muted-foreground">{v.product_name} &middot; /{v.slug}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              <Users className="w-3 h-3 mr-1" />
-                              {v.tenant_count} tenants
-                            </Badge>
-                            <Badge variant={v.is_published ? 'default' : 'secondary'}>
-                              {v.is_published ? 'Published' : 'Draft'}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Referred Tenants */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Referred Tenants
-                  </CardTitle>
-                  <Badge variant="outline">{referredTenants.length} total</Badge>
-                </CardHeader>
-                <CardContent>
-                  {referredTenants.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">
-                      No tenants have redeemed codes from this reseller yet.
-                    </p>
-                  ) : (
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {referredTenants.map((t) => (
-                        <div key={t.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                          <div>
-                            <p className="font-medium text-sm">{t.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Joined {new Date(t.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          {t.vertical_name && (
-                            <Badge variant="outline" className="text-xs">
-                              {t.vertical_name}
-                            </Badge>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Invoices */}
-            <Card className="mb-6">
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Invoices
-                </CardTitle>
-                <Button
-                  size="sm"
-                  onClick={() => setShowCreateInvoiceDialog(true)}
-                  disabled={!selectedReseller.wholesale_rate_per_seat}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  <DollarSign className="w-4 h-4 mr-2" />
-                  Create Invoice
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {!selectedReseller.wholesale_rate_per_seat ? (
-                  <p className="text-muted-foreground text-center py-4">
-                    Set a wholesale rate per seat (edit reseller) before creating invoices.
-                  </p>
-                ) : invoices.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">
-                    No invoices yet. Click "Create Invoice" to generate one.
-                  </p>
-                ) : (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {invoices.map((inv) => (
-                      <div key={inv.id} className="flex items-center justify-between p-3 bg-muted rounded-md">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-mono text-sm font-medium">{inv.invoice_number}</span>
-                            {getInvoiceStatusBadge(inv.status)}
-                            {inv.payment_method && inv.status === 'paid' && (
-                              <Badge variant="outline" className="text-xs capitalize">{inv.payment_method}</Badge>
+                            {inv.status === 'sent' && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => {
+                                    setMarkPaidForm({ paymentMethod: 'check', notes: '' });
+                                    setShowMarkPaidDialog(inv.id);
+                                  }}
+                                  disabled={processing}
+                                >
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => handleVoidInvoice(inv.id)}
+                                  disabled={processing}
+                                >
+                                  <Ban className="w-3.5 h-3.5" />
+                                </Button>
+                              </>
                             )}
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {inv.billable_seats} seats × ${parseFloat(String(inv.rate_per_seat)).toFixed(2)}/seat
-                            {' '}&middot;{' '}
-                            {new Date(inv.period_start + 'T00:00:00').toLocaleDateString()} — {new Date(inv.period_end + 'T00:00:00').toLocaleDateString()}
-                          </p>
-                          {inv.notes && inv.status === 'paid' && (
-                            <p className="text-xs text-muted-foreground mt-0.5">{inv.notes}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          <span className="font-semibold text-sm" style={{ color: colors.brown }}>
-                            ${parseFloat(String(inv.total)).toFixed(2)}
-                          </span>
-                          {inv.status === 'draft' && (
-                            <>
-                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleSendInvoice(inv.id)} disabled={processing}>
-                                <Send className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleVoidInvoice(inv.id)} disabled={processing}>
-                                <Ban className="w-3.5 h-3.5" />
-                              </Button>
-                            </>
-                          )}
-                          {inv.status === 'sent' && (
-                            <>
-                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => { setMarkPaidForm({ paymentMethod: 'check', notes: '' }); setShowMarkPaidDialog(inv.id); }} disabled={processing}>
+                            {inv.status === 'overdue' && (
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                  setMarkPaidForm({ paymentMethod: 'check', notes: '' });
+                                  setShowMarkPaidDialog(inv.id);
+                                }}
+                                disabled={processing}
+                              >
                                 <CheckCircle className="w-3.5 h-3.5" />
                               </Button>
-                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleVoidInvoice(inv.id)} disabled={processing}>
-                                <Ban className="w-3.5 h-3.5" />
-                              </Button>
-                            </>
-                          )}
-                          {inv.status === 'overdue' && (
-                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => { setMarkPaidForm({ paymentMethod: 'check', notes: '' }); setShowMarkPaidDialog(inv.id); }} disabled={processing}>
-                              <CheckCircle className="w-3.5 h-3.5" />
-                            </Button>
-                          )}
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )
         )}
       </main>
 
@@ -1055,9 +1122,7 @@ export default function ResellerManagement() {
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add New Reseller</DialogTitle>
-            <DialogDescription>
-              Create a new wholesale partner account
-            </DialogDescription>
+            <DialogDescription>Create a new wholesale partner account</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -1117,11 +1182,13 @@ export default function ResellerManagement() {
               <Label htmlFor="tier">Partner Tier</Label>
               <Select
                 value={resellerForm.tier}
-                onValueChange={(value: 'authorized' | 'silver' | 'gold') => setResellerForm({
-                  ...resellerForm,
-                  tier: value,
-                  discountPercent: tierDefaults[value] || 20,
-                })}
+                onValueChange={(value: 'authorized' | 'silver' | 'gold') =>
+                  setResellerForm({
+                    ...resellerForm,
+                    tier: value,
+                    discountPercent: tierDefaults[value] || 20,
+                  })
+                }
               >
                 <SelectTrigger data-testid="select-reseller-tier">
                   <SelectValue />
@@ -1182,7 +1249,9 @@ export default function ResellerManagement() {
                 max="100"
                 step="0.5"
                 value={resellerForm.revenueSharePercent || ''}
-                onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })
+                }
                 placeholder="0"
                 data-testid="input-reseller-revenue-share"
               />
@@ -1195,7 +1264,9 @@ export default function ResellerManagement() {
                 min="0"
                 step="0.01"
                 value={resellerForm.wholesaleRatePerSeat || ''}
-                onChange={(e) => setResellerForm({ ...resellerForm, wholesaleRatePerSeat: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setResellerForm({ ...resellerForm, wholesaleRatePerSeat: parseFloat(e.target.value) || 0 })
+                }
                 placeholder="0.00"
               />
             </div>
@@ -1208,7 +1279,9 @@ export default function ResellerManagement() {
                 max="10"
                 step="0.5"
                 value={resellerForm.cardSurchargePercent || ''}
-                onChange={(e) => setResellerForm({ ...resellerForm, cardSurchargePercent: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setResellerForm({ ...resellerForm, cardSurchargePercent: parseFloat(e.target.value) || 0 })
+                }
                 placeholder="0"
               />
             </div>
@@ -1244,9 +1317,7 @@ export default function ResellerManagement() {
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Reseller</DialogTitle>
-            <DialogDescription>
-              Update wholesale partner details
-            </DialogDescription>
+            <DialogDescription>Update wholesale partner details</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -1302,11 +1373,13 @@ export default function ResellerManagement() {
               <Label htmlFor="edit-tier">Partner Tier</Label>
               <Select
                 value={resellerForm.tier}
-                onValueChange={(value: 'authorized' | 'silver' | 'gold') => setResellerForm({
-                  ...resellerForm,
-                  tier: value,
-                  discountPercent: tierDefaults[value] || 20,
-                })}
+                onValueChange={(value: 'authorized' | 'silver' | 'gold') =>
+                  setResellerForm({
+                    ...resellerForm,
+                    tier: value,
+                    discountPercent: tierDefaults[value] || 20,
+                  })
+                }
               >
                 <SelectTrigger data-testid="select-edit-reseller-tier">
                   <SelectValue />
@@ -1367,7 +1440,9 @@ export default function ResellerManagement() {
                 max="100"
                 step="0.5"
                 value={resellerForm.revenueSharePercent || ''}
-                onChange={(e) => setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setResellerForm({ ...resellerForm, revenueSharePercent: parseFloat(e.target.value) || 0 })
+                }
                 placeholder="0"
                 data-testid="input-edit-reseller-revenue-share"
               />
@@ -1380,7 +1455,9 @@ export default function ResellerManagement() {
                 min="0"
                 step="0.01"
                 value={resellerForm.wholesaleRatePerSeat || ''}
-                onChange={(e) => setResellerForm({ ...resellerForm, wholesaleRatePerSeat: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setResellerForm({ ...resellerForm, wholesaleRatePerSeat: parseFloat(e.target.value) || 0 })
+                }
                 placeholder="0.00"
               />
             </div>
@@ -1393,7 +1470,9 @@ export default function ResellerManagement() {
                 max="10"
                 step="0.5"
                 value={resellerForm.cardSurchargePercent || ''}
-                onChange={(e) => setResellerForm({ ...resellerForm, cardSurchargePercent: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setResellerForm({ ...resellerForm, cardSurchargePercent: parseFloat(e.target.value) || 0 })
+                }
                 placeholder="0"
               />
             </div>
@@ -1428,9 +1507,7 @@ export default function ResellerManagement() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Generate License Codes</DialogTitle>
-            <DialogDescription>
-              Create new license codes for {selectedReseller?.name}
-            </DialogDescription>
+            <DialogDescription>Create new license codes for {selectedReseller?.name}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -1447,7 +1524,7 @@ export default function ResellerManagement() {
             </div>
             <div>
               <Label htmlFor="plan">Subscription Plan</Label>
-              <Select 
+              <Select
                 value={generateForm.subscriptionPlan}
                 onValueChange={(value) => setGenerateForm({ ...generateForm, subscriptionPlan: value })}
               >
@@ -1466,7 +1543,9 @@ export default function ResellerManagement() {
               <Label htmlFor="vertical">Vertical (Optional)</Label>
               <Select
                 value={generateForm.verticalId}
-                onValueChange={(value) => setGenerateForm({ ...generateForm, verticalId: value === 'none' ? '' : value })}
+                onValueChange={(value) =>
+                  setGenerateForm({ ...generateForm, verticalId: value === 'none' ? '' : value })
+                }
               >
                 <SelectTrigger data-testid="select-vertical">
                   <SelectValue placeholder="Any vertical" />
@@ -1474,7 +1553,9 @@ export default function ResellerManagement() {
                 <SelectContent>
                   <SelectItem value="none">Any vertical</SelectItem>
                   {allVerticals.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>{v.display_name}</SelectItem>
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.display_name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1496,8 +1577,10 @@ export default function ResellerManagement() {
             {selectedReseller && (
               <div className="p-3 bg-muted rounded-md">
                 <p className="text-sm text-muted-foreground">
-                  Available seats: {selectedReseller.seats_total - selectedReseller.seats_used - 
-                    licenseCodes.filter(c => !c.redeemed_at).length}
+                  Available seats:{' '}
+                  {selectedReseller.seats_total -
+                    selectedReseller.seats_used -
+                    licenseCodes.filter((c) => !c.redeemed_at).length}
                 </p>
               </div>
             )}
@@ -1523,24 +1606,32 @@ export default function ResellerManagement() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create Invoice</DialogTitle>
-            <DialogDescription>
-              Generate a new invoice for {selectedReseller?.name}
-            </DialogDescription>
+            <DialogDescription>Generate a new invoice for {selectedReseller?.name}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {selectedReseller && (
               <div className="p-3 bg-muted rounded-md space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Billable seats</span>
-                  <span className="font-medium">{Math.max(selectedReseller.seats_total, selectedReseller.minimum_seats)}</span>
+                  <span className="font-medium">
+                    {Math.max(selectedReseller.seats_total, selectedReseller.minimum_seats)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Rate per seat</span>
-                  <span className="font-medium">${Number(selectedReseller.wholesale_rate_per_seat || 0).toFixed(2)}/mo</span>
+                  <span className="font-medium">
+                    ${Number(selectedReseller.wholesale_rate_per_seat || 0).toFixed(2)}/mo
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm font-semibold border-t pt-1 mt-1">
                   <span>Subtotal</span>
-                  <span>${(Math.max(selectedReseller.seats_total, selectedReseller.minimum_seats) * Number(selectedReseller.wholesale_rate_per_seat || 0)).toFixed(2)}</span>
+                  <span>
+                    $
+                    {(
+                      Math.max(selectedReseller.seats_total, selectedReseller.minimum_seats) *
+                      Number(selectedReseller.wholesale_rate_per_seat || 0)
+                    ).toFixed(2)}
+                  </span>
                 </div>
               </div>
             )}
@@ -1586,11 +1677,14 @@ export default function ResellerManagement() {
               />
             </div>
             <div className="p-3 rounded-md text-xs" style={{ backgroundColor: '#eff6ff', color: '#1e40af' }}>
-              <strong>Payment options:</strong> ACH/Check pay the base price. Credit card payments incur a {selectedReseller?.card_surcharge_percent || 4}% convenience fee.
+              <strong>Payment options:</strong> ACH/Check pay the base price. Credit card payments incur a{' '}
+              {selectedReseller?.card_surcharge_percent || 4}% convenience fee.
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateInvoiceDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowCreateInvoiceDialog(false)}>
+              Cancel
+            </Button>
             <Button
               onClick={handleCreateInvoice}
               disabled={processing || !invoiceForm.periodStart || !invoiceForm.periodEnd || !invoiceForm.dueDate}
@@ -1604,13 +1698,16 @@ export default function ResellerManagement() {
       </Dialog>
 
       {/* Mark Paid Dialog */}
-      <Dialog open={!!showMarkPaidDialog} onOpenChange={(open) => { if (!open) setShowMarkPaidDialog(null); }}>
+      <Dialog
+        open={!!showMarkPaidDialog}
+        onOpenChange={(open) => {
+          if (!open) setShowMarkPaidDialog(null);
+        }}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Mark Invoice Paid</DialogTitle>
-            <DialogDescription>
-              Record an out-of-band payment (check or ACH)
-            </DialogDescription>
+            <DialogDescription>Record an out-of-band payment (check or ACH)</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -1640,7 +1737,9 @@ export default function ResellerManagement() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowMarkPaidDialog(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowMarkPaidDialog(null)}>
+              Cancel
+            </Button>
             <Button
               onClick={handleMarkPaid}
               disabled={processing}

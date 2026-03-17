@@ -20,9 +20,11 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Multi-Tenant & Multi-Location Design
+
 The platform implements a robust multi-tenant architecture with data isolation achieved via Supabase Row Level Security (`tenant_id` on all data tables). It supports multi-location hierarchies, allowing tenants to manage multiple child locations. Users can be assigned to multiple locations, and the system includes functionality to switch between active locations. Role-based access control is granular, differentiating between Platform Admin (SaaS level) and tenant-level roles (Owner, Manager, Lead, Employee), each with specific permissions.
 
 ### Location Limits (migration 042)
+
 - `subscription_plans.max_locations` defines location limit per plan (Free: 1, À La Carte: 1, Test & Eval: 3, Premium: 5)
 - `tenants.max_locations_override` allows platform admins to override the plan limit for specific tenants (NULL = use plan limit)
 - Helper functions: `get_tenant_max_locations()`, `get_tenant_location_count()`, `can_add_location()`, `get_tenant_location_usage()`
@@ -30,6 +32,7 @@ The platform implements a robust multi-tenant architecture with data isolation a
 - Location Management page shows "X of Y locations" usage indicator and disables Add button at limit
 
 ### Child Location Inheritance (migrations 044-045)
+
 - **Module Inheritance**: Child locations automatically inherit enabled modules from their parent tenant's subscription
 - **Data Inheritance**: Child locations can READ parent tenant's shared data:
   - Ingredients and ingredient categories
@@ -42,10 +45,13 @@ The platform implements a robust multi-tenant architecture with data isolation a
 - Child locations can still create their own local data
 
 ### Branding System
+
 Tenant-specific branding (logo, color scheme) is managed via the `tenant_branding` table and applied dynamically through a `ThemeProvider` using CSS variables.
 
 ### Location Context Indicator
+
 When working in a child location, all module headers display:
+
 - The location's own logo (if one exists in branding) OR the default Erwin Mills logo
 - The location name (e.g., "Coffee on Broad")
 - "Part of [Organization Name]" subtitle to show parent relationship
@@ -55,6 +61,7 @@ This branding is consistent across all modules: Dashboard, Recipe Cost Manager, 
 When working in the parent organization, the standard organization branding is shown.
 
 ### Frontend Architecture
+
 - **Framework**: React 18 with TypeScript
 - **Routing**: Wouter
 - **State Management**: TanStack React Query
@@ -66,6 +73,7 @@ When working in the parent organization, the standard organization branding is s
 The frontend employs a component-based architecture with dedicated directories for pages, reusable UI components, and custom hooks.
 
 ### Backend Architecture
+
 - **Framework**: Express.js with TypeScript
 - **Database ORM**: Drizzle ORM with PostgreSQL
 - **API Design**: RESTful endpoints with Zod schema validation
@@ -74,14 +82,17 @@ The frontend employs a component-based architecture with dedicated directories f
 The backend ensures a clean separation of concerns with distinct layers for API routes, database access, and schema definitions.
 
 ### Data Model
+
 The core data model includes entities for Ingredients, Recipes, and a junction table for Recipe Ingredients, along with schemas for various modules like cash activity, tip payouts, coffee orders, equipment, and administrative tasks.
 
 ### Implemented Modules
 
 #### Recipe Cost Manager
+
 Comprehensive recipe costing with ingredient management, base templates (disposables), and multi-size recipe support.
 
 **Overhead Calculator (Settings Tab)**:
+
 - Operating Days Per Week: Configurable setting (1-7) for accurate daily cost calculations
 - Hours Open Per Day: Configurable setting (1-24) for cost per minute calculations
 - Dynamic overhead items spreadsheet: Add/edit/delete line items (rent, insurance, payroll, etc.)
@@ -94,37 +105,47 @@ Comprehensive recipe costing with ingredient management, base templates (disposa
 **Tables**: `overhead_settings` (with `operating_days_per_week`, `hours_open_per_day`), `overhead_items` (migrations 054, 055)
 
 #### Cash Deposit Record
+
 Manages daily cash deposits, featuring auto-calculated fields, date range filtering, and CSV import/export.
 
 **Features (migration 055)**:
+
 - Cash Refund field: Debits refunds from the calculated deposit
 - Owner Tips toggle: Activate/deactivate owner tips field as shop grows
 - Auto-select on focus: Tab through fields highlights values for easy overwrite
 
 #### Tip Payout Calculator
+
 Handles weekly tip distribution, including CC fee deductions, employee management, hours entry, and comprehensive payout summaries with export options.
 
 #### Coffee Order
+
 Facilitates bulk coffee ordering with product pricing, order history, and export capabilities.
 
 #### Equipment Maintenance
+
 Tracks equipment and maintenance schedules, featuring warranty tracking with document uploads, various task intervals (time-based, usage-based), and visual status indicators.
 
 #### Administrative Tasks
+
 Provides comprehensive task management with custom categories, priority levels, due dates, assignee delegation, recurring task functionality, comments, audit history, and file attachments.
 
 ### Authentication System
+
 An `AuthContext` manages user sessions, profiles, and tenant information. `ProtectedRoute` ensures role-based access control for routes, and the dashboard dynamically displays accessible modules.
 
 ### Stripe Payment Integration
+
 The platform integrates with Stripe for subscription billing and payment processing:
 
 **Architecture:**
+
 - `stripe-replit-sync` manages Stripe schema and webhook sync automatically
 - Products/prices stored in Stripe and synced to local `stripe.*` tables
 - Tenants table has `stripe_customer_id`, `stripe_subscription_id`, `stripe_subscription_status` fields
 
 **Subscription Products:**
+
 - Premium Suite: $99.99/month or $999.99/year (all 6 modules, 5 locations)
 - Individual modules (all $19.99/month each):
   - Recipe Cost Manager: $19.99/month
@@ -136,6 +157,7 @@ The platform integrates with Stripe for subscription billing and payment process
 - Test & Eval plan exists but is gifted by platform admin only (not shown to users)
 
 **Key Files:**
+
 - `server/stripeClient.ts` - Stripe client initialization using Replit connector
 - `server/stripeService.ts` - Service layer for Stripe operations
 - `server/webhookHandlers.ts` - Webhook processing handler
@@ -143,6 +165,7 @@ The platform integrates with Stripe for subscription billing and payment process
 - `scripts/seed-stripe-products.ts` - Creates products in Stripe
 
 **Security:**
+
 - Stripe routes verify user belongs to tenant via userId
 - Only owners can manage billing (role check)
 - Webhook route registered BEFORE express.json() for raw body access
@@ -153,17 +176,20 @@ The platform integrates with Stripe for subscription billing and payment process
 The platform includes a wholesale distribution system for resellers/partners:
 
 **Architecture:**
+
 - `resellers` table: Tracks wholesale partners with seat allocation (seats_total/seats_used)
 - `license_codes` table: Unique codes for subscription activation
 - Platform admin UI at `/reseller-management` for CRUD operations
 
 **Key Features:**
+
 - Generate unique license codes (format: XXXX-XXXX-XXXX-XXXX) for resellers
 - Track seat usage vs. allocation per reseller
 - Codes can be configured with subscription plan type and expiration dates
 - License code redemption during signup flow
 
 **Security Implementation (migrations 049-051):**
+
 - `requirePlatformAdmin` middleware protects all reseller/license management endpoints
 - Verifies user against `platform_admins` table (user_id + is_active)
 - License redemption endpoint requires Bearer JWT (401 if missing)
@@ -172,6 +198,7 @@ The platform includes a wholesale distribution system for resellers/partners:
 - RLS policies and function search paths secured (SET search_path = '')
 
 **Key Files:**
+
 - `server/routes.ts` - Reseller/license API endpoints with auth middleware
 - `client/src/pages/reseller-management.tsx` - Platform admin UI
 - `client/src/pages/login.tsx` - License code redemption in signup flow
@@ -179,14 +206,17 @@ The platform includes a wholesale distribution system for resellers/partners:
 ## External Dependencies
 
 ### Database
+
 - **PostgreSQL**: Primary data store.
 - **Drizzle ORM**: Used for type-safe database interactions and migrations.
 
 ### External Services
+
 - **Supabase**: Utilized for client-side SDK integration (`@supabase/supabase-js`) for authentication and real-time features.
 - **Stripe**: Payment processing for subscriptions via `stripe` and `stripe-replit-sync` packages.
 
 ### Key NPM Packages
+
 - `@tanstack/react-query`: For data fetching and caching.
 - `drizzle-orm` / `drizzle-kit`: For ORM and migrations.
 - `zod`: For runtime type validation.

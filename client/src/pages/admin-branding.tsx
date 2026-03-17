@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -67,7 +68,7 @@ export default function AdminBranding() {
 
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
-  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
+  const displayName = isChildLocation ? tenant?.name : branding?.company_name || tenant?.name || 'Erwin Mills Coffee';
   const orgName = primaryTenant?.name || branding?.company_name || '';
   const { toast } = useToast();
 
@@ -89,7 +90,7 @@ export default function AdminBranding() {
       toast({ title: 'Logo uploaded! Click "Save Changes" to apply.' });
     },
     onError: (error) => {
-      toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+      toast({ title: 'Upload failed', description: getErrorMessage(error), variant: 'destructive' });
     },
   });
 
@@ -125,9 +126,8 @@ export default function AdminBranding() {
 
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('tenant_branding')
-        .upsert({
+      const { error } = await supabase.from('tenant_branding').upsert(
+        {
           tenant_id: tenant.id,
           company_name: companyName || null,
           tagline: tagline || null,
@@ -136,14 +136,16 @@ export default function AdminBranding() {
           secondary_color: secondaryColor,
           accent_color: accentColor,
           background_color: backgroundColor,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'tenant_id' });
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'tenant_id' }
+      );
 
       if (error) throw error;
 
       toast({ title: 'Branding saved successfully. Refresh the page to see changes.' });
-    } catch (error: any) {
-      toast({ title: 'Error saving branding', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error saving branding', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -294,9 +296,13 @@ export default function AdminBranding() {
                   style={{ borderColor: colors.gold, color: colors.gold }}
                 >
                   {uploadingLogo ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</>
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...
+                    </>
                   ) : (
-                    <><Upload className="w-4 h-4 mr-2" /> Upload Logo</>
+                    <>
+                      <Upload className="w-4 h-4 mr-2" /> Upload Logo
+                    </>
                   )}
                 </Button>
                 <button
@@ -352,14 +358,8 @@ export default function AdminBranding() {
                   >
                     {/* Color swatches */}
                     <div className="flex gap-1 mb-2">
-                      <div
-                        className="w-6 h-6 rounded-full"
-                        style={{ backgroundColor: preset.primary_color }}
-                      />
-                      <div
-                        className="w-6 h-6 rounded-full"
-                        style={{ backgroundColor: preset.secondary_color }}
-                      />
+                      <div className="w-6 h-6 rounded-full" style={{ backgroundColor: preset.primary_color }} />
+                      <div className="w-6 h-6 rounded-full" style={{ backgroundColor: preset.secondary_color }} />
                       <div
                         className="w-6 h-6 rounded-full border"
                         style={{ backgroundColor: preset.accent_color, borderColor: '#E2E8F0' }}
@@ -494,7 +494,9 @@ export default function AdminBranding() {
 
             {/* Live Preview */}
             <div className="mt-6">
-              <p className="text-sm font-medium mb-3" style={{ color: colors.brown }}>Preview:</p>
+              <p className="text-sm font-medium mb-3" style={{ color: colors.brown }}>
+                Preview:
+              </p>
               <div
                 className="p-4 rounded-lg border"
                 style={{ backgroundColor: backgroundColor, borderColor: accentColor }}
@@ -509,17 +511,22 @@ export default function AdminBranding() {
                     </span>
                   </div>
                   <div>
-                    <p style={{ color: secondaryColor }} className="font-bold">{companyName || 'Company Name'}</p>
-                    <p style={{ color: secondaryColor, opacity: 0.6 }} className="text-sm">{tagline || 'Tagline'}</p>
+                    <p style={{ color: secondaryColor }} className="font-bold">
+                      {companyName || 'Company Name'}
+                    </p>
+                    <p style={{ color: secondaryColor, opacity: 0.6 }} className="text-sm">
+                      {tagline || 'Tagline'}
+                    </p>
                   </div>
                 </div>
                 {/* Sample card */}
-                <div
-                  className="p-3 rounded-md mb-3"
-                  style={{ backgroundColor: accentColor }}
-                >
-                  <p style={{ color: secondaryColor }} className="text-sm font-medium">Sample card on accent surface</p>
-                  <p style={{ color: secondaryColor, opacity: 0.6 }} className="text-xs mt-1">Secondary text on accent background</p>
+                <div className="p-3 rounded-md mb-3" style={{ backgroundColor: accentColor }}>
+                  <p style={{ color: secondaryColor }} className="text-sm font-medium">
+                    Sample card on accent surface
+                  </p>
+                  <p style={{ color: secondaryColor, opacity: 0.6 }} className="text-xs mt-1">
+                    Secondary text on accent background
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <button

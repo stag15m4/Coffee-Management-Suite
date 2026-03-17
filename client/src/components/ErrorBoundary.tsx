@@ -1,15 +1,12 @@
-import React from "react";
-import { colors } from "@/lib/colors";
+import React from 'react';
+import { colors } from '@/lib/colors';
 
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
 }
 
-export class ErrorBoundary extends React.Component<
-  React.PropsWithChildren<{}>,
-  ErrorBoundaryState
-> {
+export class ErrorBoundary extends React.Component<React.PropsWithChildren<{}>, ErrorBoundaryState> {
   constructor(props: React.PropsWithChildren<{}>) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -20,7 +17,7 @@ export class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 
   handleReset = () => {
@@ -32,22 +29,22 @@ export class ErrorBoundary extends React.Component<
       return (
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: "100vh",
-            padding: "2rem",
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100vh',
+            padding: '2rem',
             backgroundColor: colors.cream,
             color: colors.brown,
-            textAlign: "center",
+            textAlign: 'center',
           }}
         >
           <h1
             style={{
-              fontSize: "1.5rem",
+              fontSize: '1.5rem',
               fontWeight: 600,
-              marginBottom: "0.75rem",
+              marginBottom: '0.75rem',
               color: colors.brown,
             }}
           >
@@ -55,10 +52,10 @@ export class ErrorBoundary extends React.Component<
           </h1>
           <p
             style={{
-              fontSize: "1rem",
+              fontSize: '1rem',
               color: colors.brownLight,
-              marginBottom: "1.5rem",
-              maxWidth: "400px",
+              marginBottom: '1.5rem',
+              maxWidth: '400px',
             }}
           >
             An unexpected error occurred. Please try again.
@@ -66,34 +63,38 @@ export class ErrorBoundary extends React.Component<
           {this.state.error && (
             <pre
               style={{
-                fontSize: "0.75rem",
+                fontSize: '0.75rem',
                 color: colors.brownLight,
-                marginBottom: "1rem",
-                maxWidth: "600px",
-                textAlign: "left",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                padding: "0.75rem",
-                backgroundColor: "#f5f5f5",
-                borderRadius: "0.375rem",
+                marginBottom: '1rem',
+                maxWidth: '600px',
+                textAlign: 'left',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                padding: '0.75rem',
+                backgroundColor: '#f5f5f5',
+                borderRadius: '0.375rem',
               }}
             >
               {this.state.error.message}
-              {"\n"}
-              {this.state.error.stack}
+              {import.meta.env.DEV && (
+                <>
+                  {'\n'}
+                  {this.state.error.stack}
+                </>
+              )}
             </pre>
           )}
           <button
             onClick={this.handleReset}
             style={{
-              padding: "0.625rem 1.5rem",
-              fontSize: "0.875rem",
+              padding: '0.625rem 1.5rem',
+              fontSize: '0.875rem',
               fontWeight: 500,
               color: colors.white,
               backgroundColor: colors.gold,
-              border: "none",
-              borderRadius: "0.5rem",
-              cursor: "pointer",
+              border: 'none',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
             }}
           >
             Try Again

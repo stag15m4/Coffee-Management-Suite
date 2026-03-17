@@ -1,12 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useSetupProgress, SETUP_PHASES } from '@/hooks/use-setup-progress';
 import { colors } from '@/lib/colors';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Users, ChefHat, DollarSign, ArrowRight, Coffee } from 'lucide-react';
 
@@ -29,15 +24,9 @@ export function WelcomeDialog() {
 
   return (
     <Dialog open onOpenChange={(open) => !open && handleGetStarted()}>
-      <DialogContent
-        className="max-w-2xl max-h-[85vh] overflow-y-auto p-0"
-        style={{ backgroundColor: colors.white }}
-      >
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-0" style={{ backgroundColor: colors.white }}>
         {/* Hero section */}
-        <div
-          className="px-8 pt-8 pb-6 text-center"
-          style={{ backgroundColor: colors.cream }}
-        >
+        <div className="px-8 pt-8 pb-6 text-center" style={{ backgroundColor: colors.cream }}>
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
             style={{ backgroundColor: colors.gold }}
@@ -45,29 +34,19 @@ export function WelcomeDialog() {
             <Coffee className="w-8 h-8 text-white" />
           </div>
 
-          <DialogTitle
-            className="text-2xl font-bold mb-2"
-            style={{ color: colors.brown }}
-          >
+          <DialogTitle className="text-2xl font-bold mb-2" style={{ color: colors.brown }}>
             Welcome, {firstName}!
           </DialogTitle>
 
-          <DialogDescription
-            className="text-base max-w-md mx-auto"
-            style={{ color: colors.brownLight }}
-          >
-            We'll help you set up {businessName} in just a few minutes.
-            Everything here is designed to save you time and make running your
-            shop easier.
+          <DialogDescription className="text-base max-w-md mx-auto" style={{ color: colors.brownLight }}>
+            We'll help you set up {businessName} in just a few minutes. Everything here is designed to save you time and
+            make running your shop easier.
           </DialogDescription>
         </div>
 
         {/* Roadmap */}
         <div className="px-8 py-6">
-          <p
-            className="text-xs font-semibold uppercase tracking-wider mb-4"
-            style={{ color: colors.brownLight }}
-          >
+          <p className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: colors.brownLight }}>
             Here's what we'll cover
           </p>
 
@@ -90,16 +69,10 @@ export function WelcomeDialog() {
                     <Icon className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div
-                      className="font-semibold text-sm"
-                      style={{ color: colors.brown }}
-                    >
+                    <div className="font-semibold text-sm" style={{ color: colors.brown }}>
                       {phase.title}
                     </div>
-                    <div
-                      className="text-xs mt-0.5"
-                      style={{ color: colors.brownLight }}
-                    >
+                    <div className="text-xs mt-0.5" style={{ color: colors.brownLight }}>
                       {phase.description}
                     </div>
                   </div>
@@ -128,12 +101,8 @@ export function WelcomeDialog() {
             Let's get started
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
-          <p
-            className="text-xs text-center mt-3 leading-relaxed"
-            style={{ color: colors.brownLight }}
-          >
-            You can skip any step or come back later — the setup checklist
-            lives on your dashboard until you're done.
+          <p className="text-xs text-center mt-3 leading-relaxed" style={{ color: colors.brownLight }}>
+            You can skip any step or come back later — the setup checklist lives on your dashboard until you're done.
           </p>
         </div>
       </DialogContent>

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -6,16 +7,16 @@ import { Link, useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Building2, 
-  MapPin, 
-  Users, 
-  DollarSign, 
-  AlertTriangle, 
+import {
+  Building2,
+  MapPin,
+  Users,
+  DollarSign,
+  AlertTriangle,
   ArrowRight,
   Plus,
   Settings,
-  ArrowLeft
+  ArrowLeft,
 } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
@@ -48,99 +49,98 @@ export default function OrganizationDashboard() {
   const [metrics, setMetrics] = useState<Record<string, LocationMetrics>>({});
 
   const companyName = branding?.company_name || primaryTenant?.name || tenant?.name || 'Organization';
-  
+
   // Use primaryTenant for organization view (always the parent)
   const parentTenantId = primaryTenant?.id;
 
-  const loadData = useCallback(async (silent = false) => {
-    if (!parentTenantId) return;
-    if (!silent) setLoading(true);
+  const loadData = useCallback(
+    async (silent = false) => {
+      if (!parentTenantId) return;
+      if (!silent) setLoading(true);
 
-    try {
-      // Fetch child locations
-      const { data: childLocations, error: locError } = await supabase
-        .from('tenants')
-        .select('*')
-        .eq('parent_tenant_id', parentTenantId)
-        .eq('is_active', true)
-        .order('name');
+      try {
+        // Fetch child locations
+        const { data: childLocations, error: locError } = await supabase
+          .from('tenants')
+          .select('*')
+          .eq('parent_tenant_id', parentTenantId)
+          .eq('is_active', true)
+          .order('name');
 
-      if (locError) throw locError;
+        if (locError) throw locError;
 
-      // Include parent tenant as a location too
-      const allLocations = [
-        { ...primaryTenant, parent_tenant_id: null } as Location,
-        ...(childLocations || [])
-      ];
-      setLocations(allLocations);
+        // Include parent tenant as a location too
+        const allLocations = [{ ...primaryTenant, parent_tenant_id: null } as Location, ...(childLocations || [])];
+        setLocations(allLocations);
 
-      // Fetch metrics for all locations in parallel
-      const metricsResults = await Promise.all(allLocations.map(async (loc) => {
-        const locMetrics: LocationMetrics = { tenant_id: loc.id };
+        // Fetch metrics for all locations in parallel
+        const metricsResults = await Promise.all(
+          allLocations.map(async (loc) => {
+            const locMetrics: LocationMetrics = { tenant_id: loc.id };
 
-        // Run all queries for this location in parallel
-        const [profileResult, assignmentResult, taskResult, maintenanceResult] = await Promise.all([
-          // Get active employee count (from profiles)
-          supabase
-            .from('user_profiles')
-            .select('*', { count: 'exact', head: true })
-            .eq('tenant_id', loc.id)
-            .eq('is_active', true),
-          // Get active employee count (from location assignments)
-          supabase
-            .from('user_tenant_assignments')
-            .select('*', { count: 'exact', head: true })
-            .eq('tenant_id', loc.id)
-            .eq('is_active', true),
-          // Get pending admin tasks
-          supabase
-            .from('admin_tasks')
-            .select('*', { count: 'exact', head: true })
-            .eq('tenant_id', loc.id)
-            .neq('status', 'completed'),
-          // Get overdue maintenance count
-          supabase
-            .from('maintenance_tasks')
-            .select('*, equipment!inner(*)')
-            .eq('equipment.tenant_id', loc.id),
-        ]);
+            // Run all queries for this location in parallel
+            const [profileResult, assignmentResult, taskResult, maintenanceResult] = await Promise.all([
+              // Get active employee count (from profiles)
+              supabase
+                .from('user_profiles')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', loc.id)
+                .eq('is_active', true),
+              // Get active employee count (from location assignments)
+              supabase
+                .from('user_tenant_assignments')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', loc.id)
+                .eq('is_active', true),
+              // Get pending admin tasks
+              supabase
+                .from('admin_tasks')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', loc.id)
+                .neq('status', 'completed'),
+              // Get overdue maintenance count
+              supabase.from('maintenance_tasks').select('*, equipment!inner(*)').eq('equipment.tenant_id', loc.id),
+            ]);
 
-        const profileCount = profileResult.count;
-        const assignmentCount = assignmentResult.count;
-        locMetrics.active_employees = Math.max(profileCount || 0, assignmentCount || 0) || (profileCount || 0);
+            const profileCount = profileResult.count;
+            const assignmentCount = assignmentResult.count;
+            locMetrics.active_employees = Math.max(profileCount || 0, assignmentCount || 0) || profileCount || 0;
 
-        locMetrics.pending_tasks = taskResult.count || 0;
+            locMetrics.pending_tasks = taskResult.count || 0;
 
-        const maintenanceTasks = maintenanceResult.data;
-        if (maintenanceTasks) {
-          const now = new Date();
-          let overdueCount = 0;
-          for (const task of maintenanceTasks) {
-            if (task.interval_type === 'time' && task.last_completed) {
-              const lastDone = new Date(task.last_completed);
-              const nextDue = new Date(lastDone.getTime() + (task.interval_value * 24 * 60 * 60 * 1000));
-              if (nextDue < now) overdueCount++;
+            const maintenanceTasks = maintenanceResult.data;
+            if (maintenanceTasks) {
+              const now = new Date();
+              let overdueCount = 0;
+              for (const task of maintenanceTasks) {
+                if (task.interval_type === 'time' && task.last_completed) {
+                  const lastDone = new Date(task.last_completed);
+                  const nextDue = new Date(lastDone.getTime() + task.interval_value * 24 * 60 * 60 * 1000);
+                  if (nextDue < now) overdueCount++;
+                }
+              }
+              locMetrics.overdue_maintenance = overdueCount;
             }
-          }
-          locMetrics.overdue_maintenance = overdueCount;
+
+            return { id: loc.id, metrics: locMetrics };
+          })
+        );
+
+        const metricsData: Record<string, LocationMetrics> = {};
+        for (const result of metricsResults) {
+          metricsData[result.id] = result.metrics;
         }
 
-        return { id: loc.id, metrics: locMetrics };
-      }));
-
-      const metricsData: Record<string, LocationMetrics> = {};
-      for (const result of metricsResults) {
-        metricsData[result.id] = result.metrics;
+        setMetrics(metricsData);
+      } catch (error: unknown) {
+        console.error('Error loading organization data:', error);
+        toast({ title: 'Error loading data', description: getErrorMessage(error), variant: 'destructive' });
+      } finally {
+        setLoading(false);
       }
-
-      setMetrics(metricsData);
-    } catch (error: any) {
-      console.error('Error loading organization data:', error);
-      toast({ title: 'Error loading data', description: error.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [parentTenantId, primaryTenant, toast]);
+    },
+    [parentTenantId, primaryTenant, toast]
+  );
 
   useEffect(() => {
     if (parentTenantId) {
@@ -169,13 +169,13 @@ export default function OrganizationDashboard() {
     return <CoffeeLoader fullScreen text="Loading..." />;
   }
 
-  const childLocations = locations.filter(l => l.parent_tenant_id === parentTenantId);
+  const childLocations = locations.filter((l) => l.parent_tenant_id === parentTenantId);
   const hasChildLocations = childLocations.length > 0;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
       {/* Header */}
-      <header 
+      <header
         className="sticky top-0 z-50 border-b px-4 py-3"
         style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
       >
@@ -189,7 +189,7 @@ export default function OrganizationDashboard() {
             {branding?.logo_url ? (
               <img src={branding.logo_url} alt={companyName} className="h-10 w-auto" loading="lazy" />
             ) : (
-              <div 
+              <div
                 className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: branding?.primary_color || colors.gold }}
               >
@@ -197,8 +197,12 @@ export default function OrganizationDashboard() {
               </div>
             )}
             <div>
-              <h1 className="font-bold" style={{ color: colors.brown }}>Organization Overview</h1>
-              <p className="text-sm" style={{ color: colors.brownLight }}>{companyName}</p>
+              <h1 className="font-bold" style={{ color: colors.brown }}>
+                Organization Overview
+              </h1>
+              <p className="text-sm" style={{ color: colors.brownLight }}>
+                {companyName}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -306,10 +310,7 @@ export default function OrganizationDashboard() {
             Your Locations
           </h2>
           <Link href="/admin/locations">
-            <Button
-              style={{ backgroundColor: colors.gold, color: colors.white }}
-              data-testid="button-manage-locations"
-            >
+            <Button style={{ backgroundColor: colors.gold, color: colors.white }} data-testid="button-manage-locations">
               <Plus className="w-4 h-4 mr-2" />
               Add Location
             </Button>
@@ -323,8 +324,8 @@ export default function OrganizationDashboard() {
             const isParent = location.id === parentTenantId;
 
             return (
-              <Card 
-                key={location.id} 
+              <Card
+                key={location.id}
                 className="hover-elevate cursor-pointer"
                 style={{ backgroundColor: colors.white }}
                 onClick={() => switchToLocation(location.id)}
@@ -333,7 +334,7 @@ export default function OrganizationDashboard() {
                 <CardContent className="py-4">
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-4">
-                      <div 
+                      <div
                         className="w-12 h-12 rounded-lg flex items-center justify-center"
                         style={{ backgroundColor: colors.cream }}
                       >
@@ -360,17 +361,13 @@ export default function OrganizationDashboard() {
                       {(locMetrics.overdue_maintenance || 0) > 0 && (
                         <div className="flex items-center gap-2 text-red-600">
                           <AlertTriangle className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            {locMetrics.overdue_maintenance} overdue
-                          </span>
+                          <span className="text-sm font-medium">{locMetrics.overdue_maintenance} overdue</span>
                         </div>
                       )}
 
                       {(locMetrics.pending_tasks || 0) > 0 && (
                         <div className="flex items-center gap-2" style={{ color: colors.brownLight }}>
-                          <span className="text-sm">
-                            {locMetrics.pending_tasks} pending tasks
-                          </span>
+                          <span className="text-sm">{locMetrics.pending_tasks} pending tasks</span>
                         </div>
                       )}
 

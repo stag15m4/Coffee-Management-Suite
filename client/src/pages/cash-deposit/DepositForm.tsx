@@ -140,12 +140,20 @@ export function DepositForm({
               style={{ color: colors.brownLight }}
               onClick={onToggleAdjustments}
             >
-              <ChevronDown
-                className={`w-4 h-4 transition-transform ${showAdjustments ? 'rotate-0' : '-rotate-90'}`}
-              />
+              <ChevronDown className={`w-4 h-4 transition-transform ${showAdjustments ? 'rotate-0' : '-rotate-90'}`} />
               Adjustments
-              {!showAdjustments && (parseFloat(String(formData.tip_pool)) || parseFloat(String(formData.cash_refund)) || parseFloat(String(formData.pay_in)) || parseFloat(String(formData.pay_out)) || parseFloat(String(formData.owner_tips))) ? (
-                <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: colors.cream, color: colors.brown }}>has values</span>
+              {!showAdjustments &&
+              (parseFloat(String(formData.tip_pool)) ||
+                parseFloat(String(formData.cash_refund)) ||
+                parseFloat(String(formData.pay_in)) ||
+                parseFloat(String(formData.pay_out)) ||
+                parseFloat(String(formData.owner_tips))) ? (
+                <span
+                  className="text-xs px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: colors.cream, color: colors.brown }}
+                >
+                  has values
+                </span>
               ) : null}
             </button>
             {showAdjustments && (
@@ -244,7 +252,9 @@ export function DepositForm({
                       onChange={(e) => onUpdateField('owner_tips', e.target.value)}
                       onBlur={handleCurrencyBlur('owner_tips')}
                       className="pl-7"
-                      style={{ backgroundColor: ownerTipsEnabled && ownerTipsLoaded ? colors.inputBg : colors.creamDark }}
+                      style={{
+                        backgroundColor: ownerTipsEnabled && ownerTipsLoaded ? colors.inputBg : colors.creamDark,
+                      }}
                       placeholder="0.00"
                       disabled={!ownerTipsEnabled || !ownerTipsLoaded}
                       data-testid="input-owner-tips"

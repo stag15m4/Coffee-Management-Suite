@@ -9,19 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { PhotoCapture } from '@/components/PhotoCapture';
 import { EquipmentAttachments } from '@/components/EquipmentAttachments';
 import { colors } from '@/lib/colors';
-import {
-  Plus,
-  Settings,
-  Download,
-  Printer,
-  Trash2,
-  Edit2,
-  Check,
-  X,
-  Shield,
-  ShieldOff,
-  User,
-} from 'lucide-react';
+import { Plus, Settings, Download, Printer, Trash2, Edit2, Check, X, Shield, ShieldOff, User } from 'lucide-react';
 import type { Equipment, MaintenanceTask } from '@/lib/supabase-queries';
 import { supabase } from '@/lib/supabase-queries';
 import { useToast } from '@/hooks/use-toast';
@@ -77,7 +65,9 @@ export function EquipmentList({
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center gap-2 flex-wrap">
-        <h2 className="font-semibold" style={{ color: colors.brown }}>Equipment List</h2>
+        <h2 className="font-semibold" style={{ color: colors.brown }}>
+          Equipment List
+        </h2>
         <div className="flex gap-2">
           {equipment.length > 0 && (
             <>
@@ -119,7 +109,9 @@ export function EquipmentList({
         <Card style={{ backgroundColor: colors.white, borderColor: colors.gold }}>
           <CardContent className="p-8 text-center">
             <Settings className="w-12 h-12 mx-auto mb-4" style={{ color: colors.brownLight }} />
-            <h3 className="font-semibold mb-2" style={{ color: colors.brown }}>No Equipment Yet</h3>
+            <h3 className="font-semibold mb-2" style={{ color: colors.brown }}>
+              No Equipment Yet
+            </h3>
             <p className="text-sm" style={{ color: colors.brownLight }}>
               Add your equipment to start tracking maintenance.
             </p>
@@ -127,7 +119,7 @@ export function EquipmentList({
         </Card>
       ) : (
         <div className="grid gap-4">
-          {equipment.map(item => (
+          {equipment.map((item) => (
             <Card
               key={item.id}
               style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
@@ -138,7 +130,7 @@ export function EquipmentList({
                   <div className="space-y-3">
                     <Input
                       value={editingEquipment.name}
-                      onChange={e => setEditingEquipment({ ...editingEquipment, name: e.target.value })}
+                      onChange={(e) => setEditingEquipment({ ...editingEquipment, name: e.target.value })}
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       data-testid="input-edit-equipment-name"
                     />
@@ -148,7 +140,9 @@ export function EquipmentList({
                           <Label style={{ color: colors.brown }}>Model</Label>
                           <Input
                             value={editingEquipment.model || ''}
-                            onChange={e => setEditingEquipment({ ...editingEquipment, model: e.target.value || null })}
+                            onChange={(e) =>
+                              setEditingEquipment({ ...editingEquipment, model: e.target.value || null })
+                            }
                             placeholder="e.g., Mazzer Mini"
                             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                             data-testid="input-edit-equipment-model"
@@ -158,7 +152,9 @@ export function EquipmentList({
                           <Label style={{ color: colors.brown }}>Serial Number</Label>
                           <Input
                             value={editingEquipment.serial_number || ''}
-                            onChange={e => setEditingEquipment({ ...editingEquipment, serial_number: e.target.value || null })}
+                            onChange={(e) =>
+                              setEditingEquipment({ ...editingEquipment, serial_number: e.target.value || null })
+                            }
                             placeholder="e.g., SN-12345678"
                             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                             data-testid="input-edit-equipment-serial-number"
@@ -178,7 +174,9 @@ export function EquipmentList({
                     <div>
                       {categories.length > 0 && (
                         <Select
-                          value={categories.includes(editingEquipment.category || '') ? editingEquipment.category || '' : ''}
+                          value={
+                            categories.includes(editingEquipment.category || '') ? editingEquipment.category || '' : ''
+                          }
                           onValueChange={(value) => {
                             if (value === '__new__') {
                               setEditingEquipment({ ...editingEquipment, category: '' });
@@ -194,8 +192,10 @@ export function EquipmentList({
                             <SelectValue placeholder="Select or add new" />
                           </SelectTrigger>
                           <SelectContent>
-                            {categories.map(cat => (
-                              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                            {categories.map((cat) => (
+                              <SelectItem key={cat} value={cat}>
+                                {cat}
+                              </SelectItem>
                             ))}
                             <SelectItem value="__new__">+ Add new category...</SelectItem>
                           </SelectContent>
@@ -204,7 +204,7 @@ export function EquipmentList({
                       {(categories.length === 0 || !categories.includes(editingEquipment.category || '')) && (
                         <Input
                           value={editingEquipment.category || ''}
-                          onChange={e => setEditingEquipment({ ...editingEquipment, category: e.target.value })}
+                          onChange={(e) => setEditingEquipment({ ...editingEquipment, category: e.target.value })}
                           placeholder="Category (e.g., Grinders)"
                           className={categories.length > 0 ? 'mt-2' : ''}
                           style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
@@ -214,7 +214,7 @@ export function EquipmentList({
                     </div>
                     <Textarea
                       value={editingEquipment.notes || ''}
-                      onChange={e => setEditingEquipment({ ...editingEquipment, notes: e.target.value })}
+                      onChange={(e) => setEditingEquipment({ ...editingEquipment, notes: e.target.value })}
                       placeholder="Notes"
                       style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       data-testid="input-edit-equipment-notes"
@@ -225,7 +225,9 @@ export function EquipmentList({
                       <Input
                         type="date"
                         value={editingEquipment.in_service_date || ''}
-                        onChange={e => setEditingEquipment({ ...editingEquipment, in_service_date: e.target.value || null })}
+                        onChange={(e) =>
+                          setEditingEquipment({ ...editingEquipment, in_service_date: e.target.value || null })
+                        }
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }}
                         data-testid="input-edit-equipment-in-service-date"
                       />
@@ -233,13 +235,20 @@ export function EquipmentList({
 
                     {isVehicle(editingEquipment.category) && (
                       <div className="space-y-3 pl-2 border-l-2" style={{ borderColor: colors.gold }}>
-                        <p className="text-xs font-medium" style={{ color: colors.brown }}>Vehicle Info</p>
+                        <p className="text-xs font-medium" style={{ color: colors.brown }}>
+                          Vehicle Info
+                        </p>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <Label style={{ color: colors.brown }}>License State</Label>
                             <Input
                               value={editingEquipment.license_state || ''}
-                              onChange={e => setEditingEquipment({ ...editingEquipment, license_state: e.target.value.toUpperCase().slice(0, 2) || null })}
+                              onChange={(e) =>
+                                setEditingEquipment({
+                                  ...editingEquipment,
+                                  license_state: e.target.value.toUpperCase().slice(0, 2) || null,
+                                })
+                              }
                               placeholder="e.g., NC"
                               maxLength={2}
                               style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
@@ -250,7 +259,12 @@ export function EquipmentList({
                             <Label style={{ color: colors.brown }}>License Plate</Label>
                             <Input
                               value={editingEquipment.license_plate || ''}
-                              onChange={e => setEditingEquipment({ ...editingEquipment, license_plate: e.target.value.toUpperCase() || null })}
+                              onChange={(e) =>
+                                setEditingEquipment({
+                                  ...editingEquipment,
+                                  license_plate: e.target.value.toUpperCase() || null,
+                                })
+                              }
                               placeholder="e.g., ABC-1234"
                               style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                               data-testid="input-edit-equipment-license-plate"
@@ -261,7 +275,9 @@ export function EquipmentList({
                           <Label style={{ color: colors.brown }}>VIN</Label>
                           <Input
                             value={editingEquipment.vin || ''}
-                            onChange={e => setEditingEquipment({ ...editingEquipment, vin: e.target.value.toUpperCase() || null })}
+                            onChange={(e) =>
+                              setEditingEquipment({ ...editingEquipment, vin: e.target.value.toUpperCase() || null })
+                            }
                             placeholder="17-character VIN"
                             maxLength={17}
                             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
@@ -274,14 +290,16 @@ export function EquipmentList({
                             type="text"
                             inputMode="numeric"
                             pattern="[0-9]*"
-                            value={editingEquipment.current_mileage != null ? String(editingEquipment.current_mileage) : ''}
-                            onChange={e => {
+                            value={
+                              editingEquipment.current_mileage != null ? String(editingEquipment.current_mileage) : ''
+                            }
+                            onChange={(e) => {
                               const v = e.target.value;
                               if (v === '' || /^\d+$/.test(v)) {
                                 setEditingEquipment({ ...editingEquipment, current_mileage: v ? parseInt(v) : null });
                               }
                             }}
-                            onFocus={e => e.target.select()}
+                            onFocus={(e) => e.target.select()}
                             placeholder="e.g., 45000"
                             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                             data-testid="input-edit-equipment-mileage"
@@ -294,7 +312,9 @@ export function EquipmentList({
                           </Label>
                           <Select
                             value={editingEquipment.assigned_to || '__none__'}
-                            onValueChange={(v) => setEditingEquipment({ ...editingEquipment, assigned_to: v === '__none__' ? null : v })}
+                            onValueChange={(v) =>
+                              setEditingEquipment({ ...editingEquipment, assigned_to: v === '__none__' ? null : v })
+                            }
                           >
                             <SelectTrigger
                               style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
@@ -304,7 +324,7 @@ export function EquipmentList({
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="__none__">Unassigned</SelectItem>
-                              {teamMembers.map(member => (
+                              {teamMembers.map((member) => (
                                 <SelectItem key={member.id} value={member.id}>
                                   {member.full_name || member.email}
                                 </SelectItem>
@@ -323,7 +343,9 @@ export function EquipmentList({
                         <Label style={{ color: colors.brown }}>Has Warranty?</Label>
                         <Switch
                           checked={editingEquipment.has_warranty || false}
-                          onCheckedChange={(checked) => setEditingEquipment({ ...editingEquipment, has_warranty: checked })}
+                          onCheckedChange={(checked) =>
+                            setEditingEquipment({ ...editingEquipment, has_warranty: checked })
+                          }
                           data-testid="switch-edit-equipment-warranty"
                         />
                       </div>
@@ -336,7 +358,9 @@ export function EquipmentList({
                           <Input
                             type="date"
                             value={editingEquipment.purchase_date || ''}
-                            onChange={e => setEditingEquipment({ ...editingEquipment, purchase_date: e.target.value || null })}
+                            onChange={(e) =>
+                              setEditingEquipment({ ...editingEquipment, purchase_date: e.target.value || null })
+                            }
                             style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                             data-testid="input-edit-equipment-purchase-date"
                           />
@@ -347,7 +371,12 @@ export function EquipmentList({
                             type="number"
                             min="1"
                             value={editingEquipment.warranty_duration_months || ''}
-                            onChange={e => setEditingEquipment({ ...editingEquipment, warranty_duration_months: e.target.value ? parseInt(e.target.value) : null })}
+                            onChange={(e) =>
+                              setEditingEquipment({
+                                ...editingEquipment,
+                                warranty_duration_months: e.target.value ? parseInt(e.target.value) : null,
+                              })
+                            }
                             placeholder="e.g., 12, 24, 36"
                             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                             data-testid="input-edit-equipment-warranty-months"
@@ -358,7 +387,9 @@ export function EquipmentList({
                           <Label style={{ color: colors.brown }}>Warranty Notes</Label>
                           <Textarea
                             value={editingEquipment.warranty_notes || ''}
-                            onChange={e => setEditingEquipment({ ...editingEquipment, warranty_notes: e.target.value || null })}
+                            onChange={(e) =>
+                              setEditingEquipment({ ...editingEquipment, warranty_notes: e.target.value || null })
+                            }
                             placeholder="Coverage details, exclusions, claim info..."
                             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                             data-testid="input-edit-equipment-warranty-notes"
@@ -403,12 +434,19 @@ export function EquipmentList({
                         className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0"
                         style={{ border: `2px solid ${colors.creamDark}` }}
                       >
-                        <img src={item.photo_url} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+                        <img
+                          src={item.photo_url}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
                       </div>
                     )}
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium" style={{ color: colors.brown }}>{item.name}</span>
+                        <span className="font-medium" style={{ color: colors.brown }}>
+                          {item.name}
+                        </span>
                         {item.category && (
                           <Badge variant="outline" style={{ borderColor: colors.gold, color: colors.brownLight }}>
                             {item.category}
@@ -442,49 +480,52 @@ export function EquipmentList({
                         </div>
                       )}
                       {item.notes && (
-                        <p className="text-sm mt-2" style={{ color: colors.brownLight }}>{item.notes}</p>
+                        <p className="text-sm mt-2" style={{ color: colors.brownLight }}>
+                          {item.notes}
+                        </p>
                       )}
-                      {isVehicle(item.category) && (item.license_plate || item.vin || item.current_mileage != null || item.assigned_to) && (
-                        <div className="mt-2 text-xs space-y-1" style={{ color: colors.brownLight }}>
-                          {item.license_plate && (
-                            <p>Plate: {item.license_state ? `${item.license_state} ` : ''}{item.license_plate}</p>
-                          )}
-                          {item.vin && <p>VIN: {item.vin}</p>}
-                          {item.current_mileage != null && (
-                            <p>Mileage: {item.current_mileage.toLocaleString()} mi</p>
-                          )}
-                          {item.assigned_to && (
-                            <p className="flex items-center gap-1">
-                              <User className="w-3 h-3" />
-                              Assigned: {teamMembers.find(m => m.id === item.assigned_to)?.full_name || teamMembers.find(m => m.id === item.assigned_to)?.email || 'Unknown'}
-                            </p>
-                          )}
-                        </div>
-                      )}
+                      {isVehicle(item.category) &&
+                        (item.license_plate || item.vin || item.current_mileage != null || item.assigned_to) && (
+                          <div className="mt-2 text-xs space-y-1" style={{ color: colors.brownLight }}>
+                            {item.license_plate && (
+                              <p>
+                                Plate: {item.license_state ? `${item.license_state} ` : ''}
+                                {item.license_plate}
+                              </p>
+                            )}
+                            {item.vin && <p>VIN: {item.vin}</p>}
+                            {item.current_mileage != null && <p>Mileage: {item.current_mileage.toLocaleString()} mi</p>}
+                            {item.assigned_to && (
+                              <p className="flex items-center gap-1">
+                                <User className="w-3 h-3" />
+                                Assigned:{' '}
+                                {teamMembers.find((m) => m.id === item.assigned_to)?.full_name ||
+                                  teamMembers.find((m) => m.id === item.assigned_to)?.email ||
+                                  'Unknown'}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       {item.has_warranty && item.purchase_date && (
                         <div className="mt-2 text-xs space-y-1" style={{ color: colors.brownLight }}>
                           <p>Purchased: {parseLocalDate(item.purchase_date).toLocaleDateString()}</p>
-                          <p>In Service: {parseLocalDate(item.in_service_date || item.purchase_date).toLocaleDateString()}</p>
-                          {item.warranty_duration_months && (
-                            <p>{formatWarrantyInfo(item)}</p>
-                          )}
-                          {item.warranty_notes && (
-                            <p className="italic">{item.warranty_notes}</p>
-                          )}
+                          <p>
+                            In Service:{' '}
+                            {parseLocalDate(item.in_service_date || item.purchase_date).toLocaleDateString()}
+                          </p>
+                          {item.warranty_duration_months && <p>{formatWarrantyInfo(item)}</p>}
+                          {item.warranty_notes && <p className="italic">{item.warranty_notes}</p>}
                         </div>
                       )}
                       {!(item.has_warranty && item.purchase_date) && (
                         <p className="text-xs mt-2" style={{ color: colors.brownLight }}>
-                          In Service: {item.in_service_date ? parseLocalDate(item.in_service_date).toLocaleDateString() : 'Not set'}
+                          In Service:{' '}
+                          {item.in_service_date ? parseLocalDate(item.in_service_date).toLocaleDateString() : 'Not set'}
                         </p>
                       )}
-                      <EquipmentAttachments
-                        equipmentId={item.id}
-                        tenantId={item.tenant_id}
-                        readOnly
-                      />
+                      <EquipmentAttachments equipmentId={item.id} tenantId={item.tenant_id} readOnly />
                       <p className="text-xs mt-2" style={{ color: colors.brownLight }}>
-                        {tasks.filter(t => t.equipment_id === item.id).length} maintenance tasks
+                        {tasks.filter((t) => t.equipment_id === item.id).length} maintenance tasks
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -495,7 +536,9 @@ export function EquipmentList({
                           toast({ title: 'Generating record...' });
                           exportEquipmentRecords(item, supabase)
                             .then(() => toast({ title: 'Equipment record ready for download' }))
-                            .catch((err) => toast({ title: 'Export failed', description: err.message, variant: 'destructive' }));
+                            .catch((err) =>
+                              toast({ title: 'Export failed', description: err.message, variant: 'destructive' })
+                            );
                         }}
                         title="Export maintenance records"
                         style={{ color: colors.gold }}

@@ -28,14 +28,17 @@ export function TimeclockImportDialog({
   onConfirm,
   colors,
 }: TimeclockImportDialogProps) {
-  const matchedData = previewData.filter(d => d.matched);
+  const matchedData = previewData.filter((d) => d.matched);
   const totalHours = matchedData.reduce((sum, d) => sum + d.totalHours, 0);
   const totalEntries = matchedData.reduce((sum, d) => sum + d.entryCount, 0);
   const hasData = matchedData.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" style={{ backgroundColor: colors.cream, borderColor: colors.gold }}>
+      <DialogContent
+        className="max-w-lg max-h-[85vh] overflow-y-auto"
+        style={{ backgroundColor: colors.cream, borderColor: colors.gold }}
+      >
         <DialogHeader>
           <DialogTitle style={{ color: colors.brown }}>Import from Timeclock</DialogTitle>
         </DialogHeader>
@@ -101,13 +104,17 @@ export function TimeclockImportDialog({
                 {skippedCount > 0 && (
                   <div className="flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.gold }} />
-                    <span>{skippedCount} {skippedCount === 1 ? 'entry' : 'entries'} skipped (still clocked in)</span>
+                    <span>
+                      {skippedCount} {skippedCount === 1 ? 'entry' : 'entries'} skipped (still clocked in)
+                    </span>
                   </div>
                 )}
                 {unmatchedEntries.map((u) => (
                   <div key={u.employeeName} className="flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.gold }} />
-                    <span>"{u.employeeName}" ({formatHoursMinutes(u.totalHours)}) — not on tip roster</span>
+                    <span>
+                      "{u.employeeName}" ({formatHoursMinutes(u.totalHours)}) — not on tip roster
+                    </span>
                   </div>
                 ))}
               </div>
@@ -136,7 +143,9 @@ export function TimeclockImportDialog({
                   style={{ backgroundColor: colors.gold, color: colors.white }}
                 >
                   {confirming ? (
-                    <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Importing...</>
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Importing...
+                    </>
                   ) : (
                     `Import ${matchedData.length} ${matchedData.length === 1 ? 'Employee' : 'Employees'}`
                   )}

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,13 +7,7 @@ import { changelog, CHANGELOG_VERSION, type ChangelogEntry } from '@/lib/changel
 import { colors } from '@/lib/colors';
 import { useToast } from '@/hooks/use-toast';
 import { triggerSpotlight } from '@/components/Spotlight';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -63,11 +58,7 @@ export function WhatsNew() {
     if (!user) return;
 
     const checkLastSeen = async () => {
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('changelog_last_seen')
-        .eq('id', user.id)
-        .single();
+      const { data } = await supabase.from('user_profiles').select('changelog_last_seen').eq('id', user.id).single();
 
       if (data?.changelog_last_seen !== CHANGELOG_VERSION) {
         setHasNewUpdates(true);
@@ -114,17 +105,14 @@ export function WhatsNew() {
       if (data) {
         // Enrich with user names
         const userIds = Array.from(new Set(data.map((r) => r.user_id)));
-        const { data: profiles } = await supabase
-          .from('user_profiles')
-          .select('id, full_name')
-          .in('id', userIds);
+        const { data: profiles } = await supabase.from('user_profiles').select('id, full_name').in('id', userIds);
 
         const nameMap: Record<string, string> = {};
-        profiles?.forEach((p) => { nameMap[p.id] = p.full_name || 'Unknown'; });
+        profiles?.forEach((p) => {
+          nameMap[p.id] = p.full_name || 'Unknown';
+        });
 
-        setAllReviews(
-          data.map((r) => ({ ...r, user_name: nameMap[r.user_id] || 'Unknown' })) as FeatureReview[]
-        );
+        setAllReviews(data.map((r) => ({ ...r, user_name: nameMap[r.user_id] || 'Unknown' })) as FeatureReview[]);
       }
     };
 
@@ -136,11 +124,7 @@ export function WhatsNew() {
     setOpen(value);
     if (value && user) {
       setHasNewUpdates(false);
-      supabase
-        .from('user_profiles')
-        .update({ changelog_last_seen: CHANGELOG_VERSION })
-        .eq('id', user.id)
-        .then();
+      supabase.from('user_profiles').update({ changelog_last_seen: CHANGELOG_VERSION }).eq('id', user.id).then();
     }
     if (!value) {
       setCommentingOn(null);
@@ -176,9 +160,7 @@ export function WhatsNew() {
       };
 
       // Upsert — update if already exists
-      const { error } = await supabase
-        .from('feature_reviews')
-        .upsert(payload, { onConflict: 'user_id,feature_id' });
+      const { error } = await supabase.from('feature_reviews').upsert(payload, { onConflict: 'user_id,feature_id' });
 
       if (error) throw error;
 
@@ -194,7 +176,7 @@ export function WhatsNew() {
 
       toast({
         title: rating === 'up' ? 'Thanks for the feedback!' : 'Feedback recorded',
-        description: rating === 'down' ? 'We\'ll look into this.' : undefined,
+        description: rating === 'down' ? "We'll look into this." : undefined,
       });
     } catch (err) {
       console.error('Failed to submit review:', err);
@@ -273,11 +255,7 @@ export function WhatsNew() {
 
   return (
     <Sheet open={open} onOpenChange={handleOpen}>
-      <SheetContent
-        side="right"
-        className="sm:max-w-md overflow-y-auto"
-        style={{ backgroundColor: colors.white }}
-      >
+      <SheetContent side="right" className="sm:max-w-md overflow-y-auto" style={{ backgroundColor: colors.white }}>
         <SheetHeader>
           <SheetTitle style={{ color: colors.brown }}>
             {showFeedbackView ? 'Feature Feedback' : "What's New"}
@@ -296,7 +274,11 @@ export function WhatsNew() {
               variant={showFeedbackView ? 'outline' : 'default'}
               size="sm"
               onClick={() => setShowFeedbackView(false)}
-              style={!showFeedbackView ? { backgroundColor: colors.gold, color: colors.white } : { borderColor: colors.creamDark, color: colors.brown }}
+              style={
+                !showFeedbackView
+                  ? { backgroundColor: colors.gold, color: colors.white }
+                  : { borderColor: colors.creamDark, color: colors.brown }
+              }
             >
               <Sparkles className="w-3.5 h-3.5 mr-1.5" />
               What's New
@@ -305,7 +287,11 @@ export function WhatsNew() {
               variant={showFeedbackView ? 'default' : 'outline'}
               size="sm"
               onClick={() => setShowFeedbackView(true)}
-              style={showFeedbackView ? { backgroundColor: colors.gold, color: colors.white } : { borderColor: colors.creamDark, color: colors.brown }}
+              style={
+                showFeedbackView
+                  ? { backgroundColor: colors.gold, color: colors.white }
+                  : { borderColor: colors.creamDark, color: colors.brown }
+              }
             >
               <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
               Team Feedback
@@ -367,7 +353,11 @@ export function WhatsNew() {
                   </div>
 
                   {/* Voting buttons */}
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: colors.creamDark }} onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="flex items-center gap-2 mt-3 pt-3 border-t"
+                    style={{ borderColor: colors.creamDark }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <button
                       className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                         myReview?.rating === 'up' ? '' : 'hover:bg-gray-100'
@@ -435,7 +425,10 @@ export function WhatsNew() {
                         <button
                           className="text-xs px-2 py-1 rounded hover:bg-gray-100"
                           style={{ color: colors.brownLight }}
-                          onClick={() => { setCommentingOn(null); setCommentText(''); }}
+                          onClick={() => {
+                            setCommentingOn(null);
+                            setCommentText('');
+                          }}
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -516,7 +509,10 @@ export function WhatsNew() {
             {/* Summary of all features with feedback */}
             {Object.keys(feedbackStats).length > 0 && (
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: colors.brownLight }}>
+                <h3
+                  className="text-xs font-semibold uppercase tracking-wider mb-3"
+                  style={{ color: colors.brownLight }}
+                >
                   All Feedback
                 </h3>
                 {changelog.map((entry) => {
@@ -536,7 +532,10 @@ export function WhatsNew() {
                           <span className="flex items-center gap-1" style={{ color: colors.green }}>
                             <ThumbsUp className="w-3 h-3" /> {stats.up}
                           </span>
-                          <span className="flex items-center gap-1" style={{ color: stats.down > 0 ? colors.red : colors.brownLight }}>
+                          <span
+                            className="flex items-center gap-1"
+                            style={{ color: stats.down > 0 ? colors.red : colors.brownLight }}
+                          >
                             <ThumbsDown className="w-3 h-3" /> {stats.down}
                           </span>
                         </div>

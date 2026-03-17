@@ -6,19 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useUpload } from '@/hooks/use-upload';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   useDocumentCategories,
   useCreateDocumentCategory,
@@ -106,7 +95,8 @@ function getFileIcon(fileType: string | null) {
   if (!fileType) return File;
   if (fileType.startsWith('image/')) return FileImage;
   if (fileType === 'application/pdf') return FileText;
-  if (fileType.includes('spreadsheet') || fileType.includes('excel') || fileType.includes('csv')) return FileSpreadsheet;
+  if (fileType.includes('spreadsheet') || fileType.includes('excel') || fileType.includes('csv'))
+    return FileSpreadsheet;
   return File;
 }
 
@@ -203,7 +193,13 @@ function UploadDocumentDialog({ open, onOpenChange, categories, userId }: Upload
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) resetForm();
+        onOpenChange(v);
+      }}
+    >
       <DialogContent style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
         <DialogHeader>
           <DialogTitle style={{ color: colors.brown }}>Upload Document</DialogTitle>
@@ -273,12 +269,17 @@ function UploadDocumentDialog({ open, onOpenChange, categories, userId }: Upload
           <div>
             <Label style={{ color: colors.brown }}>Category</Label>
             <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger className="mt-1" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}>
+              <SelectTrigger
+                className="mt-1"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
+              >
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent style={{ backgroundColor: colors.white }}>
                 {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -288,12 +289,17 @@ function UploadDocumentDialog({ open, onOpenChange, categories, userId }: Upload
           <div>
             <Label style={{ color: colors.brown }}>Who can view?</Label>
             <Select value={minRole} onValueChange={setMinRole}>
-              <SelectTrigger className="mt-1" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}>
+              <SelectTrigger
+                className="mt-1"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent style={{ backgroundColor: colors.white }}>
                 {ROLE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -307,19 +313,26 @@ function UploadDocumentDialog({ open, onOpenChange, categories, userId }: Upload
               onChange={(e) => setRequiresAck(e.target.checked)}
               className="rounded"
             />
-            <span className="text-sm" style={{ color: colors.brown }}>Require read acknowledgment</span>
+            <span className="text-sm" style={{ color: colors.brown }}>
+              Require read acknowledgment
+            </span>
           </label>
 
           {/* Review cycle */}
           <div>
             <Label style={{ color: colors.brown }}>Review Cycle</Label>
             <Select value={reviewInterval} onValueChange={setReviewInterval}>
-              <SelectTrigger className="mt-1" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}>
+              <SelectTrigger
+                className="mt-1"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
+              >
                 <SelectValue placeholder="No review cycle" />
               </SelectTrigger>
               <SelectContent style={{ backgroundColor: colors.white }}>
                 {REVIEW_INTERVAL_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value || 'none'} value={opt.value || 'none'}>{opt.label}</SelectItem>
+                  <SelectItem key={opt.value || 'none'} value={opt.value || 'none'}>
+                    {opt.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -330,13 +343,18 @@ function UploadDocumentDialog({ open, onOpenChange, categories, userId }: Upload
             <div>
               <Label style={{ color: colors.brown }}>Assign Reviewer</Label>
               <Select value={reviewAssignee} onValueChange={setReviewAssignee}>
-                <SelectTrigger className="mt-1" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}>
+                <SelectTrigger
+                  className="mt-1"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
+                >
                   <SelectValue placeholder="Anyone" />
                 </SelectTrigger>
                 <SelectContent style={{ backgroundColor: colors.white }}>
                   <SelectItem value="none">Anyone (lead+)</SelectItem>
                   {leadPlusMembers.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.full_name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -448,12 +466,17 @@ function EditDocumentDialog({ document, open, onOpenChange, categories }: EditDi
           <div>
             <Label style={{ color: colors.brown }}>Category</Label>
             <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger className="mt-1" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}>
+              <SelectTrigger
+                className="mt-1"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
+              >
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent style={{ backgroundColor: colors.white }}>
                 {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -461,12 +484,17 @@ function EditDocumentDialog({ document, open, onOpenChange, categories }: EditDi
           <div>
             <Label style={{ color: colors.brown }}>Who can view?</Label>
             <Select value={minRole} onValueChange={setMinRole}>
-              <SelectTrigger className="mt-1" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}>
+              <SelectTrigger
+                className="mt-1"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent style={{ backgroundColor: colors.white }}>
                 {ROLE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -478,17 +506,24 @@ function EditDocumentDialog({ document, open, onOpenChange, categories }: EditDi
               onChange={(e) => setRequiresAck(e.target.checked)}
               className="rounded"
             />
-            <span className="text-sm" style={{ color: colors.brown }}>Require read acknowledgment</span>
+            <span className="text-sm" style={{ color: colors.brown }}>
+              Require read acknowledgment
+            </span>
           </label>
           <div>
             <Label style={{ color: colors.brown }}>Review Cycle</Label>
             <Select value={reviewInterval} onValueChange={setReviewInterval}>
-              <SelectTrigger className="mt-1" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}>
+              <SelectTrigger
+                className="mt-1"
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
+              >
                 <SelectValue placeholder="No review cycle" />
               </SelectTrigger>
               <SelectContent style={{ backgroundColor: colors.white }}>
                 {REVIEW_INTERVAL_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value || 'none'} value={opt.value || 'none'}>{opt.label}</SelectItem>
+                  <SelectItem key={opt.value || 'none'} value={opt.value || 'none'}>
+                    {opt.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -497,13 +532,18 @@ function EditDocumentDialog({ document, open, onOpenChange, categories }: EditDi
             <div>
               <Label style={{ color: colors.brown }}>Assign Reviewer</Label>
               <Select value={reviewAssignee} onValueChange={setReviewAssignee}>
-                <SelectTrigger className="mt-1" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}>
+                <SelectTrigger
+                  className="mt-1"
+                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
+                >
                   <SelectValue placeholder="Anyone" />
                 </SelectTrigger>
                 <SelectContent style={{ backgroundColor: colors.white }}>
                   <SelectItem value="none">Anyone (lead+)</SelectItem>
                   {leadPlusMembers.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.full_name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -515,7 +555,11 @@ function EditDocumentDialog({ document, open, onOpenChange, categories }: EditDi
             className="w-full"
             style={{ backgroundColor: colors.gold, color: colors.white }}
           >
-            {updateDocument.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+            {updateDocument.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Check className="w-4 h-4 mr-2" />
+            )}
             Save Changes
           </Button>
         </div>
@@ -581,7 +625,9 @@ function ManageCategoriesDialog({ open, onOpenChange, categories }: ManageCatego
               <span className="text-sm font-medium" style={{ color: colors.brown }}>
                 {cat.name}
                 {cat.is_default && (
-                  <span className="text-xs ml-2" style={{ color: colors.brownLight }}>(default)</span>
+                  <span className="text-xs ml-2" style={{ color: colors.brownLight }}>
+                    (default)
+                  </span>
                 )}
               </span>
               {!cat.is_default && (
@@ -646,11 +692,7 @@ function AckDetailDialog({ document, open, onOpenChange }: AckDetailDialogProps)
 
     // Add acknowledged
     for (const ack of acks) {
-      rows.push([
-        ack.user_name || 'Unknown',
-        'Read',
-        new Date(ack.acknowledged_at).toLocaleDateString(),
-      ]);
+      rows.push([ack.user_name || 'Unknown', 'Read', new Date(ack.acknowledged_at).toLocaleDateString()]);
     }
     // Add unread
     for (const m of unreadMembers) {
@@ -680,7 +722,10 @@ function AckDetailDialog({ document, open, onOpenChange }: AckDetailDialogProps)
             <UserCheck className="w-4 h-4" />
             <span className="font-medium">{acks.length}</span> read
           </div>
-          <div className="flex items-center gap-1" style={{ color: unreadMembers.length > 0 ? '#DC2626' : colors.brownLight }}>
+          <div
+            className="flex items-center gap-1"
+            style={{ color: unreadMembers.length > 0 ? '#DC2626' : colors.brownLight }}
+          >
             <UserX className="w-4 h-4" />
             <span className="font-medium">{unreadMembers.length}</span> not read
           </div>
@@ -733,30 +778,35 @@ function AckDetailDialog({ document, open, onOpenChange }: AckDetailDialogProps)
                   className="flex items-center justify-between p-2 rounded"
                   style={{ backgroundColor: '#FEF2F2' }}
                 >
-                  <span className="text-sm" style={{ color: colors.brown }}>{m.full_name}</span>
-                  <span className="text-xs font-medium" style={{ color: '#DC2626' }}>Not read</span>
-                </div>
-              ))
-            )
-          ) : (
-            acks.length === 0 ? (
-              <p className="text-sm text-center py-4" style={{ color: colors.brownLight }}>
-                No one has acknowledged this document yet.
-              </p>
-            ) : (
-              acks.map((ack) => (
-                <div
-                  key={ack.id}
-                  className="flex items-center justify-between p-2 rounded"
-                  style={{ backgroundColor: colors.inputBg }}
-                >
-                  <span className="text-sm" style={{ color: colors.brown }}>{ack.user_name || 'Unknown'}</span>
-                  <span className="text-xs" style={{ color: colors.brownLight }}>
-                    {new Date(ack.acknowledged_at).toLocaleDateString()} {new Date(ack.acknowledged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <span className="text-sm" style={{ color: colors.brown }}>
+                    {m.full_name}
+                  </span>
+                  <span className="text-xs font-medium" style={{ color: '#DC2626' }}>
+                    Not read
                   </span>
                 </div>
               ))
             )
+          ) : acks.length === 0 ? (
+            <p className="text-sm text-center py-4" style={{ color: colors.brownLight }}>
+              No one has acknowledged this document yet.
+            </p>
+          ) : (
+            acks.map((ack) => (
+              <div
+                key={ack.id}
+                className="flex items-center justify-between p-2 rounded"
+                style={{ backgroundColor: colors.inputBg }}
+              >
+                <span className="text-sm" style={{ color: colors.brown }}>
+                  {ack.user_name || 'Unknown'}
+                </span>
+                <span className="text-xs" style={{ color: colors.brownLight }}>
+                  {new Date(ack.acknowledged_at).toLocaleDateString()}{' '}
+                  {new Date(ack.acknowledged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            ))
           )}
         </div>
       </DialogContent>
@@ -847,10 +897,7 @@ function DocumentCard({ doc, canManage, currentUserId, onEdit, onDelete, onPrevi
         </div>
         {canManage && (
           <div className="relative">
-            <button
-              onClick={() => setShowActions(!showActions)}
-              className="p-1 rounded hover:opacity-70"
-            >
+            <button onClick={() => setShowActions(!showActions)} className="p-1 rounded hover:opacity-70">
               <MoreVertical className="w-4 h-4" style={{ color: colors.brownLight }} />
             </button>
             {showActions && (
@@ -863,7 +910,10 @@ function DocumentCard({ doc, canManage, currentUserId, onEdit, onDelete, onPrevi
                   <button
                     className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:opacity-70"
                     style={{ color: colors.brown }}
-                    onClick={() => { onEdit(doc); setShowActions(false); }}
+                    onClick={() => {
+                      onEdit(doc);
+                      setShowActions(false);
+                    }}
                   >
                     <Edit2 className="w-3.5 h-3.5" /> Edit
                   </button>
@@ -887,7 +937,10 @@ function DocumentCard({ doc, canManage, currentUserId, onEdit, onDelete, onPrevi
                   <button
                     className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:opacity-70"
                     style={{ color: '#DC2626' }}
-                    onClick={() => { onDelete(doc); setShowActions(false); }}
+                    onClick={() => {
+                      onDelete(doc);
+                      setShowActions(false);
+                    }}
                   >
                     <Trash2 className="w-3.5 h-3.5" /> Delete
                   </button>
@@ -907,12 +960,20 @@ function DocumentCard({ doc, canManage, currentUserId, onEdit, onDelete, onPrevi
 
       {/* Review info */}
       {doc.review_interval_days && (
-        <div className="flex items-center gap-1 mt-2 text-xs flex-wrap" style={{ color: reviewStatus === 'overdue' ? '#DC2626' : reviewStatus === 'due' ? '#D97706' : colors.brownLight }}>
+        <div
+          className="flex items-center gap-1 mt-2 text-xs flex-wrap"
+          style={{
+            color: reviewStatus === 'overdue' ? '#DC2626' : reviewStatus === 'due' ? '#D97706' : colors.brownLight,
+          }}
+        >
           <RotateCcw className="w-3 h-3" />
           {getReviewLabel(doc)}
           {doc.assignee_name && <span> — assigned to {doc.assignee_name}</span>}
           {doc.last_reviewed_at && doc.reviewer_name && (
-            <span> — last by {doc.reviewer_name} on {new Date(doc.last_reviewed_at).toLocaleDateString()}</span>
+            <span>
+              {' '}
+              — last by {doc.reviewer_name} on {new Date(doc.last_reviewed_at).toLocaleDateString()}
+            </span>
           )}
         </div>
       )}
@@ -943,12 +1004,7 @@ function DocumentCard({ doc, canManage, currentUserId, onEdit, onDelete, onPrevi
               {acks.length}
             </button>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onPreview(doc)}
-            className="h-7 px-2"
-          >
+          <Button variant="ghost" size="sm" onClick={() => onPreview(doc)} className="h-7 px-2">
             <Eye className="w-3.5 h-3.5" style={{ color: colors.gold }} />
           </Button>
         </div>
@@ -974,9 +1030,14 @@ function DocumentCard({ doc, canManage, currentUserId, onEdit, onDelete, onPrevi
         </div>
       )}
       {doc.requires_acknowledgment && hasAcknowledged && (
-        <div className="mt-2 pt-2 border-t flex items-center gap-1 justify-center" style={{ borderColor: colors.creamDark }}>
+        <div
+          className="mt-2 pt-2 border-t flex items-center gap-1 justify-center"
+          style={{ borderColor: colors.creamDark }}
+        >
           <CheckCircle2 className="w-3.5 h-3.5" style={{ color: colors.green }} />
-          <span className="text-xs" style={{ color: colors.green }}>Acknowledged</span>
+          <span className="text-xs" style={{ color: colors.green }}>
+            Acknowledged
+          </span>
         </div>
       )}
     </div>
@@ -1018,10 +1079,16 @@ export default function DocumentLibrary() {
     }
     let cancelled = false;
     fetch(`${previewDoc.file_url}?resolve=1`)
-      .then(r => r.json())
-      .then(data => { if (!cancelled && data.url) setPreviewUrl(data.url); })
-      .catch(() => { if (!cancelled) setPreviewUrl(previewDoc.file_url); });
-    return () => { cancelled = true; };
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data.url) setPreviewUrl(data.url);
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewUrl(previewDoc.file_url);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [previewDoc]);
 
   // Seed default categories on first load if none exist
@@ -1087,10 +1154,7 @@ export default function DocumentLibrary() {
           </p>
         </div>
         {canManage && (
-          <Button
-            onClick={() => setShowUpload(true)}
-            style={{ backgroundColor: colors.gold, color: colors.white }}
-          >
+          <Button onClick={() => setShowUpload(true)} style={{ backgroundColor: colors.gold, color: colors.white }}>
             <Upload className="w-4 h-4 mr-2" />
             Upload
           </Button>
@@ -1110,7 +1174,10 @@ export default function DocumentLibrary() {
           />
         </div>
         <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-          <SelectTrigger className="w-[150px] shrink-0" style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}>
+          <SelectTrigger
+            className="w-[150px] shrink-0"
+            style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark, color: colors.brown }}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent style={{ backgroundColor: colors.white }}>
@@ -1168,7 +1235,9 @@ export default function DocumentLibrary() {
       ) : filteredDocs.length === 0 ? (
         <div className="text-center py-12">
           <FolderOpen className="w-12 h-12 mx-auto mb-3" style={{ color: colors.creamDark }} />
-          <p className="font-medium" style={{ color: colors.brown }}>No documents found</p>
+          <p className="font-medium" style={{ color: colors.brown }}>
+            No documents found
+          </p>
           <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
             {canManage ? 'Upload your first document to get started.' : 'No documents have been shared with you yet.'}
           </p>
@@ -1201,28 +1270,25 @@ export default function DocumentLibrary() {
       <EditDocumentDialog
         document={editDoc}
         open={!!editDoc}
-        onOpenChange={(v) => { if (!v) setEditDoc(null); }}
+        onOpenChange={(v) => {
+          if (!v) setEditDoc(null);
+        }}
         categories={categories}
       />
 
-      <ManageCategoriesDialog
-        open={showCategories}
-        onOpenChange={setShowCategories}
-        categories={categories}
-      />
+      <ManageCategoriesDialog open={showCategories} onOpenChange={setShowCategories} categories={categories} />
 
       <AckDetailDialog
         document={ackDetailDoc}
         open={!!ackDetailDoc}
-        onOpenChange={(v) => { if (!v) setAckDetailDoc(null); }}
+        onOpenChange={(v) => {
+          if (!v) setAckDetailDoc(null);
+        }}
       />
 
       {/* File preview overlay */}
       {previewDoc && (
-        <div
-          className="fixed inset-0 bg-black/90 z-50 flex flex-col"
-          onClick={() => setPreviewDoc(null)}
-        >
+        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col" onClick={() => setPreviewDoc(null)}>
           {/* Top bar */}
           <div
             className="flex items-center justify-between px-4 py-3 flex-shrink-0"
@@ -1240,20 +1306,14 @@ export default function DocumentLibrary() {
                 <ExternalLink className="w-3.5 h-3.5" />
                 Open in New Tab
               </a>
-              <button
-                className="text-white hover:text-gray-300"
-                onClick={() => setPreviewDoc(null)}
-              >
+              <button className="text-white hover:text-gray-300" onClick={() => setPreviewDoc(null)}>
                 <X className="w-7 h-7" />
               </button>
             </div>
           </div>
 
           {/* Content area — fills remaining space */}
-          <div
-            className="flex-1 min-h-0 px-2 pb-2"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="flex-1 min-h-0 px-2 pb-2" onClick={(e) => e.stopPropagation()}>
             {!previewUrl ? (
               <div className="h-full flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-white/70 animate-spin" />

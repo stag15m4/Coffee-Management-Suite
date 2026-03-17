@@ -56,17 +56,12 @@ export function AppLayout({ children }: AppLayoutProps) {
           >
             <Menu className="w-5 h-5" style={{ color: 'var(--color-secondary)' }} />
           </button>
-          <span
-            className="text-sm font-semibold truncate"
-            style={{ color: 'var(--color-secondary)' }}
-          >
+          <span className="text-sm font-semibold truncate" style={{ color: 'var(--color-secondary)' }}>
             {displayName}
           </span>
         </header>
 
-        <main className="flex-1 min-w-0 pb-16 lg:pb-0">
-          {children}
-        </main>
+        <main className="flex-1 min-w-0 pb-16 lg:pb-0">{children}</main>
       </div>
 
       {/* Bottom tab bar — visible below lg */}

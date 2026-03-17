@@ -39,7 +39,7 @@ const PAGES: CommandRoute[] = [
   { label: 'Profile', href: '/user-profile', icon: User, keywords: ['account', 'settings', 'me'] },
 ];
 
-const MODULES: CommandRoute[] = getAllModuleIds().map(id => {
+const MODULES: CommandRoute[] = getAllModuleIds().map((id) => {
   const def = MODULE_REGISTRY[id];
   return {
     label: def.commandLabel,
@@ -54,8 +54,20 @@ const SETTINGS: CommandRoute[] = [
   { label: 'Locations', href: '/organization', icon: Building2, adminOnly: true, keywords: ['stores', 'organization'] },
   { label: 'Users', href: '/admin/users', icon: Users, adminOnly: true, keywords: ['employees', 'roles', 'invite'] },
   { label: 'Branding', href: '/admin/branding', icon: Palette, adminOnly: true, keywords: ['logo', 'colors', 'theme'] },
-  { label: 'Billing', href: '/billing', icon: CreditCard, adminOnly: true, keywords: ['subscription', 'plan', 'payment'] },
-  { label: 'Role Settings', href: '/admin/role-settings', icon: Shield, adminOnly: true, keywords: ['permissions', 'roles', 'customize'] },
+  {
+    label: 'Billing',
+    href: '/billing',
+    icon: CreditCard,
+    adminOnly: true,
+    keywords: ['subscription', 'plan', 'payment'],
+  },
+  {
+    label: 'Role Settings',
+    href: '/admin/role-settings',
+    icon: Shield,
+    adminOnly: true,
+    keywords: ['permissions', 'roles', 'customize'],
+  },
 ];
 
 const RECIPE_TABS: { label: string; tab: string; keywords?: string[] }[] = [
@@ -93,12 +105,15 @@ export function CommandPalette() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore when typing in inputs
       const tag = (e.target as HTMLElement).tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement).isContentEditable) return;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement).isContentEditable)
+        return;
 
       if (e.key === 'g' && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (!gPressed) {
           gPressed = true;
-          timer = setTimeout(() => { gPressed = false; }, 500);
+          timer = setTimeout(() => {
+            gPressed = false;
+          }, 500);
         }
         return;
       }
@@ -106,15 +121,27 @@ export function CommandPalette() {
       if (gPressed) {
         gPressed = false;
         clearTimeout(timer);
-        if (e.key === 'd') { e.preventDefault(); setLocation('/'); }
-        else if (e.key === 't' && canAccessModule?.('admin-tasks')) { e.preventDefault(); setLocation('/admin-tasks'); }
-        else if (e.key === 'c' && canAccessModule?.('calendar-workforce')) { e.preventDefault(); setLocation('/calendar-workforce'); }
-        else if (e.key === 'r' && canAccessModule?.('recipe-costing')) { e.preventDefault(); setLocation('/recipe-costing'); }
+        if (e.key === 'd') {
+          e.preventDefault();
+          setLocation('/');
+        } else if (e.key === 't' && canAccessModule?.('admin-tasks')) {
+          e.preventDefault();
+          setLocation('/admin-tasks');
+        } else if (e.key === 'c' && canAccessModule?.('calendar-workforce')) {
+          e.preventDefault();
+          setLocation('/calendar-workforce');
+        } else if (e.key === 'r' && canAccessModule?.('recipe-costing')) {
+          e.preventDefault();
+          setLocation('/recipe-costing');
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => { window.removeEventListener('keydown', handleKeyDown); clearTimeout(timer); };
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      clearTimeout(timer);
+    };
   }, [setLocation, canAccessModule]);
 
   // Allow opening from sidebar search button via custom event
@@ -129,14 +156,12 @@ export function CommandPalette() {
 
   const isManager = hasRole?.('manager') || hasRole?.('owner');
 
-  const accessibleModules = MODULES.filter(
-    (m) => !m.module || canAccessModule?.(m.module)
-  );
+  const accessibleModules = MODULES.filter((m) => !m.module || canAccessModule?.(m.module));
 
   const accessibleSettings = isManager ? SETTINGS : [];
 
   const accessibleRecipeTabs = canAccessModule?.('recipe-costing')
-    ? RECIPE_TABS.filter(t => t.tab !== 'overhead' || hasRole?.('manager'))
+    ? RECIPE_TABS.filter((t) => t.tab !== 'overhead' || hasRole?.('manager'))
     : [];
 
   const navigate = (href: string) => {

@@ -30,12 +30,17 @@ export function TeamHoursVerify({
         <h3 className="font-semibold text-lg">Verify Total Team Hours</h3>
       </div>
       <form
-        onSubmit={(e) => { e.preventDefault(); onVerify(); }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          onVerify();
+        }}
         className="space-y-3"
       >
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <Label htmlFor="team-hours" className="text-sm" style={{ color: colors.brownLight }}>Total Hours</Label>
+            <Label htmlFor="team-hours" className="text-sm" style={{ color: colors.brownLight }}>
+              Total Hours
+            </Label>
             <Input
               id="team-hours"
               type="number"
@@ -49,7 +54,9 @@ export function TeamHoursVerify({
             />
           </div>
           <div>
-            <Label htmlFor="team-minutes" className="text-sm" style={{ color: colors.brownLight }}>Total Minutes</Label>
+            <Label htmlFor="team-minutes" className="text-sm" style={{ color: colors.brownLight }}>
+              Total Minutes
+            </Label>
             <Input
               id="team-minutes"
               type="number"

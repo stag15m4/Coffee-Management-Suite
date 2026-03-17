@@ -33,8 +33,7 @@ export const SETUP_STEPS: SetupStepDef[] = [
   {
     id: 'team',
     title: 'Invite your team',
-    description:
-      'Add managers and employees so they can clock in, receive tips, and see their schedules.',
+    description: 'Add managers and employees so they can clock in, receive tips, and see their schedules.',
     href: '/admin/users',
     icon: 'Users',
     phase: 1,
@@ -42,8 +41,7 @@ export const SETUP_STEPS: SetupStepDef[] = [
   {
     id: 'hours',
     title: 'Set your store profile',
-    description:
-      'Add your address, phone number, and operating hours so your team and reports have the right info.',
+    description: 'Add your address, phone number, and operating hours so your team and reports have the right info.',
     href: '/store/:tenantId',
     icon: 'Clock',
     phase: 1,
@@ -52,8 +50,7 @@ export const SETUP_STEPS: SetupStepDef[] = [
   {
     id: 'ingredients',
     title: 'Stock your pantry',
-    description:
-      'Add the ingredients you use daily. This is the foundation for accurate recipe costing.',
+    description: 'Add the ingredients you use daily. This is the foundation for accurate recipe costing.',
     href: '/recipe-costing?tab=ingredients',
     icon: 'ShoppingBasket',
     phase: 2,
@@ -61,8 +58,7 @@ export const SETUP_STEPS: SetupStepDef[] = [
   {
     id: 'sizes',
     title: 'Set your cup sizes',
-    description:
-      'Define the sizes you sell (Small, Medium, Large) so recipes can cost per size.',
+    description: 'Define the sizes you sell (Small, Medium, Large) so recipes can cost per size.',
     href: '/recipe-costing?tab=sizes',
     icon: 'CupSoda',
     phase: 2,
@@ -70,8 +66,7 @@ export const SETUP_STEPS: SetupStepDef[] = [
   {
     id: 'recipe',
     title: 'Build your first recipe',
-    description:
-      "See exactly what it costs to make each drink — you'll be surprised!",
+    description: "See exactly what it costs to make each drink — you'll be surprised!",
     href: '/recipe-costing?tab=recipes',
     icon: 'ChefHat',
     phase: 2,
@@ -80,8 +75,7 @@ export const SETUP_STEPS: SetupStepDef[] = [
   {
     id: 'drawer',
     title: 'Set your cash drawer',
-    description:
-      'Enter your starting drawer amount so daily deposits calculate correctly.',
+    description: 'Enter your starting drawer amount so daily deposits calculate correctly.',
     href: '/cash-deposit',
     icon: 'DollarSign',
     phase: 3,
@@ -89,8 +83,7 @@ export const SETUP_STEPS: SetupStepDef[] = [
   {
     id: 'overhead',
     title: 'Add overhead expenses',
-    description:
-      'Rent, utilities, insurance — knowing your overhead reveals your true profit per drink.',
+    description: 'Rent, utilities, insurance — knowing your overhead reveals your true profit per drink.',
     href: '/recipe-costing?tab=overhead',
     icon: 'Building2',
     phase: 3,
@@ -110,11 +103,7 @@ export function useSetupProgress() {
     queryKey: ['tenant-setup', tenant?.id],
     queryFn: async () => {
       if (!tenant?.id) return {};
-      const { data } = await supabase
-        .from('tenants')
-        .select('setup_progress')
-        .eq('id', tenant.id)
-        .single();
+      const { data } = await supabase.from('tenants').select('setup_progress').eq('id', tenant.id).single();
       return (data?.setup_progress as SetupProgress) || {};
     },
     enabled: !!tenant?.id && isOwner,
@@ -127,36 +116,17 @@ export function useSetupProgress() {
       if (!tenant?.id) return {} as Record<string, boolean>;
       const [profiles, assignments, ingredients, sizes, recipes, tenantRow, overheadItems, storeHours] =
         await Promise.all([
-          supabase
-            .from('user_profiles')
-            .select('id', { count: 'exact', head: true })
-            .eq('tenant_id', tenant.id),
+          supabase.from('user_profiles').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
           supabase
             .from('user_tenant_assignments')
             .select('id', { count: 'exact', head: true })
             .eq('tenant_id', tenant.id)
             .eq('is_active', true),
-          supabase
-            .from('ingredients')
-            .select('id', { count: 'exact', head: true })
-            .eq('tenant_id', tenant.id),
-          supabase
-            .from('product_sizes')
-            .select('id', { count: 'exact', head: true })
-            .eq('tenant_id', tenant.id),
-          supabase
-            .from('recipes')
-            .select('id', { count: 'exact', head: true })
-            .eq('tenant_id', tenant.id),
-          supabase
-            .from('tenants')
-            .select('starting_drawer_default')
-            .eq('id', tenant.id)
-            .single(),
-          supabase
-            .from('overhead_items')
-            .select('id', { count: 'exact', head: true })
-            .eq('tenant_id', tenant.id),
+          supabase.from('ingredients').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
+          supabase.from('product_sizes').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
+          supabase.from('recipes').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
+          supabase.from('tenants').select('starting_drawer_default').eq('id', tenant.id).single(),
+          supabase.from('overhead_items').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
           supabase
             .from('store_operating_hours')
             .select('id', { count: 'exact', head: true })
@@ -192,15 +162,13 @@ export function useSetupProgress() {
     async (patch: Partial<SetupProgress>) => {
       if (!tenant?.id) return;
       // Read latest from cache to avoid stale overwrites
-      const current =
-        (queryClient.getQueryData<SetupProgress>(['tenant-setup', tenant.id]) as SetupProgress) ??
-        {};
+      const current = (queryClient.getQueryData<SetupProgress>(['tenant-setup', tenant.id]) as SetupProgress) ?? {};
       const next = { ...current, ...patch };
       // Optimistic update
       queryClient.setQueryData(['tenant-setup', tenant.id], next);
       await supabase.from('tenants').update({ setup_progress: next }).eq('id', tenant.id);
     },
-    [tenant?.id, queryClient],
+    [tenant?.id, queryClient]
   );
 
   const markStepComplete = useCallback(
@@ -209,7 +177,7 @@ export function useSetupProgress() {
       if (current.includes(stepId)) return;
       await updateProgress({ completedSteps: [...current, stepId] });
     },
-    [setupProgress, updateProgress],
+    [setupProgress, updateProgress]
   );
 
   const markModuleIntroduced = useCallback(
@@ -218,7 +186,7 @@ export function useSetupProgress() {
       if (current.includes(moduleId)) return;
       await updateProgress({ modulesIntroduced: [...current, moduleId] });
     },
-    [setupProgress, updateProgress],
+    [setupProgress, updateProgress]
   );
 
   const dismissWizard = useCallback(async () => {
@@ -262,7 +230,7 @@ export function useSetupProgress() {
         setLoadingTemplates(false);
       }
     },
-    [tenant?.id, vertical?.id, queryClient, markStepComplete],
+    [tenant?.id, vertical?.id, queryClient, markStepComplete]
   );
 
   return {

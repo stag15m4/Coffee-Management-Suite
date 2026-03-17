@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,22 +15,8 @@ import {
   supabase,
 } from '@/lib/supabase-queries';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  ChevronDown,
-  TrendingUp,
-  TrendingDown,
-  Download,
-  BarChart3,
-} from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import { ChevronDown, TrendingUp, TrendingDown, Download, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface GrowthTrackerProps {
   expanded: boolean;
@@ -37,14 +24,21 @@ interface GrowthTrackerProps {
 }
 
 const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
-const MONTH_ABBR = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 interface MonthRow {
   year: number;
@@ -142,7 +136,10 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
       });
 
       m++;
-      if (m > 12) { m = 1; y++; }
+      if (m > 12) {
+        m = 1;
+        y++;
+      }
     }
     return rows;
   }, [openYear, openMonth, currentYear, currentMonth, revenueMap]);
@@ -159,23 +156,21 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
       .map(([year, rows]) => {
         const y = Number(year);
         // Annual gross total (only months with data)
-        const monthsWithData = rows.filter(r => r.hasData && r.revenue > 0);
+        const monthsWithData = rows.filter((r) => r.hasData && r.revenue > 0);
         const annualTotal = monthsWithData.reduce((sum, r) => sum + r.revenue, 0);
         // Average MoM growth for the year
         const momValues = rows
-          .filter(r => r.momPct !== null && r.momPositive !== null)
-          .map(r => parseFloat(r.momPct!.replace(/[+%]/g, '')));
-        const avgMom = momValues.length > 0
-          ? momValues.reduce((sum, v) => sum + v, 0) / momValues.length
-          : null;
+          .filter((r) => r.momPct !== null && r.momPositive !== null)
+          .map((r) => parseFloat(r.momPct!.replace(/[+%]/g, '')));
+        const avgMom = momValues.length > 0 ? momValues.reduce((sum, v) => sum + v, 0) / momValues.length : null;
         // Annual YoY: only compare months that have data in THIS year
         // against the same months in the prior year (apples to apples)
         const priorRows = groups[y - 1];
         let annualYoy: number | null = null;
         if (priorRows && monthsWithData.length > 0) {
-          const activeMonths = new Set(monthsWithData.map(r => r.month));
+          const activeMonths = new Set(monthsWithData.map((r) => r.month));
           const priorMatchTotal = priorRows
-            .filter(r => activeMonths.has(r.month) && r.hasData && r.revenue > 0)
+            .filter((r) => activeMonths.has(r.month) && r.hasData && r.revenue > 0)
             .reduce((sum, r) => sum + r.revenue, 0);
           if (priorMatchTotal > 0) {
             annualYoy = ((annualTotal - priorMatchTotal) / priorMatchTotal) * 100;
@@ -209,22 +204,25 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
   // Chart data (ascending order for chart)
   const chartData = useMemo(() => {
     return monthRows
-      .filter(r => r.hasData && r.revenue > 0)
-      .map(r => ({
+      .filter((r) => r.hasData && r.revenue > 0)
+      .map((r) => ({
         name: `${MONTH_ABBR[r.month - 1]} '${String(r.year).slice(2)}`,
         revenue: r.revenue,
       }));
   }, [monthRows]);
 
   // Save opening date
-  const handleOpenDateChange = useCallback((field: 'growth_open_month' | 'growth_open_year', value: number) => {
-    if (!overheadId) return;
-    updateOverhead.mutate({ id: overheadId, updates: { [field]: value } });
-  }, [overheadId, updateOverhead]);
+  const handleOpenDateChange = useCallback(
+    (field: 'growth_open_month' | 'growth_open_year', value: number) => {
+      if (!overheadId) return;
+      updateOverhead.mutate({ id: overheadId, updates: { [field]: value } });
+    },
+    [overheadId, updateOverhead]
+  );
 
   // Clear local edits once the saved data catches up
   useEffect(() => {
-    setLocalEdits(prev => {
+    setLocalEdits((prev) => {
       const next = { ...prev };
       let changed = false;
       for (const key of Object.keys(next)) {
@@ -240,16 +238,39 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
   }, [revenueMap]);
 
   // Auto-save revenue on blur with debounce
-  const handleRevenueChange = useCallback((year: number, month: number, value: string) => {
-    const key = `${year}-${month}`;
-    setLocalEdits(prev => ({ ...prev, [key]: value }));
+  const handleRevenueChange = useCallback(
+    (year: number, month: number, value: string) => {
+      const key = `${year}-${month}`;
+      setLocalEdits((prev) => ({ ...prev, [key]: value }));
 
-    // Clear existing timeout
-    if (saveTimeouts.current[key]) clearTimeout(saveTimeouts.current[key]);
+      // Clear existing timeout
+      if (saveTimeouts.current[key]) clearTimeout(saveTimeouts.current[key]);
 
-    // Debounced save
-    saveTimeouts.current[key] = setTimeout(() => {
-      const numValue = parseFloat(value) || 0;
+      // Debounced save
+      saveTimeouts.current[key] = setTimeout(() => {
+        const numValue = parseFloat(value) || 0;
+        if (tenant?.id) {
+          upsertMonth.mutate({
+            tenant_id: tenant.id,
+            year,
+            month,
+            gross_revenue: numValue,
+          });
+        }
+      }, 1500);
+    },
+    [tenant?.id, upsertMonth]
+  );
+
+  const handleRevenueBlur = useCallback(
+    (year: number, month: number) => {
+      const key = `${year}-${month}`;
+      const editValue = localEdits[key];
+      if (editValue === undefined) return;
+
+      // Clear debounce and save immediately
+      if (saveTimeouts.current[key]) clearTimeout(saveTimeouts.current[key]);
+      const numValue = parseFloat(editValue) || 0;
       if (tenant?.id) {
         upsertMonth.mutate({
           tenant_id: tenant.id,
@@ -258,26 +279,9 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
           gross_revenue: numValue,
         });
       }
-    }, 1500);
-  }, [tenant?.id, upsertMonth]);
-
-  const handleRevenueBlur = useCallback((year: number, month: number) => {
-    const key = `${year}-${month}`;
-    const editValue = localEdits[key];
-    if (editValue === undefined) return;
-
-    // Clear debounce and save immediately
-    if (saveTimeouts.current[key]) clearTimeout(saveTimeouts.current[key]);
-    const numValue = parseFloat(editValue) || 0;
-    if (tenant?.id) {
-      upsertMonth.mutate({
-        tenant_id: tenant.id,
-        year,
-        month,
-        gross_revenue: numValue,
-      });
-    }
-  }, [tenant?.id, upsertMonth, localEdits]);
+    },
+    [tenant?.id, upsertMonth, localEdits]
+  );
 
   // Import from cash deposits
   const handleImport = useCallback(async () => {
@@ -311,8 +315,8 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
 
       await bulkUpsert.mutateAsync(entries);
       toast({ title: `Imported ${entries.length} months from cash deposits` });
-    } catch (err: any) {
-      toast({ title: 'Import failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Import failed', description: getErrorMessage(err), variant: 'destructive' });
     } finally {
       setImporting(false);
     }
@@ -326,7 +330,9 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
     const saved = revenueMap[key];
     if (saved !== undefined && saved > 0) {
       // When focused, show raw number for easy editing; otherwise formatted
-      return isFocused ? saved.toFixed(2) : saved.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return isFocused
+        ? saved.toFixed(2)
+        : saved.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     return '';
   };
@@ -361,9 +367,7 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                 ) : (
                   <TrendingDown className="w-3 h-3" style={{ color: '#ef4444' }} />
                 )}
-                <span style={{ color: latestMom.momPositive ? '#16a34a' : '#ef4444' }}>
-                  MoM {latestMom.momPct}
-                </span>
+                <span style={{ color: latestMom.momPositive ? '#16a34a' : '#ef4444' }}>MoM {latestMom.momPct}</span>
               </span>
             )}
             {!expanded && hasSetup && latestYoy && (
@@ -373,9 +377,7 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                 ) : (
                   <TrendingDown className="w-3 h-3" style={{ color: '#ef4444' }} />
                 )}
-                <span style={{ color: latestYoy.yoyPositive ? '#16a34a' : '#ef4444' }}>
-                  YoY {latestYoy.yoyPct}
-                </span>
+                <span style={{ color: latestYoy.yoyPositive ? '#16a34a' : '#ef4444' }}>YoY {latestYoy.yoyPct}</span>
               </span>
             )}
           </div>
@@ -402,7 +404,9 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                   >
                     <option value="">Month</option>
                     {MONTH_NAMES.map((name, i) => (
-                      <option key={i} value={i + 1}>{name}</option>
+                      <option key={i} value={i + 1}>
+                        {name}
+                      </option>
                     ))}
                   </select>
                   <select
@@ -412,8 +416,10 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                     style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }}
                   >
                     <option value="">Year</option>
-                    {yearOptions.map(y => (
-                      <option key={y} value={y}>{y}</option>
+                    {yearOptions.map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -458,11 +464,7 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke={colors.creamDark} />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 11, fill: colors.brownLight }}
-                      tickLine={false}
-                    />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: colors.brownLight }} tickLine={false} />
                     <YAxis
                       tick={{ fontSize: 11, fill: colors.brownLight }}
                       tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
@@ -498,16 +500,15 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                   {rowsByYear.map(({ year, rows, annualTotal, avgMom, annualYoy }) => (
                     <tbody key={year}>
                       <tr style={{ backgroundColor: colors.brown, borderTop: `3px solid ${colors.gold}` }}>
-                        <td className="px-4 py-2.5 font-bold text-base text-white">
-                          {year}
-                        </td>
+                        <td className="px-4 py-2.5 font-bold text-base text-white">{year}</td>
                         <td className="px-4 py-2.5 text-right font-bold text-sm" style={{ color: colors.gold }}>
                           {annualTotal > 0 ? formatCurrency(annualTotal) : ''}
                         </td>
                         <td className="px-4 py-2.5 text-right font-bold text-sm text-white">
                           {avgMom !== null ? (
                             <span style={{ color: avgMom >= 0 ? '#4ade80' : '#fca5a5' }}>
-                              Avg: {avgMom >= 0 ? '+' : ''}{avgMom.toFixed(1)}%
+                              Avg: {avgMom >= 0 ? '+' : ''}
+                              {avgMom.toFixed(1)}%
                             </span>
                           ) : (
                             <span className="opacity-40">—</span>
@@ -516,7 +517,8 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                         <td className="px-4 py-2.5 text-right font-bold text-sm text-white">
                           {annualYoy !== null ? (
                             <span style={{ color: annualYoy >= 0 ? '#4ade80' : '#fca5a5' }}>
-                              {annualYoy >= 0 ? '+' : ''}{annualYoy.toFixed(1)}%
+                              {annualYoy >= 0 ? '+' : ''}
+                              {annualYoy.toFixed(1)}%
                             </span>
                           ) : (
                             <span className="opacity-40">—</span>
@@ -536,7 +538,9 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                           </td>
                           <td className="px-4 py-1.5 text-right">
                             <div className="relative inline-flex items-center">
-                              <span className="absolute left-2 text-sm" style={{ color: colors.brownLight }}>$</span>
+                              <span className="absolute left-2 text-sm" style={{ color: colors.brownLight }}>
+                                $
+                              </span>
                               <Input
                                 type="text"
                                 inputMode="decimal"
@@ -548,7 +552,7 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                                   // Put raw number into local edits on focus for clean editing
                                   const saved = revenueMap[key];
                                   if (saved !== undefined && saved > 0 && !(key in localEdits)) {
-                                    setLocalEdits(prev => ({ ...prev, [key]: saved.toFixed(2) }));
+                                    setLocalEdits((prev) => ({ ...prev, [key]: saved.toFixed(2) }));
                                   }
                                 }}
                                 onChange={(e) => {
@@ -577,9 +581,7 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                                 ) : (
                                   <TrendingDown className="w-3 h-3" style={{ color: '#ef4444' }} />
                                 )}
-                                <span style={{ color: row.momPositive ? '#16a34a' : '#ef4444' }}>
-                                  {row.momPct}
-                                </span>
+                                <span style={{ color: row.momPositive ? '#16a34a' : '#ef4444' }}>{row.momPct}</span>
                               </span>
                             ) : (
                               <span style={{ color: colors.creamDark }}>—</span>
@@ -593,9 +595,7 @@ export default function GrowthTracker({ expanded, onToggle }: GrowthTrackerProps
                                 ) : (
                                   <TrendingDown className="w-3 h-3" style={{ color: '#ef4444' }} />
                                 )}
-                                <span style={{ color: row.yoyPositive ? '#16a34a' : '#ef4444' }}>
-                                  {row.yoyPct}
-                                </span>
+                                <span style={{ color: row.yoyPositive ? '#16a34a' : '#ef4444' }}>{row.yoyPct}</span>
                               </span>
                             ) : (
                               <span style={{ color: colors.creamDark }}>—</span>

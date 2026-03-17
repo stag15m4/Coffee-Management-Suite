@@ -29,15 +29,13 @@ export function AppResumeIndicator() {
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 text-sm text-white"
       style={{
         backgroundColor: 'var(--color-primary, #334155)',
-        animation: 'slideDown 0.3s ease-out'
+        animation: 'slideDown 0.3s ease-out',
       }}
       role="status"
       aria-live="polite"
     >
       <div className="flex items-center gap-2">
-        <div
-          className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"
-        />
+        <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
         <span>Refreshing...</span>
       </div>
       <style>{`

@@ -3,7 +3,14 @@ import { LogIn, LogOut, Coffee, Clock, AlertCircle, AlertTriangle } from 'lucide
 import { useAuth } from '@/contexts/AuthContext';
 import { useTrialStatus } from '@/hooks/use-trial-status';
 import { EmployeeWelcomeCard } from '@/components/onboarding/EmployeeWelcomeCard';
-import { useActiveClockEntry, useClockIn, useClockOut, useStartBreak, useEndBreak, useTimeClockEntries } from '@/hooks/use-time-clock';
+import {
+  useActiveClockEntry,
+  useClockIn,
+  useClockOut,
+  useStartBreak,
+  useEndBreak,
+  useTimeClockEntries,
+} from '@/hooks/use-time-clock';
 import type { TimeClockEntry } from '@/hooks/use-time-clock';
 import { useShifts } from '@/hooks/use-shifts';
 import type { Shift } from '@/hooks/use-shifts';
@@ -118,7 +125,7 @@ export default function EmployeeDashboard() {
   // Filter to user's shifts
   const myShifts = useMemo(
     () => (shifts.data ?? []).filter((s) => s.employee_id === user?.id),
-    [shifts.data, user?.id],
+    [shifts.data, user?.id]
   );
   const nextShift = useMemo(() => getNextShift(myShifts), [myShifts]);
   const weekHours = useMemo(() => calcWeekHours(weekEntries.data ?? []), [weekEntries.data]);
@@ -183,11 +190,7 @@ export default function EmployeeDashboard() {
   const busy = clockIn.isPending || clockOut.isPending || startBreak.isPending || endBreak.isPending;
 
   // Hero button styles
-  const heroColor = !isClockedIn
-    ? '#22c55e'
-    : isOnBreak
-      ? '#f59e0b'
-      : 'var(--color-primary)';
+  const heroColor = !isClockedIn ? '#22c55e' : isOnBreak ? '#f59e0b' : 'var(--color-primary)';
 
   const priorityColors: Record<string, string> = {
     urgent: '#ef4444',
@@ -208,7 +211,10 @@ export default function EmployeeDashboard() {
             {tenant?.name} &bull; {weekHours}h this week
           </p>
           {profile?.kiosk_pin && (
-            <p className="text-xs mt-1 font-mono tracking-widest opacity-50" style={{ color: 'var(--color-secondary)' }}>
+            <p
+              className="text-xs mt-1 font-mono tracking-widest opacity-50"
+              style={{ color: 'var(--color-secondary)' }}
+            >
               Kiosk PIN: {profile.kiosk_pin}
             </p>
           )}
@@ -257,11 +263,7 @@ export default function EmployeeDashboard() {
             )}
           </button>
           <span className="text-sm font-medium" style={{ color: 'var(--color-secondary)' }}>
-            {!isClockedIn
-              ? 'Clock In'
-              : isOnBreak
-                ? 'On Break'
-                : `Since ${formatTimestamp(entry!.clock_in)}`}
+            {!isClockedIn ? 'Clock In' : isOnBreak ? 'On Break' : `Since ${formatTimestamp(entry!.clock_in)}`}
           </span>
         </div>
 
@@ -319,7 +321,9 @@ export default function EmployeeDashboard() {
               {myShifts.map((s) => (
                 <div key={s.id} className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-secondary)' }}>
                   <span className="w-10 font-medium">{formatDate(s.date).split(',')[0]}</span>
-                  <span>{formatTime(s.start_time)}&ndash;{formatTime(s.end_time)}</span>
+                  <span>
+                    {formatTime(s.start_time)}&ndash;{formatTime(s.end_time)}
+                  </span>
                   {s.position && <span className="ml-auto opacity-60">{s.position}</span>}
                 </div>
               ))}
@@ -333,7 +337,10 @@ export default function EmployeeDashboard() {
             <div className="space-y-2">
               {tasks.data!.map((t) => (
                 <div key={t.id} className="flex items-start gap-2 text-sm" style={{ color: 'var(--color-secondary)' }}>
-                  <span className="mt-0.5 h-3.5 w-3.5 rounded border flex-shrink-0" style={{ borderColor: 'var(--color-secondary)' }} />
+                  <span
+                    className="mt-0.5 h-3.5 w-3.5 rounded border flex-shrink-0"
+                    style={{ borderColor: 'var(--color-secondary)' }}
+                  />
                   <span className="flex-1">{t.title}</span>
                   <span
                     className="text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0"

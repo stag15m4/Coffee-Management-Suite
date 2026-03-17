@@ -5,13 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
-import {
-  useActiveClockEntry,
-  useClockIn,
-  useClockOut,
-  useStartBreak,
-  useEndBreak,
-} from '@/hooks/use-time-clock';
+import { useActiveClockEntry, useClockIn, useClockOut, useStartBreak, useEndBreak } from '@/hooks/use-time-clock';
 import { Play, Square, Coffee } from 'lucide-react';
 import { colors } from '@/lib/colors';
 
@@ -35,7 +29,10 @@ export function ClockInOutCard() {
   const handleClockIn = useCallback(async () => {
     try {
       await clockIn.mutateAsync(undefined);
-      toast({ title: 'Clocked in', description: `Started at ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` });
+      toast({
+        title: 'Clocked in',
+        description: `Started at ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`,
+      });
     } catch {
       toast({ title: 'Error', description: 'Failed to clock in.', variant: 'destructive' });
     }
@@ -75,7 +72,9 @@ export function ClockInOutCard() {
           ) : activeEntry ? (
             <>
               <div className="text-center">
-                <p className="text-sm" style={{ color: colors.brownLight }}>Clocked in since</p>
+                <p className="text-sm" style={{ color: colors.brownLight }}>
+                  Clocked in since
+                </p>
                 <p className="text-2xl font-bold" style={{ color: colors.brown }}>
                   {formatTimestamp(activeEntry.clock_in)}
                 </p>
@@ -86,14 +85,20 @@ export function ClockInOutCard() {
                 )}
               </div>
               <div className="flex gap-3">
-                <Button onClick={handleBreakToggle} variant="outline"
+                <Button
+                  onClick={handleBreakToggle}
+                  variant="outline"
                   disabled={startBreak.isPending || endBreak.isPending}
-                  style={{ borderColor: colors.yellow, color: colors.brown }}>
+                  style={{ borderColor: colors.yellow, color: colors.brown }}
+                >
                   <Coffee className="w-4 h-4 mr-1" />
                   {activeBreak ? 'End Break' : 'Start Break'}
                 </Button>
-                <Button onClick={handleClockOut} disabled={clockOut.isPending}
-                  style={{ backgroundColor: colors.red, color: '#fff' }}>
+                <Button
+                  onClick={handleClockOut}
+                  disabled={clockOut.isPending}
+                  style={{ backgroundColor: colors.red, color: '#fff' }}
+                >
                   <Square className="w-4 h-4 mr-1" /> Clock Out
                 </Button>
               </div>
@@ -101,10 +106,16 @@ export function ClockInOutCard() {
           ) : (
             <>
               <div className="text-center">
-                <p className="text-sm" style={{ color: colors.brownLight }}>Not clocked in</p>
+                <p className="text-sm" style={{ color: colors.brownLight }}>
+                  Not clocked in
+                </p>
               </div>
-              <Button onClick={handleClockIn} disabled={clockIn.isPending} size="lg"
-                style={{ backgroundColor: colors.green, color: '#fff' }}>
+              <Button
+                onClick={handleClockIn}
+                disabled={clockIn.isPending}
+                size="lg"
+                style={{ backgroundColor: colors.green, color: '#fff' }}
+              >
                 <Play className="w-5 h-5 mr-2" /> Clock In
               </Button>
             </>

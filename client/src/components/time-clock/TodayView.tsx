@@ -66,7 +66,14 @@ interface TodayViewProps {
   hideClockCard?: boolean;
 }
 
-export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, employees, hideClockCard }: TodayViewProps) {
+export function TodayView({
+  tenantId,
+  canApprove,
+  canViewAll,
+  currentUserId,
+  employees,
+  hideClockCard,
+}: TodayViewProps) {
   const [clockOutEntry, setClockOutEntry] = useState<{ entry: TimeClockEntry; name: string } | null>(null);
   const today = new Date().toISOString().split('T')[0];
   const { data: todayShifts, isLoading: loadingShifts } = useTodayShifts(tenantId || undefined);
@@ -77,7 +84,7 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
   const rows = useMemo<TodayRow[]>(() => {
     // Build a map of employee_id -> shifts
     const shiftsByEmployee = new Map<string, Shift[]>();
-    for (const s of (todayShifts ?? [])) {
+    for (const s of todayShifts ?? []) {
       const empId = s.employee_id;
       if (!empId) continue;
       const existing = shiftsByEmployee.get(empId) || [];
@@ -89,7 +96,7 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
     const entriesByEmployee = new Map<string, TimeClockEntry[]>();
     const seenEntryIds = new Set<string>();
 
-    for (const e of (todayEntries ?? [])) {
+    for (const e of todayEntries ?? []) {
       seenEntryIds.add(e.id);
       const existing = entriesByEmployee.get(e.employee_id) || [];
       existing.push(e);
@@ -97,7 +104,7 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
     }
 
     // Merge in active clock entries from previous days (still clocked in)
-    for (const e of (activeClockedIn ?? [])) {
+    for (const e of activeClockedIn ?? []) {
       if (seenEntryIds.has(e.id)) continue; // already in today's entries
       const existing = entriesByEmployee.get(e.employee_id) || [];
       existing.push(e);
@@ -224,14 +231,22 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
         <div className="grid grid-cols-3 gap-3">
           <Card style={{ backgroundColor: colors.white }}>
             <CardContent className="pt-4 pb-4 text-center">
-              <p className="text-2xl font-bold" style={{ color: colors.brown }}>{scheduledCount}</p>
-              <p className="text-xs" style={{ color: colors.brownLight }}>Scheduled</p>
+              <p className="text-2xl font-bold" style={{ color: colors.brown }}>
+                {scheduledCount}
+              </p>
+              <p className="text-xs" style={{ color: colors.brownLight }}>
+                Scheduled
+              </p>
             </CardContent>
           </Card>
           <Card style={{ backgroundColor: colors.white }}>
             <CardContent className="pt-4 pb-4 text-center">
-              <p className="text-2xl font-bold" style={{ color: colors.brown }}>{clockedInCount}</p>
-              <p className="text-xs" style={{ color: colors.brownLight }}>Clocked In</p>
+              <p className="text-2xl font-bold" style={{ color: colors.brown }}>
+                {clockedInCount}
+              </p>
+              <p className="text-xs" style={{ color: colors.brownLight }}>
+                Clocked In
+              </p>
             </CardContent>
           </Card>
           <Card style={{ backgroundColor: colors.white }}>
@@ -239,7 +254,9 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
               <p className="text-2xl font-bold" style={{ color: lateClockOutCount > 0 ? colors.red : colors.brown }}>
                 {lateClockOutCount}
               </p>
-              <p className="text-xs" style={{ color: colors.brownLight }}>Late clock-outs</p>
+              <p className="text-xs" style={{ color: colors.brownLight }}>
+                Late clock-outs
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -260,13 +277,27 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${colors.creamDark}` }}>
-                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Full name</th>
-                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Schedule</th>
-                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Job</th>
-                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Clock in</th>
-                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>Clock out</th>
-                      <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>Daily total</th>
-                      <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>Breaks</th>
+                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>
+                        Full name
+                      </th>
+                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>
+                        Schedule
+                      </th>
+                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>
+                        Job
+                      </th>
+                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>
+                        Clock in
+                      </th>
+                      <th className="text-left py-2 px-2" style={{ color: colors.brownLight }}>
+                        Clock out
+                      </th>
+                      <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>
+                        Daily total
+                      </th>
+                      <th className="text-right py-2 px-2" style={{ color: colors.brownLight }}>
+                        Breaks
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -276,7 +307,11 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
                           <span className="flex items-center gap-1">
                             {row.name}
                             {row.hasSquareEntries && (
-                              <Badge variant="outline" className="text-[10px] px-1 py-0" style={{ borderColor: colors.blue, color: colors.blue }}>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-1 py-0"
+                                style={{ borderColor: colors.blue, color: colors.blue }}
+                              >
                                 Square
                               </Badge>
                             )}
@@ -290,30 +325,43 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
                             <Badge style={{ backgroundColor: colors.gold, color: colors.white }} className="text-xs">
                               {row.position}
                             </Badge>
-                          ) : '--'}
+                          ) : (
+                            '--'
+                          )}
                         </td>
                         <td className="py-2 px-2" style={{ color: colors.brown }}>
                           {row.clockIn ? formatTimestamp(row.clockIn) : '--'}
                         </td>
                         <td className="py-2 px-2" style={{ color: colors.brown }}>
-                          {row.clockOut ? formatTimestamp(row.clockOut) : row.clockIn ? (
-                            (() => {
-                              const activeEntry = row.entries.find(e => !e.clock_out);
-                              const badge = row.isLateClockOut ? (
-                                <Badge style={{ backgroundColor: colors.red, color: '#fff' }} className="gap-1 text-xs">
-                                  <AlertTriangle className="w-3 h-3" /> Late
-                                </Badge>
-                              ) : (
-                                <Badge style={{ backgroundColor: colors.green, color: '#fff' }} className="text-xs">Active</Badge>
-                              );
-                              return canViewAll && activeEntry ? (
-                                <button onClick={() => setClockOutEntry({ entry: activeEntry, name: row.name })}
-                                  className="cursor-pointer">
-                                  {badge}
-                                </button>
-                              ) : badge;
-                            })()
-                          ) : '--'}
+                          {row.clockOut
+                            ? formatTimestamp(row.clockOut)
+                            : row.clockIn
+                              ? (() => {
+                                  const activeEntry = row.entries.find((e) => !e.clock_out);
+                                  const badge = row.isLateClockOut ? (
+                                    <Badge
+                                      style={{ backgroundColor: colors.red, color: '#fff' }}
+                                      className="gap-1 text-xs"
+                                    >
+                                      <AlertTriangle className="w-3 h-3" /> Late
+                                    </Badge>
+                                  ) : (
+                                    <Badge style={{ backgroundColor: colors.green, color: '#fff' }} className="text-xs">
+                                      Active
+                                    </Badge>
+                                  );
+                                  return canViewAll && activeEntry ? (
+                                    <button
+                                      onClick={() => setClockOutEntry({ entry: activeEntry, name: row.name })}
+                                      className="cursor-pointer"
+                                    >
+                                      {badge}
+                                    </button>
+                                  ) : (
+                                    badge
+                                  );
+                                })()
+                              : '--'}
                         </td>
                         <td className="text-right py-2 px-2 font-medium" style={{ color: colors.brown }}>
                           {row.dailyTotal > 0 ? formatHoursMinutes(row.dailyTotal) : '--'}
@@ -349,7 +397,7 @@ export function TodayView({ tenantId, canApprove, canViewAll, currentUserId, emp
 function calcShiftDuration(start: string, end: string): string {
   const [sh, sm] = start.split(':').map(Number);
   const [eh, em] = end.split(':').map(Number);
-  let mins = (eh * 60 + em) - (sh * 60 + sm);
+  let mins = eh * 60 + em - (sh * 60 + sm);
   if (mins < 0) mins += 24 * 60;
   const h = Math.floor(mins / 60);
   const m = mins % 60;

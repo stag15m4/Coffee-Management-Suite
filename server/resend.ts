@@ -19,7 +19,14 @@ export interface OrderEmailData {
   vendorEmail: string;
   ccEmail?: string;
   vendorName: string;
-  orderItems: { name: string; size: string; quantity: number; price: number; retailLabels?: number; category?: string }[];
+  orderItems: {
+    name: string;
+    size: string;
+    quantity: number;
+    price: number;
+    retailLabels?: number;
+    category?: string;
+  }[];
   totalUnits: number;
   totalCost: number;
   notes?: string;
@@ -30,16 +37,17 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
   try {
     const { client, fromEmail } = getResendClient();
 
-    const hasRetailLabels = data.orderItems.some(item => (item.retailLabels && item.retailLabels > 0));
+    const hasRetailLabels = data.orderItems.some((item) => item.retailLabels && item.retailLabels > 0);
     const totalRetailLabels = data.orderItems.reduce((sum, item) => sum + (item.retailLabels || 0), 0);
 
     const itemsHtml = data.orderItems
-      .map(item => {
-        const retailDisplay = item.category === '12oz'
-          ? `${item.quantity} (all)`
-          : (item.retailLabels && item.retailLabels > 0
-            ? `${item.retailLabels} of ${item.quantity}`
-            : '0');
+      .map((item) => {
+        const retailDisplay =
+          item.category === '12oz'
+            ? `${item.quantity} (all)`
+            : item.retailLabels && item.retailLabels > 0
+              ? `${item.retailLabels} of ${item.quantity}`
+              : '0';
         return `<tr>
           <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(item.name)}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(item.size)}</td>
@@ -89,8 +97,8 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
     const emailOptions: any = {
       from: fromEmail,
       to: data.vendorEmail,
-      subject: `${(data.vendorName || 'Vendor')} Order from ${(data.tenantName || 'Customer').replace(/[<>"]/g, '')} - ${new Date().toLocaleDateString()}`,
-      html
+      subject: `${data.vendorName || 'Vendor'} Order from ${(data.tenantName || 'Customer').replace(/[<>"]/g, '')} - ${new Date().toLocaleDateString()}`,
+      html,
     };
 
     if (data.ccEmail) {
@@ -202,13 +210,13 @@ export async function sendFeedbackEmail(data: FeedbackEmailData): Promise<{ succ
     const typeLabels: Record<string, string> = {
       bug: 'Bug Report',
       suggestion: 'Suggestion',
-      general: 'General Feedback'
+      general: 'General Feedback',
     };
 
     const typeColors: Record<string, string> = {
       bug: '#dc2626',
       suggestion: '#2563eb',
-      general: '#16a34a'
+      general: '#16a34a',
     };
 
     const html = `
@@ -268,7 +276,7 @@ export async function sendFeedbackEmail(data: FeedbackEmailData): Promise<{ succ
       to: 'CMS@coffeemanagementsuite.com',
       subject: `[CMS ${typeLabels[data.feedbackType]}] ${data.subject}`,
       html,
-      replyTo: data.userEmail || undefined
+      replyTo: data.userEmail || undefined,
     });
 
     if (result.error) {

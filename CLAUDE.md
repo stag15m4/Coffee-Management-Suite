@@ -11,21 +11,22 @@ If the server isn't running, ask the user if they'd like to start it.
 **Hot reload:** Frontend changes (React components, hooks, pages) are hot-reloaded via Vite HMR — no restart needed. Server changes (`server/*.ts`, `shared/*.ts`) require restarting `npm run dev`.
 
 **Other commands:**
+
 - `npm run check` — TypeScript type check
 - `npm run build` — Production build to `dist/`
 - `npm run db:push` — Push Drizzle schema to database
 
 ## Tech Stack
 
-| Layer | Tech |
-|-------|------|
-| Frontend | React 18 + TypeScript, Vite, Wouter (routing), TanStack Query, Tailwind + shadcn/ui |
-| Backend | Express.js, Drizzle ORM |
-| Database | PostgreSQL via Supabase (all IDs are UUIDs) |
-| Auth | Supabase Auth (email/password), roles: owner/manager/lead/employee |
-| Payments | Stripe (webhooks at `/api/stripe/webhook`) |
-| Email | Resend API |
-| File uploads | AWS S3 via Supabase storage + Uppy |
+| Layer        | Tech                                                                                |
+| ------------ | ----------------------------------------------------------------------------------- |
+| Frontend     | React 18 + TypeScript, Vite, Wouter (routing), TanStack Query, Tailwind + shadcn/ui |
+| Backend      | Express.js, Drizzle ORM                                                             |
+| Database     | PostgreSQL via Supabase (all IDs are UUIDs)                                         |
+| Auth         | Supabase Auth (email/password), roles: owner/manager/lead/employee                  |
+| Payments     | Stripe (webhooks at `/api/stripe/webhook`)                                          |
+| Email        | Resend API                                                                          |
+| File uploads | AWS S3 via Supabase storage + Uppy                                                  |
 
 ## Architecture
 
@@ -34,6 +35,7 @@ If the server isn't running, ask the user if they'd like to start it.
 **Module system:** Features are gated per tenant — `recipe-costing`, `tip-payout`, `cash-deposit`, `bulk-ordering`, `equipment-maintenance`, `admin-tasks`.
 
 **Dual data access pattern:**
+
 - **Client-side:** Most reads go directly to Supabase via `@supabase/supabase-js` (RLS protects data). See `client/src/lib/supabase-queries.ts` and hooks in `client/src/hooks/`.
 - **Server-side:** Express API handles complex ops (Stripe, email, file uploads, validation). See `server/routes.ts`.
 
@@ -68,6 +70,7 @@ The Drizzle schema in `shared/schema.ts` covers: `ingredients`, `recipes`, `reci
 ## Environment
 
 Configured via `.env` (loaded by `tsx --env-file`). Required vars:
+
 - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` — client Supabase access
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` — server admin access
 - `DATABASE_URL` — Postgres connection string

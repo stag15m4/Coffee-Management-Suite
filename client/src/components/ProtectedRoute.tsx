@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useModuleTracking } from '@/hooks/use-module-tracking';
 import { useTrialStatus } from '@/hooks/use-trial-status';
+import { MODULE_REGISTRY } from '@/lib/module-registry';
 import { Clock, CreditCard, AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,18 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole, module }: ProtectedRouteProps) {
-  const { user, profile, isPlatformAdmin, adminViewingTenant, loading, hasRole, canAccessModule, signOut, retryProfileFetch } = useAuth();
+  const {
+    user,
+    profile,
+    tenant,
+    isPlatformAdmin,
+    adminViewingTenant,
+    loading,
+    hasRole,
+    canAccessModule,
+    signOut,
+    retryProfileFetch,
+  } = useAuth();
   const { isTrial, trialExpired } = useTrialStatus();
   useModuleTracking(module);
   const [profileTimeout, setProfileTimeout] = useState(false);
@@ -82,9 +94,7 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
         <div className="min-h-screen flex items-center justify-center bg-background">
           <div className="text-center p-8 rounded-xl max-w-md bg-card shadow-lg">
             <h2 className="text-xl font-semibold mb-2 text-foreground">Connection Issue</h2>
-            <p className="mb-4 text-muted-foreground">
-              Unable to load your profile. This could be:
-            </p>
+            <p className="mb-4 text-muted-foreground">Unable to load your profile. This could be:</p>
             <ul className="text-left mb-4 text-sm space-y-1 text-muted-foreground">
               <li>• Network connectivity issue</li>
               <li>• Supabase project may be paused</li>
@@ -133,10 +143,29 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
     );
   }
 
-  // Trial expiration enforcement — only block module pages, not billing/profile/dashboard
-  // Platform admins are exempt so they can view tenants for support
-  if (module && isTrial && trialExpired && !isPlatformAdmin) {
+  // Trial / subscription expiration enforcement — only block module pages, not
+  // billing, profile, dashboard, or admin pages (users, branding, settings) so
+  // the owner can still manage their account and subscribe.
+  // Platform admins are exempt so they can view tenants for support.
+  //
+  // We check two conditions:
+  //   1. Trial expired: subscription_status is 'trial' (or plan is free/null) AND trial_ends_at has passed
+  //   2. Subscription inactive: subscription_status is canceled, past_due, or expired
+  // Either condition blocks access to module-gated pages.
+  const subscriptionStatus = tenant?.subscription_status;
+  const hasActiveSubscription = subscriptionStatus === 'active';
+  const isTrialStatus = subscriptionStatus === 'trial' || isTrial;
+  const isSubscriptionInactive =
+    subscriptionStatus === 'canceled' || subscriptionStatus === 'past_due' || subscriptionStatus === 'expired';
+  const shouldBlockModule =
+    module &&
+    !isPlatformAdmin &&
+    ((isTrialStatus && trialExpired && !hasActiveSubscription) || (isSubscriptionInactive && !hasActiveSubscription));
+
+  if (shouldBlockModule) {
     const isOwner = profile?.role === 'owner';
+    const moduleDef = MODULE_REGISTRY[module as ModuleId];
+    const moduleName = moduleDef?.name || module;
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
         <Card className="max-w-md w-full mx-4" style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}>
@@ -148,19 +177,19 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
               <Clock className="w-8 h-8" style={{ color: '#dc2626' }} />
             </div>
             <h2 className="text-xl font-bold mb-2" style={{ color: colors.brown }}>
-              Your Free Trial Has Ended
+              {isSubscriptionInactive ? 'Subscription Inactive' : 'Your Free Trial Has Ended'}
             </h2>
+            <p className="mb-2 text-sm" style={{ color: colors.brownLight }}>
+              Your trial has expired. Please subscribe to continue using {moduleName}.
+            </p>
             {isOwner ? (
               <>
                 <p className="mb-6" style={{ color: colors.brownLight }}>
-                  Subscribe to a plan to continue using all your modules and features.
-                  Your data is safe and waiting for you.
+                  Subscribe to a plan to continue using all your modules and features. Your data is safe and waiting for
+                  you.
                 </p>
                 <Link href="/billing">
-                  <Button
-                    className="w-full"
-                    style={{ backgroundColor: colors.gold, color: colors.white }}
-                  >
+                  <Button className="w-full" style={{ backgroundColor: colors.gold, color: colors.white }}>
                     <CreditCard className="w-4 h-4 mr-2" />
                     Choose a Plan
                   </Button>
@@ -178,8 +207,8 @@ export function ProtectedRoute({ children, requiredRole, module }: ProtectedRout
             ) : (
               <>
                 <p className="mb-4" style={{ color: colors.brownLight }}>
-                  Your organization's free trial has ended. Please contact your
-                  account owner to subscribe and restore access.
+                  Your organization's free trial has ended. Please contact your account owner to subscribe and restore
+                  access.
                 </p>
                 <div
                   className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm"

@@ -1,7 +1,14 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { UserRole } from '@/contexts/AuthContext';
-import { useRoleSettings, useUpdateRoleSetting, ALL_PERMISSIONS, type TenantRoleSetting, type PermissionKey } from '@/hooks/use-role-settings';
+import {
+  useRoleSettings,
+  useUpdateRoleSetting,
+  ALL_PERMISSIONS,
+  type TenantRoleSetting,
+  type PermissionKey,
+} from '@/hooks/use-role-settings';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,7 +64,7 @@ export default function AdminRoleSettings() {
   };
 
   const setField = (settingId: string, field: string, value: any) => {
-    setEdits(prev => ({
+    setEdits((prev) => ({
       ...prev,
       [settingId]: { ...prev[settingId], [field]: value },
     }));
@@ -71,20 +78,20 @@ export default function AdminRoleSettings() {
     }
     try {
       await updateSetting.mutateAsync({ id: setting.id, updates: edit });
-      setEdits(prev => {
+      setEdits((prev) => {
         const next = { ...prev };
         delete next[setting.id];
         return next;
       });
       toast({ title: 'Role settings saved' });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to save role settings:', err);
-      const message = err?.message || 'Failed to save settings.';
+      const message = getErrorMessage(err) || 'Failed to save settings.';
       toast({ title: 'Error', description: message, variant: 'destructive' });
     }
   };
 
-  const settingsByRole = new Map(settings.map(s => [s.role, s]));
+  const settingsByRole = new Map(settings.map((s) => [s.role, s]));
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.cream }}>
@@ -92,14 +99,16 @@ export default function AdminRoleSettings() {
         <div className="flex items-center gap-3">
           <Shield className="w-6 h-6" style={{ color: colors.gold }} />
           <div>
-            <h1 className="text-xl font-bold" style={{ color: colors.brown }}>Role Settings</h1>
+            <h1 className="text-xl font-bold" style={{ color: colors.brown }}>
+              Role Settings
+            </h1>
             <p className="text-sm" style={{ color: colors.brownLight }}>
               Customize permissions and display names for each role
             </p>
           </div>
         </div>
 
-        {ROLE_ORDER.map(role => {
+        {ROLE_ORDER.map((role) => {
           const setting = settingsByRole.get(role);
           if (!setting) return null;
           const isOwnerRole = role === 'owner';
@@ -109,69 +118,91 @@ export default function AdminRoleSettings() {
             <Card key={role} style={{ backgroundColor: colors.white }}>
               <CardHeader
                 className="flex flex-row items-center justify-between gap-2 cursor-pointer select-none"
-                onClick={() => setExpanded(prev => ({ ...prev, [role]: !prev[role] }))}
+                onClick={() => setExpanded((prev) => ({ ...prev, [role]: !prev[role] }))}
               >
                 <CardTitle className="flex items-center gap-2" style={{ color: colors.brown }}>
-                  {expanded[role]
-                    ? <ChevronDown className="w-4 h-4" style={{ color: colors.brownLight }} />
-                    : <ChevronRight className="w-4 h-4" style={{ color: colors.brownLight }} />}
+                  {expanded[role] ? (
+                    <ChevronDown className="w-4 h-4" style={{ color: colors.brownLight }} />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" style={{ color: colors.brownLight }} />
+                  )}
                   {isOwnerRole && <Lock className="w-4 h-4" style={{ color: colors.brownLight }} />}
                   {getEditedValue(setting, 'display_name') as string}
-                  <Badge variant="outline" className="text-xs" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
+                  <Badge
+                    variant="outline"
+                    className="text-xs"
+                    style={{ borderColor: colors.creamDark, color: colors.brownLight }}
+                  >
                     {role}
                   </Badge>
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   {!isOwnerRole && hasEdits && (
-                    <Button size="sm" onClick={(e) => { e.stopPropagation(); handleSave(setting); }}
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSave(setting);
+                      }}
                       disabled={updateSetting.isPending}
-                      style={{ backgroundColor: colors.gold, color: colors.white }}>
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                    >
                       <Save className="w-3.5 h-3.5 mr-1" /> Save
                     </Button>
                   )}
                 </div>
               </CardHeader>
-              {expanded[role] && <CardContent className="space-y-4">
-                {isOwnerRole ? (
-                  <p className="text-sm" style={{ color: colors.brownLight }}>
-                    Owners always have full access to all permissions. This cannot be changed.
-                  </p>
-                ) : (
-                  <>
-                    {/* Display Name */}
-                    <div className="space-y-1.5">
-                      <Label style={{ color: colors.brown }}>Display Name</Label>
-                      <Input
-                        value={getEditedValue(setting, 'display_name') as string}
-                        onChange={(e) => setField(setting.id, 'display_name', e.target.value)}
-                        placeholder={role.charAt(0).toUpperCase() + role.slice(1)}
-                        style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                      />
-                    </div>
-
-                    {/* Permission toggles by category */}
-                    {Object.entries(PERM_GROUPS).map(([category, perms]) => (
-                      <div key={category}>
-                        <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: colors.brownLight }}>
-                          {category}
-                        </p>
-                        <div className="space-y-2">
-                          {perms.map(perm => (
-                            <div key={perm.key} className="flex items-center justify-between p-2 rounded-lg"
-                              style={{ backgroundColor: colors.cream }}>
-                              <span className="text-sm" style={{ color: colors.brown }}>{perm.label}</span>
-                              <Switch
-                                checked={getEditedValue(setting, perm.key) as boolean}
-                                onCheckedChange={(checked) => setField(setting.id, perm.key, checked)}
-                              />
-                            </div>
-                          ))}
-                        </div>
+              {expanded[role] && (
+                <CardContent className="space-y-4">
+                  {isOwnerRole ? (
+                    <p className="text-sm" style={{ color: colors.brownLight }}>
+                      Owners always have full access to all permissions. This cannot be changed.
+                    </p>
+                  ) : (
+                    <>
+                      {/* Display Name */}
+                      <div className="space-y-1.5">
+                        <Label style={{ color: colors.brown }}>Display Name</Label>
+                        <Input
+                          value={getEditedValue(setting, 'display_name') as string}
+                          onChange={(e) => setField(setting.id, 'display_name', e.target.value)}
+                          placeholder={role.charAt(0).toUpperCase() + role.slice(1)}
+                          style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+                        />
                       </div>
-                    ))}
-                  </>
-                )}
-              </CardContent>}
+
+                      {/* Permission toggles by category */}
+                      {Object.entries(PERM_GROUPS).map(([category, perms]) => (
+                        <div key={category}>
+                          <p
+                            className="text-xs font-semibold uppercase tracking-wide mb-2"
+                            style={{ color: colors.brownLight }}
+                          >
+                            {category}
+                          </p>
+                          <div className="space-y-2">
+                            {perms.map((perm) => (
+                              <div
+                                key={perm.key}
+                                className="flex items-center justify-between p-2 rounded-lg"
+                                style={{ backgroundColor: colors.cream }}
+                              >
+                                <span className="text-sm" style={{ color: colors.brown }}>
+                                  {perm.label}
+                                </span>
+                                <Switch
+                                  checked={getEditedValue(setting, perm.key) as boolean}
+                                  onCheckedChange={(checked) => setField(setting.id, perm.key, checked)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </CardContent>
+              )}
             </Card>
           );
         })}

@@ -103,14 +103,16 @@ export function EquipmentForm({
   return (
     <Card style={{ backgroundColor: colors.white, borderColor: colors.gold, borderWidth: 2 }}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg" style={{ color: colors.brown }}>Add Equipment</CardTitle>
+        <CardTitle className="text-lg" style={{ color: colors.brown }}>
+          Add Equipment
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
           <Label style={{ color: colors.brown }}>Name *</Label>
           <Input
             value={newEquipmentName}
-            onChange={e => setNewEquipmentName(e.target.value)}
+            onChange={(e) => setNewEquipmentName(e.target.value)}
             placeholder="e.g., Grinder 1, La Marzocca"
             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
             data-testid="input-equipment-name"
@@ -122,7 +124,7 @@ export function EquipmentForm({
               <Label style={{ color: colors.brown }}>Model</Label>
               <Input
                 value={newEquipmentModel}
-                onChange={e => setNewEquipmentModel(e.target.value)}
+                onChange={(e) => setNewEquipmentModel(e.target.value)}
                 placeholder="e.g., Mazzer Mini"
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-equipment-model"
@@ -132,7 +134,7 @@ export function EquipmentForm({
               <Label style={{ color: colors.brown }}>Serial Number</Label>
               <Input
                 value={newEquipmentSerialNumber}
-                onChange={e => setNewEquipmentSerialNumber(e.target.value)}
+                onChange={(e) => setNewEquipmentSerialNumber(e.target.value)}
                 placeholder="e.g., SN-12345678"
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-equipment-serial-number"
@@ -169,8 +171,10 @@ export function EquipmentForm({
                 <SelectValue placeholder="Select or add new" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
                 ))}
                 <SelectItem value="__new__">+ Add new category...</SelectItem>
               </SelectContent>
@@ -179,7 +183,7 @@ export function EquipmentForm({
           {(categories.length === 0 || !categories.includes(newEquipmentCategory)) && (
             <Input
               value={newEquipmentCategory}
-              onChange={e => setNewEquipmentCategory(e.target.value)}
+              onChange={(e) => setNewEquipmentCategory(e.target.value)}
               placeholder="e.g., Grinders, Espresso Machines"
               className={categories.length > 0 ? 'mt-2' : ''}
               style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
@@ -191,7 +195,7 @@ export function EquipmentForm({
           <Label style={{ color: colors.brown }}>Notes</Label>
           <Textarea
             value={newEquipmentNotes}
-            onChange={e => setNewEquipmentNotes(e.target.value)}
+            onChange={(e) => setNewEquipmentNotes(e.target.value)}
             placeholder="Serial number, location, etc."
             style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
             data-testid="input-equipment-notes"
@@ -203,7 +207,7 @@ export function EquipmentForm({
           <Input
             type="date"
             value={newEquipmentInServiceDate}
-            onChange={e => setNewEquipmentInServiceDate(e.target.value)}
+            onChange={(e) => setNewEquipmentInServiceDate(e.target.value)}
             style={{ backgroundColor: colors.inputBg, borderColor: colors.gold, color: colors.brown }}
             data-testid="input-equipment-in-service-date"
           />
@@ -211,13 +215,15 @@ export function EquipmentForm({
 
         {isVehicle(newEquipmentCategory) && (
           <div className="space-y-3 pl-2 border-l-2" style={{ borderColor: colors.gold }}>
-            <p className="text-xs font-medium" style={{ color: colors.brown }}>Vehicle Info</p>
+            <p className="text-xs font-medium" style={{ color: colors.brown }}>
+              Vehicle Info
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label style={{ color: colors.brown }}>License State</Label>
                 <Input
                   value={newEquipmentLicenseState}
-                  onChange={e => setNewEquipmentLicenseState(e.target.value.toUpperCase().slice(0, 2))}
+                  onChange={(e) => setNewEquipmentLicenseState(e.target.value.toUpperCase().slice(0, 2))}
                   placeholder="e.g., NC"
                   maxLength={2}
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
@@ -228,7 +234,7 @@ export function EquipmentForm({
                 <Label style={{ color: colors.brown }}>License Plate</Label>
                 <Input
                   value={newEquipmentLicensePlate}
-                  onChange={e => setNewEquipmentLicensePlate(e.target.value.toUpperCase())}
+                  onChange={(e) => setNewEquipmentLicensePlate(e.target.value.toUpperCase())}
                   placeholder="e.g., ABC-1234"
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                   data-testid="input-equipment-license-plate"
@@ -239,7 +245,7 @@ export function EquipmentForm({
               <Label style={{ color: colors.brown }}>VIN</Label>
               <Input
                 value={newEquipmentVin}
-                onChange={e => setNewEquipmentVin(e.target.value.toUpperCase())}
+                onChange={(e) => setNewEquipmentVin(e.target.value.toUpperCase())}
                 placeholder="17-character VIN"
                 maxLength={17}
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
@@ -253,11 +259,11 @@ export function EquipmentForm({
                 inputMode="numeric"
                 pattern="[0-9]*"
                 value={newEquipmentMileage}
-                onChange={e => {
+                onChange={(e) => {
                   const v = e.target.value;
                   if (v === '' || /^\d+$/.test(v)) setNewEquipmentMileage(v);
                 }}
-                onFocus={e => e.target.select()}
+                onFocus={(e) => e.target.select()}
                 placeholder="e.g., 45000"
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-equipment-mileage"
@@ -268,10 +274,7 @@ export function EquipmentForm({
                 <User className="w-3.5 h-3.5" />
                 Assign To
               </Label>
-              <Select
-                value={newEquipmentAssignedTo}
-                onValueChange={setNewEquipmentAssignedTo}
-              >
+              <Select value={newEquipmentAssignedTo} onValueChange={setNewEquipmentAssignedTo}>
                 <SelectTrigger
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                   data-testid="select-equipment-assigned-to"
@@ -280,7 +283,7 @@ export function EquipmentForm({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Unassigned</SelectItem>
-                  {teamMembers.map(member => (
+                  {teamMembers.map((member) => (
                     <SelectItem key={member.id} value={member.id}>
                       {member.full_name || member.email}
                     </SelectItem>
@@ -312,7 +315,7 @@ export function EquipmentForm({
               <Input
                 type="date"
                 value={newEquipmentPurchaseDate}
-                onChange={e => setNewEquipmentPurchaseDate(e.target.value)}
+                onChange={(e) => setNewEquipmentPurchaseDate(e.target.value)}
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                 data-testid="input-equipment-purchase-date"
               />
@@ -323,7 +326,7 @@ export function EquipmentForm({
                 type="number"
                 min="1"
                 value={newEquipmentWarrantyMonths}
-                onChange={e => setNewEquipmentWarrantyMonths(e.target.value)}
+                onChange={(e) => setNewEquipmentWarrantyMonths(e.target.value)}
                 placeholder="e.g., 12, 24, 36"
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-equipment-warranty-months"
@@ -334,7 +337,7 @@ export function EquipmentForm({
               <Label style={{ color: colors.brown }}>Warranty Notes</Label>
               <Textarea
                 value={newEquipmentWarrantyNotes}
-                onChange={e => setNewEquipmentWarrantyNotes(e.target.value)}
+                onChange={(e) => setNewEquipmentWarrantyNotes(e.target.value)}
                 placeholder="Coverage details, exclusions, claim info..."
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-equipment-warranty-notes"

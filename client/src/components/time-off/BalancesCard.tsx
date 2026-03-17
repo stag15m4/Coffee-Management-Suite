@@ -2,11 +2,7 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Wallet } from 'lucide-react';
-import {
-  useMyTimeOffBalances,
-  useTimeOffBalances,
-  type TimeOffBalance,
-} from '@/hooks/use-time-off-policies';
+import { useMyTimeOffBalances, useTimeOffBalances, type TimeOffBalance } from '@/hooks/use-time-off-policies';
 import { colors } from '@/lib/colors';
 
 function BalanceBar({ balance }: { balance: TimeOffBalance }) {
@@ -28,17 +24,19 @@ function BalanceBar({ balance }: { balance: TimeOffBalance }) {
       </div>
       <div className="flex gap-1 mb-2 flex-wrap">
         {(balance.policy_categories || []).map((c) => (
-          <Badge key={c} variant="outline" className="text-[10px] px-1.5 py-0"
-            style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
+          <Badge
+            key={c}
+            variant="outline"
+            className="text-[10px] px-1.5 py-0"
+            style={{ borderColor: colors.creamDark, color: colors.brownLight }}
+          >
             {c}
           </Badge>
         ))}
       </div>
       {/* Progress bar */}
       <div className="h-2.5 rounded-full overflow-hidden flex" style={{ backgroundColor: colors.creamDark }}>
-        {usedPct > 0 && (
-          <div className="h-full" style={{ width: `${usedPct}%`, backgroundColor: colors.blue }} />
-        )}
+        {usedPct > 0 && <div className="h-full" style={{ width: `${usedPct}%`, backgroundColor: colors.blue }} />}
         {pendingPct > 0 && (
           <div className="h-full" style={{ width: `${pendingPct}%`, backgroundColor: colors.yellow }} />
         )}
@@ -48,9 +46,7 @@ function BalanceBar({ balance }: { balance: TimeOffBalance }) {
       </div>
       <div className="flex justify-between mt-1 text-[11px]" style={{ color: colors.brownLight }}>
         <span>Used: {balance.used_hours.toFixed(1)}h</span>
-        {balance.pending_hours > 0 && (
-          <span>Pending: {balance.pending_hours.toFixed(1)}h</span>
-        )}
+        {balance.pending_hours > 0 && <span>Pending: {balance.pending_hours.toFixed(1)}h</span>}
         <span>Balance: {balance.balance_hours.toFixed(1)}h</span>
       </div>
     </div>
@@ -81,9 +77,7 @@ export function MyBalancesCard() {
 }
 
 /** Shows all employees' balances — manager view. */
-export function TeamBalancesCard({ employees }: {
-  employees: { user_profile_id?: string | null; name: string }[];
-}) {
+export function TeamBalancesCard({ employees }: { employees: { user_profile_id?: string | null; name: string }[] }) {
   const { data: allBalances, isLoading } = useTimeOffBalances();
 
   // Group balances by employee
@@ -115,7 +109,9 @@ export function TeamBalancesCard({ employees }: {
       <CardContent className="space-y-4">
         {byEmployee.map(({ employeeId, name, balances }) => (
           <div key={employeeId}>
-            <p className="text-sm font-medium mb-2" style={{ color: colors.brown }}>{name}</p>
+            <p className="text-sm font-medium mb-2" style={{ color: colors.brown }}>
+              {name}
+            </p>
             <div className="space-y-2 pl-2">
               {balances.map((b) => (
                 <BalanceBar key={b.id} balance={b} />

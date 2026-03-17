@@ -85,7 +85,8 @@ export function ModuleBar({ enabledModules }: ModuleBarProps) {
             const info = MODULE_REGISTRY[moduleId];
             return (
               <Link key={moduleId} href="/billing">
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full opacity-60 hover:opacity-80 transition-opacity"
+                <button
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full opacity-60 hover:opacity-80 transition-opacity"
                   style={{ backgroundColor: colors.cream }}
                 >
                   <Lock className="w-3 h-3" style={{ color: colors.brownLight }} />

@@ -57,6 +57,6 @@ export const getWeekRange = (weekKey: string) => {
   sunday.setDate(monday.getDate() + 6);
   return {
     start: monday.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
-    end: sunday.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
+    end: sunday.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }),
   };
 };

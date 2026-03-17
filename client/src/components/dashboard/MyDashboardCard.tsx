@@ -15,17 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import {
-  Clock,
-  Coffee,
-  LogIn,
-  LogOut,
-  CalendarDays,
-  Timer,
-  Plane,
-  Check,
-  X,
-} from 'lucide-react';
+import { Clock, Coffee, LogIn, LogOut, CalendarDays, Timer, Plane, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';
 
@@ -73,7 +63,7 @@ function calcWeekHours(entries: TimeClockEntry[]): number {
         breakMs += be - bs;
       }
     }
-    total += (clockOut - clockIn - breakMs);
+    total += clockOut - clockIn - breakMs;
   }
   return total / (1000 * 60 * 60);
 }
@@ -134,16 +124,12 @@ export function MyDashboardCard() {
   const myShifts = useMemo(() => {
     if (!allShifts || !user?.id) return [];
     const myName = profile?.full_name?.toLowerCase();
-    return allShifts.filter(
-      (s) => s.employee_id === user.id || (myName && s.employee_name?.toLowerCase() === myName)
-    );
+    return allShifts.filter((s) => s.employee_id === user.id || (myName && s.employee_name?.toLowerCase() === myName));
   }, [allShifts, user?.id, profile?.full_name]);
 
   // Shifts needing a response
   const pendingShifts = useMemo(() => {
-    return myShifts.filter(
-      (s) => s.status === 'published' && s.employee_id === user?.id && !s.acceptance
-    );
+    return myShifts.filter((s) => s.status === 'published' && s.employee_id === user?.id && !s.acceptance);
   }, [myShifts, user?.id]);
 
   const nextShift = useMemo(() => getNextShift(myShifts), [myShifts]);
@@ -200,23 +186,11 @@ export function MyDashboardCard() {
   if (!user || !profile) return null;
 
   return (
-    <Card
-      className="overflow-hidden mb-6"
-      style={{ backgroundColor: colors.white }}
-      data-spotlight="my-dashboard-card"
-    >
+    <Card className="overflow-hidden mb-6" style={{ backgroundColor: colors.white }} data-spotlight="my-dashboard-card">
       {/* Header */}
-      <div
-        className="px-5 py-4 flex items-center gap-3"
-        style={{ borderBottom: `1px solid ${colors.creamDark}` }}
-      >
+      <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid ${colors.creamDark}` }}>
         {profile.avatar_url ? (
-          <img
-            src={profile.avatar_url}
-            alt=""
-            className="w-10 h-10 rounded-full object-cover"
-            loading="lazy"
-          />
+          <img src={profile.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" loading="lazy" />
         ) : (
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
@@ -241,7 +215,9 @@ export function MyDashboardCard() {
             <Timer className="w-4 h-4" />
             {weekHours.toFixed(1)}h
           </div>
-          <p className="text-[10px]" style={{ color: colors.brownLight }}>this week</p>
+          <p className="text-[10px]" style={{ color: colors.brownLight }}>
+            this week
+          </p>
         </div>
       </div>
 
@@ -256,7 +232,9 @@ export function MyDashboardCard() {
           </div>
 
           {clockLoading ? (
-            <p className="text-sm" style={{ color: colors.brownLight }}>Loading...</p>
+            <p className="text-sm" style={{ color: colors.brownLight }}>
+              Loading...
+            </p>
           ) : activeEntry ? (
             <div className="space-y-2">
               <p className="text-sm" style={{ color: colors.brownLight }}>
@@ -342,8 +320,10 @@ export function MyDashboardCard() {
 
       {/* Pending shifts alert */}
       {pendingShifts.length > 0 && (
-        <div className="px-5 py-2 flex items-center gap-2 text-sm"
-          style={{ backgroundColor: '#fef3c7', color: '#92400e', borderBottom: `1px solid ${colors.creamDark}` }}>
+        <div
+          className="px-5 py-2 flex items-center gap-2 text-sm"
+          style={{ backgroundColor: '#fef3c7', color: '#92400e', borderBottom: `1px solid ${colors.creamDark}` }}
+        >
           <CalendarDays className="w-4 h-4 flex-shrink-0" />
           <span className="font-medium">
             {pendingShifts.length} shift{pendingShifts.length !== 1 ? 's' : ''} awaiting your response
@@ -369,8 +349,10 @@ export function MyDashboardCard() {
               const isDeclining = decliningShiftId === s.id;
               return (
                 <div key={s.id} className="space-y-1">
-                  <div className="flex items-center gap-3 text-sm py-1.5 px-2 rounded"
-                    style={{ backgroundColor: colors.cream }}>
+                  <div
+                    className="flex items-center gap-3 text-sm py-1.5 px-2 rounded"
+                    style={{ backgroundColor: colors.cream }}
+                  >
                     <span className="w-20 flex-shrink-0 font-medium" style={{ color: colors.brown }}>
                       {formatDate(s.date)}
                     </span>
@@ -391,18 +373,30 @@ export function MyDashboardCard() {
                       )}
                       {isPending && (
                         <>
-                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
                             disabled={acceptShift.isPending}
                             title="Accept shift"
                             onClick={async () => {
-                              try { await acceptShift.mutateAsync(s.id); toast({ title: 'Shift accepted' }); }
-                              catch { toast({ title: 'Failed to accept', variant: 'destructive' }); }
-                            }}>
+                              try {
+                                await acceptShift.mutateAsync(s.id);
+                                toast({ title: 'Shift accepted' });
+                              } catch {
+                                toast({ title: 'Failed to accept', variant: 'destructive' });
+                              }
+                            }}
+                          >
                             <Check className="w-3.5 h-3.5" style={{ color: '#22c55e' }} />
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
                             title="Decline shift"
-                            onClick={() => setDecliningShiftId(isDeclining ? null : s.id)}>
+                            onClick={() => setDecliningShiftId(isDeclining ? null : s.id)}
+                          >
                             <X className="w-3.5 h-3.5" style={{ color: '#ef4444' }} />
                           </Button>
                         </>
@@ -419,16 +413,22 @@ export function MyDashboardCard() {
                         className="flex-1 text-xs px-2 py-1 rounded border"
                         style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                       />
-                      <Button size="sm" className="text-xs"
+                      <Button
+                        size="sm"
+                        className="text-xs"
                         disabled={declineShift.isPending}
                         onClick={async () => {
                           try {
                             await declineShift.mutateAsync({ shiftId: s.id, reason: declineReason || undefined });
                             toast({ title: 'Shift declined' });
-                            setDecliningShiftId(null); setDeclineReason('');
-                          } catch { toast({ title: 'Failed to decline', variant: 'destructive' }); }
+                            setDecliningShiftId(null);
+                            setDeclineReason('');
+                          } catch {
+                            toast({ title: 'Failed to decline', variant: 'destructive' });
+                          }
                         }}
-                        style={{ backgroundColor: '#ef4444', color: '#fff' }}>
+                        style={{ backgroundColor: '#ef4444', color: '#fff' }}
+                      >
                         Decline
                       </Button>
                     </div>
@@ -442,10 +442,7 @@ export function MyDashboardCard() {
 
       {/* Time Off Requests */}
       {activeTimeOff.length > 0 && (
-        <div
-          className="px-5 py-4"
-          style={{ borderTop: `1px solid ${colors.creamDark}` }}
-        >
+        <div className="px-5 py-4" style={{ borderTop: `1px solid ${colors.creamDark}` }}>
           <div className="flex items-center gap-2 mb-2">
             <Plane className="w-4 h-4" style={{ color: colors.gold }} />
             <span className="text-sm font-semibold" style={{ color: colors.brown }}>
@@ -461,9 +458,7 @@ export function MyDashboardCard() {
                 <span style={{ color: colors.brownLight }}>
                   {formatDate(r.start_date)} &ndash; {formatDate(r.end_date)}
                 </span>
-                <Badge className={`text-[10px] px-1.5 py-0 ml-auto ${STATUS_COLORS[r.status] || ''}`}>
-                  {r.status}
-                </Badge>
+                <Badge className={`text-[10px] px-1.5 py-0 ml-auto ${STATUS_COLORS[r.status] || ''}`}>{r.status}</Badge>
               </div>
             ))}
           </div>

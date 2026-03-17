@@ -1,7 +1,4 @@
-import {
-  TrendingUp, Users, Clock, CheckCircle2, AlertTriangle, Coffee,
-  type LucideIcon,
-} from 'lucide-react';
+import { TrendingUp, Users, Clock, CheckCircle2, AlertTriangle, Coffee, type LucideIcon } from 'lucide-react';
 import { getModuleIcon, MODULE_REGISTRY, type ModuleId } from '@/lib/module-registry';
 import { Badge } from '@/components/ui/badge';
 import { colors } from '@/lib/colors';
@@ -40,9 +37,17 @@ function SampleTable({ headers, rows }: { headers: string[]; rows: string[][] })
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
     <div className="rounded-lg p-3 text-center" style={{ backgroundColor: colors.cream }}>
-      <p className="text-lg font-bold" style={{ color: color || colors.brown }}>{value}</p>
-      <p className="text-xs" style={{ color: colors.brownLight }}>{label}</p>
-      {sub && <p className="text-[10px] mt-0.5" style={{ color: colors.brownLight }}>{sub}</p>}
+      <p className="text-lg font-bold" style={{ color: color || colors.brown }}>
+        {value}
+      </p>
+      <p className="text-xs" style={{ color: colors.brownLight }}>
+        {label}
+      </p>
+      {sub && (
+        <p className="text-[10px] mt-0.5" style={{ color: colors.brownLight }}>
+          {sub}
+        </p>
+      )}
     </div>
   );
 }
@@ -59,7 +64,9 @@ function RecipeCostingPreview() {
       {/* Sample recipe */}
       <div className="rounded-lg p-3" style={{ backgroundColor: colors.cream }}>
         <div className="flex items-center justify-between mb-2">
-          <span className="font-semibold text-sm" style={{ color: colors.brown }}>Vanilla Oat Latte</span>
+          <span className="font-semibold text-sm" style={{ color: colors.brown }}>
+            Vanilla Oat Latte
+          </span>
           <Badge style={{ backgroundColor: colors.green, color: 'white' }}>68% margin</Badge>
         </div>
         <div className="space-y-1.5">
@@ -72,11 +79,16 @@ function RecipeCostingPreview() {
               <span style={{ color: colors.brownLight }}>{ing.name}</span>
               <div className="flex items-center gap-3">
                 <span style={{ color: colors.brownLight }}>{ing.qty}</span>
-                <span className="font-mono" style={{ color: colors.brown }}>{ing.cost}</span>
+                <span className="font-mono" style={{ color: colors.brown }}>
+                  {ing.cost}
+                </span>
               </div>
             </div>
           ))}
-          <div className="border-t pt-1.5 mt-1.5 flex justify-between text-xs font-semibold" style={{ borderColor: colors.creamDark }}>
+          <div
+            className="border-t pt-1.5 mt-1.5 flex justify-between text-xs font-semibold"
+            style={{ borderColor: colors.creamDark }}
+          >
             <span style={{ color: colors.brown }}>Total Cost</span>
             <span style={{ color: colors.brown }}>$0.92</span>
           </div>
@@ -85,7 +97,9 @@ function RecipeCostingPreview() {
 
       {/* Pricing matrix preview */}
       <div>
-        <p className="text-xs font-semibold mb-1.5" style={{ color: colors.brown }}>Pricing Matrix</p>
+        <p className="text-xs font-semibold mb-1.5" style={{ color: colors.brown }}>
+          Pricing Matrix
+        </p>
         <SampleTable
           headers={['Size', 'Cost', 'Price', 'Margin']}
           rows={[
@@ -118,10 +132,16 @@ function TipPayoutPreview() {
       {/* Sample tip period */}
       <div className="rounded-lg p-3" style={{ backgroundColor: colors.cream }}>
         <div className="flex items-center justify-between mb-2">
-          <span className="font-semibold text-sm" style={{ color: colors.brown }}>Week of Jan 13 – Jan 19</span>
-          <span className="text-sm font-bold" style={{ color: colors.green }}>$842.50</span>
+          <span className="font-semibold text-sm" style={{ color: colors.brown }}>
+            Week of Jan 13 – Jan 19
+          </span>
+          <span className="text-sm font-bold" style={{ color: colors.green }}>
+            $842.50
+          </span>
         </div>
-        <p className="text-xs mb-2" style={{ color: colors.brownLight }}>Total tips collected</p>
+        <p className="text-xs mb-2" style={{ color: colors.brownLight }}>
+          Total tips collected
+        </p>
       </div>
 
       <SampleTable
@@ -157,8 +177,12 @@ function CashDepositPreview() {
       <div className="rounded-lg p-3" style={{ backgroundColor: colors.cream }}>
         <div className="flex items-center justify-between mb-2">
           <div>
-            <span className="font-semibold text-sm" style={{ color: colors.brown }}>Monday, Jan 13</span>
-            <p className="text-xs" style={{ color: colors.brownLight }}>Counted by Maria S. at 6:42 PM</p>
+            <span className="font-semibold text-sm" style={{ color: colors.brown }}>
+              Monday, Jan 13
+            </span>
+            <p className="text-xs" style={{ color: colors.brownLight }}>
+              Counted by Maria S. at 6:42 PM
+            </p>
           </div>
           <CheckCircle2 className="w-5 h-5" style={{ color: colors.green }} />
         </div>
@@ -176,7 +200,10 @@ function CashDepositPreview() {
             </div>
           ))}
         </div>
-        <div className="border-t pt-1.5 mt-2 flex justify-between text-sm font-semibold" style={{ borderColor: colors.creamDark }}>
+        <div
+          className="border-t pt-1.5 mt-2 flex justify-between text-sm font-semibold"
+          style={{ borderColor: colors.creamDark }}
+        >
           <span style={{ color: colors.brown }}>Total Deposit</span>
           <span style={{ color: colors.green }}>$455.75</span>
         </div>
@@ -197,7 +224,8 @@ function BulkOrderingPreview() {
   return (
     <div className="space-y-4">
       <p className="text-sm" style={{ color: colors.brownLight }}>
-        Manage wholesale coffee orders, track vendor pricing, and calculate batch costs for house-made syrups and sauces.
+        Manage wholesale coffee orders, track vendor pricing, and calculate batch costs for house-made syrups and
+        sauces.
       </p>
 
       <SampleTable
@@ -214,12 +242,18 @@ function BulkOrderingPreview() {
       {/* Batch recipe */}
       <div className="rounded-lg p-3" style={{ backgroundColor: colors.cream }}>
         <div className="flex items-center justify-between mb-1">
-          <span className="font-semibold text-sm" style={{ color: colors.brown }}>House Vanilla Syrup</span>
-          <span className="text-xs" style={{ color: colors.brownLight }}>Batch: 128 oz</span>
+          <span className="font-semibold text-sm" style={{ color: colors.brown }}>
+            House Vanilla Syrup
+          </span>
+          <span className="text-xs" style={{ color: colors.brownLight }}>
+            Batch: 128 oz
+          </span>
         </div>
         <div className="flex items-center justify-between text-xs">
           <span style={{ color: colors.brownLight }}>Batch cost: $4.82</span>
-          <span className="font-mono font-semibold" style={{ color: colors.gold }}>$0.04/oz</span>
+          <span className="font-mono font-semibold" style={{ color: colors.gold }}>
+            $0.04/oz
+          </span>
         </div>
       </div>
 
@@ -249,18 +283,29 @@ function EquipmentMaintenancePreview() {
           { name: 'Vitamix Blender #2', status: 'Repair', due: 'Blade replacement ordered', urgent: true },
           { name: 'True Undercounter Fridge', status: 'Good', due: 'Filter change in 28 days', urgent: false },
         ].map((eq, i) => (
-          <div key={i} className="flex items-center justify-between rounded-lg p-2.5" style={{ backgroundColor: colors.cream }}>
+          <div
+            key={i}
+            className="flex items-center justify-between rounded-lg p-2.5"
+            style={{ backgroundColor: colors.cream }}
+          >
             <div>
-              <p className="text-sm font-medium" style={{ color: colors.brown }}>{eq.name}</p>
-              <p className="text-xs flex items-center gap-1" style={{ color: eq.urgent ? '#d97706' : colors.brownLight }}>
+              <p className="text-sm font-medium" style={{ color: colors.brown }}>
+                {eq.name}
+              </p>
+              <p
+                className="text-xs flex items-center gap-1"
+                style={{ color: eq.urgent ? '#d97706' : colors.brownLight }}
+              >
                 {eq.urgent && <AlertTriangle className="w-3 h-3" />}
                 {eq.due}
               </p>
             </div>
-            <Badge style={{
-              backgroundColor: eq.status === 'Good' ? colors.green : colors.red,
-              color: 'white',
-            }}>
+            <Badge
+              style={{
+                backgroundColor: eq.status === 'Good' ? colors.green : colors.red,
+                color: 'white',
+              }}
+            >
               {eq.status}
             </Badge>
           </div>
@@ -288,37 +333,83 @@ function AdminTasksPreview() {
       {/* Task list */}
       <div className="space-y-2">
         {[
-          { title: 'Order new paper cups (12oz)', assignee: 'Maria S.', priority: 'high', status: 'In Progress', category: 'Inventory' },
-          { title: 'Update spring drink menu board', assignee: 'Jake T.', priority: 'medium', status: 'Pending', category: 'Marketing' },
-          { title: 'Schedule health inspection prep', assignee: 'You', priority: 'high', status: 'Pending', category: 'Compliance' },
-          { title: 'Train Lily on cold brew process', assignee: 'Aiden P.', priority: 'low', status: 'Completed', category: 'Training' },
+          {
+            title: 'Order new paper cups (12oz)',
+            assignee: 'Maria S.',
+            priority: 'high',
+            status: 'In Progress',
+            category: 'Inventory',
+          },
+          {
+            title: 'Update spring drink menu board',
+            assignee: 'Jake T.',
+            priority: 'medium',
+            status: 'Pending',
+            category: 'Marketing',
+          },
+          {
+            title: 'Schedule health inspection prep',
+            assignee: 'You',
+            priority: 'high',
+            status: 'Pending',
+            category: 'Compliance',
+          },
+          {
+            title: 'Train Lily on cold brew process',
+            assignee: 'Aiden P.',
+            priority: 'low',
+            status: 'Completed',
+            category: 'Training',
+          },
         ].map((task, i) => (
           <div key={i} className="flex items-start gap-2 rounded-lg p-2.5" style={{ backgroundColor: colors.cream }}>
-            <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-              task.status === 'Completed' ? 'bg-green-500' :
-              task.priority === 'high' ? 'bg-red-500' :
-              task.priority === 'medium' ? 'bg-yellow-500' : 'bg-blue-400'
-            }`} />
+            <div
+              className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                task.status === 'Completed'
+                  ? 'bg-green-500'
+                  : task.priority === 'high'
+                    ? 'bg-red-500'
+                    : task.priority === 'medium'
+                      ? 'bg-yellow-500'
+                      : 'bg-blue-400'
+              }`}
+            />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium" style={{
-                color: colors.brown,
-                textDecoration: task.status === 'Completed' ? 'line-through' : 'none',
-                opacity: task.status === 'Completed' ? 0.6 : 1,
-              }}>
+              <p
+                className="text-sm font-medium"
+                style={{
+                  color: colors.brown,
+                  textDecoration: task.status === 'Completed' ? 'line-through' : 'none',
+                  opacity: task.status === 'Completed' ? 0.6 : 1,
+                }}
+              >
                 {task.title}
               </p>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs" style={{ color: colors.brownLight }}>{task.assignee}</span>
-                <Badge className="text-[10px] px-1.5 py-0" variant="outline" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
+                <span className="text-xs" style={{ color: colors.brownLight }}>
+                  {task.assignee}
+                </span>
+                <Badge
+                  className="text-[10px] px-1.5 py-0"
+                  variant="outline"
+                  style={{ borderColor: colors.creamDark, color: colors.brownLight }}
+                >
                   {task.category}
                 </Badge>
               </div>
             </div>
-            <Badge className="text-[10px] shrink-0" style={{
-              backgroundColor: task.status === 'Completed' ? colors.green :
-                task.status === 'In Progress' ? '#60a5fa' : colors.creamDark,
-              color: task.status === 'Completed' || task.status === 'In Progress' ? 'white' : colors.brownLight,
-            }}>
+            <Badge
+              className="text-[10px] shrink-0"
+              style={{
+                backgroundColor:
+                  task.status === 'Completed'
+                    ? colors.green
+                    : task.status === 'In Progress'
+                      ? '#60a5fa'
+                      : colors.creamDark,
+                color: task.status === 'Completed' || task.status === 'In Progress' ? 'white' : colors.brownLight,
+              }}
+            >
               {task.status}
             </Badge>
           </div>
@@ -346,16 +437,20 @@ const MODULE_PREVIEW_COMPONENTS: Record<string, () => JSX.Element> = {
 };
 
 // Derive icon and tagline from registry; keep preview components here
-const MODULE_PREVIEWS: Record<string, { component: () => JSX.Element; icon: LucideIcon; tagline: string }> = Object.fromEntries(
-  Object.entries(MODULE_PREVIEW_COMPONENTS).map(([id, component]) => {
-    const def = MODULE_REGISTRY[id as ModuleId];
-    return [id, {
-      component,
-      icon: getModuleIcon(id as ModuleId),
-      tagline: def?.previewTagline || '',
-    }];
-  })
-);
+const MODULE_PREVIEWS: Record<string, { component: () => JSX.Element; icon: LucideIcon; tagline: string }> =
+  Object.fromEntries(
+    Object.entries(MODULE_PREVIEW_COMPONENTS).map(([id, component]) => {
+      const def = MODULE_REGISTRY[id as ModuleId];
+      return [
+        id,
+        {
+          component,
+          icon: getModuleIcon(id as ModuleId),
+          tagline: def?.previewTagline || '',
+        },
+      ];
+    })
+  );
 
 interface ModulePreviewProps {
   moduleId: string;
@@ -377,13 +472,20 @@ export function ModulePreviewContent({ moduleId, moduleName }: ModulePreviewProp
           <Icon className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h3 className="font-semibold" style={{ color: colors.brown }}>{moduleName}</h3>
-          <p className="text-xs" style={{ color: colors.brownLight }}>{preview.tagline}</p>
+          <h3 className="font-semibold" style={{ color: colors.brown }}>
+            {moduleName}
+          </h3>
+          <p className="text-xs" style={{ color: colors.brownLight }}>
+            {preview.tagline}
+          </p>
         </div>
       </div>
 
       {/* Fake company banner */}
-      <div className="rounded-lg px-3 py-1.5 mb-4 flex items-center gap-2" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+      <div
+        className="rounded-lg px-3 py-1.5 mb-4 flex items-center gap-2"
+        style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}
+      >
         <Coffee className="w-3.5 h-3.5" style={{ color: colors.green }} />
         <span className="text-xs" style={{ color: '#166534' }}>
           Sample data from <strong>Sunrise Roasters</strong> — a fictional coffee shop

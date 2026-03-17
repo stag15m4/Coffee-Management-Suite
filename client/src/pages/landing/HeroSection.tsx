@@ -6,7 +6,7 @@ import DOMPurify from 'dompurify';
 
 /** Sanitize HTML, allowing only safe formatting tags for headlines */
 function sanitizeHtml(html: string): string {
-  return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['em', 'br', 'strong'] });
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['em', 'br', 'strong'], ALLOWED_ATTR: [] });
 }
 
 interface HeroSectionProps {
@@ -37,10 +37,7 @@ export function HeroSection({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
-            <Badge
-              className="mb-4"
-              style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}
-            >
+            <Badge className="mb-4" style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}>
               {badgeText}
             </Badge>
             <h1
@@ -48,10 +45,7 @@ export function HeroSection({
               style={{ color: 'var(--color-secondary)' }}
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(headline) }}
             />
-            <p
-              className="text-lg md:text-xl mb-8"
-              style={{ color: 'var(--color-secondary-light)' }}
-            >
+            <p className="text-lg md:text-xl mb-8" style={{ color: 'var(--color-secondary-light)' }}>
               {subheadline}
             </p>
             <div className="flex flex-wrap gap-4">
@@ -79,11 +73,7 @@ export function HeroSection({
             </div>
           </div>
           <div className="flex justify-center">
-            <img
-              src={logoUrl || logoFallback}
-              alt={productName}
-              className="w-64 h-64 md:w-80 md:h-80 drop-shadow-xl"
-            />
+            <img src={logoUrl || logoFallback} alt={productName} className="w-64 h-64 md:w-80 md:h-80 drop-shadow-xl" />
           </div>
         </div>
       </div>

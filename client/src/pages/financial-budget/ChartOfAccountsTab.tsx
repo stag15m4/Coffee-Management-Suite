@@ -1,22 +1,12 @@
+import { getErrorMessage } from '@/lib/utils';
 import { useState, useRef, useCallback } from 'react';
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   useChartOfAccounts,
   useCreateAccount,
@@ -99,8 +89,8 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
         title: 'Chart of Accounts synced',
         description: `${result.imported} new, ${result.updated} updated, ${result.skipped} skipped`,
       });
-    } catch (err: any) {
-      toast({ title: 'Sync failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Sync failed', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -109,8 +99,8 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
     try {
       await qboDisconnect.mutateAsync(tenantId);
       toast({ title: 'QuickBooks disconnected' });
-    } catch (err: any) {
-      toast({ title: 'Disconnect failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Disconnect failed', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -182,8 +172,8 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
       setShowAddDialog(false);
       setNewAccount({ name: '', account_number: '', account_type: 'Expense', detail_type: '', parent_id: '' });
       toast({ title: 'Account added' });
-    } catch (err: any) {
-      toast({ title: 'Failed to add account', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to add account', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -209,25 +199,27 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
       });
       setEditingId(null);
       toast({ title: 'Account updated' });
-    } catch (err: any) {
-      toast({ title: 'Failed to update', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to update', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
   const handleHide = async (acc: ChartOfAccount) => {
-    if (!confirm(`Hide "${acc.name}" from your budget? You can restore it later from the hidden accounts list.`)) return;
+    if (!confirm(`Hide "${acc.name}" from your budget? You can restore it later from the hidden accounts list.`))
+      return;
     try {
       await deleteAccount.mutateAsync({ id: acc.id, tenant_id: tenantId });
       toast({ title: `"${acc.name}" hidden` });
-    } catch (err: any) {
-      toast({ title: 'Failed to hide', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to hide', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -250,8 +242,8 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
       toast({ title: `${selectedIds.size} account${selectedIds.size !== 1 ? 's' : ''} hidden` });
       setSelectedIds(new Set());
       setSelectMode(false);
-    } catch (err: any) {
-      toast({ title: 'Failed to hide accounts', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to hide accounts', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -259,8 +251,8 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
     try {
       await restoreAccount.mutateAsync({ id: acc.id, tenant_id: tenantId });
       toast({ title: `"${acc.name}" restored` });
-    } catch (err: any) {
-      toast({ title: 'Failed to restore', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to restore', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -270,7 +262,10 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvPreview, setCsvPreview] = useState<string[][]>([]);
   const [colMapping, setColMapping] = useState<{
-    name: string; type: string; detailType: string; number: string;
+    name: string;
+    type: string;
+    detailType: string;
+    number: string;
   }>({ name: '', type: '', detailType: '', number: '' });
   const [importStep, setImportStep] = useState<'file' | 'mapping'>('file');
   const [replaceExisting, setReplaceExisting] = useState(false);
@@ -282,8 +277,10 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
     for (let i = 0; i < line.length; i++) {
       const ch = line[i];
       if (ch === '"') {
-        if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
-        else inQuotes = !inQuotes;
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else inQuotes = !inQuotes;
       } else if (ch === ',' && !inQuotes) {
         fields.push(current.trim());
         current = '';
@@ -305,7 +302,11 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
         const csv = ev.target?.result as string;
         const allLines = csv.split(/\r?\n/).filter((l) => l.trim());
         if (allLines.length < 2) {
-          toast({ title: 'Invalid CSV', description: 'File must have a header row and at least one data row', variant: 'destructive' });
+          toast({
+            title: 'Invalid CSV',
+            description: 'File must have a header row and at least one data row',
+            variant: 'destructive',
+          });
           return;
         }
 
@@ -333,13 +334,11 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
 
         // Auto-detect mappings — QBO uses "Account #", "Full name", "Type", "Detail type"
         const normalized = headers.map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
-        const autoNumber = normalized.findIndex((h) =>
-          h === 'account' || h === 'number' || h === 'accountnumber' || h === 'acctnum'
+        const autoNumber = normalized.findIndex(
+          (h) => h === 'account' || h === 'number' || h === 'accountnumber' || h === 'acctnum'
         );
-        const autoName = normalized.findIndex((h, idx) =>
-          idx !== autoNumber && (
-            h === 'fullname' || h === 'accountname' || h === 'name' || h === 'account'
-          )
+        const autoName = normalized.findIndex(
+          (h, idx) => idx !== autoNumber && (h === 'fullname' || h === 'accountname' || h === 'name' || h === 'account')
         );
         const autoType = normalized.findIndex((h) => h === 'type' || h === 'accounttype');
         const autoDetail = normalized.findIndex((h) => h === 'detailtype' || h === 'detail');
@@ -386,8 +385,8 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
       setShowImportDialog(false);
       setImportStep('file');
       setCsvData('');
-    } catch (err: any) {
-      toast({ title: 'Import failed', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Import failed', description: getErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -505,7 +504,10 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
         style={{ backgroundColor: colors.white, border: `1px solid ${colors.creamDark}` }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: qboStatus?.connected ? colors.green + '20' : colors.cream }}>
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ backgroundColor: qboStatus?.connected ? colors.green + '20' : colors.cream }}
+          >
             {qboStatus?.connected ? (
               <CheckCircle2 className="w-4 h-4" style={{ color: colors.green }} />
             ) : (
@@ -517,7 +519,9 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
               QuickBooks Online {qboStatus?.connected ? '— Connected' : '— Not Connected'}
             </p>
             {qboStatus?.connected && qboStatus.realmId && (
-              <p className="text-xs" style={{ color: colors.brownLight }}>Company ID: {qboStatus.realmId}</p>
+              <p className="text-xs" style={{ color: colors.brownLight }}>
+                Company ID: {qboStatus.realmId}
+              </p>
             )}
           </div>
         </div>
@@ -530,7 +534,11 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
                 size="sm"
                 style={{ backgroundColor: colors.gold, color: '#fff' }}
               >
-                {qboSyncCoa.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+                {qboSyncCoa.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                )}
                 Sync Accounts
               </Button>
               <Button
@@ -549,15 +557,19 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
               onClick={async () => {
                 try {
                   await qboConnect.mutateAsync(tenantId);
-                } catch (err: any) {
-                  toast({ title: 'Connection failed', description: err.message, variant: 'destructive' });
+                } catch (err: unknown) {
+                  toast({ title: 'Connection failed', description: getErrorMessage(err), variant: 'destructive' });
                 }
               }}
               disabled={qboConnect.isPending}
               size="sm"
               style={{ backgroundColor: colors.gold, color: '#fff' }}
             >
-              {qboConnect.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Link className="w-4 h-4 mr-1" />}
+              {qboConnect.isPending ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Link className="w-4 h-4 mr-1" />
+              )}
               Connect to QuickBooks
             </Button>
           )}
@@ -570,7 +582,11 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
           <Upload className="w-4 h-4 mr-2" />
           Import CSV
         </Button>
-        <Button variant="outline" onClick={() => setShowAddDialog(true)} style={{ borderColor: colors.gold, color: colors.brown }}>
+        <Button
+          variant="outline"
+          onClick={() => setShowAddDialog(true)}
+          style={{ borderColor: colors.gold, color: colors.brown }}
+        >
           <Plus className="w-4 h-4 mr-2" />
           Add Account
         </Button>
@@ -580,9 +596,7 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
       <div className="flex items-center justify-between">
         <p className="text-sm" style={{ color: colors.brownLight }}>
           {accounts.length} account{accounts.length !== 1 ? 's' : ''}
-          {hiddenAccounts.length > 0 && (
-            <span> &middot; {hiddenAccounts.length} hidden</span>
-          )}
+          {hiddenAccounts.length > 0 && <span> &middot; {hiddenAccounts.length} hidden</span>}
         </p>
         <div className="flex items-center gap-2">
           {selectMode ? (
@@ -590,7 +604,7 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
               <button
                 onClick={() => {
                   const allIds = getAllAccountIds(accounts.flatMap((a) => buildAccountTree([a]) || [a]));
-                  setSelectedIds((prev) => prev.size === allIds.length ? new Set() : new Set(allIds));
+                  setSelectedIds((prev) => (prev.size === allIds.length ? new Set() : new Set(allIds)));
                 }}
                 className="text-xs px-2 py-1 rounded hover:bg-black/5"
                 style={{ color: colors.brown }}
@@ -607,7 +621,10 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
                 Hide {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
               </Button>
               <button
-                onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }}
+                onClick={() => {
+                  setSelectMode(false);
+                  setSelectedIds(new Set());
+                }}
                 className="text-xs px-2 py-1 rounded hover:bg-black/5"
                 style={{ color: colors.brownLight }}
               >
@@ -685,9 +702,7 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
               </button>
 
               {expandedTypes.has(type) && (
-                <div className="pb-2">
-                  {typeAccounts.map((acc) => renderAccountRow(acc))}
-                </div>
+                <div className="pb-2">{typeAccounts.map((acc) => renderAccountRow(acc))}</div>
               )}
             </div>
           ))}
@@ -710,11 +725,7 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
           </div>
           <div className="divide-y" style={{ borderColor: colors.creamDark }}>
             {hiddenAccounts.map((acc) => (
-              <div
-                key={acc.id}
-                className="flex items-center justify-between px-4 py-2 group"
-                style={{ opacity: 0.6 }}
-              >
+              <div key={acc.id} className="flex items-center justify-between px-4 py-2 group" style={{ opacity: 0.6 }}>
                 <span className="text-sm" style={{ color: colors.brown }}>
                   {acc.account_number && (
                     <span className="font-mono text-xs mr-2" style={{ color: colors.brownLight }}>
@@ -741,15 +752,20 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
       )}
 
       {/* Import Dialog — two-step: file select → column mapping */}
-      <Dialog open={showImportDialog} onOpenChange={(open) => {
-        setShowImportDialog(open);
-        if (!open) { setImportStep('file'); setCsvData(''); setReplaceExisting(false); }
-      }}>
+      <Dialog
+        open={showImportDialog}
+        onOpenChange={(open) => {
+          setShowImportDialog(open);
+          if (!open) {
+            setImportStep('file');
+            setCsvData('');
+            setReplaceExisting(false);
+          }
+        }}
+      >
         <DialogContent className={importStep === 'mapping' ? 'max-w-2xl' : 'max-w-lg'}>
           <DialogHeader>
-            <DialogTitle>
-              {importStep === 'file' ? 'Import Chart of Accounts' : 'Map CSV Columns'}
-            </DialogTitle>
+            <DialogTitle>{importStep === 'file' ? 'Import Chart of Accounts' : 'Map CSV Columns'}</DialogTitle>
           </DialogHeader>
 
           {importStep === 'file' ? (
@@ -758,8 +774,12 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
                 Export your Chart of Accounts from QuickBooks Online as a CSV file, then upload it here.
               </p>
               <ol className="text-sm space-y-1 list-decimal list-inside" style={{ color: colors.brownLight }}>
-                <li>In QBO, go to <strong>Settings → Chart of Accounts</strong></li>
-                <li>Click the <strong>Export to Excel</strong> button (top right)</li>
+                <li>
+                  In QBO, go to <strong>Settings → Chart of Accounts</strong>
+                </li>
+                <li>
+                  Click the <strong>Export to Excel</strong> button (top right)
+                </li>
                 <li>Save as CSV if needed</li>
                 <li>Upload the file below</li>
               </ol>
@@ -788,12 +808,12 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
 
               {/* Column mapping selectors — 2x2 grid */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                {([
+                {[
                   { key: 'name' as const, label: 'Account Name *', required: true },
                   { key: 'number' as const, label: 'Account Number', required: false },
                   { key: 'type' as const, label: 'Account Type', required: false },
                   { key: 'detailType' as const, label: 'Detail Type', required: false },
-                ]).map(({ key, label, required }) => (
+                ].map(({ key, label, required }) => (
                   <div key={key}>
                     <Label className="text-xs font-medium mb-1 block" style={{ color: colors.brownLight }}>
                       {label}
@@ -802,18 +822,22 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
                       value={colMapping[key] || '_skip'}
                       onValueChange={(v) => setColMapping((p) => ({ ...p, [key]: v === '_skip' ? '' : v }))}
                     >
-                      <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: required && !colMapping[key] ? colors.red : colors.gold }}>
+                      <SelectTrigger
+                        style={{
+                          backgroundColor: colors.inputBg,
+                          borderColor: required && !colMapping[key] ? colors.red : colors.gold,
+                        }}
+                      >
                         <SelectValue placeholder="Skip" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="_skip">— Skip —</SelectItem>
                         {csvHeaders.map((h, i) => {
-                          const sample = csvPreview
-                            .map((row) => row[i])
-                            .filter(Boolean)[0];
+                          const sample = csvPreview.map((row) => row[i]).filter(Boolean)[0];
                           return (
                             <SelectItem key={i} value={String(i)}>
-                              {h}{sample ? ` — ${sample}` : ''}
+                              {h}
+                              {sample ? ` — ${sample}` : ''}
                             </SelectItem>
                           );
                         })}
@@ -839,48 +863,60 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
               )}
 
               {/* Preview — only show mapped columns */}
-              {csvPreview.length > 0 && (() => {
-                const mappedCols = ([
-                  { key: 'number' as const, label: '#' },
-                  { key: 'name' as const, label: 'Name' },
-                  { key: 'type' as const, label: 'Type' },
-                  { key: 'detailType' as const, label: 'Detail Type' },
-                ] as const).filter(({ key }) => colMapping[key]);
-                return mappedCols.length > 0 ? (
-                  <div>
-                    <p className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>Preview (first {csvPreview.length} rows):</p>
-                    <div className="rounded border" style={{ borderColor: colors.creamDark }}>
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr style={{ backgroundColor: colors.cream }}>
-                            {mappedCols.map(({ key, label }) => (
-                              <th key={key} className="text-left py-1.5 px-3 font-medium" style={{ color: colors.brown }}>
-                                {label}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {csvPreview.map((row, ri) => (
-                            <tr key={ri} style={{ borderTop: `1px solid ${colors.creamDark}` }}>
-                              {mappedCols.map(({ key }) => (
-                                <td key={key} className="py-1.5 px-3" style={{ color: colors.brownLight }}>
-                                  {row[Number(colMapping[key])] || ''}
-                                </td>
+              {csvPreview.length > 0 &&
+                (() => {
+                  const mappedCols = (
+                    [
+                      { key: 'number' as const, label: '#' },
+                      { key: 'name' as const, label: 'Name' },
+                      { key: 'type' as const, label: 'Type' },
+                      { key: 'detailType' as const, label: 'Detail Type' },
+                    ] as const
+                  ).filter(({ key }) => colMapping[key]);
+                  return mappedCols.length > 0 ? (
+                    <div>
+                      <p className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>
+                        Preview (first {csvPreview.length} rows):
+                      </p>
+                      <div className="rounded border" style={{ borderColor: colors.creamDark }}>
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr style={{ backgroundColor: colors.cream }}>
+                              {mappedCols.map(({ key, label }) => (
+                                <th
+                                  key={key}
+                                  className="text-left py-1.5 px-3 font-medium"
+                                  style={{ color: colors.brown }}
+                                >
+                                  {label}
+                                </th>
                               ))}
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {csvPreview.map((row, ri) => (
+                              <tr key={ri} style={{ borderTop: `1px solid ${colors.creamDark}` }}>
+                                {mappedCols.map(({ key }) => (
+                                  <td key={key} className="py-1.5 px-3" style={{ color: colors.brownLight }}>
+                                    {row[Number(colMapping[key])] || ''}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                ) : null;
-              })()}
+                  ) : null;
+                })()}
 
               <div className="flex gap-2 pt-1">
                 <Button
                   variant="outline"
-                  onClick={() => { setImportStep('file'); setCsvData(''); }}
+                  onClick={() => {
+                    setImportStep('file');
+                    setCsvData('');
+                  }}
                   style={{ borderColor: colors.gold, color: colors.brown }}
                 >
                   Back
@@ -939,7 +975,9 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   {ACCOUNT_TYPE_ORDER.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -967,13 +1005,23 @@ export default function ChartOfAccountsTab({ tenantId }: Props) {
                   {accounts
                     .filter((a) => !a.parent_id)
                     .map((a) => (
-                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleAdd} disabled={createAccount.isPending} style={{ backgroundColor: colors.gold, color: '#fff' }}>
-              {createAccount.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+            <Button
+              onClick={handleAdd}
+              disabled={createAccount.isPending}
+              style={{ backgroundColor: colors.gold, color: '#fff' }}
+            >
+              {createAccount.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4 mr-2" />
+              )}
               Add Account
             </Button>
           </div>
