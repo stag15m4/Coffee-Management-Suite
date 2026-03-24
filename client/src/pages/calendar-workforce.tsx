@@ -210,11 +210,15 @@ function ScheduleTab({
 
   // New template form
   const [newTemplateName, setNewTemplateName] = useState('');
-  const [newTemplateDay, setNewTemplateDay] = useState(1);
   const [newTemplateStart, setNewTemplateStart] = useState('08:00');
   const [newTemplateEnd, setNewTemplateEnd] = useState('16:00');
-  const [newTemplateEmployee, setNewTemplateEmployee] = useState('');
   const [newTemplatePosition, setNewTemplatePosition] = useState('');
+
+  // Apply template dialog
+  const [showApplyDialog, setShowApplyDialog] = useState(false);
+  const [applyTemplateId, setApplyTemplateId] = useState('');
+  const [applyDays, setApplyDays] = useState<number[]>([]);
+  const [applyEmployee, setApplyEmployee] = useState('');
 
   // Derive calendar slot range from tenant operating hours (with 1hr padding)
   const { slotMinTime, slotMaxTime } = useMemo(() => {
@@ -353,78 +357,62 @@ function ScheduleTab({
     [shifts, timeOffRequests, scheduleUnavailability, employees]
   );
 
-  // Apply template to current week
+  // Apply selected template to selected days + employee
   const handleApplyTemplate = useCallback(async () => {
-    if (!templates || templates.length === 0) {
-      toast({ title: 'No templates', description: 'Create templates first.', variant: 'destructive' });
+    if (!applyTemplateId || applyDays.length === 0 || !applyEmployee) {
+      toast({ title: 'Missing info', description: 'Select a template, at least one day, and an employee.', variant: 'destructive' });
       return;
     }
-    const newShifts: InsertShift[] = templates
-      .filter((t) => t.employee_name || t.employee_id || t.tip_employee_id)
-      .map((t) => {
-        const dayOffset = t.day_of_week === 0 ? 6 : t.day_of_week - 1;
-        const monday = getMonday(currentDate);
-        const shiftDate = new Date(monday.getTime() + dayOffset * 86_400_000);
-        return {
-          employee_id: t.employee_id ?? null,
-          tip_employee_id: t.tip_employee_id ?? null,
-          employee_name: t.employee_name || 'Unknown',
-          date: formatDate(shiftDate),
-          start_time: t.start_time.slice(0, 5),
-          end_time: t.end_time.slice(0, 5),
-          position: t.position,
-          status: 'published',
-        };
-      });
-    if (newShifts.length === 0) {
-      toast({
-        title: 'No applicable templates',
-        description: 'Templates need assigned employees.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    const template = templates?.find((t) => t.id === applyTemplateId);
+    if (!template) return;
+    const emp = employees.find((e) => e.name === applyEmployee);
+    if (!emp) return;
+    const monday = getMonday(currentDate);
+    const newShifts: InsertShift[] = applyDays.map((dow) => {
+      const dayOffset = dow === 0 ? 6 : dow - 1;
+      const shiftDate = new Date(monday.getTime() + dayOffset * 86_400_000);
+      return {
+        employee_id: emp.user_profile_id ?? null,
+        tip_employee_id: emp.tip_employee_id ?? null,
+        employee_name: emp.name,
+        date: formatDate(shiftDate),
+        start_time: template.start_time.slice(0, 5),
+        end_time: template.end_time.slice(0, 5),
+        position: template.position,
+        status: 'published',
+      };
+    });
     try {
       await bulkCreate.mutateAsync(newShifts);
-      toast({ title: 'Template applied', description: `Created ${newShifts.length} shifts.` });
+      toast({ title: 'Template applied', description: `Created ${newShifts.length} shift${newShifts.length > 1 ? 's' : ''}.` });
+      setShowApplyDialog(false);
+      setApplyTemplateId('');
+      setApplyDays([]);
+      setApplyEmployee('');
     } catch {
       toast({ title: 'Error', description: 'Failed to apply template.', variant: 'destructive' });
     }
-  }, [templates, currentDate, bulkCreate, toast]);
+  }, [applyTemplateId, applyDays, applyEmployee, templates, employees, currentDate, bulkCreate, toast]);
 
   const handleSaveTemplate = useCallback(async () => {
     if (!newTemplateName.trim()) {
       toast({ title: 'Enter a template name', variant: 'destructive' });
       return;
     }
-    const emp = employees.find((e) => e.name === newTemplateEmployee);
     try {
       await createTemplate.mutateAsync({
         name: newTemplateName,
-        day_of_week: newTemplateDay,
         start_time: newTemplateStart,
         end_time: newTemplateEnd,
-        employee_id: emp?.user_profile_id ?? null,
-        tip_employee_id: emp?.tip_employee_id ?? null,
-        employee_name: emp?.name ?? null,
         position: newTemplatePosition || null,
       });
       toast({ title: 'Template saved' });
       setNewTemplateName('');
+      setNewTemplatePosition('');
     } catch {
       toast({ title: 'Error', description: 'Failed to save template.', variant: 'destructive' });
     }
-  }, [
-    newTemplateName,
-    newTemplateDay,
-    newTemplateStart,
-    newTemplateEnd,
-    newTemplateEmployee,
-    newTemplatePosition,
-    employees,
-    createTemplate,
-    toast,
-  ]);
+  }, [newTemplateName, newTemplateStart, newTemplateEnd, newTemplatePosition, createTemplate, toast]);
 
   // Employee color mapping — use saved schedule_color or fall back to palette
   const updateEmployeeColor = useUpdateEmployeeColor();
@@ -878,7 +866,7 @@ function ScheduleTab({
             {templates && templates.length > 0 && (
               <Button
                 variant="outline"
-                onClick={handleApplyTemplate}
+                onClick={() => setShowApplyDialog(true)}
                 disabled={bulkCreate.isPending}
                 style={{ borderColor: colors.gold, color: colors.brown }}
               >
@@ -1707,9 +1695,7 @@ function ScheduleTab({
                         {t.name}
                       </span>
                       <span className="text-xs ml-2" style={{ color: colors.brownLight }}>
-                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][t.day_of_week]}{' '}
                         {formatTimeDisplay(t.start_time)}–{formatTimeDisplay(t.end_time)}
-                        {t.employee_name && ` · ${t.employee_name}`}
                         {t.position && ` · ${t.position}`}
                       </span>
                     </div>
@@ -1729,28 +1715,14 @@ function ScheduleTab({
             {/* Add new template */}
             <div className="space-y-3 pt-2" style={{ borderTop: `1px solid ${colors.creamDark}` }}>
               <p className="text-sm font-medium" style={{ color: colors.brown }}>
-                Add Template Entry
+                Add Template
               </p>
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  placeholder="Template name"
-                  value={newTemplateName}
-                  onChange={(e) => setNewTemplateName(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                />
-                <Select value={String(newTemplateDay)} onValueChange={(v) => setNewTemplateDay(Number(v))}>
-                  <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((d, i) => (
-                      <SelectItem key={i} value={String(i)}>
-                        {d}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Input
+                placeholder="Template name"
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+              />
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="time"
@@ -1765,30 +1737,12 @@ function ScheduleTab({
                   style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Select
-                  value={newTemplateEmployee || '__unassigned__'}
-                  onValueChange={(v) => setNewTemplateEmployee(v === '__unassigned__' ? '' : v)}
-                >
-                  <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}>
-                    <SelectValue placeholder="Employee (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__unassigned__">Unassigned</SelectItem>
-                    {employees.map((e) => (
-                      <SelectItem key={e.name} value={e.name}>
-                        {e.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  placeholder="Position (optional)"
-                  value={newTemplatePosition}
-                  onChange={(e) => setNewTemplatePosition(e.target.value)}
-                  style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
-                />
-              </div>
+              <Input
+                placeholder="Position (optional)"
+                value={newTemplatePosition}
+                onChange={(e) => setNewTemplatePosition(e.target.value)}
+                style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
+              />
               <Button
                 onClick={handleSaveTemplate}
                 disabled={createTemplate.isPending}
@@ -1797,6 +1751,75 @@ function ScheduleTab({
                 <Plus className="w-4 h-4 mr-1" /> Save Template
               </Button>
             </div>
+
+            {/* Apply template dialog */}
+            {showApplyDialog && (
+              <div className="space-y-3 pt-3" style={{ borderTop: `1px solid ${colors.gold}` }}>
+                <p className="text-sm font-medium" style={{ color: colors.brown }}>Apply Template to Schedule</p>
+                <Select value={applyTemplateId} onValueChange={setApplyTemplateId}>
+                  <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                    <SelectValue placeholder="Select template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates?.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name} ({formatTimeDisplay(t.start_time)}–{formatTimeDisplay(t.end_time)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={applyEmployee || '__none__'} onValueChange={(v) => setApplyEmployee(v === '__none__' ? '' : v)}>
+                  <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Select employee</SelectItem>
+                    {employees.map((e) => (
+                      <SelectItem key={e.name} value={e.name}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div>
+                  <p className="text-xs mb-1" style={{ color: colors.brownLight }}>Days:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => {
+                      const selected = applyDays.includes(i);
+                      return (
+                        <Button
+                          key={i}
+                          size="sm"
+                          variant={selected ? 'default' : 'outline'}
+                          onClick={() => setApplyDays((prev) => selected ? prev.filter((x) => x !== i) : [...prev, i])}
+                          style={selected
+                            ? { backgroundColor: colors.gold, color: colors.white }
+                            : { borderColor: colors.creamDark, color: colors.brownLight }
+                          }
+                          className="h-8 px-2 text-xs"
+                        >
+                          {d}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleApplyTemplate}
+                    disabled={bulkCreate.isPending}
+                    style={{ backgroundColor: colors.gold, color: colors.white }}
+                  >
+                    Apply
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowApplyDialog(false)}
+                    style={{ borderColor: colors.creamDark, color: colors.brown }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

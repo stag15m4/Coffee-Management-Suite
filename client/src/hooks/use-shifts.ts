@@ -27,7 +27,7 @@ export interface ShiftTemplate {
   id: string;
   tenant_id: string;
   name: string;
-  day_of_week: number;
+  day_of_week: number | null;
   start_time: string;
   end_time: string;
   position: string | null;
@@ -253,21 +253,13 @@ export function useShiftTemplates() {
       if (!tenant?.id) return [];
       const { data, error } = await supabase
         .from('shift_templates')
-        .select('*, employee:user_profiles!employee_id(full_name)')
+        .select('*')
         .eq('tenant_id', tenant.id)
         .eq('is_active', true)
-        .order('day_of_week')
+        .order('name')
         .order('start_time');
       if (error) throw error;
-      interface ShiftTemplateRow extends Record<string, unknown> {
-        employee_name?: string | null;
-        employee?: { full_name: string | null } | null;
-      }
-
-      return ((data || []) as ShiftTemplateRow[]).map((t) => ({
-        ...t,
-        employee_name: t.employee_name ?? t.employee?.full_name ?? null,
-      })) as ShiftTemplate[];
+      return (data || []) as ShiftTemplate[];
     },
     enabled: !!tenant?.id,
     staleTime: 5 * 60_000,
@@ -276,12 +268,8 @@ export function useShiftTemplates() {
 
 export type InsertShiftTemplate = {
   name: string;
-  day_of_week: number;
   start_time: string;
   end_time: string;
-  employee_id?: string | null;
-  tip_employee_id?: string | null;
-  employee_name?: string | null;
   position?: string | null;
 };
 
