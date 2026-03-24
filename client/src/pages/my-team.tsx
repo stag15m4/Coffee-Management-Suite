@@ -1,4 +1,3 @@
-import { getErrorMessage } from '@/lib/utils';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -12,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { User, Calendar, Mail, Lock, TrendingUp, Phone, MapPin, Heart, Users, Pencil } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { colors } from '@/lib/colors';
+import { TrainingSection } from '@/components/training/TrainingSection';
 
 interface TeamMember {
   id: string;
@@ -104,7 +104,7 @@ export default function MyTeam() {
 
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
-  const displayName = isChildLocation ? tenant?.name : branding?.company_name || tenant?.name || 'Erwin Mills Coffee';
+  const displayName = isChildLocation ? tenant?.name : (branding?.company_name || tenant?.name || 'Erwin Mills Coffee');
   const orgName = primaryTenant?.name || branding?.company_name || '';
   // Fetch all team members
   const { data: teamMembers, isLoading } = useQuery({
@@ -259,11 +259,7 @@ export default function MyTeam() {
 
     if (error) {
       console.error('Directory update error:', error);
-      toast({
-        title: 'Error',
-        description: `${error.message} (${error.code}: ${error.details})`,
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: `${error.message} (${error.code}: ${error.details})`, variant: 'destructive' });
     } else {
       toast({ title: 'Updated', description: `${editingMember.full_name || 'Member'}'s info saved.` });
       setEditingMember(null);
@@ -333,10 +329,7 @@ export default function MyTeam() {
                       {/* Edit button — owner/manager only */}
                       {canEditDirectory && (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditDialog(member);
-                          }}
+                          onClick={(e) => { e.stopPropagation(); openEditDialog(member); }}
                           className="absolute -top-1 -right-1 p-1.5 rounded-full bg-white shadow-sm hover:bg-gray-50 transition-colors"
                           style={{ border: `1px solid ${colors.creamDark}` }}
                           title="Edit directory info"
@@ -363,10 +356,7 @@ export default function MyTeam() {
                     </div>
 
                     {/* Contact Info */}
-                    <div
-                      className="w-full text-left space-y-1.5 pt-2"
-                      style={{ borderTop: `1px solid ${colors.creamDark}` }}
-                    >
+                    <div className="w-full text-left space-y-1.5 pt-2" style={{ borderTop: `1px solid ${colors.creamDark}` }}>
                       <div className="flex items-center gap-2 text-xs" style={{ color: colors.brownLight }}>
                         <Mail className="w-3.5 h-3.5 flex-shrink-0" />
                         <span className="truncate">{member.email}</span>
@@ -380,15 +370,7 @@ export default function MyTeam() {
                       {member.start_date && (
                         <div className="flex items-center gap-2 text-xs" style={{ color: colors.brownLight }}>
                           <Calendar className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.gold }} />
-                          <span>
-                            Since{' '}
-                            {new Date(member.start_date + 'T00:00:00').toLocaleDateString(undefined, {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}{' '}
-                            ({tenure})
-                          </span>
+                          <span>Since {new Date(member.start_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} ({tenure})</span>
                         </div>
                       )}
                       {canViewFullDirectory && address && (
@@ -491,9 +473,7 @@ export default function MyTeam() {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm flex items-center justify-between">
                         <span style={{ color: colors.brown }}>Tip Payouts</span>
-                        {!canAccessModule('tip-payout') && (
-                          <Lock className="w-4 h-4" style={{ color: colors.brownLight }} />
-                        )}
+                        {!canAccessModule('tip-payout') && <Lock className="w-4 h-4" style={{ color: colors.brownLight }} />}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -508,9 +488,7 @@ export default function MyTeam() {
                             </p>
                           </div>
                         ) : (
-                          <p className="text-sm" style={{ color: colors.brownLight }}>
-                            No tip data available
-                          </p>
+                          <p className="text-sm" style={{ color: colors.brownLight }}>No tip data available</p>
                         )
                       ) : (
                         <div className="space-y-2">
@@ -535,9 +513,7 @@ export default function MyTeam() {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm flex items-center justify-between">
                         <span style={{ color: colors.brown }}>Cash Deposits</span>
-                        {!canAccessModule('cash-deposit') && (
-                          <Lock className="w-4 h-4" style={{ color: colors.brownLight }} />
-                        )}
+                        {!canAccessModule('cash-deposit') && <Lock className="w-4 h-4" style={{ color: colors.brownLight }} />}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -552,9 +528,7 @@ export default function MyTeam() {
                             </p>
                           </div>
                         ) : (
-                          <p className="text-sm" style={{ color: colors.brownLight }}>
-                            No cash activity
-                          </p>
+                          <p className="text-sm" style={{ color: colors.brownLight }}>No cash activity</p>
                         )
                       ) : (
                         <div className="space-y-2">
@@ -579,9 +553,7 @@ export default function MyTeam() {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm flex items-center justify-between">
                         <span style={{ color: colors.brown }}>Maintenance Tasks</span>
-                        {!canAccessModule('equipment-maintenance') && (
-                          <Lock className="w-4 h-4" style={{ color: colors.brownLight }} />
-                        )}
+                        {!canAccessModule('equipment-maintenance') && <Lock className="w-4 h-4" style={{ color: colors.brownLight }} />}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -596,9 +568,7 @@ export default function MyTeam() {
                             </p>
                           </div>
                         ) : (
-                          <p className="text-sm" style={{ color: colors.brownLight }}>
-                            No maintenance tasks
-                          </p>
+                          <p className="text-sm" style={{ color: colors.brownLight }}>No maintenance tasks</p>
                         )
                       ) : (
                         <div className="space-y-2">
@@ -623,9 +593,7 @@ export default function MyTeam() {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm flex items-center justify-between">
                         <span style={{ color: colors.brown }}>Admin Tasks</span>
-                        {!canAccessModule('admin-tasks') && (
-                          <Lock className="w-4 h-4" style={{ color: colors.brownLight }} />
-                        )}
+                        {!canAccessModule('admin-tasks') && <Lock className="w-4 h-4" style={{ color: colors.brownLight }} />}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -640,9 +608,7 @@ export default function MyTeam() {
                             </p>
                           </div>
                         ) : (
-                          <p className="text-sm" style={{ color: colors.brownLight }}>
-                            No admin tasks
-                          </p>
+                          <p className="text-sm" style={{ color: colors.brownLight }}>No admin tasks</p>
                         )
                       ) : (
                         <div className="space-y-2">
@@ -663,6 +629,12 @@ export default function MyTeam() {
                   </Card>
                 </div>
               </div>
+
+              {/* Training & Certifications */}
+              <TrainingSection
+                employeeId={selectedMember.id}
+                canEdit={canEditDirectory}
+              />
             </div>
           )}
         </DialogContent>
@@ -680,9 +652,7 @@ export default function MyTeam() {
           {editingMember && (
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium" style={{ color: colors.brown }}>
-                  Phone
-                </label>
+                <label className="text-sm font-medium" style={{ color: colors.brown }}>Phone</label>
                 <Input
                   type="tel"
                   placeholder="(555) 123-4567"
@@ -693,9 +663,7 @@ export default function MyTeam() {
               </div>
 
               <div>
-                <label className="text-sm font-medium" style={{ color: colors.brown }}>
-                  Date of Birth
-                </label>
+                <label className="text-sm font-medium" style={{ color: colors.brown }}>Date of Birth</label>
                 <Input
                   type="date"
                   value={editForm.date_of_birth || ''}
@@ -705,9 +673,7 @@ export default function MyTeam() {
               </div>
 
               <div>
-                <label className="text-sm font-medium" style={{ color: colors.brown }}>
-                  Address Line 1
-                </label>
+                <label className="text-sm font-medium" style={{ color: colors.brown }}>Address Line 1</label>
                 <Input
                   placeholder="123 Main St"
                   value={editForm.address_line1 || ''}
@@ -717,9 +683,7 @@ export default function MyTeam() {
               </div>
 
               <div>
-                <label className="text-sm font-medium" style={{ color: colors.brown }}>
-                  Address Line 2
-                </label>
+                <label className="text-sm font-medium" style={{ color: colors.brown }}>Address Line 2</label>
                 <Input
                   placeholder="Apt 4B"
                   value={editForm.address_line2 || ''}
@@ -730,9 +694,7 @@ export default function MyTeam() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-sm font-medium" style={{ color: colors.brown }}>
-                    City
-                  </label>
+                  <label className="text-sm font-medium" style={{ color: colors.brown }}>City</label>
                   <Input
                     placeholder="Durham"
                     value={editForm.city || ''}
@@ -741,9 +703,7 @@ export default function MyTeam() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium" style={{ color: colors.brown }}>
-                    State
-                  </label>
+                  <label className="text-sm font-medium" style={{ color: colors.brown }}>State</label>
                   <Input
                     placeholder="NC"
                     value={editForm.state || ''}
@@ -752,9 +712,7 @@ export default function MyTeam() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium" style={{ color: colors.brown }}>
-                    Zip
-                  </label>
+                  <label className="text-sm font-medium" style={{ color: colors.brown }}>Zip</label>
                   <Input
                     placeholder="27701"
                     value={editForm.zip_code || ''}
@@ -765,14 +723,10 @@ export default function MyTeam() {
               </div>
 
               <div className="border-t pt-4" style={{ borderColor: colors.creamDark }}>
-                <p className="text-sm font-medium mb-3" style={{ color: colors.brown }}>
-                  Emergency Contact
-                </p>
+                <p className="text-sm font-medium mb-3" style={{ color: colors.brown }}>Emergency Contact</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs" style={{ color: colors.brownLight }}>
-                      Name
-                    </label>
+                    <label className="text-xs" style={{ color: colors.brownLight }}>Name</label>
                     <Input
                       placeholder="Jane Doe"
                       value={editForm.emergency_contact_name || ''}
@@ -781,9 +735,7 @@ export default function MyTeam() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs" style={{ color: colors.brownLight }}>
-                      Phone
-                    </label>
+                    <label className="text-xs" style={{ color: colors.brownLight }}>Phone</label>
                     <Input
                       type="tel"
                       placeholder="(555) 987-6543"
@@ -815,6 +767,7 @@ export default function MyTeam() {
           )}
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }
