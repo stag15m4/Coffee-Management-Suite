@@ -28,6 +28,9 @@ import {
 // Import the route module registrar
 import { registerAllRouteModules } from './routes/index';
 
+// Import MCP server
+import { registerMcpRoutes } from './mcp/cms-mcp-server';
+
 // Coffee Order Email Schema
 const sendOrderEmailSchema = z.object({
   vendorEmail: z.string().email(),
@@ -374,6 +377,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Register object storage routes for file uploads
   registerObjectStorageRoutes(app);
+
+  // Register MCP server (read-only financial analysis API)
+  registerMcpRoutes(app);
 
   // =====================================================
   // SQUARE INTEGRATION ROUTES
