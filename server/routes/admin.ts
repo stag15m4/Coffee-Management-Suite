@@ -65,15 +65,29 @@ export function registerAdminRoutes(app: Express): void {
         userId = (existingUser.rows[0] as any).id;
       }
 
-      // 4. Upsert user_profiles — set them as owner of this tenant
-      await db.execute(sql`
-        INSERT INTO user_profiles (id, tenant_id, email, full_name, role, is_active)
-        VALUES (${userId}::uuid, ${tenant.id}::uuid, ${ownerEmail}, ${ownerName || ownerEmail.split('@')[0]}, 'owner', true)
-        ON CONFLICT (id) DO UPDATE SET
-          tenant_id = ${tenant.id}::uuid,
-          role = 'owner',
-          is_active = true
+      // 4. Create profile or assign existing user to new tenant
+      // Check if user already has a profile (existing user)
+      const existingProfile = await db.execute(sql`
+        SELECT id, tenant_id FROM user_profiles WHERE id = ${userId}::uuid LIMIT 1
       `);
+
+      if (existingProfile.rows.length > 0) {
+        // Existing user — don't overwrite their primary profile.
+        // Add a cross-tenant assignment as owner of the new tenant instead.
+        await db.execute(sql`
+          INSERT INTO user_tenant_assignments (user_id, tenant_id, role, is_primary, is_active)
+          VALUES (${userId}::uuid, ${tenant.id}::uuid, 'owner', false, true)
+          ON CONFLICT (user_id, tenant_id) DO UPDATE SET
+            role = 'owner',
+            is_active = true
+        `);
+      } else {
+        // New user — create their primary profile on this tenant
+        await db.execute(sql`
+          INSERT INTO user_profiles (id, tenant_id, email, full_name, role, is_active)
+          VALUES (${userId}::uuid, ${tenant.id}::uuid, ${ownerEmail}, ${ownerName || ownerEmail.split('@')[0]}, 'owner', true)
+        `);
+      }
 
       res.status(201).json({ tenant, userId });
     } catch (error: any) {
