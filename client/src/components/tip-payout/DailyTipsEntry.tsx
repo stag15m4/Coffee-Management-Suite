@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Banknote, ChevronLeft, ChevronRight, CreditCard, DollarSign } from 'lucide-react';
+import { Banknote, ChevronLeft, ChevronRight, CreditCard, DollarSign, MoveRight } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Colors } from './types';
 import { DAYS, formatCurrency, getMonday } from './utils';
 
@@ -66,6 +67,8 @@ interface DailyTipsEntryProps {
   ccAfterFee: number;
   onSaveTips: () => void;
   savingTips: boolean;
+  onMoveWeek?: () => void;
+  hasData?: boolean;
 }
 
 export function DailyTipsEntry({
@@ -82,6 +85,8 @@ export function DailyTipsEntry({
   ccAfterFee,
   onSaveTips,
   savingTips,
+  onMoveWeek,
+  hasData = false,
 }: DailyTipsEntryProps) {
   // Tab order: Mon Cash → Mon CC → Tue Cash → Tue CC → ... → Sun CC
   const handleTipTabNav = useCallback(
@@ -164,6 +169,26 @@ export function DailyTipsEntry({
           >
             <ChevronRight className="w-5 h-5" style={{ color: colors.brown }} />
           </button>
+          {onMoveWeek && hasData && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={onMoveWeek}
+                    className="p-1.5 ml-2 rounded hover:bg-black/10 transition-colors border"
+                    style={{ borderColor: colors.creamDark }}
+                    aria-label="Move week data"
+                  >
+                    <MoveRight className="w-4 h-4" style={{ color: colors.brown }} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Move tips to different week</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
       <form

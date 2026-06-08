@@ -40,6 +40,7 @@ import { TeamHoursVerify } from '@/components/tip-payout/TeamHoursVerify';
 import { PayoutSummary } from '@/components/tip-payout/PayoutSummary';
 import { HistoricalExport } from '@/components/tip-payout/HistoricalExport';
 import { TimeclockImportDialog } from '@/components/tip-payout/TimeclockImportDialog';
+import { MoveWeekDialog } from '@/components/tip-payout/MoveWeekDialog';
 import { colors } from '@/lib/colors';
 import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
 import { getAuthHeaders } from '@/lib/api-helpers';
@@ -88,6 +89,9 @@ export default function TipPayout() {
   const [newEmployeeName, setNewEmployeeName] = useState('');
   const [addingEmployee, setAddingEmployee] = useState(false);
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
+
+  // Move week dialog
+  const [moveWeekDialogOpen, setMoveWeekDialogOpen] = useState(false);
 
   // Timeclock import
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -834,6 +838,8 @@ export default function TipPayout() {
               ccAfterFee={ccAfterFee}
               onSaveTips={saveTips}
               savingTips={savingTips}
+              onMoveWeek={() => setMoveWeekDialogOpen(true)}
+              hasData={cashTotal > 0 || ccTotal > 0 || Object.keys(employeeHours).length > 0}
             />
 
             {employees.length === 0 ? (
@@ -932,6 +938,20 @@ export default function TipPayout() {
         onConfirm={confirmImport}
         colors={colors}
       />
+
+      {tenant?.id && (
+        <MoveWeekDialog
+          open={moveWeekDialogOpen}
+          onOpenChange={setMoveWeekDialogOpen}
+          tenantId={tenant.id}
+          currentWeekKey={weekKey}
+          onMoveComplete={(newWeekKey) => {
+            setWeekKey(newWeekKey);
+            loadWeekData();
+          }}
+          colors={colors}
+        />
+      )}
     </div>
   );
 }
