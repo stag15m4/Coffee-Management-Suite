@@ -55,32 +55,32 @@ async function fetchRevenue(tenantId: string) {
   const now = new Date();
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-
-  const { data: currentMonth, error: currentError } = await supabase
-    .from('cash_activity')
-    .select('gross_revenue')
-    .eq('tenant_id', tenantId)
-    .gte('drawer_date', firstDayOfMonth)
-    .lte('drawer_date', lastDayOfMonth)
-    .or('archived.is.null,archived.eq.false');
-
-  if (currentError) throw currentError;
-
   const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
   const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
 
-  const { data: lastMonth, error: lastError } = await supabase
-    .from('cash_activity')
-    .select('gross_revenue')
-    .eq('tenant_id', tenantId)
-    .gte('drawer_date', firstDayLastMonth)
-    .lte('drawer_date', lastDayLastMonth)
-    .or('archived.is.null,archived.eq.false');
+  // Fetch both months in parallel instead of sequentially
+  const [currentMonthResult, lastMonthResult] = await Promise.all([
+    supabase
+      .from('cash_activity')
+      .select('gross_revenue')
+      .eq('tenant_id', tenantId)
+      .gte('drawer_date', firstDayOfMonth)
+      .lte('drawer_date', lastDayOfMonth)
+      .or('archived.is.null,archived.eq.false'),
+    supabase
+      .from('cash_activity')
+      .select('gross_revenue')
+      .eq('tenant_id', tenantId)
+      .gte('drawer_date', firstDayLastMonth)
+      .lte('drawer_date', lastDayLastMonth)
+      .or('archived.is.null,archived.eq.false'),
+  ]);
 
-  if (lastError) throw lastError;
+  if (currentMonthResult.error) throw currentMonthResult.error;
+  if (lastMonthResult.error) throw lastMonthResult.error;
 
-  const currentTotal = currentMonth?.reduce((sum, entry) => sum + (Number(entry.gross_revenue) || 0), 0) || 0;
-  const lastTotal = lastMonth?.reduce((sum, entry) => sum + (Number(entry.gross_revenue) || 0), 0) || 0;
+  const currentTotal = currentMonthResult.data?.reduce((sum, entry) => sum + (Number(entry.gross_revenue) || 0), 0) || 0;
+  const lastTotal = lastMonthResult.data?.reduce((sum, entry) => sum + (Number(entry.gross_revenue) || 0), 0) || 0;
 
   // Don't return revenue data if there's nothing to show
   if (currentTotal === 0 && lastTotal === 0) {
