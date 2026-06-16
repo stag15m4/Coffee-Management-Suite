@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 import { useToast } from '@/hooks/use-toast';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Button } from '@/components/ui/button';
@@ -72,10 +73,11 @@ export default function TipPayout() {
   const [ccEntries, setCcEntries] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
   const [savingTips, setSavingTips] = useState(false);
 
-  // Hours entry
-  const [selectedEmployee, setSelectedEmployee] = useState('');
-  const [hoursInput, setHoursInput] = useState('');
-  const [minutesInput, setMinutesInput] = useState('');
+  // Hours entry - persisted to sessionStorage to survive React Query refetches
+  const hoursFormKey = `tip-payout-hours-${tenant?.id || 'default'}`;
+  const [selectedEmployee, setSelectedEmployee, clearSelectedEmployee] = usePersistedState(`${hoursFormKey}-emp`, '');
+  const [hoursInput, setHoursInput, clearHoursInput] = usePersistedState(`${hoursFormKey}-hrs`, '');
+  const [minutesInput, setMinutesInput, clearMinutesInput] = usePersistedState(`${hoursFormKey}-min`, '');
   const [savingHours, setSavingHours] = useState(false);
 
   // Hours verification
