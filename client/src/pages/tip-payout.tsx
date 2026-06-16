@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 import { useToast } from '@/hooks/use-toast';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ import { TeamHoursVerify } from '@/components/tip-payout/TeamHoursVerify';
 import { PayoutSummary } from '@/components/tip-payout/PayoutSummary';
 import { HistoricalExport } from '@/components/tip-payout/HistoricalExport';
 import { TimeclockImportDialog } from '@/components/tip-payout/TimeclockImportDialog';
+import { MoveWeekDialog } from '@/components/tip-payout/MoveWeekDialog';
 import { colors } from '@/lib/colors';
 import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
 import { getAuthHeaders } from '@/lib/api-helpers';
@@ -71,10 +73,11 @@ export default function TipPayout() {
   const [ccEntries, setCcEntries] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
   const [savingTips, setSavingTips] = useState(false);
 
-  // Hours entry
-  const [selectedEmployee, setSelectedEmployee] = useState('');
-  const [hoursInput, setHoursInput] = useState('');
-  const [minutesInput, setMinutesInput] = useState('');
+  // Hours entry - persisted to sessionStorage to survive React Query refetches
+  const hoursFormKey = `tip-payout-hours-${tenant?.id || 'default'}`;
+  const [selectedEmployee, setSelectedEmployee, clearSelectedEmployee] = usePersistedState(`${hoursFormKey}-emp`, '');
+  const [hoursInput, setHoursInput, clearHoursInput] = usePersistedState(`${hoursFormKey}-hrs`, '');
+  const [minutesInput, setMinutesInput, clearMinutesInput] = usePersistedState(`${hoursFormKey}-min`, '');
   const [savingHours, setSavingHours] = useState(false);
 
   // Hours verification
@@ -88,6 +91,9 @@ export default function TipPayout() {
   const [newEmployeeName, setNewEmployeeName] = useState('');
   const [addingEmployee, setAddingEmployee] = useState(false);
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
+
+  // Move week dialog
+  const [moveWeekDialogOpen, setMoveWeekDialogOpen] = useState(false);
 
   // Timeclock import
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -834,6 +840,8 @@ export default function TipPayout() {
               ccAfterFee={ccAfterFee}
               onSaveTips={saveTips}
               savingTips={savingTips}
+              onMoveWeek={() => setMoveWeekDialogOpen(true)}
+              hasData={cashTotal > 0 || ccTotal > 0 || Object.keys(employeeHours).length > 0}
             />
 
             {employees.length === 0 ? (
@@ -932,6 +940,20 @@ export default function TipPayout() {
         onConfirm={confirmImport}
         colors={colors}
       />
+
+      {tenant?.id && (
+        <MoveWeekDialog
+          open={moveWeekDialogOpen}
+          onOpenChange={setMoveWeekDialogOpen}
+          tenantId={tenant.id}
+          currentWeekKey={weekKey}
+          onMoveComplete={(newWeekKey) => {
+            setWeekKey(newWeekKey);
+            loadWeekData();
+          }}
+          colors={colors}
+        />
+      )}
     </div>
   );
 }

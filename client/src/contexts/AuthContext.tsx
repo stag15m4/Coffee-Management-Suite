@@ -618,8 +618,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           // Dispatch custom event to notify pages to refresh their data
-          // Only refresh if app was hidden for more than 30 seconds
-          if (timeSinceHidden > 30000 && isMounted) {
+          // Only refresh if app was hidden for more than 5 minutes
+          // (Raised from 30s to preserve form state during normal app switching)
+          if (timeSinceHidden > 300000 && isMounted) {
             console.log('[Session] Dispatching app-resumed event to refresh page data');
             // Use setTimeout to ensure event happens after state updates complete
             setTimeout(() => {

@@ -10,14 +10,16 @@ import { ThemeProvider } from '@/contexts/ThemeProvider';
 import { NavigationProvider } from '@/components/navigation/NavigationProvider';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { AppLayout } from '@/components/AppLayout';
-import { CommandPalette } from '@/components/CommandPalette';
-import { WhatsNew } from '@/components/WhatsNew';
-import { Spotlight } from '@/components/Spotlight';
 import { AppResumeIndicator } from '@/components/AppResumeIndicator';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+
+// Lazy-loaded UI components (not needed for initial render)
+const CommandPalette = lazy(() => import('@/components/CommandPalette').then(m => ({ default: m.CommandPalette })));
+const WhatsNew = lazy(() => import('@/components/WhatsNew').then(m => ({ default: m.WhatsNew })));
+const Spotlight = lazy(() => import('@/components/Spotlight').then(m => ({ default: m.Spotlight })));
 
 // Eagerly loaded — needed for initial render
 import Landing from '@/pages/landing';
@@ -292,9 +294,11 @@ function App() {
                 <ErrorBoundary>
                   <Router />
                 </ErrorBoundary>
-                <CommandPalette />
-                <WhatsNew />
-                <Spotlight />
+                <Suspense fallback={null}>
+                  <CommandPalette />
+                  <WhatsNew />
+                  <Spotlight />
+                </Suspense>
               </NavigationProvider>
             </ThemeProvider>
           </VerticalProvider>
