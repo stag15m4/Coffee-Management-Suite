@@ -5,11 +5,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase, queryKeys } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
+import { usePersistedState, clearPersistedFormState } from '@/hooks/use-persisted-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
-import ExcelJS from 'exceljs';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
 import { showDeleteUndoToast } from '@/hooks/use-delete-with-undo';
 import { colors } from '@/lib/colors';
@@ -51,7 +51,9 @@ export default function CashDeposit() {
   const [showGrowthTracker, setShowGrowthTracker] = useState(false);
   const [dateRange, setDateRange] = useState({ start: yearStart, end: today });
 
-  const [formData, setFormData] = useState<FormData>({
+  // Persist form data to sessionStorage so it survives React Query refetches
+  const formStorageKey = `cash-deposit-form-${tenant?.id || 'default'}`;
+  const [formData, setFormData, clearFormData] = usePersistedState<FormData>(formStorageKey, {
     drawer_date: today,
     gross_revenue: '0.00',
     starting_drawer: '200.00',
@@ -305,6 +307,8 @@ export default function CashDeposit() {
       d.setDate(d.getDate() + 1);
       nextDate = d.toISOString().split('T')[0];
     }
+    // Clear persisted form state after successful save
+    clearFormData();
     setFormData(getDefaultFormData(nextDate, drawerDefault));
     setEditingEntry(null);
   };
@@ -444,8 +448,10 @@ export default function CashDeposit() {
     if (!file || !tenant?.id) return;
 
     try {
+      // Dynamic import - only loads ExcelJS when user imports a file (~250KB savings on initial load)
+      const ExcelJS = await import('exceljs');
       const arrayBuffer = await file.arrayBuffer();
-      const workbook = new ExcelJS.Workbook();
+      const workbook = new ExcelJS.default.Workbook();
       await workbook.xlsx.load(arrayBuffer);
       const worksheet = workbook.worksheets[0];
 
