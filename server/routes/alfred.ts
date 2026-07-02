@@ -3,16 +3,41 @@
  *
  * Read-only endpoints for the Alfred AI assistant.
  * All endpoints require either:
- * - Valid user session (Bearer JWT)
+ * - Valid user session (Bearer JWT) — scoped to the user's own tenant
  * - Valid service token (X-Alfred-Token header matching ALFRED_SERVICE_TOKEN env)
+ *   — scoped to the tenant allowlist in ALFRED_ALLOWED_TENANT_IDS
  *
- * These endpoints are INERT when ALFRED_SERVICE_TOKEN is unset.
+ * These endpoints are INERT when ALFRED_SERVICE_TOKEN is unset, and a valid
+ * token grants nothing unless ALFRED_ALLOWED_TENANT_IDS is also configured.
  */
 import type { Express, Request, Response } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getApiAuth } from '../service-auth';
+import { parseAllowedTenantIds } from '../service-auth-core';
 import logger from '../logger';
+
+/**
+ * Shared guard for tenant-scoped read endpoints.
+ * Sends the error response and returns null when the request is not allowed;
+ * returns the resolved tenant ID otherwise.
+ */
+async function authorizeTenantRead(req: Request, res: Response): Promise<string | null> {
+  const auth = await getApiAuth(req);
+  if (!auth.authenticated) {
+    res.status(401).json({ error: 'Authentication required', debug: auth.debug });
+    return null;
+  }
+  if (auth.tenantForbidden) {
+    res.status(403).json({ error: 'Not authorized for this tenant' });
+    return null;
+  }
+  if (!auth.tenantId) {
+    res.status(400).json({ error: 'tenant_id query parameter required' });
+    return null;
+  }
+  return auth.tenantId;
+}
 
 export function registerAlfredRoutes(app: Express): void {
   // Skip registration entirely if service token is not configured
@@ -21,24 +46,24 @@ export function registerAlfredRoutes(app: Express): void {
     return;
   }
 
-  logger.info('Alfred service routes enabled');
+  const allowedCount = parseAllowedTenantIds(process.env.ALFRED_ALLOWED_TENANT_IDS).length;
+  if (allowedCount === 0) {
+    logger.warn(
+      'ALFRED_SERVICE_TOKEN is set but ALFRED_ALLOWED_TENANT_IDS is empty — service token requests will be rejected (fail closed)'
+    );
+  } else {
+    logger.info(`Alfred service routes enabled (scoped to ${allowedCount} tenant(s))`);
+  }
 
   /**
    * GET /api/alfred/ingredients
    * List all ingredients for a tenant
-   * Query params: tenant_id (required for service token, ignored for user session)
+   * Query params: tenant_id (must be in the token's allowlist; optional when the allowlist has one tenant)
    */
   app.get('/api/alfred/ingredients', async (req: Request, res: Response) => {
     try {
-      const auth = await getApiAuth(req);
-      if (!auth.authenticated) {
-        return res.status(401).json({ error: 'Authentication required', debug: auth.debug });
-      }
-
-      const tenantId = auth.tenantId;
-      if (!tenantId) {
-        return res.status(400).json({ error: 'tenant_id query parameter required for service token auth' });
-      }
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
 
       const result = await db.execute(sql`
         SELECT id, name, unit, cost, quantity, par_level, supplier, notes, created_at, updated_at
@@ -61,19 +86,12 @@ export function registerAlfredRoutes(app: Express): void {
   /**
    * GET /api/alfred/recipes
    * List all recipes with their ingredients for a tenant
-   * Query params: tenant_id (required for service token)
+   * Query params: tenant_id
    */
   app.get('/api/alfred/recipes', async (req: Request, res: Response) => {
     try {
-      const auth = await getApiAuth(req);
-      if (!auth.authenticated) {
-        return res.status(401).json({ error: 'Authentication required', debug: auth.debug });
-      }
-
-      const tenantId = auth.tenantId;
-      if (!tenantId) {
-        return res.status(400).json({ error: 'tenant_id query parameter required for service token auth' });
-      }
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
 
       // Fetch recipes
       const recipesResult = await db.execute(sql`
@@ -136,15 +154,8 @@ export function registerAlfredRoutes(app: Express): void {
    */
   app.get('/api/alfred/cash-activity', async (req: Request, res: Response) => {
     try {
-      const auth = await getApiAuth(req);
-      if (!auth.authenticated) {
-        return res.status(401).json({ error: 'Authentication required', debug: auth.debug });
-      }
-
-      const tenantId = auth.tenantId;
-      if (!tenantId) {
-        return res.status(400).json({ error: 'tenant_id query parameter required for service token auth' });
-      }
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
 
       const startDate = (req.query.start_date as string) || null;
       const endDate = (req.query.end_date as string) || null;
@@ -186,15 +197,8 @@ export function registerAlfredRoutes(app: Express): void {
    */
   app.get('/api/alfred/tip-employees', async (req: Request, res: Response) => {
     try {
-      const auth = await getApiAuth(req);
-      if (!auth.authenticated) {
-        return res.status(401).json({ error: 'Authentication required', debug: auth.debug });
-      }
-
-      const tenantId = auth.tenantId;
-      if (!tenantId) {
-        return res.status(400).json({ error: 'tenant_id query parameter required for service token auth' });
-      }
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
 
       const result = await db.execute(sql`
         SELECT id, name, is_active, tip_eligible, created_at, updated_at
@@ -221,15 +225,8 @@ export function registerAlfredRoutes(app: Express): void {
    */
   app.get('/api/alfred/tip-payouts', async (req: Request, res: Response) => {
     try {
-      const auth = await getApiAuth(req);
-      if (!auth.authenticated) {
-        return res.status(401).json({ error: 'Authentication required', debug: auth.debug });
-      }
-
-      const tenantId = auth.tenantId;
-      if (!tenantId) {
-        return res.status(400).json({ error: 'tenant_id query parameter required for service token auth' });
-      }
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
 
       const startDate = (req.query.start_date as string) || null;
       const endDate = (req.query.end_date as string) || null;
@@ -271,15 +268,8 @@ export function registerAlfredRoutes(app: Express): void {
    */
   app.get('/api/alfred/overhead', async (req: Request, res: Response) => {
     try {
-      const auth = await getApiAuth(req);
-      if (!auth.authenticated) {
-        return res.status(401).json({ error: 'Authentication required', debug: auth.debug });
-      }
-
-      const tenantId = auth.tenantId;
-      if (!tenantId) {
-        return res.status(400).json({ error: 'tenant_id query parameter required for service token auth' });
-      }
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
 
       // Fetch overhead settings
       const settingsResult = await db.execute(sql`
@@ -322,15 +312,8 @@ export function registerAlfredRoutes(app: Express): void {
    */
   app.get('/api/alfred/equipment', async (req: Request, res: Response) => {
     try {
-      const auth = await getApiAuth(req);
-      if (!auth.authenticated) {
-        return res.status(401).json({ error: 'Authentication required', debug: auth.debug });
-      }
-
-      const tenantId = auth.tenantId;
-      if (!tenantId) {
-        return res.status(400).json({ error: 'tenant_id query parameter required for service token auth' });
-      }
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
 
       // Fetch equipment
       const equipmentResult = await db.execute(sql`
@@ -365,8 +348,10 @@ export function registerAlfredRoutes(app: Express): void {
 
   /**
    * GET /api/alfred/tenants
-   * List accessible tenants (for service token: all active tenants)
-   * For service token only - provides tenant discovery
+   * Lists ONLY the tenants this credential may read:
+   * - Service token: the tenants in ALFRED_ALLOWED_TENANT_IDS
+   * - User session: the user's own tenant
+   * Never returns the full customer list.
    */
   app.get('/api/alfred/tenants', async (req: Request, res: Response) => {
     try {
@@ -375,36 +360,35 @@ export function registerAlfredRoutes(app: Express): void {
         return res.status(401).json({ error: 'Authentication required', debug: auth.debug });
       }
 
-      // Service token can list all tenants; user session sees only their tenant
+      let tenantIds: string[];
       if (auth.isServiceToken) {
-        const result = await db.execute(sql`
-          SELECT id, name, slug, subscription_status, is_active, created_at
-          FROM tenants
-          WHERE is_active = true
-          ORDER BY name
-        `);
-
-        res.json({
-          count: result.rows.length,
-          tenants: result.rows,
-        });
+        tenantIds = auth.allowedTenantIds || [];
       } else {
-        // User session - return their tenant only
         if (!auth.tenantId) {
           return res.status(403).json({ error: 'No tenant association found' });
         }
-
-        const result = await db.execute(sql`
-          SELECT id, name, slug, subscription_status, is_active, created_at
-          FROM tenants
-          WHERE id = ${auth.tenantId}::uuid
-        `);
-
-        res.json({
-          count: result.rows.length,
-          tenants: result.rows,
-        });
+        tenantIds = [auth.tenantId];
       }
+
+      if (tenantIds.length === 0) {
+        return res.json({ count: 0, tenants: [] });
+      }
+
+      const idList = sql.join(
+        tenantIds.map((id) => sql`${id}::uuid`),
+        sql`, `
+      );
+      const result = await db.execute(sql`
+        SELECT id, name, slug, subscription_status, is_active, created_at
+        FROM tenants
+        WHERE is_active = true AND id IN (${idList})
+        ORDER BY name
+      `);
+
+      res.json({
+        count: result.rows.length,
+        tenants: result.rows,
+      });
     } catch (err) {
       logger.error({ err }, 'Error in /api/alfred/tenants');
       res.status(500).json({ error: 'Internal server error' });
