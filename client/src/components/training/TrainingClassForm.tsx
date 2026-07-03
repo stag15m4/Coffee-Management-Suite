@@ -12,11 +12,7 @@ import { Search, Users, Award } from 'lucide-react';
 import { colors } from '@/lib/colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAllEmployees, type UnifiedEmployee } from '@/hooks/use-all-employees';
-import {
-  useCertificationTypes,
-  useCreateTrainingClass,
-  useBulkAddAttendees,
-} from '@/hooks/use-training';
+import { useCertificationTypes, useCreateTrainingClass, useBulkAddAttendees } from '@/hooks/use-training';
 
 interface TrainingClassFormProps {
   open: boolean;
@@ -62,17 +58,19 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
   }
 
   const activeEmployees = useMemo(
-    () => employees.filter((e) => {
-      const q = searchQuery.toLowerCase();
-      return !q || e.name.toLowerCase().includes(q);
-    }),
+    () =>
+      employees.filter((e) => {
+        const q = searchQuery.toLowerCase();
+        return !q || e.name.toLowerCase().includes(q);
+      }),
     [employees, searchQuery]
   );
 
   function toggleEmployee(key: string) {
     setSelectedEmployees((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }
@@ -160,7 +158,9 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
         <div className="space-y-4">
           {/* Class Name */}
           <div>
-            <label className="text-sm font-medium" style={{ color: colors.brown }}>Class Name *</label>
+            <label className="text-sm font-medium" style={{ color: colors.brown }}>
+              Class Name *
+            </label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -172,7 +172,9 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
           {/* Provider & Location */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium" style={{ color: colors.brown }}>Provider</label>
+              <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                Provider
+              </label>
               <Input
                 value={form.provider}
                 onChange={(e) => setForm({ ...form, provider: e.target.value })}
@@ -181,7 +183,9 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
               />
             </div>
             <div>
-              <label className="text-sm font-medium" style={{ color: colors.brown }}>Location</label>
+              <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                Location
+              </label>
               <Input
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
@@ -194,7 +198,9 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium" style={{ color: colors.brown }}>Class Date *</label>
+              <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                Class Date *
+              </label>
               <Input
                 type="date"
                 value={form.class_date}
@@ -203,7 +209,9 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
               />
             </div>
             <div>
-              <label className="text-sm font-medium" style={{ color: colors.brown }}>End Date</label>
+              <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                End Date
+              </label>
               <Input
                 type="date"
                 value={form.end_date}
@@ -216,7 +224,9 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
           {/* Duration & Cost */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="text-sm font-medium" style={{ color: colors.brown }}>Hours</label>
+              <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                Hours
+              </label>
               <Input
                 type="text"
                 inputMode="decimal"
@@ -232,7 +242,9 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
               />
             </div>
             <div>
-              <label className="text-sm font-medium" style={{ color: colors.brown }}>Cost ($)</label>
+              <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                Cost ($)
+              </label>
               <Input
                 type="text"
                 inputMode="decimal"
@@ -270,14 +282,18 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
                 This class grants a certification
               </label>
               {form.grants_certification && (
-                <Select value={form.certification_type_id} onValueChange={(v) => setForm({ ...form, certification_type_id: v })}>
+                <Select
+                  value={form.certification_type_id}
+                  onValueChange={(v) => setForm({ ...form, certification_type_id: v })}
+                >
                   <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
                     <SelectValue placeholder="Select certification type" />
                   </SelectTrigger>
                   <SelectContent>
                     {certTypes.map((ct) => (
                       <SelectItem key={ct.id} value={ct.id}>
-                        {ct.name}{ct.default_validity_months ? ` (${ct.default_validity_months}mo)` : ''}
+                        {ct.name}
+                        {ct.default_validity_months ? ` (${ct.default_validity_months}mo)` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -297,10 +313,22 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
                 </Badge>
               </label>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={selectAll} className="h-7 px-2 text-xs" style={{ color: colors.brown }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={selectAll}
+                  className="h-7 px-2 text-xs"
+                  style={{ color: colors.brown }}
+                >
                   Select All
                 </Button>
-                <Button variant="ghost" size="sm" onClick={clearAll} className="h-7 px-2 text-xs" style={{ color: colors.brownLight }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAll}
+                  className="h-7 px-2 text-xs"
+                  style={{ color: colors.brownLight }}
+                >
                   Clear
                 </Button>
               </div>
@@ -308,7 +336,10 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
 
             {/* Search */}
             <div className="relative mb-2">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.brownLight }} />
+              <Search
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4"
+                style={{ color: colors.brownLight }}
+              />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -334,9 +365,15 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
                     }}
                   >
                     <Checkbox checked={checked} onCheckedChange={() => toggleEmployee(key)} />
-                    <span className="text-sm flex-1" style={{ color: colors.brown }}>{emp.name}</span>
+                    <span className="text-sm flex-1" style={{ color: colors.brown }}>
+                      {emp.name}
+                    </span>
                     {emp.role && (
-                      <Badge variant="outline" className="text-xs capitalize" style={{ borderColor: colors.creamDark, color: colors.brownLight }}>
+                      <Badge
+                        variant="outline"
+                        className="text-xs capitalize"
+                        style={{ borderColor: colors.creamDark, color: colors.brownLight }}
+                      >
                         {emp.role}
                       </Badge>
                     )}
@@ -353,7 +390,9 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
 
           {/* Description / Notes */}
           <div>
-            <label className="text-sm font-medium" style={{ color: colors.brown }}>Notes</label>
+            <label className="text-sm font-medium" style={{ color: colors.brown }}>
+              Notes
+            </label>
             <Textarea
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -372,7 +411,11 @@ export function TrainingClassForm({ open, onOpenChange, preselectedEmployeeId, o
             >
               {isSaving ? 'Saving...' : 'Create Training Class'}
             </Button>
-            <Button variant="outline" onClick={() => onOpenChange(false)} style={{ borderColor: colors.gold, color: colors.brown }}>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              style={{ borderColor: colors.gold, color: colors.brown }}
+            >
               Cancel
             </Button>
           </div>

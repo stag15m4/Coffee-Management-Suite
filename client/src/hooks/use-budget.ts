@@ -64,7 +64,11 @@ export function useCreateAccount() {
 export function useUpdateAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, tenant_id, ...updates }: Partial<ChartOfAccount> & { id: string; tenant_id: string }) => {
+    mutationFn: async ({
+      id,
+      tenant_id: _tenant_id,
+      ...updates
+    }: Partial<ChartOfAccount> & { id: string; tenant_id: string }) => {
       const { data, error } = await supabase
         .from('budget_chart_of_accounts')
         .update({ ...updates, updated_at: new Date().toISOString() })
@@ -83,7 +87,7 @@ export function useUpdateAccount() {
 export function useDeleteAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, tenant_id }: { id: string; tenant_id: string }) => {
+    mutationFn: async ({ id, tenant_id: _tenant_id }: { id: string; tenant_id: string }) => {
       const { error } = await supabase
         .from('budget_chart_of_accounts')
         .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -100,7 +104,7 @@ export function useDeleteAccount() {
 export function useBulkHideAccounts() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ ids, tenant_id }: { ids: string[]; tenant_id: string }) => {
+    mutationFn: async ({ ids, tenant_id: _tenant_id }: { ids: string[]; tenant_id: string }) => {
       const { error } = await supabase
         .from('budget_chart_of_accounts')
         .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -117,7 +121,7 @@ export function useBulkHideAccounts() {
 export function useRestoreAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, tenant_id }: { id: string; tenant_id: string }) => {
+    mutationFn: async ({ id, tenant_id: _tenant_id }: { id: string; tenant_id: string }) => {
       const { error } = await supabase
         .from('budget_chart_of_accounts')
         .update({ is_active: true, updated_at: new Date().toISOString() })
@@ -192,7 +196,11 @@ export function useCreateFiscalYear() {
 export function useUpdateFiscalYear() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, tenant_id, ...updates }: Partial<FiscalYear> & { id: string; tenant_id: string }) => {
+    mutationFn: async ({
+      id,
+      tenant_id: _tenant_id,
+      ...updates
+    }: Partial<FiscalYear> & { id: string; tenant_id: string }) => {
       const { data, error } = await supabase
         .from('budget_fiscal_years')
         .update({ ...updates, updated_at: new Date().toISOString() })

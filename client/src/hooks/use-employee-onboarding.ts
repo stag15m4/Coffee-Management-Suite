@@ -14,7 +14,7 @@ export interface EmployeeOnboardingProgress {
  * on user_profiles.onboarding_progress instead of tenants.setup_progress.
  */
 export function useEmployeeOnboarding() {
-  const { user, profile, hasRole } = useAuth();
+  const { user, profile: _profile, hasRole } = useAuth();
   const queryClient = useQueryClient();
   const userId = user?.id;
 

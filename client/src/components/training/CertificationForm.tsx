@@ -121,7 +121,9 @@ export function CertificationForm({ open, onOpenChange, employeeId, existing, on
         <div className="space-y-4">
           {/* Cert Type */}
           <div>
-            <label className="text-sm font-medium" style={{ color: colors.brown }}>Certification Type *</label>
+            <label className="text-sm font-medium" style={{ color: colors.brown }}>
+              Certification Type *
+            </label>
             <Select value={form.certification_type_id} onValueChange={handleCertTypeChange}>
               <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
                 <SelectValue placeholder="Select certification type" />
@@ -129,7 +131,8 @@ export function CertificationForm({ open, onOpenChange, employeeId, existing, on
               <SelectContent>
                 {certTypes.map((ct) => (
                   <SelectItem key={ct.id} value={ct.id}>
-                    {ct.name}{ct.issuing_body ? ` (${ct.issuing_body})` : ''}
+                    {ct.name}
+                    {ct.issuing_body ? ` (${ct.issuing_body})` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -139,7 +142,9 @@ export function CertificationForm({ open, onOpenChange, employeeId, existing, on
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium" style={{ color: colors.brown }}>Issue Date *</label>
+              <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                Issue Date *
+              </label>
               <Input
                 type="date"
                 value={form.issue_date}
@@ -148,7 +153,9 @@ export function CertificationForm({ open, onOpenChange, employeeId, existing, on
               />
             </div>
             <div>
-              <label className="text-sm font-medium" style={{ color: colors.brown }}>Expiry Date</label>
+              <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                Expiry Date
+              </label>
               <Input
                 type="date"
                 value={form.expiry_date}
@@ -160,7 +167,9 @@ export function CertificationForm({ open, onOpenChange, employeeId, existing, on
 
           {/* Certificate Number */}
           <div>
-            <label className="text-sm font-medium" style={{ color: colors.brown }}>Certificate Number</label>
+            <label className="text-sm font-medium" style={{ color: colors.brown }}>
+              Certificate Number
+            </label>
             <Input
               value={form.certificate_number}
               onChange={(e) => setForm({ ...form, certificate_number: e.target.value })}
@@ -171,7 +180,9 @@ export function CertificationForm({ open, onOpenChange, employeeId, existing, on
 
           {/* Document Upload */}
           <div>
-            <label className="text-sm font-medium" style={{ color: colors.brown }}>Certificate Document</label>
+            <label className="text-sm font-medium" style={{ color: colors.brown }}>
+              Certificate Document
+            </label>
             {form.document_url ? (
               <div className="flex items-center gap-2 mt-1">
                 <FileText className="w-4 h-4" style={{ color: colors.gold }} />
@@ -216,8 +227,15 @@ export function CertificationForm({ open, onOpenChange, employeeId, existing, on
           {/* Status (edit only) */}
           {existing && (
             <div>
-              <label className="text-sm font-medium" style={{ color: colors.brown }}>Status</label>
-              <Select value={form.status} onValueChange={(v: 'active' | 'expired' | 'revoked' | 'pending_renewal') => setForm({ ...form, status: v })}>
+              <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                Status
+              </label>
+              <Select
+                value={form.status}
+                onValueChange={(v: 'active' | 'expired' | 'revoked' | 'pending_renewal') =>
+                  setForm({ ...form, status: v })
+                }
+              >
                 <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
                   <SelectValue />
                 </SelectTrigger>
@@ -233,7 +251,9 @@ export function CertificationForm({ open, onOpenChange, employeeId, existing, on
 
           {/* Notes */}
           <div>
-            <label className="text-sm font-medium" style={{ color: colors.brown }}>Notes</label>
+            <label className="text-sm font-medium" style={{ color: colors.brown }}>
+              Notes
+            </label>
             <Textarea
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -252,7 +272,11 @@ export function CertificationForm({ open, onOpenChange, employeeId, existing, on
             >
               {existing ? 'Update' : 'Add Certification'}
             </Button>
-            <Button variant="outline" onClick={() => onOpenChange(false)} style={{ borderColor: colors.gold, color: colors.brown }}>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              style={{ borderColor: colors.gold, color: colors.brown }}
+            >
               Cancel
             </Button>
           </div>

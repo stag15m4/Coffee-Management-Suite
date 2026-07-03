@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useShifts, useAcceptShift, useDeclineShift, type Shift } from '@/hooks/use-shifts';
-import { useMyTimeOffRequests, type TimeOffRequest } from '@/hooks/use-time-off';
+import { useMyTimeOffRequests } from '@/hooks/use-time-off';
 import {
   useActiveClockEntry,
   useClockIn,

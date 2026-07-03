@@ -282,7 +282,7 @@ export async function syncChartOfAccounts(tenantId: string): Promise<{
     // Preserve hidden state: if user previously hid this account, keep it hidden
     const wasHidden = hiddenKeys.has(acc.AcctNum || acc.Name);
 
-    const { data: inserted, error } = await supabaseAdmin
+    const { data: inserted, error: _error } = await supabaseAdmin
       .from('budget_chart_of_accounts')
       .insert({
         tenant_id: tenantId,

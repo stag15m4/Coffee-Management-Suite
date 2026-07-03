@@ -34,7 +34,7 @@ export function PayoutSummary({
   validationError,
   userRole,
 }: PayoutSummaryProps) {
-  const { totalPool, totalTeamHours, hourlyRate, weekRange } = calculation;
+  const { totalPool, totalTeamHours, hourlyRate, weekRange: _weekRange } = calculation;
 
   // Check if server result matches client calculation
   const hasDiscrepancy =

@@ -1,4 +1,4 @@
-import { TrendingUp, Users, Clock, CheckCircle2, AlertTriangle, Coffee, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Coffee, type LucideIcon } from 'lucide-react';
 import { getModuleIcon, MODULE_REGISTRY, type ModuleId } from '@/lib/module-registry';
 import { Badge } from '@/components/ui/badge';
 import { colors } from '@/lib/colors';

@@ -1,5 +1,5 @@
 import { getErrorMessage } from '@/lib/utils';
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,7 +41,7 @@ export default function BudgetEntryTab({ tenantId, coaTenantId }: Props) {
   const selectedFY = fiscalYears.find((fy) => fy.id === selectedFYId) || fiscalYears[0];
   const fyId = selectedFY?.id || '';
 
-  const { data: lineItems = [], isLoading: loadingLines } = useBudgetLineItems(fyId, tenantId);
+  const { data: lineItems = [], isLoading: _loadingLines } = useBudgetLineItems(fyId, tenantId);
 
   // Build a lookup map: accountId-month → budget_amount
   const cellMap = useMemo(() => {
@@ -372,7 +372,7 @@ export default function BudgetEntryTab({ tenantId, coaTenantId }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {grouped.map(({ type, accounts: typeAccounts }, gi) => (
+                {grouped.map(({ type, accounts: typeAccounts }, _gi) => (
                   <GroupRows
                     key={type}
                     type={type}

@@ -63,8 +63,8 @@ export function useDeleteForecastScenario() {
   return useMutation({
     mutationFn: async ({
       id,
-      fiscal_year_id,
-      tenant_id,
+      fiscal_year_id: _fiscal_year_id,
+      tenant_id: _tenant_id,
     }: {
       id: string;
       fiscal_year_id: string;
@@ -205,7 +205,7 @@ export function useUpdateForecastDriver() {
   return useMutation({
     mutationFn: async ({
       id,
-      scenario_id,
+      scenario_id: _scenario_id,
       ...updates
     }: Partial<ForecastDriver> & { id: string; scenario_id: string }) => {
       const { data, error } = await supabase
@@ -226,7 +226,7 @@ export function useUpdateForecastDriver() {
 export function useDeleteForecastDriver() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, scenario_id }: { id: string; scenario_id: string }) => {
+    mutationFn: async ({ id, scenario_id: _scenario_id }: { id: string; scenario_id: string }) => {
       const { error } = await supabase.from('budget_forecast_drivers').delete().eq('id', id);
       if (error) throw error;
     },
@@ -274,7 +274,7 @@ export function useCreateSeasonalPattern() {
 export function useDeleteSeasonalPattern() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, tenant_id }: { id: string; tenant_id: string }) => {
+    mutationFn: async ({ id, tenant_id: _tenant_id }: { id: string; tenant_id: string }) => {
       const { error } = await supabase.from('budget_seasonal_patterns').delete().eq('id', id);
       if (error) throw error;
     },

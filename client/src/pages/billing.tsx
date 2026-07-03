@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
 import { getModuleIcon, getPublicModuleCount } from '@/lib/module-registry';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
@@ -17,13 +17,6 @@ import {
   Copy,
   Gift,
   Key,
-  Calculator,
-  DollarSign,
-  Receipt,
-  Coffee,
-  Wrench,
-  ListTodo,
-  CalendarDays,
   Lock,
   Clock,
   ChevronDown,

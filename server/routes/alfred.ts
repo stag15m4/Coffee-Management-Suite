@@ -233,30 +233,85 @@ export function registerAlfredRoutes(app: Express): void {
       const startDate = (req.query.start_date as string) || null;
       const endDate = (req.query.end_date as string) || null;
 
-      // Real table is tip_payout_approvals (migration 141); cc_fee_rate, not cc_fee
-      let query = sql`
-        SELECT id, week_key, distribution_method, cash_tips, cc_tips, cc_fee_rate,
-               total_pool, total_hours, hourly_rate, employee_payouts,
-               status, calculated_at, approved_by, approved_at, created_at
-        FROM tip_payout_approvals
+      // Source of truth in production is tip_weekly_data + tip_employee_hours
+      // (migration 007) — the same tables the native tip-payout page and its
+      // historical export read. Payouts are computed the same way as
+      // POST /api/tip-payouts/calculate in server/routes/tips.ts.
+      const CC_FEE_RATE = 0.035;
+
+      let weeksQuery = sql`
+        SELECT to_char(week_key, 'YYYY-MM-DD') AS week_key,
+               cash_tips, cc_tips, created_at, updated_at
+        FROM tip_weekly_data
         WHERE tenant_id = ${tenantId}::uuid
       `;
-
       if (startDate) {
-        query = sql`${query} AND week_key >= ${startDate}::date`;
+        weeksQuery = sql`${weeksQuery} AND week_key >= ${startDate}::date`;
       }
       if (endDate) {
-        query = sql`${query} AND week_key <= ${endDate}::date`;
+        weeksQuery = sql`${weeksQuery} AND week_key <= ${endDate}::date`;
+      }
+      weeksQuery = sql`${weeksQuery} ORDER BY week_key DESC LIMIT 52`;
+
+      let hoursQuery = sql`
+        SELECT to_char(teh.week_key, 'YYYY-MM-DD') AS week_key,
+               teh.employee_id, teh.hours, te.name AS employee_name
+        FROM tip_employee_hours teh
+        JOIN tip_employees te ON te.id = teh.employee_id
+        WHERE teh.tenant_id = ${tenantId}::uuid
+      `;
+      if (startDate) {
+        hoursQuery = sql`${hoursQuery} AND teh.week_key >= ${startDate}::date`;
+      }
+      if (endDate) {
+        hoursQuery = sql`${hoursQuery} AND teh.week_key <= ${endDate}::date`;
+      }
+      hoursQuery = sql`${hoursQuery} ORDER BY teh.week_key, te.name`;
+
+      const [weeksResult, hoursResult] = await Promise.all([db.execute(weeksQuery), db.execute(hoursQuery)]);
+
+      // Group employee hours by week
+      const hoursByWeek = new Map<string, Array<{ employee_id: string; employee_name: string; hours: number }>>();
+      for (const row of hoursResult.rows as any[]) {
+        const entries = hoursByWeek.get(row.week_key) || [];
+        entries.push({
+          employee_id: row.employee_id,
+          employee_name: row.employee_name,
+          hours: parseFloat(row.hours) || 0,
+        });
+        hoursByWeek.set(row.week_key, entries);
       }
 
-      query = sql`${query} ORDER BY week_key DESC LIMIT 52`;
+      // Compute payouts per week — same math as the native calculate endpoint
+      const payouts = (weeksResult.rows as any[]).map((week) => {
+        const cashTips = parseFloat(week.cash_tips) || 0;
+        const ccTips = parseFloat(week.cc_tips) || 0;
+        const ccAfterFee = ccTips * (1 - CC_FEE_RATE);
+        const totalPool = cashTips + ccAfterFee;
 
-      const result = await db.execute(query);
+        const employees = hoursByWeek.get(week.week_key) || [];
+        const totalHours = employees.reduce((sum, e) => sum + e.hours, 0);
+        const hourlyRate = totalHours > 0 ? totalPool / totalHours : 0;
+
+        return {
+          week_key: week.week_key,
+          cash_tips: cashTips,
+          cc_tips: ccTips,
+          cc_fee_rate: CC_FEE_RATE,
+          total_pool: Math.round(totalPool * 100) / 100,
+          total_hours: totalHours,
+          hourly_rate: Math.round(hourlyRate * 10000) / 10000,
+          employees: employees.map((e) => ({
+            ...e,
+            payout: Math.round(e.hours * hourlyRate * 100) / 100,
+          })),
+        };
+      });
 
       res.json({
         tenant_id: tenantId,
-        count: result.rows.length,
-        payouts: result.rows,
+        count: payouts.length,
+        payouts,
       });
     } catch (err) {
       logger.error({ err }, 'Error in /api/alfred/tip-payouts');

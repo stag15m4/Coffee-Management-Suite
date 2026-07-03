@@ -1,4 +1,3 @@
-import { getErrorMessage } from '@/lib/utils';
 import { useState } from 'react';
 import { useIngredients, useCreateIngredient, useUpdateIngredient, useDeleteIngredient } from '@/hooks/use-ingredients';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -63,8 +62,12 @@ export default function Ingredients() {
       try {
         const savedData = ingredient
           ? (() => {
-              const { category_name, cost_per_unit, cost_per_usage_unit, ...tableColumns } =
-                ingredient as unknown as Record<string, unknown>;
+              const {
+                category_name: _category_name,
+                cost_per_unit: _cost_per_unit,
+                cost_per_usage_unit: _cost_per_usage_unit,
+                ...tableColumns
+              } = ingredient as unknown as Record<string, unknown>;
               return tableColumns;
             })()
           : null;

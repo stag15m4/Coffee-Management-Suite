@@ -10,16 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import {
-  ArrowLeft,
-  Plus,
-  Trash2,
   UserPlus,
   Loader2,
   Mail,
   MapPin,
   Building2,
-  Check,
-  X,
   Shield,
   DollarSign,
   Eye,
@@ -48,14 +43,22 @@ interface Location {
   is_active: boolean;
 }
 
-interface UserLocationAssignment {
+interface _UserLocationAssignment {
   user_id: string;
   tenant_id: string;
   is_active: boolean;
 }
 
 export default function AdminUsers() {
-  const { user, profile, tenant, accessibleLocations, branding, primaryTenant, getRoleDisplayName } = useAuth();
+  const {
+    user,
+    profile,
+    tenant,
+    accessibleLocations: _accessibleLocations,
+    branding,
+    primaryTenant,
+    getRoleDisplayName,
+  } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { data: managerData } = useManagerAssignments();

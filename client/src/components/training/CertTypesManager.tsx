@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Pencil, Trash2, Award, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Award } from 'lucide-react';
 import { colors } from '@/lib/colors';
 import {
   useCertificationTypes,
@@ -108,7 +108,9 @@ export function CertTypesManager({ open, onOpenChange }: CertTypesManagerProps) 
             <Card key={ct.id} style={{ backgroundColor: colors.cream }}>
               <CardContent className="p-3 flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate" style={{ color: colors.brown }}>{ct.name}</p>
+                  <p className="font-medium text-sm truncate" style={{ color: colors.brown }}>
+                    {ct.name}
+                  </p>
                   <div className="flex gap-3 text-xs" style={{ color: colors.brownLight }}>
                     {ct.issuing_body && <span>{ct.issuing_body}</span>}
                     {ct.default_validity_months && <span>{ct.default_validity_months} months</span>}
@@ -136,7 +138,9 @@ export function CertTypesManager({ open, onOpenChange }: CertTypesManagerProps) 
           {showForm ? (
             <div className="space-y-3 border rounded-lg p-3" style={{ borderColor: colors.gold }}>
               <div>
-                <label className="text-sm font-medium" style={{ color: colors.brown }}>Name *</label>
+                <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                  Name *
+                </label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -145,7 +149,9 @@ export function CertTypesManager({ open, onOpenChange }: CertTypesManagerProps) 
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" style={{ color: colors.brown }}>Issuing Body</label>
+                <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                  Issuing Body
+                </label>
                 <Input
                   value={form.issuing_body}
                   onChange={(e) => setForm({ ...form, issuing_body: e.target.value })}
@@ -154,7 +160,9 @@ export function CertTypesManager({ open, onOpenChange }: CertTypesManagerProps) 
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" style={{ color: colors.brown }}>Validity (months)</label>
+                <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                  Validity (months)
+                </label>
                 <Input
                   type="text"
                   inputMode="numeric"
@@ -170,7 +178,9 @@ export function CertTypesManager({ open, onOpenChange }: CertTypesManagerProps) 
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" style={{ color: colors.brown }}>Description</label>
+                <label className="text-sm font-medium" style={{ color: colors.brown }}>
+                  Description
+                </label>
                 <Input
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}

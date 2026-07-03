@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import type { TimeClockEntry } from '@/hooks/use-time-clock';
-import type { Shift } from '@/hooks/use-shifts';
 import type { UnifiedEmployee } from '@/hooks/use-all-employees';
 import type { TimesheetApproval } from '@/hooks/use-timesheet-approvals';
 import { formatDayHeader } from '@/lib/pay-periods';

@@ -68,7 +68,7 @@ export const PricingTab = ({
 
   // Get all size IDs for classification
   const foodSizeIds = foodSizes.map((s) => s.id);
-  const drinkSizeIds = drinkTypeSizes.map((s) => s.id);
+  const _drinkSizeIds = drinkTypeSizes.map((s) => s.id);
   const merchSizeIds = merchSizes.map((s) => s.id);
 
   // Helper to check if a recipe has ingredients for any given size IDs
@@ -390,7 +390,7 @@ export const PricingTab = ({
     };
   })();
 
-  const foodOverallAverage = (() => {
+  const _foodOverallAverage = (() => {
     const allCosts: number[] = [];
     const allSales: number[] = [];
     const allProfits: number[] = [];

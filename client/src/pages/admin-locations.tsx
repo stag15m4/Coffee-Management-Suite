@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Building2, Plus, Edit2, Trash2, Users, MapPin, Copy } from 'lucide-react';
+import { ArrowLeft, Building2, Plus, Edit2, Trash2, MapPin, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';
 

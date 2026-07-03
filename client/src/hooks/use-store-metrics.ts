@@ -79,7 +79,8 @@ async function fetchRevenue(tenantId: string) {
   if (currentMonthResult.error) throw currentMonthResult.error;
   if (lastMonthResult.error) throw lastMonthResult.error;
 
-  const currentTotal = currentMonthResult.data?.reduce((sum, entry) => sum + (Number(entry.gross_revenue) || 0), 0) || 0;
+  const currentTotal =
+    currentMonthResult.data?.reduce((sum, entry) => sum + (Number(entry.gross_revenue) || 0), 0) || 0;
   const lastTotal = lastMonthResult.data?.reduce((sum, entry) => sum + (Number(entry.gross_revenue) || 0), 0) || 0;
 
   // Don't return revenue data if there's nothing to show

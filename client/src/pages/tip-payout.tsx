@@ -75,9 +75,9 @@ export default function TipPayout() {
 
   // Hours entry - persisted to sessionStorage to survive React Query refetches
   const hoursFormKey = `tip-payout-hours-${tenant?.id || 'default'}`;
-  const [selectedEmployee, setSelectedEmployee, clearSelectedEmployee] = usePersistedState(`${hoursFormKey}-emp`, '');
-  const [hoursInput, setHoursInput, clearHoursInput] = usePersistedState(`${hoursFormKey}-hrs`, '');
-  const [minutesInput, setMinutesInput, clearMinutesInput] = usePersistedState(`${hoursFormKey}-min`, '');
+  const [selectedEmployee, setSelectedEmployee, _clearSelectedEmployee] = usePersistedState(`${hoursFormKey}-emp`, '');
+  const [hoursInput, setHoursInput, _clearHoursInput] = usePersistedState(`${hoursFormKey}-hrs`, '');
+  const [minutesInput, setMinutesInput, _clearMinutesInput] = usePersistedState(`${hoursFormKey}-min`, '');
   const [savingHours, setSavingHours] = useState(false);
 
   // Hours verification

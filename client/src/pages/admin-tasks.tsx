@@ -26,7 +26,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
-  ArrowLeft,
   Plus,
   Settings,
   Clock,
@@ -37,14 +36,12 @@ import {
   Edit2,
   Check,
   X,
-  Upload,
   FileText,
   ExternalLink,
   Users,
   ListTodo,
   MessageSquare,
   History,
-  Filter,
   ChevronDown,
   ChevronUp,
   RefreshCw,
@@ -199,9 +196,9 @@ export default function AdminTasks() {
 
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('active');
-  const [filterAssignee, setFilterAssignee] = useState<string>('all');
+  const [filterAssignee, _setFilterAssignee] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('due_date');
+  const [sortBy, _setSortBy] = useState<string>('due_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -234,8 +231,8 @@ export default function AdminTasks() {
     is_admin_only: false,
   });
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [_isSaving, setIsSaving] = useState(false);
+  const [_saveError, setSaveError] = useState<string | null>(null);
 
   const withRetry = useCallback(
     async <T,>(operationFn: () => PromiseLike<T>, timeoutMs: number = 30000, retries: number = 2): Promise<T> => {

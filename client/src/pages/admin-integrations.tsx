@@ -5,7 +5,7 @@ import SquareIntegrationSettings from '@/components/square/SquareIntegrationSett
 import QboIntegrationSettings from '@/components/qbo/QboIntegrationSettings';
 
 export default function AdminIntegrations() {
-  const { tenant, branding, primaryTenant } = useAuth();
+  const { tenant, branding, primaryTenant: _primaryTenant } = useAuth();
   const isChildLocation = !!tenant?.parent_tenant_id;
   const displayName = isChildLocation ? tenant?.name : branding?.company_name || tenant?.name || '';
 

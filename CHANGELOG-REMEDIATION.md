@@ -550,41 +550,49 @@ _6 parallel audit agents (Security, Backend, Frontend, Database, Infrastructure,
 ## Session 9 — Final Polish (Post Re-Audit Round 3)
 
 ### 56. ESLint Fix + Prettier Compliance
+
 **Files:** `package.json`, `eslint.config.js`, `.prettierignore`, all source files
 **What:**
+
 - Downgraded `eslint-plugin-react-hooks` from 7.0.1 to 5.2.0 (v7 has zod/v4 hard dep incompatible with project's zod@3)
 - Added `website/**` to ESLint ignores (separate Next.js app with own config)
 - Added `website` to `.prettierignore`
 - Ran Prettier across all files — formatting now passes `npm run format:check`
 - ESLint now runs without crashing — `npm run lint` completes (164 errors, 342 warnings — all code-level, not config)
-**Why:** CI/CD lint job would have crashed on first run. Formatting check would have failed on 334 files.
+  **Why:** CI/CD lint job would have crashed on first run. Formatting check would have failed on 334 files.
 
 ### 57. Duplicate Console.error Fix
+
 **File:** `server/routes/core.ts` (line 119-120)
 **What:** Removed duplicate `console.error` in `requirePlatformAdmin` middleware — same denial was logged twice with slightly different messages.
 **Why:** Noise in logs, could mask real errors.
 
 ### 58. Kiosk Date Validation
+
 **File:** `server/routes/kiosk.ts`
 **What:** Added Zod validation for `start` and `end` query params on `/api/kiosk/my-hours` — validates ISO date format (`YYYY-MM-DD`) before passing to SQL.
 **Why:** Invalid date strings like "2026-99-99" would pass through to PostgreSQL, which would reject them but without a clean error message.
 
 ### 59. ModuleShowcase Key Fix
+
 **File:** `client/src/pages/landing/ModuleShowcase.tsx` (line 143)
 **What:** Changed `key={index}` to `key={feature}` on the features list map — feature strings are unique and stable.
 **Why:** Using array index as React key can cause rendering bugs if list is reordered or filtered.
 
 ### 60. Reseller N+1 Query Fix
+
 **File:** `server/routes/reseller.ts`
 **What:** Wrapped 4 sequential queries in `GET /api/resellers/:id` (reseller, licenseCodes, verticals, referredTenants) in `Promise.all()` to run in parallel.
 **Why:** 4 sequential DB roundtrips (~200ms) reduced to 1 parallel batch (~50ms).
 
 ### 61. Unbounded List Endpoint Limits
+
 **File:** `server/routes/reseller.ts`
 **What:** Added `LIMIT 500` to 4 unbounded queries: GET /api/resellers, GET /api/verticals (both branches), GET /api/resellers/:id/invoices.
 **Why:** No upper bound on result sets could cause memory spikes and slow responses with large datasets.
 
 ### 62. Migrate 88 console.error to Pino Logger
+
 **Files:** `server/routes.ts`, `server/routes/admin.ts`, `server/routes/billing.ts`, `server/routes/core.ts`, `server/routes/kiosk.ts`, `server/routes/reseller.ts`, `server/routes/tips.ts`, `server/index.ts`
 **What:** Replaced all `console.error` with `logger.error({ err }, 'message')`, all `console.warn` with `logger.warn()`, and all `console.log` with `logger.info()` across all server route files. Follows pino convention of error object in first arg.
 **Why:** Raw `console.error` outputs unstructured text. Pino outputs JSON in production — machine-parseable for log aggregation, alerting, and debugging.

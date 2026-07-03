@@ -36,7 +36,11 @@ export function showDeleteUndoToast({
         if (error) throw error;
       } else if (undo.type === 'reinsert') {
         // Strip auto-generated timestamp columns that can conflict on re-insert
-        const { created_at, updated_at, ...insertData } = undo.data as Record<string, unknown> & {
+        const {
+          created_at: _created_at,
+          updated_at: _updated_at,
+          ...insertData
+        } = undo.data as Record<string, unknown> & {
           created_at?: unknown;
           updated_at?: unknown;
         };

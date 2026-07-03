@@ -1,7 +1,6 @@
 import { getErrorMessage } from '@/lib/utils';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase-queries';
 import { getAuthHeaders } from '@/lib/api-helpers';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -87,7 +86,7 @@ export function FeedbackButton() {
     }
   };
 
-  const getTypeLabel = (type: FeedbackType) => {
+  const _getTypeLabel = (type: FeedbackType) => {
     switch (type) {
       case 'bug':
         return 'Bug Report';

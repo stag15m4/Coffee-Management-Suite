@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase, queryKeys } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
-import { usePersistedState, clearPersistedFormState } from '@/hooks/use-persisted-state';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
@@ -18,7 +18,6 @@ import { DollarSign } from 'lucide-react';
 import {
   type CashEntry,
   type FormData,
-  formatCurrency,
   formatDate,
   formatDateDisplay,
   getDefaultFormData,
@@ -30,7 +29,7 @@ import { DepositSummary } from './DepositSummary';
 import GrowthTracker from './GrowthTracker';
 
 export default function CashDeposit() {
-  const { profile, tenant, branding, primaryTenant } = useAuth();
+  const { profile: _profile, tenant, branding, primaryTenant } = useAuth();
   const { toast } = useToast();
   const { confirm, ConfirmDialog } = useConfirmDialog();
   const queryClient = useQueryClient();

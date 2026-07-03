@@ -1,4 +1,3 @@
-import { getErrorMessage } from '@/lib/utils';
 import { useState, useCallback } from 'react';
 import type { UppyFile } from '@uppy/core';
 import { getAuthHeaders } from '@/lib/api-helpers';

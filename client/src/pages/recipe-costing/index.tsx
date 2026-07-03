@@ -46,8 +46,7 @@ import {
 } from '@/lib/supabase-queries';
 import { colors } from '@/lib/colors';
 import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
-import { calculateCostPerUsageUnit } from './utils';
-import type { Ingredient, Recipe, OverheadSettings, OverheadItem, RecipeSizeBase, RecipeIngredient } from './types';
+import type { Ingredient, Recipe, OverheadSettings, OverheadItem } from './types';
 
 // ---------------------------------------------------------------------------
 // Tab button
@@ -137,7 +136,7 @@ export default function RecipeCostingPage() {
   const { data: productSizes = [], isLoading: loadingProductSizes, isError: errorProductSizes } = useProductSizes();
   const { data: recipes = [], isLoading: loadingRecipes, isError: errorRecipes } = useRecipes();
   const { data: overhead, isLoading: loadingOverhead, isError: errorOverhead } = useOverhead();
-  const { data: overheadItems = [], isLoading: loadingOverheadItems } = useOverheadItems();
+  const { data: overheadItems = [], isLoading: _loadingOverheadItems } = useOverheadItems();
   const { data: pricingData = [], isLoading: loadingPricing, isError: errorPricing } = useRecipePricing();
   const {
     data: recipeSizeBases = [],
@@ -786,10 +785,12 @@ export default function RecipeCostingPage() {
     try {
       const savedData = ingredient
         ? (() => {
-            const { category_name, cost_per_unit, cost_per_usage_unit, ...tableColumns } = ingredient as Record<
-              string,
-              unknown
-            >;
+            const {
+              category_name: _category_name,
+              cost_per_unit: _cost_per_unit,
+              cost_per_usage_unit: _cost_per_usage_unit,
+              ...tableColumns
+            } = ingredient as Record<string, unknown>;
             return { ...tableColumns, tenant_id: tableColumns.tenant_id || profile?.tenant_id };
           })()
         : null;

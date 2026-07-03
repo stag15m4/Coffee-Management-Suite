@@ -235,7 +235,7 @@ export function registerTipRoutes(app: Express): void {
         });
       }
 
-      const ccAfterFee = body.ccTips * (1 - CC_FEE_RATE);
+      const _ccAfterFee = body.ccTips * (1 - CC_FEE_RATE);
 
       // Insert the approved payout record
       const insertResult = await db.execute(sql`

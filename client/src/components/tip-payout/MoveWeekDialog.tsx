@@ -119,18 +119,10 @@ export function MoveWeekDialog({
     try {
       if (overwrite && conflictData) {
         if (conflictData.hasTips) {
-          await supabase
-            .from('tip_weekly_data')
-            .delete()
-            .eq('tenant_id', tenantId)
-            .eq('week_key', targetWeekKey);
+          await supabase.from('tip_weekly_data').delete().eq('tenant_id', tenantId).eq('week_key', targetWeekKey);
         }
         if (conflictData.hasHours) {
-          await supabase
-            .from('tip_employee_hours')
-            .delete()
-            .eq('tenant_id', tenantId)
-            .eq('week_key', targetWeekKey);
+          await supabase.from('tip_employee_hours').delete().eq('tenant_id', tenantId).eq('week_key', targetWeekKey);
         }
       }
 
@@ -170,9 +162,7 @@ export function MoveWeekDialog({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle style={{ color: colors.brown }}>Move Tips to Different Week</DialogTitle>
-            <DialogDescription>
-              Move all tip entries and employee hours from one week to another.
-            </DialogDescription>
+            <DialogDescription>Move all tip entries and employee hours from one week to another.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -246,9 +236,7 @@ export function MoveWeekDialog({
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
-                <p>
-                  The week of {conflictData?.targetRange.start} already has:
-                </p>
+                <p>The week of {conflictData?.targetRange.start} already has:</p>
                 <ul className="list-disc list-inside text-sm">
                   {conflictData?.hasTips && <li>Tip entries</li>}
                   {conflictData?.hasHours && <li>Employee hours</li>}

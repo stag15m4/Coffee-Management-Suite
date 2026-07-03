@@ -23,7 +23,6 @@ import {
   ChevronDown,
   ChevronUp,
   Save,
-  ArrowLeft,
   LayoutDashboard,
   Building2,
   Database,
@@ -31,7 +30,6 @@ import {
   Bug,
 } from 'lucide-react';
 import {
-  LineChart,
   Line,
   BarChart,
   Bar,

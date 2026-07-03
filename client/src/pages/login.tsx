@@ -29,7 +29,16 @@ export default function Login() {
   const [showLocationSelector, setShowLocationSelector] = useState(false);
   const [availableLocations, setAvailableLocations] = useState<AccessibleLocation[]>([]);
   const [selectingLocation, setSelectingLocation] = useState(false);
-  const { signIn, user, loading, isPlatformAdmin, profile, accessibleLocations, switchLocation, tenant } = useAuth();
+  const {
+    signIn,
+    user,
+    loading,
+    isPlatformAdmin,
+    profile,
+    accessibleLocations,
+    switchLocation,
+    tenant: _tenant,
+  } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
