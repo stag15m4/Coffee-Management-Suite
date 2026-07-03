@@ -184,7 +184,7 @@ export function useDeleteICalSubscription() {
 // ── iCal Sync (server-side) ─────────────────────────────────
 
 export function useSyncICal() {
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (subscriptionId: string) => {

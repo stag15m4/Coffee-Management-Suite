@@ -1,4 +1,3 @@
-import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,19 +9,7 @@ import { triggerSpotlight } from '@/components/Spotlight';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  ThumbsUp,
-  ThumbsDown,
-  Sparkles,
-  Rocket,
-  Wrench,
-  Bug,
-  Send,
-  Loader2,
-  MessageSquare,
-  X,
-  ArrowRight,
-} from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Sparkles, Rocket, Bug, Send, Loader2, MessageSquare, X, ArrowRight } from 'lucide-react';
 
 interface FeatureReview {
   feature_id: string;
@@ -39,7 +26,7 @@ const categoryConfig: Record<ChangelogEntry['category'], { icon: typeof Sparkles
 };
 
 export function WhatsNew() {
-  const { user, tenant, profile, hasRole } = useAuth();
+  const { user, tenant, profile: _profile, hasRole } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [open, setOpen] = useState(false);

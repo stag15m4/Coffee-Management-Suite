@@ -1,5 +1,5 @@
 import { getErrorMessage } from '@/lib/utils';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,8 +12,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { usePayPeriod } from '@/hooks/use-pay-period';
-import { usePayPeriodTimeClockEntries, type TimeClockEntry } from '@/hooks/use-time-clock';
-import { useShifts, type Shift } from '@/hooks/use-shifts';
+import { usePayPeriodTimeClockEntries } from '@/hooks/use-time-clock';
+import { useShifts } from '@/hooks/use-shifts';
 import { useTimesheetApprovals } from '@/hooks/use-timesheet-approvals';
 import type { UnifiedEmployee } from '@/hooks/use-all-employees';
 import { useToast } from '@/hooks/use-toast';
@@ -45,7 +45,13 @@ interface TimesheetsViewProps {
   employees: UnifiedEmployee[];
 }
 
-export function TimesheetsView({ tenantId, canApprove, canExport, currentUserId, employees }: TimesheetsViewProps) {
+export function TimesheetsView({
+  tenantId,
+  canApprove,
+  canExport,
+  currentUserId: _currentUserId,
+  employees,
+}: TimesheetsViewProps) {
   const { period, days, weeks, goNext, goPrev } = usePayPeriod();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');

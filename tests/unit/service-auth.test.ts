@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  timingSafeTokenMatch,
-  parseAllowedTenantIds,
-  resolveServiceTenant,
-} from '../../server/service-auth-core';
+import { timingSafeTokenMatch, parseAllowedTenantIds, resolveServiceTenant } from '../../server/service-auth-core';
 
 const MY_TENANT = '11111111-1111-1111-1111-111111111111';
 const MY_OTHER_TENANT = '22222222-2222-2222-2222-222222222222';
@@ -48,7 +44,7 @@ describe('resolveServiceTenant (tenant scoping)', () => {
     expect(scope).toEqual({ tenantId: MY_TENANT, forbidden: false });
   });
 
-  it("REJECTS a tenant_id the token does not own", () => {
+  it('REJECTS a tenant_id the token does not own', () => {
     const scope = resolveServiceTenant(SOMEONE_ELSES_TENANT, [MY_TENANT, MY_OTHER_TENANT]);
     expect(scope.forbidden).toBe(true);
     expect(scope.tenantId).toBeNull();
@@ -105,7 +101,7 @@ describe('getApiAuth (service token end-to-end)', () => {
     expect(auth.allowedTenantIds).toEqual([MY_TENANT, MY_OTHER_TENANT]);
   });
 
-  it("sets tenantForbidden for a tenant_id the token does not own (handler returns 403)", async () => {
+  it('sets tenantForbidden for a tenant_id the token does not own (handler returns 403)', async () => {
     const { getApiAuth } = await import('../../server/service-auth');
     const auth = await getApiAuth(makeReq('test-service-token', SOMEONE_ELSES_TENANT));
     expect(auth.authenticated).toBe(true);

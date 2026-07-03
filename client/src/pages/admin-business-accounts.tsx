@@ -461,22 +461,6 @@ export default function AdminBusinessAccounts() {
   // Delete confirm
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Access guard
-  if (!isPlatformAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
-        <div className="text-center">
-          <p className="text-lg font-semibold" style={{ color: colors.brown }}>
-            Access Denied
-          </p>
-          <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
-            This page is restricted to platform administrators.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   // ---------------------------------------------------------------------------
   // Computed: filtered + sorted accounts
   // ---------------------------------------------------------------------------
@@ -534,6 +518,22 @@ export default function AdminBusinessAccounts() {
 
     return list;
   }, [accounts, search, filterBusiness, filterCategory, filterStatus, filterCycle, sortField, sortDir]);
+
+  // Access guard — placed after all hooks so hook order is stable across renders
+  if (!isPlatformAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.cream }}>
+        <div className="text-center">
+          <p className="text-lg font-semibold" style={{ color: colors.brown }}>
+            Access Denied
+          </p>
+          <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
+            This page is restricted to platform administrators.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // Computed: summary stats

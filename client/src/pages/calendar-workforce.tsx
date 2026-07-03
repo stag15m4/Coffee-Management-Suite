@@ -44,7 +44,6 @@ import {
   useDeleteShiftTemplate,
   type Shift,
   type InsertShift,
-  type ShiftTemplate,
 } from '@/hooks/use-shifts';
 import {
   useTimeOffRequests,
@@ -54,22 +53,11 @@ import {
   useCancelTimeOffRequest,
   type TimeOffRequest,
 } from '@/hooks/use-time-off';
-import {
-  useBlackoutDates,
-  useCreateBlackoutDate,
-  useDeleteBlackoutDate,
-  type BlackoutDate,
-} from '@/hooks/use-blackout-dates';
+import { useBlackoutDates, useCreateBlackoutDate, useDeleteBlackoutDate } from '@/hooks/use-blackout-dates';
 import { TimeClockTab } from '@/components/time-clock/TimeClockTab';
 import { PolicyBuilder } from '@/components/time-off/PolicyBuilder';
 import { MyBalancesCard, TeamBalancesCard } from '@/components/time-off/BalancesCard';
-import {
-  useMyTimeOffBalances,
-  useTimeOffPolicies,
-  useTimeOffBalances,
-  useEmployeeTimeOffBalances,
-  type TimeOffBalance,
-} from '@/hooks/use-time-off-policies';
+import { useMyTimeOffBalances, useTimeOffPolicies, useTimeOffBalances } from '@/hooks/use-time-off-policies';
 import {
   useMyUnavailability,
   useCreateUnavailability,
@@ -249,7 +237,7 @@ function ScheduleTab({
   // Calendar events
   const { data: calendarEvents } = useCalendarEvents(startDate, endDate);
   const createCalendarEvent = useCreateCalendarEvent();
-  const updateCalendarEvent = useUpdateCalendarEvent();
+  const _updateCalendarEvent = useUpdateCalendarEvent();
   const deleteCalendarEvent = useDeleteCalendarEvent();
   const { data: icalSubs } = useICalSubscriptions();
   const createICalSub = useCreateICalSubscription();
@@ -272,7 +260,7 @@ function ScheduleTab({
 
   const [showEventsPanel, setShowEventsPanel] = useState(false);
   const [viewingEvent, setViewingEvent] = useState<CalendarEvent | null>(null);
-  const [showCreateEventDialog, setShowCreateEventDialog] = useState(false);
+  const [_showCreateEventDialog, _setShowCreateEventDialog] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventStartDate, setNewEventStartDate] = useState('');
   const [newEventEndDate, setNewEventEndDate] = useState('');
@@ -360,7 +348,11 @@ function ScheduleTab({
   // Apply selected template to selected days + employee
   const handleApplyTemplate = useCallback(async () => {
     if (!applyTemplateId || applyDays.length === 0 || !applyEmployee) {
-      toast({ title: 'Missing info', description: 'Select a template, at least one day, and an employee.', variant: 'destructive' });
+      toast({
+        title: 'Missing info',
+        description: 'Select a template, at least one day, and an employee.',
+        variant: 'destructive',
+      });
       return;
     }
     const template = templates?.find((t) => t.id === applyTemplateId);
@@ -384,7 +376,10 @@ function ScheduleTab({
     });
     try {
       await bulkCreate.mutateAsync(newShifts);
-      toast({ title: 'Template applied', description: `Created ${newShifts.length} shift${newShifts.length > 1 ? 's' : ''}.` });
+      toast({
+        title: 'Template applied',
+        description: `Created ${newShifts.length} shift${newShifts.length > 1 ? 's' : ''}.`,
+      });
       setShowApplyDialog(false);
       setApplyTemplateId('');
       setApplyDays([]);
@@ -508,7 +503,7 @@ function ScheduleTab({
     // Unavailability banners
     const unavailEvents: EventInput[] = [];
     if (scheduleUnavailability && startDate && endDate) {
-      const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const _DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       for (const u of scheduleUnavailability) {
         if (u.is_recurring && u.recurrence_day !== null) {
           // Expand recurring entry into individual dates within the visible range
@@ -1755,7 +1750,9 @@ function ScheduleTab({
             {/* Apply template dialog */}
             {showApplyDialog && (
               <div className="space-y-3 pt-3" style={{ borderTop: `1px solid ${colors.gold}` }}>
-                <p className="text-sm font-medium" style={{ color: colors.brown }}>Apply Template to Schedule</p>
+                <p className="text-sm font-medium" style={{ color: colors.brown }}>
+                  Apply Template to Schedule
+                </p>
                 <Select value={applyTemplateId} onValueChange={setApplyTemplateId}>
                   <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
                     <SelectValue placeholder="Select template" />
@@ -1768,19 +1765,26 @@ function ScheduleTab({
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={applyEmployee || '__none__'} onValueChange={(v) => setApplyEmployee(v === '__none__' ? '' : v)}>
+                <Select
+                  value={applyEmployee || '__none__'}
+                  onValueChange={(v) => setApplyEmployee(v === '__none__' ? '' : v)}
+                >
                   <SelectTrigger style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}>
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Select employee</SelectItem>
                     {employees.map((e) => (
-                      <SelectItem key={e.name} value={e.name}>{e.name}</SelectItem>
+                      <SelectItem key={e.name} value={e.name}>
+                        {e.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <div>
-                  <p className="text-xs mb-1" style={{ color: colors.brownLight }}>Days:</p>
+                  <p className="text-xs mb-1" style={{ color: colors.brownLight }}>
+                    Days:
+                  </p>
                   <div className="flex flex-wrap gap-1">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => {
                       const selected = applyDays.includes(i);
@@ -1789,10 +1793,13 @@ function ScheduleTab({
                           key={i}
                           size="sm"
                           variant={selected ? 'default' : 'outline'}
-                          onClick={() => setApplyDays((prev) => selected ? prev.filter((x) => x !== i) : [...prev, i])}
-                          style={selected
-                            ? { backgroundColor: colors.gold, color: colors.white }
-                            : { borderColor: colors.creamDark, color: colors.brownLight }
+                          onClick={() =>
+                            setApplyDays((prev) => (selected ? prev.filter((x) => x !== i) : [...prev, i]))
+                          }
+                          style={
+                            selected
+                              ? { backgroundColor: colors.gold, color: colors.white }
+                              : { borderColor: colors.creamDark, color: colors.brownLight }
                           }
                           className="h-8 px-2 text-xs"
                         >
@@ -1830,7 +1837,7 @@ function ScheduleTab({
 // ─── TIME OFF TAB ────────────────────────────────────────
 
 function TimeOffTab({
-  tenantId,
+  tenantId: _tenantId,
   canApprove,
   currentUserId,
   isManager,
@@ -2752,7 +2759,7 @@ export default function CalendarWorkforce() {
   const { user, profile, tenant, branding, hasRole, hasPermission } = useAuth();
   const searchString = useSearch();
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
+  const { toast: _toast } = useToast();
 
   const activeTab = (new URLSearchParams(searchString).get('tab') || 'schedule') as TabType;
   const setActiveTab = useCallback(

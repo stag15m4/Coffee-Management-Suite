@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSetupProgress, SETUP_PHASES, SETUP_STEPS } from '@/hooks/use-setup-progress';

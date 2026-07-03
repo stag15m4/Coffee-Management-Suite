@@ -38,14 +38,14 @@ import {
   type OperatingHoursEntry,
   type LocationAddress,
 } from '@/hooks/use-store-profile';
-import { useTodayShifts, type Shift } from '@/hooks/use-shifts';
+import { useTodayShifts } from '@/hooks/use-shifts';
 import { colors } from '@/lib/colors';
 
 export default function StoreProfile() {
   const [, params] = useRoute('/store/:id');
   const storeId = params?.id;
   const { tenant, profile, switchLocation, primaryTenant, accessibleLocations, branding } = useAuth();
-  const { toast } = useToast();
+  const { toast: _toast } = useToast();
 
   const canEdit = profile?.role === 'owner' || profile?.role === 'manager';
 

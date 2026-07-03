@@ -77,7 +77,7 @@ async function createProducts() {
     },
   });
 
-  const recipeCostPrice = await stripe.prices.create({
+  const _recipeCostPrice = await stripe.prices.create({
     product: recipeCostProduct.id,
     unit_amount: 1999,
     currency: 'usd',
@@ -95,7 +95,7 @@ async function createProducts() {
     },
   });
 
-  const tipPayoutPrice = await stripe.prices.create({
+  const _tipPayoutPrice = await stripe.prices.create({
     product: tipPayoutProduct.id,
     unit_amount: 1999,
     currency: 'usd',
@@ -113,7 +113,7 @@ async function createProducts() {
     },
   });
 
-  const cashDepositPrice = await stripe.prices.create({
+  const _cashDepositPrice = await stripe.prices.create({
     product: cashDepositProduct.id,
     unit_amount: 1999,
     currency: 'usd',
@@ -131,7 +131,7 @@ async function createProducts() {
     },
   });
 
-  const coffeeOrderPrice = await stripe.prices.create({
+  const _coffeeOrderPrice = await stripe.prices.create({
     product: coffeeOrderProduct.id,
     unit_amount: 1999,
     currency: 'usd',
@@ -149,7 +149,7 @@ async function createProducts() {
     },
   });
 
-  const equipmentPrice = await stripe.prices.create({
+  const _equipmentPrice = await stripe.prices.create({
     product: equipmentProduct.id,
     unit_amount: 1999,
     currency: 'usd',
@@ -167,7 +167,7 @@ async function createProducts() {
     },
   });
 
-  const adminTasksPrice = await stripe.prices.create({
+  const _adminTasksPrice = await stripe.prices.create({
     product: adminTasksProduct.id,
     unit_amount: 1999,
     currency: 'usd',

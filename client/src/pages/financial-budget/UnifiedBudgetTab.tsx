@@ -1,5 +1,5 @@
 import { getErrorMessage } from '@/lib/utils';
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { colors } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +26,6 @@ import {
   RefreshCw,
   CloudOff,
   FileSpreadsheet,
-  Download,
   TrendingUp,
   TrendingDown,
   Sparkles,
@@ -179,7 +178,7 @@ export default function UnifiedBudgetTab({ tenantId, coaTenantId }: Props) {
     return { budget: budgetTotal, actual: hasActual ? actualTotal : null, pyActual: hasPY ? pyTotal : null };
   };
 
-  const getTypeAnnualTotal = (type: AccountType) => {
+  const _getTypeAnnualTotal = (type: AccountType) => {
     let total = 0;
     for (let m = 1; m <= 12; m++) total += getColumnTotals(type, m).budget;
     return total;

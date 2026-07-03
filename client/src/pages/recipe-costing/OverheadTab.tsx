@@ -37,7 +37,7 @@ export const OverheadTab = ({
   const [viewMode, setViewMode] = useState<'amounts' | 'percent'>('amounts');
 
   const operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
-  const hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
+  const _hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
   const weeksPerMonth = 4.33;
   const daysPerMonth = operatingDays * weeksPerMonth;
 

@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -135,7 +135,7 @@ export default function PlatformAdmin() {
   const [ownerPassword, setOwnerPassword] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
+  const [_subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<TenantWithStats | null>(null);

@@ -1,11 +1,11 @@
-import type { Express, Request, Response, NextFunction } from 'express';
+import type { Express, Request, Response } from 'express';
 import type { Server } from 'http';
 import { storage } from './storage';
 import { api } from '@shared/routes';
 import { z } from 'zod';
-import { sendOrderEmail, sendFeedbackEmail, type OrderEmailData, type FeedbackEmailData } from './resend';
+import { sendOrderEmail, sendFeedbackEmail } from './resend';
 import { registerObjectStorageRoutes } from './objectStorageRoutes';
-import { db, pool } from './db';
+import { db } from './db';
 import { sql } from 'drizzle-orm';
 import ical from 'node-ical';
 import { getSupabaseAdmin } from './supabaseAdmin';
@@ -19,10 +19,8 @@ import {
   getUserIdFromRequest,
   getTrustedBaseUrl,
   getTenantIdForUser,
-  logAuditEvent,
   requirePlatformAdmin,
   enforceMapLimit,
-  authRateLimit,
 } from './routes/core';
 
 // Import the route module registrar
@@ -420,7 +418,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const redirectUri = `${baseUrl}/api/square/oauth/callback`;
       const url = getSquareOAuthUrl(stateToken, redirectUri);
       res.json({ url });
-    } catch (error: any) {
+    } catch {
       res.status(500).json({ error: 'Failed to generate auth URL' });
     }
   });
@@ -965,7 +963,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         LIMIT 1
       `);
       res.json(result.rows[0] || { hosting: 0, supabase: 0, stripe_fee_percent: 2.9, support_labor: 0, other: 0 });
-    } catch (error: any) {
+    } catch {
       // Table may not exist yet — return defaults
       res.json({ hosting: 0, supabase: 0, stripe_fee_percent: 2.9, support_labor: 0, other: 0 });
     }
@@ -1794,7 +1792,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.post('/api/budget/import-coa', budgetImportRateLimit, async (req: Request, res: Response) => {
     try {
-      const { userId, debug } = await getUserIdFromRequest(req);
+      const { userId, debug: _debug } = await getUserIdFromRequest(req);
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
@@ -1990,7 +1988,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 }
 
 // Seed function
-async function seedDatabase() {
+async function _seedDatabase() {
   // Look up the first tenant to use for seed data; skip seeding if no tenants exist.
   const tenantResult = await db.execute(sql`SELECT id FROM tenants LIMIT 1`);
   const seedTenantId = (tenantResult.rows[0] as any)?.id as string | undefined;

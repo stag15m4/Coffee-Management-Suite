@@ -32,7 +32,6 @@ import {
   Copy,
   TrendingUp,
   TrendingDown,
-  DollarSign,
   Percent,
   BarChart3,
   FileSpreadsheet,
@@ -62,7 +61,7 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
   const scenarioId = activeScenario?.id || '';
 
   const createScenario = useCreateForecastScenario();
-  const deleteScenario = useDeleteForecastScenario();
+  const _deleteScenario = useDeleteForecastScenario();
   const [showNewScenarioDialog, setShowNewScenarioDialog] = useState(false);
   const [newScenarioName, setNewScenarioName] = useState('');
 
@@ -70,18 +69,18 @@ export default function ForecastTab({ tenantId, coaTenantId }: Props) {
   const { data: budgetLineItems = [] } = useBudgetLineItems(fyId, tenantId);
   const { data: forecastLineItems = [] } = useForecastLineItems(scenarioId, tenantId);
   const { data: drivers = [] } = useForecastDrivers(scenarioId);
-  const { data: seasonalPatterns = [] } = useSeasonalPatterns(tenantId);
+  const { data: _seasonalPatterns = [] } = useSeasonalPatterns(tenantId);
 
   const upsertForecast = useUpsertForecastLineItem();
   const bulkUpsertForecast = useBulkUpsertForecastLineItems();
   const createDriver = useCreateForecastDriver();
   const deleteDriver = useDeleteForecastDriver();
   const applyDrivers = useApplyDrivers();
-  const createPattern = useCreateSeasonalPattern();
+  const _createPattern = useCreateSeasonalPattern();
 
   // UI state
   const [showDrivers, setShowDrivers] = useState(false);
-  const [showPatterns, setShowPatterns] = useState(false);
+  const [_showPatterns, _setShowPatterns] = useState(false);
 
   // Current month (1-12) — months before this are "closed"
   const currentMonth = new Date().getMonth() + 1;

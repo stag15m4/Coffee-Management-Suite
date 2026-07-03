@@ -14,7 +14,7 @@ const TABS: Array<{ id: string; label: string }> = [
 ];
 
 export default function FinancialBudgetPage() {
-  const { tenant, accessibleLocations, profile } = useAuth();
+  const { tenant, accessibleLocations, profile: _profile } = useAuth();
   const search = useSearch();
   const [, setLocation] = useLocation();
 

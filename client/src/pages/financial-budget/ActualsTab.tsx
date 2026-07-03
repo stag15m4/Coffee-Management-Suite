@@ -33,7 +33,7 @@ export default function ActualsTab({ tenantId, coaTenantId }: Props) {
   const selectedFY = fiscalYears.find((fy) => fy.id === selectedFYId) || fiscalYears[0];
   const fyId = selectedFY?.id || '';
 
-  const { data: lineItems = [], isLoading: loadingLines } = useBudgetLineItems(fyId, tenantId);
+  const { data: lineItems = [], isLoading: _loadingLines } = useBudgetLineItems(fyId, tenantId);
 
   // Build lookup maps
   const cellMap = useMemo(() => {

@@ -23,7 +23,6 @@ import {
   Package,
   RefreshCw,
   LayoutDashboard,
-  Percent,
   Store,
   Globe,
   TrendingUp,
@@ -124,7 +123,7 @@ interface ReferredTenant {
 }
 
 export default function ResellerManagement() {
-  const { user, isPlatformAdmin, loading: authLoading, signOut } = useAuth();
+  const { user: _user, isPlatformAdmin, loading: authLoading, signOut } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { confirm, ConfirmDialog } = useConfirmDialog();
@@ -348,7 +347,7 @@ export default function ResellerManagement() {
         loadResellers();
         showDeleteUndoToast({ itemName: name, undo: { type: 'none' } });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to delete reseller',

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { LogIn, LogOut, Coffee, Clock, AlertCircle, AlertTriangle } from 'lucide-react';
+import { LogIn, LogOut, Coffee, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTrialStatus } from '@/hooks/use-trial-status';
 import { EmployeeWelcomeCard } from '@/components/onboarding/EmployeeWelcomeCard';

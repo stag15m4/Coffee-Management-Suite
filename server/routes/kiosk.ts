@@ -115,7 +115,7 @@ export function registerKioskRoutes(app: Express): void {
       }
       const row = result.rows[0] as any;
       res.json({ tenantId: row.id, tenantName: row.name, logoUrl: row.logo_url || null });
-    } catch (err: any) {
+    } catch {
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -312,7 +312,7 @@ export function registerKioskRoutes(app: Express): void {
         breakStartTime,
         kioskToken,
       });
-    } catch (err: any) {
+    } catch {
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -365,7 +365,7 @@ export function registerKioskRoutes(app: Express): void {
           `);
       const row = result.rows[0] as any;
       res.json({ success: true, entryId: row.id, clockIn: row.clock_in });
-    } catch (err: any) {
+    } catch {
       res.status(500).json({ error: 'Failed to clock in' });
     }
   });
@@ -445,7 +445,7 @@ export function registerKioskRoutes(app: Express): void {
       `);
       const row = result.rows[0] as any;
       res.json({ success: true, breakId: row.id, breakStart: row.break_start });
-    } catch (err: any) {
+    } catch {
       res.status(500).json({ error: 'Failed to start break' });
     }
   });
@@ -484,7 +484,7 @@ export function registerKioskRoutes(app: Express): void {
       }
       const row = result.rows[0] as any;
       res.json({ success: true, breakEnd: row.break_end });
-    } catch (err: any) {
+    } catch {
       res.status(500).json({ error: 'Failed to end break' });
     }
   });
@@ -552,7 +552,7 @@ export function registerKioskRoutes(app: Express): void {
             `
       );
       res.json(result.rows);
-    } catch (err: any) {
+    } catch {
       res.status(500).json({ error: 'Failed to fetch hours' });
     }
   });
@@ -585,7 +585,7 @@ export function registerKioskRoutes(app: Express): void {
       `);
       const row = result.rows[0] as any;
       res.json({ success: true, requestId: row.id });
-    } catch (err: any) {
+    } catch {
       res.status(500).json({ error: 'Failed to submit edit request' });
     }
   });
@@ -642,7 +642,7 @@ export function registerKioskRoutes(app: Express): void {
         WHERE id = ${targetUserId}::uuid AND tenant_id = ${tenantId}::uuid
       `);
       res.json({ success: true });
-    } catch (err: any) {
+    } catch {
       res.status(500).json({ error: 'Failed to update PIN' });
     }
   });
@@ -690,7 +690,7 @@ export function registerKioskRoutes(app: Express): void {
         UPDATE tenants SET kiosk_code = ${code || null} WHERE id = ${tenantId}::uuid
       `);
       res.json({ success: true });
-    } catch (err: any) {
+    } catch {
       res.status(500).json({ error: 'Failed to set kiosk code' });
     }
   });

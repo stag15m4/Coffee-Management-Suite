@@ -91,7 +91,7 @@ export default function EquipmentMaintenance() {
   const updateTaskMutation = useUpdateMaintenanceTask();
   const deleteTaskMutation = useDeleteMaintenanceTask();
   const logMaintenanceMutation = useLogMaintenance();
-  const updateUsageMutation = useUpdateUsage();
+  const _updateUsageMutation = useUpdateUsage();
 
   // Refresh data when app resumes from background (iPad multitasking)
   useAppResume(() => {
@@ -110,7 +110,7 @@ export default function EquipmentMaintenance() {
   }, []);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [_saveError, setSaveError] = useState<string | null>(null);
 
   const withRetry = useCallback(
     async <T,>(operationFn: () => PromiseLike<T>, timeoutMs: number = 30000, retries: number = 2): Promise<T> => {

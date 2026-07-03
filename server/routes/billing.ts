@@ -160,7 +160,7 @@ export async function registerBillingRoutes(app: Express): Promise<void> {
 
       const subscription = await stripeService.getSubscription(tenant.stripe_subscription_id);
       res.json({ subscription });
-    } catch (error: any) {
+    } catch {
       res.status(500).json({ error: 'Failed to fetch subscription' });
     }
   });

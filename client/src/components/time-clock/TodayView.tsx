@@ -8,7 +8,7 @@ import type { UnifiedEmployee } from '@/hooks/use-all-employees';
 import { ClockInOutCard } from './ClockInOutCard';
 import { EditRequestsList } from './EditRequestsList';
 import { ManagerClockOutDialog } from './ManagerClockOutDialog';
-import { CalendarDays, Users, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { colors } from '@/lib/colors';
 
 function formatTime(time: string): string {

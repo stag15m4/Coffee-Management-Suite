@@ -108,10 +108,15 @@ export function useCertificationTypes() {
 }
 
 export function useCreateCertType() {
-  const { tenant, user } = useAuth();
+  const { tenant, user: _user } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { name: string; description?: string; default_validity_months?: number | null; issuing_body?: string }) => {
+    mutationFn: async (input: {
+      name: string;
+      description?: string;
+      default_validity_months?: number | null;
+      issuing_body?: string;
+    }) => {
       const { data, error } = await supabase
         .from('certification_types')
         .insert({ ...input, tenant_id: tenant!.id })
@@ -128,13 +133,18 @@ export function useUpdateCertType() {
   const { tenant } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; name?: string; description?: string | null; default_validity_months?: number | null; issuing_body?: string | null; is_active?: boolean }) => {
-      const { data, error } = await supabase
-        .from('certification_types')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+    mutationFn: async ({
+      id,
+      ...updates
+    }: {
+      id: string;
+      name?: string;
+      description?: string | null;
+      default_validity_months?: number | null;
+      issuing_body?: string | null;
+      is_active?: boolean;
+    }) => {
+      const { data, error } = await supabase.from('certification_types').update(updates).eq('id', id).select().single();
       if (error) throw error;
       return data as CertificationType;
     },
@@ -147,10 +157,7 @@ export function useDeleteCertType() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('certification_types')
-        .update({ is_active: false })
-        .eq('id', id);
+      const { error } = await supabase.from('certification_types').update({ is_active: false }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.certTypes(tenant?.id) }),
@@ -211,7 +218,10 @@ export function useUpdateTrainingClass() {
   const { tenant } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: {
+    mutationFn: async ({
+      id,
+      ...updates
+    }: {
       id: string;
       name?: string;
       description?: string | null;
@@ -225,12 +235,7 @@ export function useUpdateTrainingClass() {
       certification_type_id?: string | null;
       notes?: string | null;
     }) => {
-      const { data, error } = await supabase
-        .from('training_classes')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+      const { data, error } = await supabase.from('training_classes').update(updates).eq('id', id).select().single();
       if (error) throw error;
       return data as TrainingClass;
     },
@@ -243,10 +248,7 @@ export function useDeleteTrainingClass() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('training_classes')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('training_classes').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -298,9 +300,7 @@ export function useBulkAddAttendees() {
         tip_employee_id: a.tip_employee_id || null,
         status: 'attended' as const,
       }));
-      const { error: attError } = await supabase
-        .from('training_attendance')
-        .insert(attendanceRows);
+      const { error: attError } = await supabase.from('training_attendance').insert(attendanceRows);
       if (attError) throw attError;
 
       // If class grants certification, auto-create cert records
@@ -322,9 +322,7 @@ export function useBulkAddAttendees() {
           status: 'active' as const,
           created_by: user!.id,
         }));
-        const { error: certError } = await supabase
-          .from('employee_certifications')
-          .insert(certRows);
+        const { error: certError } = await supabase.from('employee_certifications').insert(certRows);
         if (certError) throw certError;
       }
     },
@@ -337,14 +335,11 @@ export function useBulkAddAttendees() {
 }
 
 export function useRemoveAttendee() {
-  const { tenant } = useAuth();
+  const { tenant: _tenant } = useAuth();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, classId }: { id: string; classId: string }) => {
-      const { error } = await supabase
-        .from('training_attendance')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('training_attendance').delete().eq('id', id);
       if (error) throw error;
       return classId;
     },
@@ -366,7 +361,9 @@ export function useEmployeeCertifications(employeeId?: string) {
     queryFn: async () => {
       let query = supabase
         .from('employee_certifications')
-        .select('*, certification_type:certification_types(name, issuing_body), training_class:training_classes(name, class_date)')
+        .select(
+          '*, certification_type:certification_types(name, issuing_body), training_class:training_classes(name, class_date)'
+        )
         .eq('tenant_id', tenant!.id)
         .order('expiry_date', { ascending: true, nullsFirst: false });
 
@@ -434,10 +431,13 @@ export function useCreateCertification() {
 }
 
 export function useUpdateCertification() {
-  const { tenant } = useAuth();
+  const { tenant: _tenant } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: {
+    mutationFn: async ({
+      id,
+      ...updates
+    }: {
       id: string;
       certification_type_id?: string;
       issue_date?: string;
@@ -463,14 +463,11 @@ export function useUpdateCertification() {
 }
 
 export function useDeleteCertification() {
-  const { tenant } = useAuth();
+  const { tenant: _tenant } = useAuth();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('employee_certifications')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('employee_certifications').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {

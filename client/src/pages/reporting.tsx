@@ -1,4 +1,3 @@
-import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';

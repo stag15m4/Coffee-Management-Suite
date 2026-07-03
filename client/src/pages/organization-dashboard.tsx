@@ -4,20 +4,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { Link, useLocation } from 'wouter';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Building2,
-  MapPin,
-  Users,
-  DollarSign,
-  AlertTriangle,
-  ArrowRight,
-  Plus,
-  Settings,
-  ArrowLeft,
-} from 'lucide-react';
+import { Building2, MapPin, Users, DollarSign, AlertTriangle, ArrowRight, Plus, ArrowLeft } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
 import { colors } from '@/lib/colors';

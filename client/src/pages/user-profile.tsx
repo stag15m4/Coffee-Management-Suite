@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, User, Mail, Lock, Loader2, Camera, Upload, SwitchCamera, RotateCcw } from 'lucide-react';
+import { User, Lock, Loader2, Camera, Upload, SwitchCamera, RotateCcw } from 'lucide-react';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { colors } from '@/lib/colors';
 
@@ -162,7 +162,7 @@ export default function UserProfile() {
         upsert: false,
       });
 
-      const { data: uploadData, error: uploadError } = await Promise.race([
+      const { data: _uploadData, error: uploadError } = await Promise.race([
         uploadPromise,
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Upload timeout')), TIMEOUT_MS)),
       ]);
@@ -285,7 +285,7 @@ export default function UserProfile() {
           videoRef.current.srcObject = mediaStream;
         }
       }, 100);
-    } catch (error: unknown) {
+    } catch {
       toast({
         title: 'Camera access denied',
         description: 'Please allow camera access to take a photo',

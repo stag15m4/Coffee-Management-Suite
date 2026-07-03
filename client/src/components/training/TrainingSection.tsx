@@ -95,17 +95,24 @@ export function TrainingSection({ employeeId, canEdit }: TrainingSectionProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => { setEditingCert(null); setShowCertForm(true); }}
+              onClick={() => {
+                setEditingCert(null);
+                setShowCertForm(true);
+              }}
               className="h-7 px-2"
             >
               <Plus className="w-3.5 h-3.5 mr-1" style={{ color: colors.gold }} />
-              <span className="text-xs" style={{ color: colors.brown }}>Add</span>
+              <span className="text-xs" style={{ color: colors.brown }}>
+                Add
+              </span>
             </Button>
           )}
         </div>
 
         {certifications.length === 0 && !isLoading ? (
-          <p className="text-xs py-2" style={{ color: colors.brownLight }}>No certifications on file</p>
+          <p className="text-xs py-2" style={{ color: colors.brownLight }}>
+            No certifications on file
+          </p>
         ) : (
           certifications.map((cert) => {
             const status = getCertStatusColor(cert);
@@ -155,7 +162,10 @@ export function TrainingSection({ employeeId, canEdit }: TrainingSectionProps) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => { setEditingCert(cert); setShowCertForm(true); }}
+                          onClick={() => {
+                            setEditingCert(cert);
+                            setShowCertForm(true);
+                          }}
                           className="h-7 w-7 p-0"
                         >
                           <Pencil className="w-3 h-3" style={{ color: colors.brownLight }} />
@@ -187,20 +197,19 @@ export function TrainingSection({ employeeId, canEdit }: TrainingSectionProps) {
             Training History
           </h5>
           {canEdit && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowTrainingForm(true)}
-              className="h-7 px-2"
-            >
+            <Button variant="ghost" size="sm" onClick={() => setShowTrainingForm(true)} className="h-7 px-2">
               <Plus className="w-3.5 h-3.5 mr-1" style={{ color: colors.gold }} />
-              <span className="text-xs" style={{ color: colors.brown }}>Add</span>
+              <span className="text-xs" style={{ color: colors.brown }}>
+                Add
+              </span>
             </Button>
           )}
         </div>
 
         {trainingHistory.length === 0 && !isLoading ? (
-          <p className="text-xs py-2" style={{ color: colors.brownLight }}>No training records</p>
+          <p className="text-xs py-2" style={{ color: colors.brownLight }}>
+            No training records
+          </p>
         ) : (
           trainingHistory.map((att) => {
             const tc = att.training_class;
@@ -219,7 +228,11 @@ export function TrainingSection({ employeeId, canEdit }: TrainingSectionProps) {
                       </div>
                       {tc?.certification_type?.name && (
                         <div className="mt-1">
-                          <Badge variant="outline" className="text-xs" style={{ borderColor: colors.gold, color: colors.brown }}>
+                          <Badge
+                            variant="outline"
+                            className="text-xs"
+                            style={{ borderColor: colors.gold, color: colors.brown }}
+                          >
                             <Award className="w-3 h-3 mr-1" />
                             {tc.certification_type.name}
                           </Badge>
@@ -258,12 +271,7 @@ export function TrainingSection({ employeeId, canEdit }: TrainingSectionProps) {
           preselectedEmployeeId={employeeId}
         />
       )}
-      {showCertTypes && (
-        <CertTypesManager
-          open={showCertTypes}
-          onOpenChange={setShowCertTypes}
-        />
-      )}
+      {showCertTypes && <CertTypesManager open={showCertTypes} onOpenChange={setShowCertTypes} />}
     </div>
   );
 }

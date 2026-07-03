@@ -3,14 +3,7 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getSupabaseAdmin } from '../supabaseAdmin';
 import logger from '../logger';
-import {
-  getUserIdFromRequest,
-  getTenantIdForUser,
-  requirePlatformAdmin,
-  logAuditEvent,
-  authRateLimit,
-  ROLE_HIERARCHY,
-} from './core';
+import { getUserIdFromRequest, requirePlatformAdmin, logAuditEvent, authRateLimit, ROLE_HIERARCHY } from './core';
 
 export function registerAdminRoutes(app: Express): void {
   // =====================================================
