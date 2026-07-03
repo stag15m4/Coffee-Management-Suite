@@ -65,8 +65,9 @@ export function registerAlfredRoutes(app: Express): void {
       const tenantId = await authorizeTenantRead(req, res);
       if (!tenantId) return;
 
+      // Real columns per shared/schema.ts (Drizzle) + migration 074 (vendor_id)
       const result = await db.execute(sql`
-        SELECT id, name, unit, cost, quantity, par_level, supplier, notes, created_at, updated_at
+        SELECT id, name, unit, cost, quantity, vendor_id
         FROM ingredients
         WHERE tenant_id = ${tenantId}::uuid
         ORDER BY name
@@ -93,19 +94,19 @@ export function registerAlfredRoutes(app: Express): void {
       const tenantId = await authorizeTenantRead(req, res);
       if (!tenantId) return;
 
-      // Fetch recipes
+      // Real columns per shared/schema.ts (Drizzle) + migration 060 (minutes_per_drink)
       const recipesResult = await db.execute(sql`
-        SELECT id, name, category, serving_size, serving_unit, target_food_cost_percent,
-               retail_price, notes, created_at, updated_at
+        SELECT id, name, description, minutes_per_drink
         FROM recipes
         WHERE tenant_id = ${tenantId}::uuid
         ORDER BY name
       `);
 
-      // Fetch recipe ingredients with ingredient details
+      // recipe_ingredients has no unit column — the unit lives on the ingredient
       const ingredientsResult = await db.execute(sql`
-        SELECT ri.recipe_id, ri.ingredient_id, ri.quantity, ri.unit,
-               i.name as ingredient_name, i.cost as ingredient_cost, i.unit as ingredient_unit
+        SELECT ri.recipe_id, ri.ingredient_id, ri.quantity,
+               i.name as ingredient_name, i.cost as ingredient_cost,
+               i.unit as ingredient_unit, i.quantity as ingredient_package_quantity
         FROM recipe_ingredients ri
         JOIN ingredients i ON i.id = ri.ingredient_id
         JOIN recipes r ON r.id = ri.recipe_id
@@ -124,9 +125,9 @@ export function registerAlfredRoutes(app: Express): void {
           ingredient_id: row.ingredient_id,
           ingredient_name: row.ingredient_name,
           quantity: row.quantity,
-          unit: row.unit,
           ingredient_cost: row.ingredient_cost,
           ingredient_unit: row.ingredient_unit,
+          ingredient_package_quantity: row.ingredient_package_quantity,
         });
       }
 
@@ -200,8 +201,9 @@ export function registerAlfredRoutes(app: Express): void {
       const tenantId = await authorizeTenantRead(req, res);
       if (!tenantId) return;
 
+      // Real columns per migrations 007 + 097; no updated_at, and kiosk_pin is never exposed
       const result = await db.execute(sql`
-        SELECT id, name, is_active, tip_eligible, created_at, updated_at
+        SELECT id, name, is_active, tip_eligible, created_at
         FROM tip_employees
         WHERE tenant_id = ${tenantId}::uuid
         ORDER BY name
@@ -231,11 +233,12 @@ export function registerAlfredRoutes(app: Express): void {
       const startDate = (req.query.start_date as string) || null;
       const endDate = (req.query.end_date as string) || null;
 
+      // Real table is tip_payout_approvals (migration 141); cc_fee_rate, not cc_fee
       let query = sql`
-        SELECT id, week_key, distribution_method, cash_tips, cc_tips, cc_fee,
+        SELECT id, week_key, distribution_method, cash_tips, cc_tips, cc_fee_rate,
                total_pool, total_hours, hourly_rate, employee_payouts,
-               approved_at, approved_by, created_at
-        FROM tip_payout_history
+               status, calculated_at, approved_by, approved_at, created_at
+        FROM tip_payout_approvals
         WHERE tenant_id = ${tenantId}::uuid
       `;
 
@@ -315,19 +318,22 @@ export function registerAlfredRoutes(app: Express): void {
       const tenantId = await authorizeTenantRead(req, res);
       if (!tenantId) return;
 
-      // Fetch equipment
+      // Real columns per migrations 013 + 028/061/100/134 (no brand/warranty_end/location/status)
       const equipmentResult = await db.execute(sql`
-        SELECT id, name, brand, model, serial_number, purchase_date, warranty_end,
-               location, status, notes, created_at, updated_at
+        SELECT id, name, category, model, serial_number, purchase_date,
+               has_warranty, warranty_duration_months, warranty_notes,
+               in_service_date, current_mileage, is_active, notes, created_at, updated_at
         FROM equipment
         WHERE tenant_id = ${tenantId}::uuid
         ORDER BY name
       `);
 
-      // Fetch maintenance tasks
+      // maintenance_tasks uses interval_type/interval_days/interval_units, not frequency
       const tasksResult = await db.execute(sql`
-        SELECT mt.id, mt.equipment_id, mt.name, mt.frequency, mt.last_completed_at,
-               mt.next_due_at, mt.is_active, e.name as equipment_name
+        SELECT mt.id, mt.equipment_id, mt.name, mt.description, mt.interval_type,
+               mt.interval_days, mt.interval_units, mt.usage_unit_label, mt.current_usage,
+               mt.last_completed_at, mt.next_due_at, mt.is_active,
+               e.name as equipment_name
         FROM maintenance_tasks mt
         JOIN equipment e ON e.id = mt.equipment_id
         WHERE e.tenant_id = ${tenantId}::uuid
