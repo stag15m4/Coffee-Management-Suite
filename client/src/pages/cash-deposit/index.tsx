@@ -8,6 +8,7 @@ import { useLocationChange } from '@/hooks/use-location-change';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { DatePickerField } from '@/components/ui/date-picker-field';
 import { CoffeeLoader } from '@/components/CoffeeLoader';
 import { useToast } from '@/hooks/use-toast';
 import { useConfirmDialog } from '@/hooks/use-confirm-dialog';
@@ -672,33 +673,25 @@ export default function CashDeposit() {
               <span style={{ color: colors.brown }} className="font-medium">
                 Date Range:
               </span>
-              <div
-                className="px-4 py-2 rounded-md text-sm font-medium cursor-pointer relative overflow-hidden"
+              <DatePickerField
+                value={dateRange.start}
+                onChange={(value) => setDateRange((prev) => ({ ...prev, start: value }))}
+                className="px-4 py-2 rounded-md text-sm font-medium cursor-pointer"
                 style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                data-testid="input-date-start"
               >
                 {formatDateDisplay(dateRange.start)}
-                <input
-                  type="date"
-                  value={dateRange.start}
-                  onChange={(e) => setDateRange((prev) => ({ ...prev, start: e.target.value }))}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  data-testid="input-date-start"
-                />
-              </div>
+              </DatePickerField>
               <span style={{ color: colors.brown }}>to</span>
-              <div
-                className="px-4 py-2 rounded-md text-sm font-medium cursor-pointer relative overflow-hidden"
+              <DatePickerField
+                value={dateRange.end}
+                onChange={(value) => setDateRange((prev) => ({ ...prev, end: value }))}
+                className="px-4 py-2 rounded-md text-sm font-medium cursor-pointer"
                 style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                data-testid="input-date-end"
               >
                 {formatDateDisplay(dateRange.end)}
-                <input
-                  type="date"
-                  value={dateRange.end}
-                  onChange={(e) => setDateRange((prev) => ({ ...prev, end: e.target.value }))}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  data-testid="input-date-end"
-                />
-              </div>
+              </DatePickerField>
               <label className="relative cursor-pointer" data-testid="button-import">
                 <Button asChild className="text-white font-medium" style={{ backgroundColor: colors.gold }}>
                   <span>Import</span>
