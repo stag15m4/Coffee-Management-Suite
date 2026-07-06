@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { DatePickerField } from '@/components/ui/date-picker-field';
 import { Flag, ChevronDown } from 'lucide-react';
 import { colors } from '@/lib/colors';
 import { type CashEntry, type FormData, formatCurrency, formatDateDisplay } from './deposit-utils';
@@ -64,19 +65,15 @@ export function DepositForm({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label style={{ color: colors.brown }}>Date</Label>
-              <div
-                className="px-3 py-2 rounded-md text-sm cursor-pointer relative min-h-9 flex items-center border"
-                style={{ backgroundColor: colors.inputBg, borderColor: 'hsl(var(--input))' }}
+              <DatePickerField
+                value={formData.drawer_date}
+                onChange={(value) => onUpdateField('drawer_date', value)}
+                className="w-full px-3 py-2 rounded-md text-sm cursor-pointer min-h-9 flex items-center border text-left"
+                style={{ backgroundColor: colors.inputBg, borderColor: 'hsl(var(--input))', color: colors.brown }}
+                data-testid="input-entry-date"
               >
                 {formData.drawer_date ? formatDateDisplay(formData.drawer_date) : 'Select date'}
-                <input
-                  type="date"
-                  value={formData.drawer_date}
-                  onChange={(e) => onUpdateField('drawer_date', e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  data-testid="input-entry-date"
-                />
-              </div>
+              </DatePickerField>
             </div>
             <div className="space-y-2">
               <Label style={{ color: colors.brown }}>Gross Revenue</Label>
