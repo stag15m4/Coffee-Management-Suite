@@ -6,6 +6,16 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
+// Module-loading failures happen when the running app is from an older deploy
+// than the chunks on the server (stale index.html on iPad Safari / home-screen
+// apps). Re-rendering can't fix those — only a full reload can.
+function isStaleChunkError(error: Error | null): boolean {
+  if (!error) return false;
+  return /Importing binding|Exporting binding|dynamically imported module|import\(\) failed|not a valid JavaScript MIME type|Load failed/i.test(
+    error.message
+  );
+}
+
 export class ErrorBoundary extends React.Component<React.PropsWithChildren<{}>, ErrorBoundaryState> {
   constructor(props: React.PropsWithChildren<{}>) {
     super(props);
@@ -18,9 +28,22 @@ export class ErrorBoundary extends React.Component<React.PropsWithChildren<{}>, 
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Auto-recover from stale-chunk errors with one reload (guarded against loops)
+    if (isStaleChunkError(error)) {
+      const lastReload = sessionStorage.getItem('chunk-error-reload');
+      if (!lastReload || Date.now() - Number(lastReload) > 30000) {
+        sessionStorage.setItem('chunk-error-reload', String(Date.now()));
+        window.location.reload();
+      }
+    }
   }
 
   handleReset = () => {
+    if (isStaleChunkError(this.state.error)) {
+      // Re-rendering keeps the broken module graph — reload to get fresh chunks
+      window.location.reload();
+      return;
+    }
     this.setState({ hasError: false, error: null });
   };
 

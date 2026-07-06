@@ -23,11 +23,35 @@ export function serveStatic(app: Express) {
     return;
   }
 
-  // Serve static files
-  app.use(express.static(distPath));
+  // Serve static files.
+  // - Hashed assets (/assets/*) are immutable: the filename changes when content
+  //   changes, so they can be cached forever.
+  // - index.html must always be revalidated, otherwise iPad Safari (especially
+  //   home-screen web apps) keeps a stale index that references chunks from an
+  //   old deploy — causing "Importing binding name ... is not found" errors.
+  app.use(
+    express.static(distPath, {
+      index: false,
+      setHeaders: (res, filePath) => {
+        if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      },
+    })
+  );
+
+  // A missing hashed asset means the client is on an old deploy. Return 404 so
+  // the failed dynamic import triggers the client-side reload handler — never
+  // serve index.html as if it were JavaScript.
+  app.use('/assets', (_req, res) => {
+    res.status(404).json({ error: 'Asset not found (new version deployed)' });
+  });
 
   // Fall through to index.html for SPA routing
   app.use('*', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(indexPath);
   });
 }
