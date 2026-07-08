@@ -15,6 +15,7 @@ export interface CashEntry {
   cash_refund: number;
   actual_deposit: number;
   calculated_deposit: number;
+  transaction_count: number | null;
   notes: string;
   flagged: boolean;
   archived: boolean;
@@ -32,6 +33,7 @@ export interface FormData {
   pay_in: string;
   pay_out: string;
   cash_refund: string;
+  transaction_count: string;
   notes: string;
   flagged: boolean;
 }
@@ -78,6 +80,7 @@ export const getDefaultFormData = (today: string, drawerDefault: number): FormDa
   pay_in: '0.00',
   pay_out: '0.00',
   cash_refund: '0.00',
+  transaction_count: '',
   notes: '',
   flagged: false,
 });

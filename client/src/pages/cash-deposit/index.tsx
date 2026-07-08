@@ -64,6 +64,7 @@ export default function CashDeposit() {
     pay_in: '0.00',
     pay_out: '0.00',
     cash_refund: '0.00',
+    transaction_count: '',
     notes: '',
     flagged: false,
   });
@@ -211,6 +212,7 @@ export default function CashDeposit() {
         pay_in: fmt2(editingEntry.pay_in),
         pay_out: fmt2(editingEntry.pay_out),
         cash_refund: fmt2(editingEntry.cash_refund),
+        transaction_count: editingEntry.transaction_count != null ? String(editingEntry.transaction_count) : '',
         notes: editingEntry.notes || '',
         flagged: editingEntry.flagged || false,
       });
@@ -269,6 +271,9 @@ export default function CashDeposit() {
       pay_in: parseFloat(formData.pay_in) || 0,
       pay_out: parseFloat(formData.pay_out) || 0,
       cash_refund: parseFloat(formData.cash_refund) || 0,
+      // ?? '' guards against a form persisted in sessionStorage before this field existed
+      transaction_count:
+        (formData.transaction_count ?? '').trim() !== '' ? parseInt(formData.transaction_count, 10) || 0 : null,
       notes: formData.notes,
       flagged: formData.flagged,
     };

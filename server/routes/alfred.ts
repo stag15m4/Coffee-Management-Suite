@@ -164,7 +164,8 @@ export function registerAlfredRoutes(app: Express): void {
       let query = sql`
         SELECT id, drawer_date, gross_revenue, starting_drawer, actual_deposit,
                cash_sales, tip_pool, owner_tips, pay_in, pay_out, cash_refund,
-               notes, flagged, archived, excluded_from_average, created_at, updated_at
+               transaction_count, notes, flagged, archived, excluded_from_average,
+               created_at, updated_at
         FROM cash_activity
         WHERE tenant_id = ${tenantId}::uuid
       `;

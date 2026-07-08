@@ -93,6 +93,18 @@ export function DepositForm({
               </div>
             </div>
             <div className="space-y-2">
+              <Label style={{ color: colors.brown }}>Transactions</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={formData.transaction_count ?? ''}
+                onChange={(e) => onUpdateField('transaction_count', e.target.value.replace(/[^0-9]/g, ''))}
+                style={{ backgroundColor: colors.inputBg }}
+                placeholder="Optional"
+                data-testid="input-transaction-count"
+              />
+            </div>
+            <div className="space-y-2">
               <Label style={{ color: colors.brown }}>Starting Drawer</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
