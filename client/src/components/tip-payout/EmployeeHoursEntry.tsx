@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Clock, Download, Pencil, Plus, Trash2 } from 'lucide-react';
-import { TipEmployee, Colors } from './types';
+import { TipEmployee, Colors, isEmployeeTipEligible } from './types';
 import { formatCurrency, formatHoursMinutes } from './utils';
 
 interface EmployeeHoursEntryProps {
@@ -47,6 +47,8 @@ export function EmployeeHoursEntry({
   onImportFromTimeclock,
 }: EmployeeHoursEntryProps) {
   const availableEmployees = employees.filter((e) => !employeeHours[e.name] || e.name === selectedEmployee);
+  // Hours are logged for ALL hourly staff; only tip-eligible employees get a payout
+  const eligibleByName = new Map(employees.map((e) => [e.name, isEmployeeTipEligible(e)]));
 
   const handleSelectChange = (value: string) => {
     if (value === ADD_NEW_VALUE) {
@@ -92,7 +94,13 @@ export function EmployeeHoursEntry({
                 <TableCell style={{ color: colors.brown }}>{name}</TableCell>
                 <TableCell style={{ color: colors.brown }}>{formatHoursMinutes(hours)}</TableCell>
                 <TableCell className="text-right font-medium" style={{ color: colors.brown }}>
-                  {formatCurrency(hours * hourlyRate)}
+                  {eligibleByName.get(name) === false ? (
+                    <span className="text-xs" style={{ color: colors.brownLight }}>
+                      no tips
+                    </span>
+                  ) : (
+                    formatCurrency(hours * hourlyRate)
+                  )}
                 </TableCell>
                 <TableCell className="text-right p-1">
                   <div className="flex justify-end gap-1">

@@ -321,6 +321,62 @@ export function registerAlfredRoutes(app: Express): void {
   });
 
   /**
+   * GET /api/alfred/employee-hours
+   * Per-employee logged hours for ALL hourly staff (tipped or not), with the
+   * pay period each entry belongs to. Hours are stored per week; week_start is
+   * the Monday of that week and week_end is the following Sunday.
+   * Query params: tenant_id, start_date (YYYY-MM-DD), end_date (YYYY-MM-DD) —
+   * date filters apply to week_start.
+   */
+  app.get('/api/alfred/employee-hours', async (req: Request, res: Response) => {
+    try {
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
+
+      const startDate = (req.query.start_date as string) || null;
+      const endDate = (req.query.end_date as string) || null;
+
+      let query = sql`
+        SELECT to_char(teh.week_key, 'YYYY-MM-DD') AS week_start,
+               to_char(teh.week_key + 6, 'YYYY-MM-DD') AS week_end,
+               teh.employee_id,
+               te.name AS employee_name,
+               te.tip_eligible,
+               te.is_active,
+               teh.hours
+        FROM tip_employee_hours teh
+        JOIN tip_employees te ON te.id = teh.employee_id
+        WHERE teh.tenant_id = ${tenantId}::uuid
+      `;
+
+      if (startDate) {
+        query = sql`${query} AND teh.week_key >= ${startDate}::date`;
+      }
+      if (endDate) {
+        query = sql`${query} AND teh.week_key <= ${endDate}::date`;
+      }
+
+      query = sql`${query} ORDER BY teh.week_key DESC, te.name LIMIT 1000`;
+
+      const result = await db.execute(query);
+
+      const entries = (result.rows as any[]).map((row) => ({
+        ...row,
+        hours: parseFloat(row.hours) || 0,
+      }));
+
+      res.json({
+        tenant_id: tenantId,
+        count: entries.length,
+        entries,
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error in /api/alfred/employee-hours');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
    * GET /api/alfred/overhead
    * Get overhead items and settings for a tenant
    * Query params: tenant_id

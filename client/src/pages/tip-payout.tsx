@@ -642,7 +642,8 @@ export default function TipPayout() {
   // --- Exports ---
 
   const exportCSV = () => {
-    const csvContent = buildCsvContent({ weekRange, employeeHours, hourlyRate, totalPool });
+    // Tip distribution docs list tip-eligible staff only
+    const csvContent = buildCsvContent({ weekRange, employeeHours: eligibleEmployeeHours, hourlyRate, totalPool });
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -664,7 +665,7 @@ export default function TipPayout() {
       totalPool,
       totalTeamHours,
       hourlyRate,
-      employeeHours,
+      employeeHours: eligibleEmployeeHours,
     });
     const printWindow = window.open('', '_blank');
     if (printWindow) {
@@ -771,10 +772,17 @@ export default function TipPayout() {
   const ccTotal = ccEntries.reduce((a, b) => a + (parseFloat(String(b)) || 0), 0);
   const ccAfterFee = ccTotal * (1 - CC_FEE_RATE);
   const totalPool = cashTotal + ccAfterFee;
-  const totalTeamHours = Object.values(employeeHours).reduce((a, b) => a + b, 0);
+  const tipEligibleEmployees = employees.filter(isEmployeeTipEligible);
+  // Hours can be logged for ALL hourly staff (tipped or not), but only
+  // tip-eligible hours enter the pool math — matching the server-side
+  // calculation in /api/tip-payouts/calculate.
+  const tipEligibleNames = new Set(tipEligibleEmployees.map((e) => e.name));
+  const eligibleEmployeeHours = Object.fromEntries(
+    Object.entries(employeeHours).filter(([name]) => tipEligibleNames.has(name))
+  );
+  const totalTeamHours = Object.values(eligibleEmployeeHours).reduce((a, b) => a + b, 0);
   const hourlyRate = totalTeamHours > 0 ? totalPool / totalTeamHours : 0;
   const weekRange = getWeekRange(weekKey);
-  const tipEligibleEmployees = employees.filter(isEmployeeTipEligible);
 
   // --- Loading state ---
 
@@ -865,7 +873,7 @@ export default function TipPayout() {
               <>
                 <EmployeeHoursEntry
                   colors={colors}
-                  employees={tipEligibleEmployees}
+                  employees={employees}
                   employeeHours={employeeHours}
                   hourlyRate={hourlyRate}
                   selectedEmployee={selectedEmployee}
