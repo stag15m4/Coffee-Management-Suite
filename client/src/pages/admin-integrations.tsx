@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { colors } from '@/lib/colors';
 import SquareIntegrationSettings from '@/components/square/SquareIntegrationSettings';
 import QboIntegrationSettings from '@/components/qbo/QboIntegrationSettings';
+import ConnecteamIntegrationSettings from '@/components/connecteam/ConnecteamIntegrationSettings';
 
 export default function AdminIntegrations() {
   const { tenant, branding, primaryTenant: _primaryTenant } = useAuth();
@@ -39,6 +40,9 @@ export default function AdminIntegrations() {
         {/* QuickBooks Online Integration */}
         <div className="mt-6">
           <QboIntegrationSettings />
+
+          {/* Connecteam Integration */}
+          <ConnecteamIntegrationSettings />
         </div>
       </div>
     </div>

@@ -9,6 +9,7 @@ import { createServer } from 'http';
 import { WebhookHandlers } from './webhookHandlers';
 import { SquareWebhookHandlers } from './squareWebhookHandlers';
 import { startSquareSyncScheduler } from './squareSync';
+import { startConnecteamSyncScheduler } from './connecteamSync';
 import logger from './logger';
 
 const app = express();
@@ -349,6 +350,7 @@ app.use((req, res, next) => {
     () => {
       log(`serving on port ${port}`);
       startSquareSyncScheduler();
+      startConnecteamSyncScheduler();
     }
   );
 })();
