@@ -165,6 +165,25 @@ export function registerConnecteamRoutes(app: Express): void {
     }
   });
 
+  // List time clocks (so the picker works after a page reload, not just at connect time)
+  app.get('/api/connecteam/time-clocks/:tenantId', async (req, res) => {
+    try {
+      const tenantId = req.params.tenantId;
+      if (!(await requireManagerForTenant(req, res, tenantId))) return;
+
+      const settingsResult = await db.execute(
+        sql`SELECT api_key FROM connecteam_settings WHERE tenant_id = ${tenantId}::uuid LIMIT 1`
+      );
+      const settings = settingsResult.rows[0] as any;
+      if (!settings?.api_key) return res.status(400).json({ error: 'Connecteam is not connected' });
+
+      res.json({ timeClocks: await listTimeClocks(settings.api_key) });
+    } catch (err) {
+      logger.error({ err }, 'Error in connecteam time-clocks');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Connecteam users + auto-suggested mappings (by case-insensitive name match)
   app.get('/api/connecteam/users/:tenantId', async (req, res) => {
     try {
