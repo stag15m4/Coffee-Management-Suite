@@ -168,7 +168,14 @@ export async function syncHoursForTenant(tenantId: string, startDate?: string, e
     `/time-clock/v1/time-clocks/${settings.time_clock_id}/time-activities`,
     { startDate, endDate }
   );
-  const activities: ConnecteamTimeActivity[] = body?.data?.timeActivities ?? body?.timeActivities ?? [];
+  // Real key is timeActivitiesByUsers (per the API reference); older docs show
+  // timeActivities — accept both.
+  const activities: ConnecteamTimeActivity[] =
+    body?.data?.timeActivitiesByUsers ??
+    body?.timeActivitiesByUsers ??
+    body?.data?.timeActivities ??
+    body?.timeActivities ??
+    [];
 
   // If Connecteam answered but we parsed nothing, log the response shape so a
   // field-name mismatch is visible in the Railway logs (keys only, no PII).
