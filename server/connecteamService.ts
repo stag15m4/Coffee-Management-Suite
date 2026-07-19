@@ -41,6 +41,10 @@ export interface SyncResult {
   weeksTouched: string[];
   unmatchedUsers: Array<{ connecteam_user_id: string; hours: number }>;
   mappedUsers: number;
+  /** Diagnostics so an empty sync explains itself */
+  activitiesReturned: number;
+  confirmedMappings: number;
+  dateRange: { start: string; end: string };
 }
 
 async function connecteamFetch(apiKey: string, path: string, params?: Record<string, string>): Promise<any> {
@@ -166,6 +170,18 @@ export async function syncHoursForTenant(tenantId: string, startDate?: string, e
   );
   const activities: ConnecteamTimeActivity[] = body?.data?.timeActivities ?? body?.timeActivities ?? [];
 
+  // If Connecteam answered but we parsed nothing, log the response shape so a
+  // field-name mismatch is visible in the Railway logs (keys only, no PII).
+  if (activities.length === 0 && body && typeof body === 'object') {
+    logger.warn(
+      {
+        topLevelKeys: Object.keys(body),
+        dataKeys: body.data && typeof body.data === 'object' ? Object.keys(body.data) : null,
+      },
+      'Connecteam time-activities returned no parseable activities'
+    );
+  }
+
   const hoursByUser = aggregateHoursByWeek(activities);
 
   // Confirmed mappings only
@@ -176,7 +192,15 @@ export async function syncHoursForTenant(tenantId: string, startDate?: string, e
   `);
   const mapping = new Map((mappingsResult.rows as any[]).map((m) => [String(m.connecteam_user_id), m.tip_employee_id]));
 
-  const result: SyncResult = { entriesUpserted: 0, weeksTouched: [], unmatchedUsers: [], mappedUsers: 0 };
+  const result: SyncResult = {
+    entriesUpserted: 0,
+    weeksTouched: [],
+    unmatchedUsers: [],
+    mappedUsers: 0,
+    activitiesReturned: activities.length,
+    confirmedMappings: mapping.size,
+    dateRange: { start: startDate, end: endDate },
+  };
   const weeksTouched = new Set<string>();
 
   for (const [connecteamUserId, weeks] of hoursByUser) {

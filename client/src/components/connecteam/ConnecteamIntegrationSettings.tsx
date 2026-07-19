@@ -67,7 +67,17 @@ export default function ConnecteamIntegrationSettings() {
   const loadStatus = useCallback(async () => {
     if (!tenantId) return;
     try {
-      setStatus(await api(`/api/connecteam/status/${tenantId}`));
+      const s: Status = await api(`/api/connecteam/status/${tenantId}`);
+      setStatus(s);
+      // Load the time clock list so the picker survives page reloads
+      if (s.connected) {
+        try {
+          const tc = await api(`/api/connecteam/time-clocks/${tenantId}`);
+          setTimeClocks(tc.timeClocks || []);
+        } catch {
+          // non-fatal; picker just won't render
+        }
+      }
     } catch (err) {
       console.error('Connecteam status error:', err);
     } finally {
@@ -169,12 +179,20 @@ export default function ConnecteamIntegrationSettings() {
     setLastSyncSummary(null);
     try {
       const r = await api('/api/connecteam/sync', { method: 'POST', body: JSON.stringify({ tenantId }) });
-      const unmatched = r.unmatchedUsers?.length
-        ? ` — ${r.unmatchedUsers.length} Connecteam user(s) with hours are unmapped`
-        : '';
-      setLastSyncSummary(
-        `Synced ${r.entriesUpserted} entr${r.entriesUpserted === 1 ? 'y' : 'ies'} across ${r.weeksTouched.length} week(s)${unmatched}.`
-      );
+      // Self-diagnosing summary: an empty sync says WHY it was empty
+      let summary: string;
+      if (r.confirmedMappings === 0) {
+        summary =
+          'Nothing synced: no employees are mapped yet. Click "Map Employees", match each Connecteam user to a CMS employee, and Save — then sync again.';
+      } else if (r.activitiesReturned === 0) {
+        summary = `Nothing synced: Connecteam returned no time activities between ${r.dateRange?.start} and ${r.dateRange?.end} for the selected time clock. If your staff clock into a different time clock, change it above and sync again.`;
+      } else {
+        const unmatched = r.unmatchedUsers?.length
+          ? ` — ${r.unmatchedUsers.length} Connecteam user(s) with hours are unmapped`
+          : '';
+        summary = `Synced ${r.entriesUpserted} entr${r.entriesUpserted === 1 ? 'y' : 'ies'} across ${r.weeksTouched.length} week(s) for ${r.mappedUsers} employee(s)${unmatched}.`;
+      }
+      setLastSyncSummary(summary);
       toast({ title: 'Sync complete' });
       await loadStatus();
     } catch (err) {
