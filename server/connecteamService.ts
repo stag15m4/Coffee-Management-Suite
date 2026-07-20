@@ -16,6 +16,70 @@ import logger from './logger';
 // Overridable for testing against a mock server
 const API_BASE = process.env.CONNECTEAM_API_BASE || 'https://api.connecteam.com';
 
+// ── Rate-limit protection ───────────────────────────────────────────────────
+// Connecteam's rate limit is per company ACCOUNT and shared with other apps
+// (Alfred, Lucy). CMS must be a polite citizen:
+// - 429 opens a circuit breaker: no Connecteam calls for >= 20 min (or
+//   Retry-After, whichever is longer), persisted in the DB so redeploys
+//   don't reset it.
+// - Reference data (time clocks, users) is cached in memory.
+// - Scheduled syncs are throttled to CONNECTEAM_SYNC_TTL_HOURS (default 12h).
+
+const COOLDOWN_MIN_MS = 20 * 60 * 1000;
+export const SYNC_TTL_HOURS = Math.max(1, parseInt(process.env.CONNECTEAM_SYNC_TTL_HOURS || '12', 10) || 12);
+
+export class ConnecteamRateLimitError extends Error {
+  retryAt: Date;
+  constructor(retryAt: Date) {
+    super(`Connecteam rate limit hit — pausing all Connecteam calls until ${retryAt.toISOString()}`);
+    this.name = 'ConnecteamRateLimitError';
+    this.retryAt = retryAt;
+  }
+}
+
+/** Parses a Retry-After header (seconds or HTTP-date) into milliseconds. */
+function parseRetryAfterMs(header: string | null): number | null {
+  if (!header) return null;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds) && seconds > 0) return seconds * 1000;
+  const dateMs = Date.parse(header);
+  if (!Number.isNaN(dateMs)) return Math.max(0, dateMs - Date.now());
+  return null;
+}
+
+async function getCooldown(tenantId: string): Promise<Date | null> {
+  const result = await db.execute(
+    sql`SELECT rate_limited_until FROM connecteam_settings WHERE tenant_id = ${tenantId}::uuid LIMIT 1`
+  );
+  const until = (result.rows[0] as any)?.rate_limited_until;
+  if (!until) return null;
+  const untilDate = new Date(until);
+  return untilDate.getTime() > Date.now() ? untilDate : null;
+}
+
+async function setCooldown(tenantId: string, until: Date): Promise<void> {
+  await db.execute(
+    sql`UPDATE connecteam_settings SET rate_limited_until = ${until.toISOString()}::timestamptz, updated_at = NOW()
+        WHERE tenant_id = ${tenantId}::uuid`
+  );
+}
+
+// In-memory caches for slow-changing reference data. Cleared on redeploy,
+// which costs at most one refresh call each.
+interface CacheEntry<T> {
+  at: number;
+  data: T;
+}
+const TIME_CLOCKS_TTL_MS = 24 * 60 * 60 * 1000;
+const USERS_TTL_MS = 60 * 60 * 1000;
+const timeClocksCache = new Map<string, CacheEntry<Array<{ id: string; name: string }>>>();
+const usersCache = new Map<string, CacheEntry<Array<{ id: string; name: string }>>>();
+
+function fromCache<T>(cache: Map<string, CacheEntry<T>>, key: string, ttlMs: number): T | null {
+  const entry = cache.get(key);
+  return entry && Date.now() - entry.at < ttlMs ? entry.data : null;
+}
+
 interface ConnecteamShift {
   start?: { timestamp?: number; timezone?: string };
   end?: { timestamp?: number; timezone?: string };
@@ -47,7 +111,22 @@ export interface SyncResult {
   dateRange: { start: string; end: string };
 }
 
-async function connecteamFetch(apiKey: string, path: string, params?: Record<string, string>): Promise<any> {
+/**
+ * All Connecteam HTTP goes through here. When tenantId is provided:
+ * - the persisted circuit breaker is checked before calling
+ * - a 429 opens the breaker (>= 20 min, honoring Retry-After) and persists it
+ */
+async function connecteamFetch(
+  apiKey: string,
+  path: string,
+  params?: Record<string, string>,
+  tenantId?: string
+): Promise<any> {
+  if (tenantId) {
+    const cooldown = await getCooldown(tenantId);
+    if (cooldown) throw new ConnecteamRateLimitError(cooldown);
+  }
+
   const url = new URL(path, API_BASE);
   for (const [k, v] of Object.entries(params || {})) {
     url.searchParams.set(k, v);
@@ -55,6 +134,17 @@ async function connecteamFetch(apiKey: string, path: string, params?: Record<str
   const res = await fetch(url.toString(), {
     headers: { 'X-API-KEY': apiKey, Accept: 'application/json' },
   });
+
+  if (res.status === 429) {
+    const retryAfterMs = parseRetryAfterMs(res.headers.get('retry-after'));
+    const until = new Date(Date.now() + Math.max(COOLDOWN_MIN_MS, retryAfterMs ?? 0));
+    if (tenantId) {
+      await setCooldown(tenantId, until).catch((e) => logger.error({ e }, 'Failed to persist 429 cooldown'));
+    }
+    logger.warn({ tenantId, until: until.toISOString(), path }, 'Connecteam 429 — circuit breaker opened');
+    throw new ConnecteamRateLimitError(until);
+  }
+
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new Error(`Connecteam API ${res.status} on ${path}: ${body.slice(0, 200)}`);
@@ -63,26 +153,38 @@ async function connecteamFetch(apiKey: string, path: string, params?: Record<str
 }
 
 /** Validates an API key. Returns account info or throws. */
-export async function validateApiKey(apiKey: string): Promise<any> {
-  const body = await connecteamFetch(apiKey, '/me');
+export async function validateApiKey(apiKey: string, tenantId?: string): Promise<any> {
+  const body = await connecteamFetch(apiKey, '/me', undefined, tenantId);
   return body?.data ?? body;
 }
 
-/** Lists the account's time clocks so the tenant can pick one. */
-export async function listTimeClocks(apiKey: string): Promise<Array<{ id: string; name: string }>> {
-  const body = await connecteamFetch(apiKey, '/time-clock/v1/time-clocks');
+/** Lists the account's time clocks (cached 24h — the roster of clocks barely changes). */
+export async function listTimeClocks(apiKey: string, tenantId?: string): Promise<Array<{ id: string; name: string }>> {
+  if (tenantId) {
+    const cached = fromCache(timeClocksCache, tenantId, TIME_CLOCKS_TTL_MS);
+    if (cached) return cached;
+  }
+  const body = await connecteamFetch(apiKey, '/time-clock/v1/time-clocks', undefined, tenantId);
   const clocks = body?.data?.timeClocks ?? body?.timeClocks ?? [];
-  return clocks.map((c: any) => ({ id: String(c.id ?? c.timeClockId), name: c.name ?? `Time clock ${c.id}` }));
+  const mapped = clocks.map((c: any) => ({ id: String(c.id ?? c.timeClockId), name: c.name ?? `Time clock ${c.id}` }));
+  if (tenantId) timeClocksCache.set(tenantId, { at: Date.now(), data: mapped });
+  return mapped;
 }
 
-/** Lists Connecteam users (for the mapping UI). */
-export async function listUsers(apiKey: string): Promise<Array<{ id: string; name: string }>> {
-  const body = await connecteamFetch(apiKey, '/users/v1/users', { limit: '200' });
+/** Lists Connecteam users for the mapping UI (cached 1h). */
+export async function listUsers(apiKey: string, tenantId?: string): Promise<Array<{ id: string; name: string }>> {
+  if (tenantId) {
+    const cached = fromCache(usersCache, tenantId, USERS_TTL_MS);
+    if (cached) return cached;
+  }
+  const body = await connecteamFetch(apiKey, '/users/v1/users', { limit: '200' }, tenantId);
   const users = body?.data?.users ?? body?.users ?? [];
-  return users.map((u: any) => ({
+  const mapped = users.map((u: any) => ({
     id: String(u.userId ?? u.id),
     name: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.name || `User ${u.userId ?? u.id}`,
   }));
+  if (tenantId) usersCache.set(tenantId, { at: Date.now(), data: mapped });
+  return mapped;
 }
 
 /** Monday (YYYY-MM-DD) of the week containing the given date, in the shift's timezone. */
@@ -166,7 +268,8 @@ export async function syncHoursForTenant(tenantId: string, startDate?: string, e
   const body = await connecteamFetch(
     settings.api_key,
     `/time-clock/v1/time-clocks/${settings.time_clock_id}/time-activities`,
-    { startDate, endDate }
+    { startDate, endDate },
+    tenantId
   );
   // Real key is timeActivitiesByUsers (per the API reference); older docs show
   // timeActivities — accept both.

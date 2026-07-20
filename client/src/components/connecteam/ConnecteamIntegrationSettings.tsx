@@ -16,6 +16,7 @@ interface Status {
   timeClockId: string | null;
   syncEnabled: boolean;
   lastSyncAt: string | null;
+  rateLimitedUntil: string | null;
   mappingCounts: Record<string, number>;
 }
 
@@ -69,8 +70,10 @@ export default function ConnecteamIntegrationSettings() {
     try {
       const s: Status = await api(`/api/connecteam/status/${tenantId}`);
       setStatus(s);
-      // Load the time clock list so the picker survives page reloads
-      if (s.connected) {
+      // Only fetch the time clock list when a selection is actually REQUIRED
+      // (no clock chosen yet). Never on ordinary page loads — the Connecteam
+      // rate limit is shared account-wide with other apps.
+      if (s.connected && !s.timeClockId && !s.rateLimitedUntil) {
         try {
           const tc = await api(`/api/connecteam/time-clocks/${tenantId}`);
           setTimeClocks(tc.timeClocks || []);
@@ -84,6 +87,16 @@ export default function ConnecteamIntegrationSettings() {
       setLoading(false);
     }
   }, [tenantId]);
+
+  const loadTimeClocks = async () => {
+    if (!tenantId) return;
+    try {
+      const tc = await api(`/api/connecteam/time-clocks/${tenantId}`);
+      setTimeClocks(tc.timeClocks || []);
+    } catch (err) {
+      toast({ title: 'Could not load time clocks', description: getErrorMessage(err), variant: 'destructive' });
+    }
+  };
 
   useEffect(() => {
     loadStatus();
@@ -260,7 +273,18 @@ export default function ConnecteamIntegrationSettings() {
               </span>
             </div>
 
-            {timeClocks.length > 1 && (
+            {status.rateLimitedUntil && (
+              <p
+                className="text-sm px-3 py-2 rounded"
+                style={{ backgroundColor: '#fef3c7', color: '#92400e' }}
+                data-testid="connecteam-rate-limited-notice"
+              >
+                Connecteam's shared rate limit was hit — all Connecteam calls are paused until{' '}
+                {new Date(status.rateLimitedUntil).toLocaleTimeString()}. Synced hours remain available.
+              </p>
+            )}
+
+            {timeClocks.length > 0 ? (
               <div className="space-y-1">
                 <Label style={{ color: colors.brown }}>Time Clock</Label>
                 <Select value={status.timeClockId ?? undefined} onValueChange={(v) => handleConfig({ timeClockId: v })}>
@@ -276,6 +300,16 @@ export default function ConnecteamIntegrationSettings() {
                   </SelectContent>
                 </Select>
               </div>
+            ) : (
+              <button
+                type="button"
+                onClick={loadTimeClocks}
+                className="text-xs underline text-left"
+                style={{ color: colors.brownLight }}
+                data-testid="button-connecteam-change-clock"
+              >
+                Change time clock…
+              </button>
             )}
 
             <div className="flex items-center gap-3">
