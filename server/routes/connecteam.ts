@@ -9,7 +9,13 @@ import { z } from 'zod';
 import { db } from '../db';
 import logger from '../logger';
 import { getUserIdFromRequest, ROLE_HIERARCHY } from './core';
-import { validateApiKey, listTimeClocks, listUsers, syncHoursForTenant } from '../connecteamService';
+import {
+  validateApiKey,
+  listTimeClocks,
+  listUsers,
+  syncHoursForTenant,
+  ConnecteamRateLimitError,
+} from '../connecteamService';
 
 /** Auth guard: session user must be manager+ in the requested tenant. */
 async function requireManagerForTenant(req: Request, res: Response, tenantId: string): Promise<string | null> {
@@ -72,7 +78,9 @@ export function registerConnecteamRoutes(app: Express): void {
       if (!(await requireManagerForTenant(req, res, tenantId))) return;
 
       const [settingsResult, tenantResult, mappingResult] = await Promise.all([
-        db.execute(sql`SELECT time_clock_id FROM connecteam_settings WHERE tenant_id = ${tenantId}::uuid LIMIT 1`),
+        db.execute(
+          sql`SELECT time_clock_id, rate_limited_until FROM connecteam_settings WHERE tenant_id = ${tenantId}::uuid LIMIT 1`
+        ),
         db.execute(
           sql`SELECT connecteam_sync_enabled, connecteam_last_sync_at FROM tenants WHERE id = ${tenantId}::uuid`
         ),
@@ -91,6 +99,10 @@ export function registerConnecteamRoutes(app: Express): void {
         timeClockId: settings?.time_clock_id ?? null,
         syncEnabled: tenant?.connecteam_sync_enabled ?? false,
         lastSyncAt: tenant?.connecteam_last_sync_at ?? null,
+        rateLimitedUntil:
+          settings?.rate_limited_until && new Date(settings.rate_limited_until) > new Date()
+            ? settings.rate_limited_until
+            : null,
         mappingCounts,
       });
     } catch (err) {
@@ -105,8 +117,8 @@ export function registerConnecteamRoutes(app: Express): void {
       const body = connectSchema.parse(req.body);
       if (!(await requireManagerForTenant(req, res, body.tenantId))) return;
 
-      await validateApiKey(body.apiKey); // throws on bad key
-      const timeClocks = await listTimeClocks(body.apiKey);
+      await validateApiKey(body.apiKey, body.tenantId); // throws on bad key
+      const timeClocks = await listTimeClocks(body.apiKey, body.tenantId);
 
       await db.execute(sql`
         INSERT INTO connecteam_settings (tenant_id, api_key, time_clock_id)
@@ -118,6 +130,8 @@ export function registerConnecteamRoutes(app: Express): void {
       res.json({ connected: true, timeClocks });
     } catch (err: any) {
       if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors[0].message });
+      if (err instanceof ConnecteamRateLimitError)
+        return res.status(429).json({ error: err.message, retryAt: err.retryAt.toISOString() });
       if (String(err.message).includes('Connecteam API 401'))
         return res.status(400).json({ error: 'Invalid API key — check it in Connecteam admin > Settings > API' });
       logger.error({ err }, 'Error in connecteam connect');
@@ -177,8 +191,10 @@ export function registerConnecteamRoutes(app: Express): void {
       const settings = settingsResult.rows[0] as any;
       if (!settings?.api_key) return res.status(400).json({ error: 'Connecteam is not connected' });
 
-      res.json({ timeClocks: await listTimeClocks(settings.api_key) });
-    } catch (err) {
+      res.json({ timeClocks: await listTimeClocks(settings.api_key, tenantId) });
+    } catch (err: any) {
+      if (err instanceof ConnecteamRateLimitError)
+        return res.status(429).json({ error: err.message, retryAt: err.retryAt.toISOString() });
       logger.error({ err }, 'Error in connecteam time-clocks');
       res.status(500).json({ error: 'Internal server error' });
     }
@@ -197,7 +213,7 @@ export function registerConnecteamRoutes(app: Express): void {
       if (!settings?.api_key) return res.status(400).json({ error: 'Connecteam is not connected' });
 
       const [users, tipEmployeesResult, mappingsResult] = await Promise.all([
-        listUsers(settings.api_key),
+        listUsers(settings.api_key, tenantId),
         db.execute(
           sql`SELECT id, name, tip_eligible FROM tip_employees WHERE tenant_id = ${tenantId}::uuid AND is_active = true`
         ),
@@ -220,7 +236,9 @@ export function registerConnecteamRoutes(app: Express): void {
       });
 
       res.json({ users: rows, tip_employees: tipEmployees });
-    } catch (err) {
+    } catch (err: any) {
+      if (err instanceof ConnecteamRateLimitError)
+        return res.status(429).json({ error: err.message, retryAt: err.retryAt.toISOString() });
       logger.error({ err }, 'Error in connecteam users');
       res.status(500).json({ error: 'Internal server error' });
     }
@@ -270,6 +288,8 @@ export function registerConnecteamRoutes(app: Express): void {
       res.json(result);
     } catch (err: any) {
       if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors[0].message });
+      if (err instanceof ConnecteamRateLimitError)
+        return res.status(429).json({ error: err.message, retryAt: err.retryAt.toISOString() });
       logger.error({ err }, 'Error in connecteam sync');
       res.status(500).json({ error: err.message || 'Sync failed' });
     }
