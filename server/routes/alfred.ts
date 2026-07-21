@@ -377,6 +377,110 @@ export function registerAlfredRoutes(app: Express): void {
   });
 
   /**
+   * GET /api/alfred/bulk-orders
+   * Bulk Ordering module history (coffee_order_history), newest first.
+   * Query params: tenant_id; vendor (optional, case-insensitive vendor name
+   * filter); start_date / end_date (optional, YYYY-MM-DD, filter on order_date).
+   */
+  app.get('/api/alfred/bulk-orders', async (req: Request, res: Response) => {
+    try {
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
+
+      const vendor = (req.query.vendor as string) || null;
+      const startDate = (req.query.start_date as string) || null;
+      const endDate = (req.query.end_date as string) || null;
+
+      // Real columns per migrations 008 + 132 (vendor_id). items is a JSONB map
+      // of productId -> qty; names/prices resolve via tenant_coffee_products.
+      let query = sql`
+        SELECT coh.id,
+               to_char(coh.order_date, 'YYYY-MM-DD') AS date,
+               v.display_name AS vendor,
+               coh.items AS items_raw,
+               coh.units,
+               coh.total_cost
+        FROM coffee_order_history coh
+        LEFT JOIN tenant_coffee_vendors v ON v.id = coh.vendor_id
+        WHERE coh.tenant_id = ${tenantId}::uuid
+      `;
+
+      if (vendor) {
+        query = sql`${query} AND v.display_name ILIKE ${'%' + vendor + '%'}`;
+      }
+      if (startDate) {
+        query = sql`${query} AND coh.order_date >= ${startDate}::date`;
+      }
+      if (endDate) {
+        query = sql`${query} AND coh.order_date < (${endDate}::date + 1)`;
+      }
+
+      query = sql`${query} ORDER BY coh.order_date DESC LIMIT 200`;
+
+      const result = await db.execute(query);
+      const rows = result.rows as any[];
+
+      // Resolve product names/prices for line detail in one query.
+      // NOTE: default_price is the CURRENT catalog price — line totals are
+      // best-effort; the stored total_usd is authoritative for the order.
+      const productIds = [
+        ...new Set(
+          rows.flatMap((r) => (r.items_raw && typeof r.items_raw === 'object' ? Object.keys(r.items_raw) : []))
+        ),
+      ].filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+
+      const productMap = new Map<string, { name: string; price: number }>();
+      if (productIds.length > 0) {
+        const idList = sql.join(
+          productIds.map((id) => sql`${id}::uuid`),
+          sql`, `
+        );
+        const products = await db.execute(sql`
+          SELECT id, name, size, default_price FROM tenant_coffee_products
+          WHERE tenant_id = ${tenantId}::uuid AND id IN (${idList})
+        `);
+        for (const p of products.rows as any[]) {
+          productMap.set(p.id, {
+            name: p.size ? `${p.name} ${p.size}` : p.name,
+            price: parseFloat(p.default_price) || 0,
+          });
+        }
+      }
+
+      const orders = rows.map((r) => {
+        const items = Object.entries((r.items_raw || {}) as Record<string, unknown>).map(([productId, qty]) => {
+          const product = productMap.get(productId);
+          const quantity = Number(qty) || 0;
+          const unitPrice = product?.price ?? null;
+          return {
+            name: product?.name ?? `Unknown product (${productId})`,
+            qty: quantity,
+            unit_price: unitPrice,
+            line_total: unitPrice != null ? Math.round(quantity * unitPrice * 100) / 100 : null,
+          };
+        });
+        return {
+          id: r.id,
+          vendor: r.vendor ?? null,
+          date: r.date,
+          units: r.units,
+          total_usd: r.total_cost != null ? parseFloat(r.total_cost) : null,
+          items,
+        };
+      });
+
+      res.json({
+        tenant_id: tenantId,
+        count: orders.length,
+        orders,
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error in /api/alfred/bulk-orders');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
    * GET /api/alfred/overhead
    * Get overhead items and settings for a tenant
    * Query params: tenant_id
