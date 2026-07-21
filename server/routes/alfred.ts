@@ -377,6 +377,64 @@ export function registerAlfredRoutes(app: Express): void {
   });
 
   /**
+   * GET /api/alfred/bulk-orders
+   * Bulk Ordering module history (coffee_order_history), newest first.
+   * Query params: tenant_id; vendor (optional, case-insensitive vendor name
+   * filter); start_date / end_date (optional, YYYY-MM-DD, filter on order_date).
+   */
+  app.get('/api/alfred/bulk-orders', async (req: Request, res: Response) => {
+    try {
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
+
+      const vendor = (req.query.vendor as string) || null;
+      const startDate = (req.query.start_date as string) || null;
+      const endDate = (req.query.end_date as string) || null;
+
+      // Real columns per migrations 008 + 104 (retail_labels) + 132 (vendor_id)
+      let query = sql`
+        SELECT coh.id,
+               coh.order_date,
+               v.display_name AS vendor_name,
+               coh.vendor_email,
+               coh.items,
+               coh.retail_labels,
+               coh.units,
+               coh.total_cost,
+               coh.sent_to_vendor,
+               coh.notes,
+               coh.created_at
+        FROM coffee_order_history coh
+        LEFT JOIN tenant_coffee_vendors v ON v.id = coh.vendor_id
+        WHERE coh.tenant_id = ${tenantId}::uuid
+      `;
+
+      if (vendor) {
+        query = sql`${query} AND v.display_name ILIKE ${'%' + vendor + '%'}`;
+      }
+      if (startDate) {
+        query = sql`${query} AND coh.order_date >= ${startDate}::date`;
+      }
+      if (endDate) {
+        query = sql`${query} AND coh.order_date < (${endDate}::date + 1)`;
+      }
+
+      query = sql`${query} ORDER BY coh.order_date DESC LIMIT 200`;
+
+      const result = await db.execute(query);
+
+      res.json({
+        tenant_id: tenantId,
+        count: result.rows.length,
+        orders: result.rows,
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error in /api/alfred/bulk-orders');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
    * GET /api/alfred/overhead
    * Get overhead items and settings for a tenant
    * Query params: tenant_id
