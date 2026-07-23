@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { RefreshCw, Users, Building2, AlertTriangle, Sparkles, Clock, ArrowRight } from 'lucide-react';
 import { StoreCard } from '@/components/dashboard/StoreCard';
 import { MyDashboardCard } from '@/components/dashboard/MyDashboardCard';
+import { OutstandingOrdersCard } from '@/components/dashboard/OutstandingOrdersCard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import { WelcomeDialog } from '@/components/onboarding/WelcomeDialog';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
@@ -222,6 +223,9 @@ function ManagerOwnerDashboard() {
 
         {/* Manager/Owner personal schedule (if calendar module enabled) */}
         {canAccessModule('calendar-workforce') && <MyDashboardCard />}
+
+        {/* Bulk orders sent but not yet received (hidden when none) */}
+        {canAccessModule('bulk-ordering') && <OutstandingOrdersCard />}
 
         {/* Store Cards */}
         <div className="space-y-6">

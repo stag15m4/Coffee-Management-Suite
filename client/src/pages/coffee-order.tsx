@@ -50,6 +50,7 @@ interface OrderHistoryItem {
   notes?: string;
   sent_to_vendor: boolean;
   vendor_id?: string | null;
+  received_at?: string | null;
 }
 
 export default function CoffeeOrder() {
@@ -547,6 +548,20 @@ export default function CoffeeOrder() {
     setRetailLabels({});
     setOrderNotes('');
     toast({ title: 'Order cleared' });
+  };
+
+  const markReceived = async (order: OrderHistoryItem) => {
+    const receivedAt = new Date().toISOString();
+    const { error } = await supabase
+      .from('coffee_order_history')
+      .update({ received_at: receivedAt })
+      .eq('id', order.id);
+    if (error) {
+      toast({ title: 'Failed to mark received', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setOrderHistory((prev) => prev.map((o) => (o.id === order.id ? { ...o, received_at: receivedAt } : o)));
+    toast({ title: 'Order marked received' });
   };
 
   const saveToHistory = async (sentToVendor = false) => {
@@ -1670,15 +1685,45 @@ export default function CoffeeOrder() {
                           </span>
                         )}
                       </div>
+                      {order.sent_to_vendor && !order.received_at && (
+                        <span
+                          className="inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded"
+                          style={{ backgroundColor: '#fef3c7', color: '#92400e' }}
+                          data-testid={`badge-outstanding-${order.id}`}
+                        >
+                          Outstanding
+                        </span>
+                      )}
+                      {order.received_at && (
+                        <span
+                          className="inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded"
+                          style={{ backgroundColor: '#dcfce7', color: '#166534' }}
+                        >
+                          Received{' '}
+                          {new Date(order.received_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
                     </div>
-                    <button
-                      onClick={() => loadOrder(order)}
-                      className="px-4 py-2 rounded-md text-sm font-semibold"
-                      style={{ backgroundColor: colors.gold, color: colors.white }}
-                      data-testid={`button-load-order-${order.id}`}
-                    >
-                      Load
-                    </button>
+                    <div className="flex gap-2">
+                      {order.sent_to_vendor && !order.received_at && (
+                        <button
+                          onClick={() => markReceived(order)}
+                          className="px-3 py-2 rounded-md text-sm font-semibold"
+                          style={{ backgroundColor: '#16a34a', color: colors.white }}
+                          data-testid={`button-mark-received-${order.id}`}
+                        >
+                          Mark received
+                        </button>
+                      )}
+                      <button
+                        onClick={() => loadOrder(order)}
+                        className="px-4 py-2 rounded-md text-sm font-semibold"
+                        style={{ backgroundColor: colors.gold, color: colors.white }}
+                        data-testid={`button-load-order-${order.id}`}
+                      >
+                        Load
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
