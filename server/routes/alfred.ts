@@ -380,7 +380,8 @@ export function registerAlfredRoutes(app: Express): void {
    * GET /api/alfred/bulk-orders
    * Bulk Ordering module history (coffee_order_history), newest first.
    * Query params: tenant_id; vendor (optional, case-insensitive vendor name
-   * filter); start_date / end_date (optional, YYYY-MM-DD, filter on order_date).
+   * filter); start_date / end_date (optional, YYYY-MM-DD, filter on order_date);
+   * status (optional: draft | outstanding | received, per migration 148).
    */
   app.get('/api/alfred/bulk-orders', async (req: Request, res: Response) => {
     try {
@@ -390,20 +391,35 @@ export function registerAlfredRoutes(app: Express): void {
       const vendor = (req.query.vendor as string) || null;
       const startDate = (req.query.start_date as string) || null;
       const endDate = (req.query.end_date as string) || null;
+      const status = (req.query.status as string) || null;
+      if (status && !['draft', 'outstanding', 'received'].includes(status)) {
+        return res.status(400).json({ error: 'status must be draft, outstanding, or received' });
+      }
 
-      // Real columns per migrations 008 + 132 (vendor_id). items is a JSONB map
-      // of productId -> qty; names/prices resolve via tenant_coffee_products.
+      // Real columns per migrations 008 + 132 (vendor_id) + 148 (received_at).
+      // items is a JSONB map of productId -> qty; names/prices resolve via
+      // tenant_coffee_products.
       let query = sql`
         SELECT coh.id,
                to_char(coh.order_date, 'YYYY-MM-DD') AS date,
                v.display_name AS vendor,
                coh.items AS items_raw,
                coh.units,
-               coh.total_cost
+               coh.total_cost,
+               coh.sent_to_vendor,
+               coh.received_at
         FROM coffee_order_history coh
         LEFT JOIN tenant_coffee_vendors v ON v.id = coh.vendor_id
         WHERE coh.tenant_id = ${tenantId}::uuid
       `;
+
+      if (status === 'draft') {
+        query = sql`${query} AND coh.sent_to_vendor = false`;
+      } else if (status === 'outstanding') {
+        query = sql`${query} AND coh.sent_to_vendor = true AND coh.received_at IS NULL`;
+      } else if (status === 'received') {
+        query = sql`${query} AND coh.received_at IS NOT NULL`;
+      }
 
       if (vendor) {
         query = sql`${query} AND v.display_name ILIKE ${'%' + vendor + '%'}`;
@@ -465,6 +481,8 @@ export function registerAlfredRoutes(app: Express): void {
           date: r.date,
           units: r.units,
           total_usd: r.total_cost != null ? parseFloat(r.total_cost) : null,
+          status: r.received_at ? 'received' : r.sent_to_vendor ? 'outstanding' : 'draft',
+          received_at: r.received_at,
           items,
         };
       });
