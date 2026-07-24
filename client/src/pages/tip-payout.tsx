@@ -16,8 +16,6 @@ import {
   TipEmployee,
   ImportedHours,
   UnmatchedEntry,
-  ServerCalculationResult,
-  PayoutApprovalResult,
   isEmployeeTipEligible,
 } from '@/components/tip-payout/types';
 import {
@@ -44,10 +42,9 @@ import { TimeclockImportDialog } from '@/components/tip-payout/TimeclockImportDi
 import { MoveWeekDialog } from '@/components/tip-payout/MoveWeekDialog';
 import { colors } from '@/lib/colors';
 import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
-import { getAuthHeaders } from '@/lib/api-helpers';
 
 export default function TipPayout() {
-  const { tenant, branding, primaryTenant, profile } = useAuth();
+  const { tenant, branding, primaryTenant } = useAuth();
   const { toast } = useToast();
 
   // Location-aware branding
@@ -111,11 +108,6 @@ export default function TipPayout() {
   const [exportingHistory, setExportingHistory] = useState(false);
 
   // Server-side validation
-  const [serverResult, setServerResult] = useState<ServerCalculationResult | null>(null);
-  const [approvalResult, setApprovalResult] = useState<PayoutApprovalResult | null>(null);
-  const [validating, setValidating] = useState(false);
-  const [approving, setApproving] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
 
   // --- Data loading ---
 
@@ -414,94 +406,6 @@ export default function TipPayout() {
       });
     }
   };
-
-  // --- Server-side validation ---
-
-  const handleServerValidate = async () => {
-    if (!tenant?.id) return;
-    setValidating(true);
-    setValidationError(null);
-    setServerResult(null);
-    setApprovalResult(null);
-
-    try {
-      const headers = await getAuthHeaders();
-      const response = await fetch('/api/tip-payouts/calculate', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          tenantId: tenant.id,
-          weekKey,
-          distributionMethod: 'hours',
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        setValidationError(errorData.error || 'Server validation failed');
-        return;
-      }
-
-      const result: ServerCalculationResult = await response.json();
-      setServerResult(result);
-    } catch (error: unknown) {
-      setValidationError(getErrorMessage(error) || 'Network error during validation');
-    } finally {
-      setValidating(false);
-    }
-  };
-
-  const handleApprove = async () => {
-    if (!tenant?.id || !serverResult) return;
-    setApproving(true);
-    setValidationError(null);
-
-    try {
-      const headers = await getAuthHeaders();
-      const response = await fetch('/api/tip-payouts/approve', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          tenantId: tenant.id,
-          weekKey,
-          distributionMethod: serverResult.distributionMethod,
-          cashTips: serverResult.cashTips,
-          ccTips: serverResult.ccTips,
-          totalPool: serverResult.totalPool,
-          totalHours: serverResult.totalHours,
-          hourlyRate: serverResult.hourlyRate,
-          employees: serverResult.employees,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        setValidationError(errorData.error || 'Approval failed');
-        return;
-      }
-
-      const result: PayoutApprovalResult = await response.json();
-      setApprovalResult(result);
-      toast({ title: 'Payout approved and recorded!' });
-    } catch (error: unknown) {
-      setValidationError(getErrorMessage(error) || 'Network error during approval');
-    } finally {
-      setApproving(false);
-    }
-  };
-
-  // Clear server validation when inputs change (use derived scalars for stable deps)
-  const cashEntriesKey = cashEntries.join(',');
-  const ccEntriesKey = ccEntries.join(',');
-  const employeeHoursKey = Object.entries(employeeHours)
-    .sort()
-    .map(([k, v]) => `${k}:${v}`)
-    .join(',');
-  useEffect(() => {
-    setServerResult(null);
-    setApprovalResult(null);
-    setValidationError(null);
-  }, [weekKey, cashEntriesKey, ccEntriesKey, employeeHoursKey]);
 
   // --- Timeclock import ---
 
@@ -896,14 +800,6 @@ export default function TipPayout() {
                   hasData={Object.keys(employeeHours).length > 0}
                   onExportCSV={exportCSV}
                   onExportPDF={exportPDF}
-                  onServerValidate={handleServerValidate}
-                  onApprove={handleApprove}
-                  validating={validating}
-                  approving={approving}
-                  serverResult={serverResult}
-                  approvalResult={approvalResult}
-                  validationError={validationError}
-                  userRole={profile?.role ?? null}
                 />
 
                 <TeamHoursVerify
