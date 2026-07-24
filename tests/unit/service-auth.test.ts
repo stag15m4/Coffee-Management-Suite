@@ -65,6 +65,25 @@ describe('resolveServiceTenant (tenant scoping)', () => {
     const scope = resolveServiceTenant(undefined, [MY_TENANT, MY_OTHER_TENANT]);
     expect(scope).toEqual({ tenantId: null, forbidden: false });
   });
+
+  it('treats "auto" as unrequested and defaults to the sole allowed tenant', () => {
+    // Alfred sends tenant_id=auto expecting the endpoint to resolve it
+    expect(resolveServiceTenant('auto', [MY_TENANT])).toEqual({ tenantId: MY_TENANT, forbidden: false });
+    expect(resolveServiceTenant('AUTO', [MY_TENANT])).toEqual({ tenantId: MY_TENANT, forbidden: false });
+    expect(resolveServiceTenant(' auto ', [MY_TENANT])).toEqual({ tenantId: MY_TENANT, forbidden: false });
+    expect(resolveServiceTenant('default', [MY_TENANT])).toEqual({ tenantId: MY_TENANT, forbidden: false });
+  });
+
+  it('does NOT 403 on "auto" when several tenants are allowed — asks for an explicit id instead', () => {
+    const scope = resolveServiceTenant('auto', [MY_TENANT, MY_OTHER_TENANT]);
+    expect(scope).toEqual({ tenantId: null, forbidden: false });
+  });
+
+  it('still rejects a real tenant_id the token does not own (sentinels do not weaken scoping)', () => {
+    const scope = resolveServiceTenant(SOMEONE_ELSES_TENANT, [MY_TENANT]);
+    expect(scope.forbidden).toBe(true);
+    expect(scope.tenantId).toBeNull();
+  });
 });
 
 // ── End-to-end: getApiAuth with a real request shape ────────────────────────

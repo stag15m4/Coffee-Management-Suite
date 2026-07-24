@@ -30,19 +30,31 @@ export interface TenantScopeResult {
 }
 
 /**
+ * Sentinels a caller may send to mean "resolve the tenant for me" rather than
+ * naming a specific one. Treated identically to omitting tenant_id: the request
+ * defaults to the sole allowed tenant, or (when several are allowed) gets a 400
+ * asking for an explicit id — never a 403.
+ */
+const AUTO_TENANT_SENTINELS = new Set(['auto', 'default', 'me', 'self', 'none', 'null', 'undefined']);
+
+/**
  * Resolves which tenant a service-token request may access.
  * - Empty allowlist → forbidden (fail closed; token grants nothing).
  * - Requested tenant not in allowlist → forbidden.
- * - No tenant requested + exactly one allowed → defaults to it.
+ * - No tenant requested (omitted or an auto-sentinel) + exactly one allowed → defaults to it.
  * - No tenant requested + several allowed → tenantId null (caller returns 400).
  */
 export function resolveServiceTenant(requestedTenantId: unknown, allowedTenantIds: string[]): TenantScopeResult {
   if (allowedTenantIds.length === 0) {
     return { tenantId: null, forbidden: true };
   }
-  if (typeof requestedTenantId === 'string' && requestedTenantId.length > 0) {
-    return allowedTenantIds.includes(requestedTenantId)
-      ? { tenantId: requestedTenantId, forbidden: false }
+  const requested =
+    typeof requestedTenantId === 'string' && !AUTO_TENANT_SENTINELS.has(requestedTenantId.trim().toLowerCase())
+      ? requestedTenantId.trim()
+      : '';
+  if (requested.length > 0) {
+    return allowedTenantIds.includes(requested)
+      ? { tenantId: requested, forbidden: false }
       : { tenantId: null, forbidden: true };
   }
   if (allowedTenantIds.length === 1) {
