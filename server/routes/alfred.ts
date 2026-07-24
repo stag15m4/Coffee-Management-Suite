@@ -29,7 +29,11 @@ async function authorizeTenantRead(req: Request, res: Response): Promise<string 
     return null;
   }
   if (auth.tenantForbidden) {
-    res.status(403).json({ error: 'Not authorized for this tenant' });
+    // 403 is reserved for tenant authorization ONLY — date ranges, archived
+    // data, and pagination can never produce it.
+    res.status(403).json({
+      error: `Token is not authorized for tenant ${req.query.tenant_id ?? '(none)'} — check tenant_id against the token's allowlist`,
+    });
     return null;
   }
   if (!auth.tenantId) {
@@ -37,6 +41,58 @@ async function authorizeTenantRead(req: Request, res: Response): Promise<string 
     return null;
   }
   return auth.tenantId;
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+interface RangeAndPagination {
+  startDate: string | null;
+  endDate: string | null;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * Parses start_date / end_date / limit / offset for date-ranged endpoints.
+ * Malformed input gets a 400 with a clear message (never a 403, and never an
+ * unvalidated cast that would 500). Returns null after responding on invalid
+ * input. Date filters are applied inside the SQL query; limit/offset paginate
+ * WITHIN the requested range, newest first, and the caller reports has_more.
+ */
+function parseRangeAndPagination(
+  req: Request,
+  res: Response,
+  opts: { defaultLimit: number; maxLimit: number }
+): RangeAndPagination | null {
+  const startDate = (req.query.start_date as string) || null;
+  const endDate = (req.query.end_date as string) || null;
+
+  for (const [name, value] of [
+    ['start_date', startDate],
+    ['end_date', endDate],
+  ] as const) {
+    if (value && !DATE_RE.test(value)) {
+      res.status(400).json({ error: `${name} must be YYYY-MM-DD (got "${value}")` });
+      return null;
+    }
+  }
+  if (startDate && endDate && startDate > endDate) {
+    res.status(400).json({ error: `start_date ${startDate} is after end_date ${endDate}` });
+    return null;
+  }
+
+  const rawLimit = req.query.limit === undefined ? opts.defaultLimit : Number(req.query.limit);
+  const rawOffset = req.query.offset === undefined ? 0 : Number(req.query.offset);
+  if (!Number.isInteger(rawLimit) || rawLimit < 1) {
+    res.status(400).json({ error: `limit must be a positive integer (max ${opts.maxLimit})` });
+    return null;
+  }
+  if (!Number.isInteger(rawOffset) || rawOffset < 0) {
+    res.status(400).json({ error: 'offset must be a non-negative integer' });
+    return null;
+  }
+
+  return { startDate, endDate, limit: Math.min(rawLimit, opts.maxLimit), offset: rawOffset };
 }
 
 export function registerAlfredRoutes(app: Express): void {
@@ -158,8 +214,9 @@ export function registerAlfredRoutes(app: Express): void {
       const tenantId = await authorizeTenantRead(req, res);
       if (!tenantId) return;
 
-      const startDate = (req.query.start_date as string) || null;
-      const endDate = (req.query.end_date as string) || null;
+      const page = parseRangeAndPagination(req, res, { defaultLimit: 365, maxLimit: 5000 });
+      if (!page) return;
+      const { startDate, endDate, limit, offset } = page;
 
       let query = sql`
         SELECT id, drawer_date, gross_revenue, starting_drawer, actual_deposit,
@@ -177,14 +234,20 @@ export function registerAlfredRoutes(app: Express): void {
         query = sql`${query} AND drawer_date <= ${endDate}::date`;
       }
 
-      query = sql`${query} ORDER BY drawer_date DESC LIMIT 365`;
+      query = sql`${query} ORDER BY drawer_date DESC LIMIT ${limit + 1} OFFSET ${offset}`;
 
       const result = await db.execute(query);
+      const hasMore = result.rows.length > limit;
+      const entries = hasMore ? result.rows.slice(0, limit) : result.rows;
 
       res.json({
         tenant_id: tenantId,
-        count: result.rows.length,
-        entries: result.rows,
+        count: entries.length,
+        limit,
+        offset,
+        has_more: hasMore,
+        next_offset: hasMore ? offset + limit : null,
+        entries,
       });
     } catch (err) {
       logger.error({ err }, 'Error in /api/alfred/cash-activity');
@@ -231,8 +294,9 @@ export function registerAlfredRoutes(app: Express): void {
       const tenantId = await authorizeTenantRead(req, res);
       if (!tenantId) return;
 
-      const startDate = (req.query.start_date as string) || null;
-      const endDate = (req.query.end_date as string) || null;
+      const page = parseRangeAndPagination(req, res, { defaultLimit: 52, maxLimit: 1000 });
+      if (!page) return;
+      const { startDate, endDate, limit, offset } = page;
 
       // Source of truth in production is tip_weekly_data + tip_employee_hours
       // (migration 007) — the same tables the native tip-payout page and its
@@ -252,7 +316,7 @@ export function registerAlfredRoutes(app: Express): void {
       if (endDate) {
         weeksQuery = sql`${weeksQuery} AND week_key <= ${endDate}::date`;
       }
-      weeksQuery = sql`${weeksQuery} ORDER BY week_key DESC LIMIT 52`;
+      weeksQuery = sql`${weeksQuery} ORDER BY week_key DESC LIMIT ${limit + 1} OFFSET ${offset}`;
 
       let hoursQuery = sql`
         SELECT to_char(teh.week_key, 'YYYY-MM-DD') AS week_key,
@@ -270,6 +334,8 @@ export function registerAlfredRoutes(app: Express): void {
       hoursQuery = sql`${hoursQuery} ORDER BY teh.week_key, te.name`;
 
       const [weeksResult, hoursResult] = await Promise.all([db.execute(weeksQuery), db.execute(hoursQuery)]);
+      const weeksHasMore = weeksResult.rows.length > limit;
+      if (weeksHasMore) weeksResult.rows.length = limit;
 
       // Group employee hours by week
       const hoursByWeek = new Map<string, Array<{ employee_id: string; employee_name: string; hours: number }>>();
@@ -312,6 +378,10 @@ export function registerAlfredRoutes(app: Express): void {
       res.json({
         tenant_id: tenantId,
         count: payouts.length,
+        limit,
+        offset,
+        has_more: weeksHasMore,
+        next_offset: weeksHasMore ? offset + limit : null,
         payouts,
       });
     } catch (err) {
@@ -333,8 +403,9 @@ export function registerAlfredRoutes(app: Express): void {
       const tenantId = await authorizeTenantRead(req, res);
       if (!tenantId) return;
 
-      const startDate = (req.query.start_date as string) || null;
-      const endDate = (req.query.end_date as string) || null;
+      const page = parseRangeAndPagination(req, res, { defaultLimit: 1000, maxLimit: 10000 });
+      if (!page) return;
+      const { startDate, endDate, limit, offset } = page;
 
       let query = sql`
         SELECT to_char(teh.week_key, 'YYYY-MM-DD') AS week_start,
@@ -356,11 +427,13 @@ export function registerAlfredRoutes(app: Express): void {
         query = sql`${query} AND teh.week_key <= ${endDate}::date`;
       }
 
-      query = sql`${query} ORDER BY teh.week_key DESC, te.name LIMIT 1000`;
+      query = sql`${query} ORDER BY teh.week_key DESC, te.name LIMIT ${limit + 1} OFFSET ${offset}`;
 
       const result = await db.execute(query);
+      const hasMore = result.rows.length > limit;
+      const pageRows = hasMore ? result.rows.slice(0, limit) : result.rows;
 
-      const entries = (result.rows as any[]).map((row) => ({
+      const entries = (pageRows as any[]).map((row) => ({
         ...row,
         hours: parseFloat(row.hours) || 0,
       }));
@@ -368,6 +441,10 @@ export function registerAlfredRoutes(app: Express): void {
       res.json({
         tenant_id: tenantId,
         count: entries.length,
+        limit,
+        offset,
+        has_more: hasMore,
+        next_offset: hasMore ? offset + limit : null,
         entries,
       });
     } catch (err) {
@@ -389,8 +466,9 @@ export function registerAlfredRoutes(app: Express): void {
       if (!tenantId) return;
 
       const vendor = (req.query.vendor as string) || null;
-      const startDate = (req.query.start_date as string) || null;
-      const endDate = (req.query.end_date as string) || null;
+      const page = parseRangeAndPagination(req, res, { defaultLimit: 200, maxLimit: 2000 });
+      if (!page) return;
+      const { startDate, endDate, limit, offset } = page;
       const status = (req.query.status as string) || null;
       if (status && !['draft', 'outstanding', 'received'].includes(status)) {
         return res.status(400).json({ error: 'status must be draft, outstanding, or received' });
@@ -431,10 +509,11 @@ export function registerAlfredRoutes(app: Express): void {
         query = sql`${query} AND coh.order_date < (${endDate}::date + 1)`;
       }
 
-      query = sql`${query} ORDER BY coh.order_date DESC LIMIT 200`;
+      query = sql`${query} ORDER BY coh.order_date DESC LIMIT ${limit + 1} OFFSET ${offset}`;
 
       const result = await db.execute(query);
-      const rows = result.rows as any[];
+      const hasMore = result.rows.length > limit;
+      const rows = (hasMore ? result.rows.slice(0, limit) : result.rows) as any[];
 
       // Resolve product names/prices for line detail in one query.
       // NOTE: default_price is the CURRENT catalog price — line totals are
@@ -490,6 +569,10 @@ export function registerAlfredRoutes(app: Express): void {
       res.json({
         tenant_id: tenantId,
         count: orders.length,
+        limit,
+        offset,
+        has_more: hasMore,
+        next_offset: hasMore ? offset + limit : null,
         orders,
       });
     } catch (err) {
