@@ -3,6 +3,7 @@ import { LogIn, LogOut, Coffee, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTrialStatus } from '@/hooks/use-trial-status';
 import { EmployeeWelcomeCard } from '@/components/onboarding/EmployeeWelcomeCard';
+import { OutstandingOrdersCard } from '@/components/dashboard/OutstandingOrdersCard';
 import {
   useActiveClockEntry,
   useClockIn,
@@ -330,6 +331,9 @@ export default function EmployeeDashboard() {
             </div>
           )}
         </Section>
+
+        {/* Outstanding bulk orders — visible to leads+ with order access */}
+        {canAccessModule('bulk-ordering') && <OutstandingOrdersCard />}
 
         {/* My Tasks */}
         {showTasks && (tasks.data?.length ?? 0) > 0 && (
