@@ -63,6 +63,7 @@ function ManagerOwnerDashboard() {
         queryClient.invalidateQueries({ queryKey: ['time-off-mine'] }),
         queryClient.invalidateQueries({ queryKey: ['time-clock'] }),
         queryClient.invalidateQueries({ queryKey: ['time-clock-active'] }),
+        queryClient.invalidateQueries({ queryKey: ['outstanding-orders'] }),
       ]);
       toast({ title: 'Dashboard refreshed' });
     } catch {
