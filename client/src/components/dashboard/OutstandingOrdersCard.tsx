@@ -16,9 +16,15 @@ interface OutstandingOrder {
 
 const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
 
+// Only surface recently-placed orders. Orders older than this are presumed
+// delivered (bulk coffee/dairy arrives within days) and drop off the cue
+// automatically, so a forgotten "Mark received" never leaves stale rows here.
+// Tune this if a vendor routinely takes longer to deliver.
+const OUTSTANDING_WINDOW_DAYS = 14;
+
 /**
  * Dashboard frame listing bulk orders that were sent to a vendor but not yet
- * marked received. Renders nothing when there are no outstanding orders.
+ * marked received, within the recency window. Renders nothing when empty.
  */
 export function OutstandingOrdersCard() {
   const { tenant } = useAuth();
@@ -27,14 +33,16 @@ export function OutstandingOrdersCard() {
     queryKey: ['outstanding-orders', tenant?.id],
     enabled: !!tenant?.id,
     queryFn: async (): Promise<OutstandingOrder[]> => {
+      const cutoff = new Date(Date.now() - OUTSTANDING_WINDOW_DAYS * 24 * 3600 * 1000).toISOString();
       const { data, error } = await supabase
         .from('coffee_order_history')
         .select('id, order_date, units, total_cost, tenant_coffee_vendors(display_name)')
         .eq('tenant_id', tenant!.id)
         .eq('sent_to_vendor', true)
         .is('received_at', null)
+        .gte('order_date', cutoff)
         .order('order_date', { ascending: false })
-        .limit(5);
+        .limit(10);
       if (error) throw error;
       return (data as unknown as OutstandingOrder[]) || [];
     },

@@ -1,5 +1,6 @@
 import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
 import { useAppResume } from '@/hooks/use-app-resume';
@@ -55,6 +56,7 @@ interface OrderHistoryItem {
 
 export default function CoffeeOrder() {
   const { tenant, branding, primaryTenant } = useAuth();
+  const queryClient = useQueryClient();
 
   // Location-aware branding
   const isChildLocation = !!tenant?.parent_tenant_id;
@@ -561,6 +563,8 @@ export default function CoffeeOrder() {
       return;
     }
     setOrderHistory((prev) => prev.map((o) => (o.id === order.id ? { ...o, received_at: receivedAt } : o)));
+    // Refresh the dashboard's Outstanding Orders cue so it clears immediately
+    queryClient.invalidateQueries({ queryKey: ['outstanding-orders', tenant?.id] });
     toast({ title: 'Order marked received' });
   };
 
