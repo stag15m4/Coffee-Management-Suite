@@ -11,11 +11,22 @@
  * token grants nothing unless ALFRED_ALLOWED_TENANT_IDS is also configured.
  */
 import type { Express, Request, Response } from 'express';
+import crypto from 'crypto';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getApiAuth } from '../service-auth';
 import { parseAllowedTenantIds } from '../service-auth-core';
 import logger from '../logger';
+
+// Overhead line-item frequencies allowed by the DB CHECK (migrations 054/055).
+const OVERHEAD_FREQUENCIES = ['daily', 'weekly', 'bi-weekly', 'monthly', 'quarterly', 'annual'] as const;
+const CONFIRMATION_TTL_MS = 5 * 60 * 1000;
+
+const usd = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+const monthLabel = (ym: string) => {
+  const [y, m] = ym.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+};
 
 /**
  * Shared guard for tenant-scoped read endpoints.
@@ -621,6 +632,207 @@ export function registerAlfredRoutes(app: Express): void {
       });
     } catch (err) {
       logger.error({ err }, 'Error in /api/alfred/overhead');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * POST /api/alfred/overhead  — write path for operating expenses / overhead.
+   *
+   * Two-step, one endpoint, dispatched on body shape (same X-Alfred-Token auth):
+   *  - PROPOSE: body has { category, amount, ... } and NO confirmationToken.
+   *    Writes nothing. Returns a human-readable `summary` and a single-use
+   *    `confirmationToken` (5-min expiry).
+   *  - CONFIRM: body has { confirmationToken }. Redeems the token and writes.
+   *
+   * SET semantics on overhead_items {name, amount, frequency} — NOT a monthly
+   * ledger. CMS stores ONE current value per line item; there is no per-month
+   * history, so `effective_month` (optional) is used only in the summary text.
+   * The target item is resolved by `id` (from GET /overhead) if given, else by
+   * case-insensitive `category` name; a name matching several items is a 400.
+   */
+  app.post('/api/alfred/overhead', async (req: Request, res: Response) => {
+    try {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+
+      // ── CONFIRM ────────────────────────────────────────────────────────────
+      if (typeof body.confirmationToken === 'string' && body.confirmationToken.length > 0) {
+        const token = body.confirmationToken;
+        const found = await db.execute(
+          sql`SELECT tenant_id, payload, summary, used_at, expires_at
+              FROM alfred_confirmation_tokens WHERE token = ${token} LIMIT 1`
+        );
+        const rec = found.rows[0] as any;
+        if (!rec) return res.status(404).json({ error: 'Unknown confirmation token' });
+
+        // The presenting service token must still be authorized for this tenant.
+        (req.query as any).tenant_id = rec.tenant_id;
+        const tenantId = await authorizeTenantRead(req, res);
+        if (!tenantId) return;
+
+        if (rec.used_at) return res.status(409).json({ error: 'This confirmation token has already been used' });
+        if (new Date(rec.expires_at).getTime() <= Date.now()) {
+          return res.status(410).json({ error: 'Confirmation token expired — re-propose to get a fresh one' });
+        }
+
+        const p = rec.payload as {
+          operation: 'insert' | 'update';
+          item_id: string | null;
+          name: string;
+          amount: number;
+          frequency: string;
+        };
+
+        type ApplyResult =
+          | { status: 'ok'; item: Record<string, any> }
+          | { status: 'race' }
+          | { status: 'missing' };
+
+        const applied: ApplyResult = await db.transaction(async (tx) => {
+          // Atomically claim the token so a double-confirm can't write twice.
+          const claim = await tx.execute(
+            sql`UPDATE alfred_confirmation_tokens SET used_at = NOW()
+                WHERE token = ${token} AND used_at IS NULL AND expires_at > NOW()
+                RETURNING token`
+          );
+          if (claim.rows.length === 0) return { status: 'race' };
+
+          if (p.operation === 'update') {
+            const upd = await tx.execute(
+              sql`UPDATE overhead_items
+                  SET amount = ${p.amount}, frequency = ${p.frequency}, updated_at = NOW()
+                  WHERE id = ${p.item_id}::uuid AND tenant_id = ${tenantId}::uuid
+                  RETURNING id, name, amount, frequency`
+            );
+            if (upd.rows.length === 0) return { status: 'missing' };
+            return { status: 'ok', item: upd.rows[0] as Record<string, any> };
+          }
+          const ins = await tx.execute(
+            sql`INSERT INTO overhead_items (tenant_id, name, amount, frequency)
+                VALUES (${tenantId}::uuid, ${p.name}, ${p.amount}, ${p.frequency})
+                RETURNING id, name, amount, frequency`
+          );
+          return { status: 'ok', item: ins.rows[0] as Record<string, any> };
+        });
+
+        if (applied.status === 'race') {
+          return res.status(409).json({ error: 'This confirmation token has already been used' });
+        }
+        if (applied.status === 'missing') {
+          return res
+            .status(409)
+            .json({ error: 'The target overhead item no longer exists — re-propose to apply this change' });
+        }
+        return res.json({
+          applied: true,
+          operation: p.operation,
+          summary: rec.summary,
+          item: { ...applied.item, amount: parseFloat(applied.item.amount) },
+        });
+      }
+
+      // ── PROPOSE ────────────────────────────────────────────────────────────
+      // Opportunistic cleanup so the token table doesn't grow unbounded.
+      await db.execute(sql`DELETE FROM alfred_confirmation_tokens WHERE expires_at < NOW() - INTERVAL '1 day'`);
+
+      (req.query as any).tenant_id = body.tenant_id ?? (req.query as any).tenant_id;
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
+
+      const category = typeof body.category === 'string' ? body.category.trim() : '';
+      if (!category) return res.status(400).json({ error: 'category is required (the overhead line-item name)' });
+      if (category.length > 100) return res.status(400).json({ error: 'category must be 100 characters or fewer' });
+
+      const amountRaw = typeof body.amount === 'number' ? body.amount : Number(body.amount);
+      if (!Number.isFinite(amountRaw) || amountRaw < 0) {
+        return res.status(400).json({ error: 'amount must be a number >= 0' });
+      }
+      const amount = Math.round(amountRaw * 100) / 100;
+
+      if (body.frequency !== undefined && !OVERHEAD_FREQUENCIES.includes(body.frequency as any)) {
+        return res.status(400).json({ error: `frequency must be one of: ${OVERHEAD_FREQUENCIES.join(', ')}` });
+      }
+      const effectiveMonth = typeof body.effective_month === 'string' ? body.effective_month : null;
+      if (effectiveMonth && !/^\d{4}-\d{2}$/.test(effectiveMonth)) {
+        return res.status(400).json({ error: 'effective_month must be YYYY-MM' });
+      }
+
+      // Resolve the target overhead item.
+      let operation: 'insert' | 'update';
+      let itemId: string | null = null;
+      let previousAmount: number | null = null;
+      let frequency: string;
+
+      if (typeof body.id === 'string' && body.id.length > 0) {
+        const byId = await db.execute(
+          sql`SELECT id, name, amount, frequency FROM overhead_items
+              WHERE id = ${body.id}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`
+        );
+        const row = byId.rows[0] as any;
+        if (!row) return res.status(400).json({ error: `No overhead item with id ${body.id} for this tenant` });
+        operation = 'update';
+        itemId = row.id;
+        previousAmount = parseFloat(row.amount);
+        frequency = (body.frequency as string) ?? row.frequency;
+      } else {
+        const byName = await db.execute(
+          sql`SELECT id, amount, frequency FROM overhead_items
+              WHERE tenant_id = ${tenantId}::uuid AND lower(btrim(name)) = lower(${category}) ORDER BY created_at`
+        );
+        if (byName.rows.length > 1) {
+          return res.status(400).json({
+            error: `"${category}" matches ${byName.rows.length} overhead items — pass an explicit "id" to disambiguate`,
+            candidates: (byName.rows as any[]).map((r) => ({
+              id: r.id,
+              amount: parseFloat(r.amount),
+              frequency: r.frequency,
+            })),
+          });
+        }
+        if (byName.rows.length === 1) {
+          const row = byName.rows[0] as any;
+          operation = 'update';
+          itemId = row.id;
+          previousAmount = parseFloat(row.amount);
+          frequency = (body.frequency as string) ?? row.frequency;
+        } else {
+          operation = 'insert';
+          frequency = (body.frequency as string) ?? 'monthly';
+        }
+      }
+
+      const monthSuffix = effectiveMonth ? ` for ${monthLabel(effectiveMonth)}` : '';
+      const summary =
+        operation === 'update'
+          ? `Set ${category} to ${usd(amount)} (${frequency})${monthSuffix} — was ${usd(previousAmount ?? 0)}.`
+          : `Add ${category} at ${usd(amount)} (${frequency})${monthSuffix}.`;
+
+      const token = crypto.randomBytes(24).toString('hex');
+      const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString();
+      const payload = { operation, item_id: itemId, name: category, amount, frequency };
+
+      await db.execute(
+        sql`INSERT INTO alfred_confirmation_tokens (token, tenant_id, action, payload, summary, expires_at)
+            VALUES (${token}, ${tenantId}::uuid, 'overhead.set', ${JSON.stringify(payload)}::jsonb, ${summary}, ${expiresAt}::timestamptz)`
+      );
+
+      return res.json({
+        proposed: true,
+        summary,
+        confirmationToken: token,
+        expires_at: expiresAt,
+        change: {
+          operation,
+          category,
+          item_id: itemId,
+          amount,
+          previous_amount: previousAmount,
+          frequency,
+          effective_month: effectiveMonth,
+        },
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error in POST /api/alfred/overhead');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
