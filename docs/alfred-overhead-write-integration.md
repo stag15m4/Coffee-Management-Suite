@@ -62,14 +62,14 @@ Send the expense fields and **no** `confirmationToken`:
 
 Field notes:
 
-| Field | Required | Notes |
-|-------|----------|-------|
-| `tenant_id` | yes | Accepts `"auto"` for a single-tenant token, or an explicit tenant UUID in the token's allowlist. |
-| `category` | yes | The overhead line-item name (e.g. `Rent`, `Insurance`). Trimmed; ≤ 100 chars. |
-| `amount` | yes | Number ≥ 0. Rounded to cents. The recurring amount **in terms of `frequency`**. |
-| `frequency` | no | One of `daily, weekly, bi-weekly, monthly, quarterly, annual`. On **update**, omit to keep the item's existing frequency. On **insert**, defaults to `monthly`. |
-| `effective_month` | no | `YYYY-MM`. **Summary text only** — does not affect storage. |
-| `id` | no | Target a specific item (from `GET /api/alfred/overhead`). Use this to disambiguate when a category name matches several items. |
+| Field             | Required | Notes                                                                                                                                                           |
+| ----------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tenant_id`       | yes      | Accepts `"auto"` for a single-tenant token, or an explicit tenant UUID in the token's allowlist.                                                                |
+| `category`        | yes      | The overhead line-item name (e.g. `Rent`, `Insurance`). Trimmed; ≤ 100 chars.                                                                                   |
+| `amount`          | yes      | Number ≥ 0. Rounded to cents. The recurring amount **in terms of `frequency`**.                                                                                 |
+| `frequency`       | no       | One of `daily, weekly, bi-weekly, monthly, quarterly, annual`. On **update**, omit to keep the item's existing frequency. On **insert**, defaults to `monthly`. |
+| `effective_month` | no       | `YYYY-MM`. **Summary text only** — does not affect storage.                                                                                                     |
+| `id`              | no       | Target a specific item (from `GET /api/alfred/overhead`). Use this to disambiguate when a category name matches several items.                                  |
 
 Target resolution:
 
@@ -128,20 +128,20 @@ server-side (survive redeploys; safe across instances).
 
 ## Error table
 
-| HTTP | When | Example body |
-|------|------|--------------|
-| `400` | `amount` not a number ≥ 0 | `{"error":"amount must be a number >= 0"}` |
-| `400` | bad `frequency` | `{"error":"frequency must be one of: daily, weekly, bi-weekly, monthly, quarterly, annual"}` |
-| `400` | empty `category` | `{"error":"category is required (the overhead line-item name)"}` |
-| `400` | bad `effective_month` | `{"error":"effective_month must be YYYY-MM"}` |
-| `400` | unknown `id` for this tenant | `{"error":"No overhead item with id … for this tenant"}` |
-| `400` | category matches several items | `{"error":"\"Insurance\" matches 2 overhead items — pass an explicit \"id\" to disambiguate","candidates":[{"id":"…","amount":150,"frequency":"monthly"},{"id":"…","amount":99,"frequency":"monthly"}]}` |
-| `401` | missing/wrong `X-Alfred-Token` | `{"error":"Authentication required"}` |
-| `403` | `tenant_id` not in the token's allowlist | `{"error":"Token is not authorized for tenant … — check tenant_id against the token's allowlist"}` |
-| `404` | confirm: unknown token | `{"error":"Unknown confirmation token"}` |
-| `409` | confirm: token already used | `{"error":"This confirmation token has already been used"}` |
-| `409` | confirm: target item deleted since propose | `{"error":"The target overhead item no longer exists — re-propose to apply this change"}` |
-| `410` | confirm: token expired (> 5 min) | `{"error":"Confirmation token expired — re-propose to get a fresh one"}` |
+| HTTP  | When                                       | Example body                                                                                                                                                                                             |
+| ----- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `400` | `amount` not a number ≥ 0                  | `{"error":"amount must be a number >= 0"}`                                                                                                                                                               |
+| `400` | bad `frequency`                            | `{"error":"frequency must be one of: daily, weekly, bi-weekly, monthly, quarterly, annual"}`                                                                                                             |
+| `400` | empty `category`                           | `{"error":"category is required (the overhead line-item name)"}`                                                                                                                                         |
+| `400` | bad `effective_month`                      | `{"error":"effective_month must be YYYY-MM"}`                                                                                                                                                            |
+| `400` | unknown `id` for this tenant               | `{"error":"No overhead item with id … for this tenant"}`                                                                                                                                                 |
+| `400` | category matches several items             | `{"error":"\"Insurance\" matches 2 overhead items — pass an explicit \"id\" to disambiguate","candidates":[{"id":"…","amount":150,"frequency":"monthly"},{"id":"…","amount":99,"frequency":"monthly"}]}` |
+| `401` | missing/wrong `X-Alfred-Token`             | `{"error":"Authentication required"}`                                                                                                                                                                    |
+| `403` | `tenant_id` not in the token's allowlist   | `{"error":"Token is not authorized for tenant … — check tenant_id against the token's allowlist"}`                                                                                                       |
+| `404` | confirm: unknown token                     | `{"error":"Unknown confirmation token"}`                                                                                                                                                                 |
+| `409` | confirm: token already used                | `{"error":"This confirmation token has already been used"}`                                                                                                                                              |
+| `409` | confirm: target item deleted since propose | `{"error":"The target overhead item no longer exists — re-propose to apply this change"}`                                                                                                                |
+| `410` | confirm: token expired (> 5 min)           | `{"error":"Confirmation token expired — re-propose to get a fresh one"}`                                                                                                                                 |
 
 ---
 
@@ -169,7 +169,9 @@ detect "I already recorded this month" from CMS. Rely on the propose `summary`
 {
   "tenant_id": "…",
   "settings": { "operating_days_per_week": 7, "hours_open_per_day": 8, "owner_tips_enabled": true },
-  "items": [ { "id": "…", "name": "Rent", "amount": "2200.00", "frequency": "monthly", "created_at": "…", "updated_at": "…" } ],
+  "items": [
+    { "id": "…", "name": "Rent", "amount": "2200.00", "frequency": "monthly", "created_at": "…", "updated_at": "…" }
+  ],
   "item_count": 1
 }
 ```
