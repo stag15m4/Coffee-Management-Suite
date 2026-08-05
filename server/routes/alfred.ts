@@ -25,7 +25,11 @@ const CONFIRMATION_TTL_MS = 5 * 60 * 1000;
 const usd = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 const monthLabel = (ym: string) => {
   const [y, m] = ym.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 };
 
 /**
@@ -683,10 +687,7 @@ export function registerAlfredRoutes(app: Express): void {
           frequency: string;
         };
 
-        type ApplyResult =
-          | { status: 'ok'; item: Record<string, any> }
-          | { status: 'race' }
-          | { status: 'missing' };
+        type ApplyResult = { status: 'ok'; item: Record<string, any> } | { status: 'race' } | { status: 'missing' };
 
         const applied: ApplyResult = await db.transaction(async (tx) => {
           // Atomically claim the token so a double-confirm can't write twice.
