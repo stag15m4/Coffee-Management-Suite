@@ -254,6 +254,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     return next();
   }
 
+  // Service-token (Alfred) requests authenticate via a secret custom header,
+  // not cookies, so they are not CSRF-vulnerable: a cross-site browser request
+  // cannot set a custom header without a CORS preflight, nor know the token.
+  // The endpoint still verifies the token itself (getApiAuth).
+  if (req.headers['x-alfred-token'] !== undefined) {
+    return next();
+  }
+
   const origin = req.headers['origin'] as string | undefined;
   const referer = req.headers['referer'] as string | undefined;
   const requestOrigin = origin || (referer ? extractOriginFromReferer(referer) : null);
