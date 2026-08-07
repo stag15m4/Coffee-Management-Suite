@@ -29,7 +29,10 @@ import { registerAllRouteModules } from './routes/index';
 // Coffee Order Email Schema
 const sendOrderEmailSchema = z.object({
   vendorEmail: z.string().email(),
-  ccEmail: z.string().email().optional().or(z.literal('')),
+  // New: multiple CC addresses. `ccEmail` kept for backward compatibility with
+  // older clients (a single address, possibly comma-separated).
+  ccEmails: z.array(z.string()).optional(),
+  ccEmail: z.string().optional(),
   vendorName: z.string(),
   orderItems: z.array(
     z.object({
@@ -151,9 +154,32 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       const data = sendOrderEmailSchema.parse(req.body);
+
+      // Normalize the CC list: accept the new array or the legacy single field,
+      // allow comma/semicolon-separated entries, trim, dedupe (case-insensitive),
+      // drop the primary recipient, and validate each address.
+      const rawCc = (data.ccEmails ?? (data.ccEmail ? [data.ccEmail] : []))
+        .flatMap((s) => s.split(/[;,]/))
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const seen = new Set<string>([data.vendorEmail.toLowerCase()]);
+      const ccEmails: string[] = [];
+      for (const addr of rawCc) {
+        const lower = addr.toLowerCase();
+        if (seen.has(lower)) continue;
+        if (!z.string().email().safeParse(addr).success) {
+          return res.status(400).json({ success: false, error: `Invalid CC email address: ${addr}` });
+        }
+        seen.add(lower);
+        ccEmails.push(addr);
+      }
+      if (ccEmails.length > 20) {
+        return res.status(400).json({ success: false, error: 'Too many CC addresses (max 20)' });
+      }
+
       const result = await sendOrderEmail({
         vendorEmail: data.vendorEmail,
-        ccEmail: data.ccEmail || undefined,
+        ccEmails,
         vendorName: data.vendorName,
         orderItems: data.orderItems,
         totalUnits: data.totalUnits,

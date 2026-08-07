@@ -635,7 +635,10 @@ export default function CoffeeOrder() {
         headers: await getAuthHeaders(),
         body: JSON.stringify({
           vendorEmail: selectedVendor.contact_email,
-          ccEmail: selectedVendor.cc_email || '',
+          ccEmails: (selectedVendor.cc_email || '')
+            .split(/[;,]/)
+            .map((s) => s.trim())
+            .filter(Boolean),
           vendorName: selectedVendor.display_name,
           orderItems: orderItemsForEmail,
           totalUnits,
@@ -1292,15 +1295,18 @@ export default function CoffeeOrder() {
                         </div>
                         <div>
                           <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>
-                            CC Email (optional)
+                            CC Emails (optional)
                           </label>
                           <Input
-                            type="email"
-                            placeholder="your@email.com"
+                            type="text"
+                            placeholder="email1@example.com, email2@example.com"
                             value={vendorForm.cc_email}
                             onChange={(e) => setVendorForm((prev) => ({ ...prev, cc_email: e.target.value }))}
                             style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                           />
+                          <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                            Separate multiple addresses with commas.
+                          </p>
                         </div>
                         <div className="flex items-center gap-3 pt-5">
                           <label className="flex items-center gap-2 cursor-pointer">
@@ -1407,15 +1413,18 @@ export default function CoffeeOrder() {
                   </div>
                   <div>
                     <label className="block text-xs mb-1 font-medium" style={{ color: colors.brownLight }}>
-                      CC Email (optional)
+                      CC Emails (optional)
                     </label>
                     <Input
-                      type="email"
-                      placeholder="your@email.com"
+                      type="text"
+                      placeholder="email1@example.com, email2@example.com"
                       value={newVendorForm.cc_email}
                       onChange={(e) => setNewVendorForm((prev) => ({ ...prev, cc_email: e.target.value }))}
                       style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
                     />
+                    <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                      Separate multiple addresses with commas.
+                    </p>
                   </div>
                   <div className="flex items-center gap-3 pt-5">
                     <label className="flex items-center gap-2 cursor-pointer">
