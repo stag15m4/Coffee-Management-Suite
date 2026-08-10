@@ -17,7 +17,7 @@ export async function getUncachableResendClient() {
 
 export interface OrderEmailData {
   vendorEmail: string;
-  ccEmail?: string;
+  ccEmails?: string[];
   vendorName: string;
   orderItems: {
     name: string;
@@ -101,8 +101,8 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
       html,
     };
 
-    if (data.ccEmail) {
-      emailOptions.cc = data.ccEmail;
+    if (data.ccEmails && data.ccEmails.length > 0) {
+      emailOptions.cc = data.ccEmails;
     }
 
     const result = await client.emails.send(emailOptions);
