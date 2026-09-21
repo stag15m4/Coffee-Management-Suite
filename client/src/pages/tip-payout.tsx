@@ -114,28 +114,15 @@ export default function TipPayout() {
   const loadEmployees = useCallback(async () => {
     if (!tenant?.id) return;
     try {
-      const { data, error } = await supabase
-        .from('tip_employees')
-        .select('*')
-        .eq('tenant_id', tenant.id)
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      setEmployees(data || []);
-    } catch (error: unknown) {
-      console.error('Error loading employees:', error);
-      toast({ title: 'Error loading employees', description: getErrorMessage(error), variant: 'destructive' });
-    }
-  }, [tenant?.id, toast]);
-
-  const loadAllEmployees = useCallback(async () => {
-    if (!tenant?.id) return;
-    try {
+      // One request supplies both the active payout list and the management list.
+      // Previously this page queried tip_employees twice on every load/resume/location change.
       const { data, error } = await supabase.from('tip_employees').select('*').eq('tenant_id', tenant.id).order('name');
       if (error) throw error;
-      setAllEmployees(data || []);
+      const all = data || [];
+      setAllEmployees(all);
+      setEmployees(all.filter((employee) => employee.is_active));
     } catch (error: unknown) {
-      console.error('Error loading all employees:', error);
+      console.error('Error loading employees:', error);
       toast({ title: 'Error loading employees', description: getErrorMessage(error), variant: 'destructive' });
     }
   }, [tenant?.id, toast]);
@@ -191,9 +178,8 @@ export default function TipPayout() {
   useEffect(() => {
     if (tenant?.id) {
       loadEmployees();
-      loadAllEmployees();
     }
-  }, [tenant?.id, loadEmployees, loadAllEmployees]);
+  }, [tenant?.id, loadEmployees]);
 
   useEffect(() => {
     loadWeekData();
@@ -202,16 +188,14 @@ export default function TipPayout() {
   useAppResume(() => {
     if (tenant?.id) {
       loadEmployees();
-      loadAllEmployees();
       loadWeekData(true);
     }
-  }, [tenant?.id, loadEmployees, loadAllEmployees, loadWeekData]);
+  }, [tenant?.id, loadEmployees, loadWeekData]);
 
   useLocationChange(() => {
     loadEmployees();
-    loadAllEmployees();
     loadWeekData();
-  }, [loadEmployees, loadAllEmployees, loadWeekData]);
+  }, [loadEmployees, loadWeekData]);
 
   // --- Mutations ---
 
