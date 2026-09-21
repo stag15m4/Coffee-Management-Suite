@@ -44,7 +44,7 @@ export const queryClient = new QueryClient({
       // Avoid a second global refresh cascade merely from switching back to the iPad app.
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
-      staleTime: 5 * 60 * 1000, // 5 minutes; mutations still invalidate affected queries
+      staleTime: 30 * 1000, // Keep existing freshness semantics; only remove duplicate focus refetches
       retry: false,
     },
     mutations: {
