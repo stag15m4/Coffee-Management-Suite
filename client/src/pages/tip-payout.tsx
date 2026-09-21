@@ -243,7 +243,6 @@ export default function TipPayout() {
           : 'Employee will no longer appear in weekly hours entry. Historical data is preserved.',
       });
       loadEmployees();
-      loadAllEmployees();
     } catch (error: unknown) {
       toast({ title: 'Error updating employee', description: getErrorMessage(error), variant: 'destructive' });
     }
@@ -262,7 +261,6 @@ export default function TipPayout() {
         title: newEligibleStatus ? 'Employee is now tip-eligible' : 'Employee removed from tip pool',
       });
       loadEmployees();
-      loadAllEmployees();
     } catch (error: unknown) {
       toast({ title: 'Error updating eligibility', description: getErrorMessage(error), variant: 'destructive' });
     }
@@ -699,7 +697,7 @@ export default function TipPayout() {
         dialogOpen={manageDialogOpen}
         onDialogOpenChange={(open) => {
           setManageDialogOpen(open);
-          if (open) loadAllEmployees();
+          if (open) loadEmployees();
         }}
       />
 
