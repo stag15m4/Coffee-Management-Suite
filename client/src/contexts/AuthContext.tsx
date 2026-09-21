@@ -566,6 +566,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
+        // A valid Supabase session does not need to be refreshed every time the
+        // iPad returns from another app. That refresh emits TOKEN_REFRESHED, which
+        // forces a full profile/tenant/modules reload. Only refresh the session
+        // when its access token is actually expired or within 60 seconds of expiry.
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
+        const expiresAt = currentSession?.expires_at ? currentSession.expires_at * 1000 : 0;
+        const needsSessionRefresh = !currentSession || expiresAt < Date.now() + 60000;
+
+        if (!needsSessionRefresh) {
+          // Page-level operational data is refreshed separately after a long
+          // background period below; keep short app switches instant.
+          if (timeSinceHidden > 300000 && isMounted) {
+            window.dispatchEvent(new CustomEvent('app-resumed'));
+          }
+          return;
+        }
+
         resumeInProgress = true;
 
         try {
