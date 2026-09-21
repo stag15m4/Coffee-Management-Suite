@@ -40,9 +40,11 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: 'throw' }),
       refetchInterval: false,
-      refetchOnWindowFocus: true,
+      // App resume/location hooks explicitly refresh operational data where needed.
+      // Avoid a second global refresh cascade merely from switching back to the iPad app.
+      refetchOnWindowFocus: false,
       refetchOnReconnect: true,
-      staleTime: 30 * 1000, // 30 seconds
+      staleTime: 30 * 1000, // Keep existing freshness semantics; only remove duplicate focus refetches
       retry: false,
     },
     mutations: {
