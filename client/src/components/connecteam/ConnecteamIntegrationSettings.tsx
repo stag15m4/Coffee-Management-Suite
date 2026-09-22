@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { colors } from '@/lib/colors';
-import { Clock, RefreshCw, Unplug } from 'lucide-react';
+import { Clock, History, RefreshCw, Unplug } from 'lucide-react';
 
 interface Status {
   connected: boolean;
@@ -18,6 +18,17 @@ interface Status {
   lastSyncAt: string | null;
   rateLimitedUntil: string | null;
   mappingCounts: Record<string, number>;
+}
+
+interface SyncResult {
+  entriesUpserted: number;
+  weeksTouched: string[];
+  unmatchedUsers: Array<{ connecteam_user_id: string; hours: number }>;
+  mappedUsers: number;
+  activitiesReturned: number;
+  confirmedMappings: number;
+  dateRange: { start: string; end: string };
+  partialWeeksSkipped: string[];
 }
 
 interface MappingRow {
@@ -64,6 +75,14 @@ export default function ConnecteamIntegrationSettings() {
   const [savingMappings, setSavingMappings] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncSummary, setLastSyncSummary] = useState<string | null>(null);
+
+  // Historical backfill — repairs weeks older than the automatic sync's
+  // rolling lookback by re-pulling Connecteam for an explicit date range.
+  const [backfillOpen, setBackfillOpen] = useState(false);
+  const [backfillStart, setBackfillStart] = useState('');
+  const [backfillEnd, setBackfillEnd] = useState('');
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillSummary, setBackfillSummary] = useState<string | null>(null);
 
   const loadStatus = useCallback(async () => {
     if (!tenantId) return;
@@ -186,32 +205,71 @@ export default function ConnecteamIntegrationSettings() {
     }
   };
 
+  // Self-diagnosing summary: an empty sync says WHY it was empty. Shared by
+  // the rolling "Sync Now" and the explicit-range backfill below, since both
+  // hit the same endpoint and return the same SyncResult shape.
+  const summarizeSync = (r: SyncResult): string => {
+    if (r.confirmedMappings === 0) {
+      return 'Nothing synced: no employees are mapped yet. Click "Map Employees", match each Connecteam user to a CMS employee, and Save — then sync again.';
+    }
+    if (r.activitiesReturned === 0) {
+      return `Nothing synced: Connecteam returned no time activities between ${r.dateRange?.start} and ${r.dateRange?.end} for the selected time clock. If your staff clock into a different time clock, change it above and sync again.`;
+    }
+    const unmatched = r.unmatchedUsers?.length
+      ? ` — ${r.unmatchedUsers.length} Connecteam user(s) with hours are unmapped`
+      : '';
+    const skipped = r.partialWeeksSkipped?.length
+      ? ` (${r.partialWeeksSkipped.length} week(s) at the edge of the range were left unchanged — Connecteam returned only part of that week)`
+      : '';
+    return `Synced ${r.entriesUpserted} entr${r.entriesUpserted === 1 ? 'y' : 'ies'} across ${r.weeksTouched.length} week(s) for ${r.mappedUsers} employee(s)${unmatched}${skipped}.`;
+  };
+
   const handleSync = async () => {
     if (!tenantId) return;
     setSyncing(true);
     setLastSyncSummary(null);
     try {
-      const r = await api('/api/connecteam/sync', { method: 'POST', body: JSON.stringify({ tenantId }) });
-      // Self-diagnosing summary: an empty sync says WHY it was empty
-      let summary: string;
-      if (r.confirmedMappings === 0) {
-        summary =
-          'Nothing synced: no employees are mapped yet. Click "Map Employees", match each Connecteam user to a CMS employee, and Save — then sync again.';
-      } else if (r.activitiesReturned === 0) {
-        summary = `Nothing synced: Connecteam returned no time activities between ${r.dateRange?.start} and ${r.dateRange?.end} for the selected time clock. If your staff clock into a different time clock, change it above and sync again.`;
-      } else {
-        const unmatched = r.unmatchedUsers?.length
-          ? ` — ${r.unmatchedUsers.length} Connecteam user(s) with hours are unmapped`
-          : '';
-        summary = `Synced ${r.entriesUpserted} entr${r.entriesUpserted === 1 ? 'y' : 'ies'} across ${r.weeksTouched.length} week(s) for ${r.mappedUsers} employee(s)${unmatched}.`;
-      }
-      setLastSyncSummary(summary);
+      const r: SyncResult = await api('/api/connecteam/sync', { method: 'POST', body: JSON.stringify({ tenantId }) });
+      setLastSyncSummary(summarizeSync(r));
       toast({ title: 'Sync complete' });
       await loadStatus();
     } catch (err) {
       toast({ title: 'Sync failed', description: getErrorMessage(err), variant: 'destructive' });
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const runBackfill = async () => {
+    if (!tenantId || !backfillStart || !backfillEnd) return;
+    if (backfillStart > backfillEnd) {
+      toast({ title: 'Start date must be on or before the end date', variant: 'destructive' });
+      return;
+    }
+    // This REWRITES stored hours for every complete week in range from
+    // Connecteam's records, including weeks a manager may have hand-corrected.
+    const confirmed = window.confirm(
+      `Re-sync from Connecteam and overwrite stored hours for every complete week between ` +
+        `${backfillStart} and ${backfillEnd}?\n\n` +
+        `Dates are widened outward to whole Monday–Sunday weeks. Any manual hours entered for ` +
+        `weeks in this range will be replaced by Connecteam's data. This cannot be undone from here.`
+    );
+    if (!confirmed) return;
+
+    setBackfilling(true);
+    setBackfillSummary(null);
+    try {
+      const r: SyncResult = await api('/api/connecteam/sync', {
+        method: 'POST',
+        body: JSON.stringify({ tenantId, start_date: backfillStart, end_date: backfillEnd }),
+      });
+      setBackfillSummary(summarizeSync(r));
+      toast({ title: 'Backfill complete' });
+      await loadStatus();
+    } catch (err) {
+      toast({ title: 'Backfill failed', description: getErrorMessage(err), variant: 'destructive' });
+    } finally {
+      setBackfilling(false);
     }
   };
 
@@ -358,6 +416,74 @@ export default function ConnecteamIntegrationSettings() {
                 {lastSyncSummary}
               </p>
             )}
+
+            <div className="border-t pt-3" style={{ borderColor: colors.creamDark }}>
+              <button
+                type="button"
+                onClick={() => setBackfillOpen((v) => !v)}
+                className="flex items-center gap-1.5 text-sm font-medium"
+                style={{ color: colors.brown }}
+                data-testid="button-connecteam-backfill-toggle"
+              >
+                <History className="w-4 h-4" style={{ color: colors.gold }} />
+                Backfill older weeks…
+              </button>
+
+              {backfillOpen && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs" style={{ color: colors.brownLight }}>
+                    "Sync Now" only covers recent weeks. To repair or backfill a specific past date range from
+                    Connecteam, pick it here — every complete week in range gets rewritten from Connecteam's records.
+                  </p>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="backfill-start" className="text-xs" style={{ color: colors.brownLight }}>
+                        Start date
+                      </Label>
+                      <Input
+                        id="backfill-start"
+                        type="date"
+                        value={backfillStart}
+                        onChange={(e) => setBackfillStart(e.target.value)}
+                        className="w-40"
+                        data-testid="input-connecteam-backfill-start"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="backfill-end" className="text-xs" style={{ color: colors.brownLight }}>
+                        End date
+                      </Label>
+                      <Input
+                        id="backfill-end"
+                        type="date"
+                        value={backfillEnd}
+                        onChange={(e) => setBackfillEnd(e.target.value)}
+                        className="w-40"
+                        data-testid="input-connecteam-backfill-end"
+                      />
+                    </div>
+                    <Button
+                      onClick={runBackfill}
+                      disabled={backfilling || !backfillStart || !backfillEnd}
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                      data-testid="button-connecteam-backfill-run"
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-1.5 ${backfilling ? 'animate-spin' : ''}`} />
+                      {backfilling ? 'Backfilling…' : 'Run Backfill'}
+                    </Button>
+                  </div>
+                  {backfillSummary && (
+                    <p
+                      className="text-sm"
+                      style={{ color: colors.brownLight }}
+                      data-testid="text-connecteam-backfill-summary"
+                    >
+                      {backfillSummary}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
 
             {mappings && (
               <div className="space-y-2 border-t pt-3" style={{ borderColor: colors.creamDark }}>

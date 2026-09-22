@@ -23,6 +23,7 @@ import {
   getMonday,
   getWeekRange,
   calcNetHoursFromEntry,
+  parseHoursAndMinutes,
   TimeclockEntry,
 } from '@/components/tip-payout/utils';
 import {
@@ -303,11 +304,13 @@ export default function TipPayout() {
       toast({ title: 'Please select an employee', variant: 'destructive' });
       return;
     }
-    const h = parseInt(hoursInput) || 0;
-    const m = Math.min(parseInt(minutesInput) || 0, 59);
-    const totalHours = h + m / 60;
-    if (totalHours === 0) {
-      toast({ title: 'Please enter hours', variant: 'destructive' });
+    const totalHours = parseHoursAndMinutes(hoursInput, minutesInput);
+    if (totalHours === null) {
+      toast({
+        title: 'Please enter a valid number of hours',
+        description: 'Hours and minutes must be zero or more, and minutes must be under 60.',
+        variant: 'destructive',
+      });
       return;
     }
     const employee = employees.find((e) => e.name === selectedEmployee);

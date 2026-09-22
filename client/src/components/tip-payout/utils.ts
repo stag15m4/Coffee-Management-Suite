@@ -13,6 +13,36 @@ export const formatHoursMinutes = (decimalHours: number) => {
   return `${h}h ${m.toString().padStart(2, '0')}m`;
 };
 
+/**
+ * Parses the paired Hours + Minutes entry into total decimal hours.
+ *
+ * The Hours field previously went through `parseInt`, which silently
+ * truncated a value like "35.25" down to 35 — a quarter hour vanished with
+ * no error. Minutes remains the intended way to enter a partial hour, but a
+ * decimal typed directly into the Hours field is honored instead of
+ * discarded.
+ *
+ * Returns null (invalid, caller should reject) when:
+ * - both fields are blank
+ * - either field is not a finite number
+ * - hours or minutes is negative
+ * - minutes is 60 or more (partial hours belong in the Hours field)
+ * - the resulting total is zero or negative
+ */
+export const parseHoursAndMinutes = (hoursStr: string, minutesStr: string): number | null => {
+  const hTrimmed = hoursStr.trim();
+  const mTrimmed = minutesStr.trim();
+  if (hTrimmed === '' && mTrimmed === '') return null;
+
+  const hours = hTrimmed === '' ? 0 : Number(hTrimmed);
+  const minutes = mTrimmed === '' ? 0 : Number(mTrimmed);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (hours < 0 || minutes < 0 || minutes >= 60) return null;
+
+  const total = hours + minutes / 60;
+  return total > 0 ? total : null;
+};
+
 export const getMonday = (date: Date = new Date()) => {
   const d = new Date(date);
   const day = d.getDay();

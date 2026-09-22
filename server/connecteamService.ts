@@ -379,6 +379,15 @@ export async function syncHoursForTenant(tenantId: string, startDate?: string, e
         partialWeeksSkipped.add(week);
         continue;
       }
+      // NOTE — current overwrite semantics (documented, not changed here):
+      // this upsert replaces whatever is already stored for (employee_id,
+      // week_key), including hours a manager entered or hand-corrected
+      // through the Tip Payout UI. There is no separate "manual override"
+      // column, so the next sync that covers this week wins over a manual
+      // edit. A manager who corrects a week should turn off automatic sync
+      // (or keep the correction outside this week's sync window) until a
+      // provenance-aware model — e.g. storing synced and manual hours
+      // separately, or an explicit override flag — is built.
       const rounded = Math.round(Math.max(0, hours) * 100) / 100;
       await db.execute(sql`
         INSERT INTO tip_employee_hours (tenant_id, employee_id, week_key, hours)
