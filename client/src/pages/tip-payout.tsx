@@ -400,11 +400,16 @@ export default function TipPayout() {
     setImportSkippedCount(0);
 
     try {
-      // Build week range: Monday 00:00 to next Monday 00:00
-      const mondayStart = `${weekKey}T00:00:00`;
-      const nextMonday = new Date(weekKey + 'T00:00:00');
-      nextMonday.setDate(nextMonday.getDate() + 7);
-      const nextMondayStr = nextMonday.toISOString().split('T')[0] + 'T00:00:00';
+      // Build week range: Monday 00:00 to next Monday 00:00, local to the shop.
+      // clock_in is TIMESTAMPTZ, and a bare 'YYYY-MM-DDTHH:mm:ss' is read in the
+      // database's timezone (UTC) rather than the shop's, which slid the window
+      // by the local offset and pulled shifts from the neighbouring week.
+      // Sending full instants pins it to the actual Monday-to-Monday week.
+      const weekStart = new Date(`${weekKey}T00:00:00`);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      const mondayStart = weekStart.toISOString();
+      const nextMondayStr = weekEnd.toISOString();
 
       const { data: entries, error } = await supabase
         .from('time_clock_entries')

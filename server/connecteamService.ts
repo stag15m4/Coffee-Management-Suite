@@ -28,6 +28,12 @@ const API_BASE = process.env.CONNECTEAM_API_BASE || 'https://api.connecteam.com'
 const COOLDOWN_MIN_MS = 20 * 60 * 1000;
 export const SYNC_TTL_HOURS = Math.max(1, parseInt(process.env.CONNECTEAM_SYNC_TTL_HOURS || '12', 10) || 12);
 
+// How far back an undated sync reaches. Connecteam shifts can be edited after
+// the fact, so every run re-pulls the last few completed weeks and rewrites
+// them in full — which also repairs weeks an earlier sync had truncated.
+// Same number of API calls as a narrow window, just a wider date range.
+export const SYNC_LOOKBACK_DAYS = Math.max(14, parseInt(process.env.CONNECTEAM_SYNC_LOOKBACK_DAYS || '28', 10) || 28);
+
 export class ConnecteamRateLimitError extends Error {
   retryAt: Date;
   constructor(retryAt: Date) {
@@ -109,6 +115,8 @@ export interface SyncResult {
   activitiesReturned: number;
   confirmedMappings: number;
   dateRange: { start: string; end: string };
+  /** Weeks returned by Connecteam that the window did not fully cover, so were left alone. */
+  partialWeeksSkipped: string[];
 }
 
 /**
@@ -205,6 +213,25 @@ function mondayOf(timestampSec: number, timezone: string | undefined): string {
   return localDate.toISOString().split('T')[0];
 }
 
+/**
+ * Monday (YYYY-MM-DD) of the week containing a YYYY-MM-DD calendar date.
+ * Pure calendar math — no timezone involved, the input is already a local date.
+ */
+export function mondayOfDate(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  // getUTCDay(): 0=Sun..6=Sat. Weeks here start Monday, so Sunday is index 6.
+  const dayIdx = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - dayIdx);
+  return d.toISOString().split('T')[0];
+}
+
+/** Sunday (YYYY-MM-DD) that closes the week starting on the given Monday. */
+export function sundayOfWeek(mondayStr: string): string {
+  const d = new Date(`${mondayStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 6);
+  return d.toISOString().split('T')[0];
+}
+
 function breakIsUnpaid(b: ConnecteamBreak): boolean {
   if (b.isPaid === false || b.paid === false) return true;
   if (typeof b.type === 'string' && b.type.toLowerCase().includes('unpaid')) return true;
@@ -222,6 +249,12 @@ export function aggregateHoursByWeek(activities: ConnecteamTimeActivity[]): Map<
     const userId = String(activity.userId);
     const weeks = byUser.get(userId) ?? new Map<string, number>();
 
+    // Breaks carry no timezone of their own, so they are bucketed with the
+    // shifts they belong to. Without this a late-evening break near a week
+    // boundary lands in the wrong week and is deducted from hours the
+    // employee worked in a different pay period.
+    const shiftTz = (activity.shifts || []).find((s) => s.start?.timezone)?.start?.timezone;
+
     for (const shift of activity.shifts || []) {
       const start = shift.start?.timestamp;
       const end = shift.end?.timestamp;
@@ -234,7 +267,7 @@ export function aggregateHoursByWeek(activities: ConnecteamTimeActivity[]): Map<
       const start = brk.start?.timestamp;
       const end = brk.end?.timestamp;
       if (!start || !end || end <= start || !breakIsUnpaid(brk)) continue;
-      const week = mondayOf(start, undefined);
+      const week = mondayOf(start, shiftTz);
       weeks.set(week, (weeks.get(week) ?? 0) - (end - start) / 3600);
     }
 
@@ -256,19 +289,31 @@ export async function syncHoursForTenant(tenantId: string, startDate?: string, e
   if (!settings?.api_key) throw new Error('Connecteam is not connected for this tenant');
   if (!settings.time_clock_id) throw new Error('No Connecteam time clock selected');
 
-  // Default range: the current week and the previous week
+  // Default range: the current week plus the preceding SYNC_LOOKBACK_DAYS
   if (!startDate || !endDate) {
     const now = new Date();
     const end = now.toISOString().split('T')[0];
-    const start = new Date(now.getTime() - 14 * 24 * 3600 * 1000).toISOString().split('T')[0];
+    const start = new Date(now.getTime() - SYNC_LOOKBACK_DAYS * 24 * 3600 * 1000).toISOString().split('T')[0];
     startDate = startDate || start;
     endDate = endDate || end;
   }
 
+  // Hours are stored one row per employee per Monday-keyed week, and the upsert
+  // below REPLACES that row. A window that starts or ends mid-week therefore
+  // rewrites a whole week's total with only the days that fell inside it.
+  // The rolling default window drifts a day at a time, so each scheduled run
+  // clipped one more day off the oldest week until it froze at a day or two —
+  // which is why finished weeks lost hours while their payouts still looked
+  // right (payouts divide the pool by ratio, so uniform loss is invisible).
+  // Snapping the window out to whole Mon-Sun weeks makes every week the sync
+  // writes a complete one.
+  const windowStart = mondayOfDate(startDate);
+  const windowEnd = sundayOfWeek(mondayOfDate(endDate));
+
   const body = await connecteamFetch(
     settings.api_key,
     `/time-clock/v1/time-clocks/${settings.time_clock_id}/time-activities`,
-    { startDate, endDate },
+    { startDate: windowStart, endDate: windowEnd },
     tenantId
   );
   // Real key is timeActivitiesByUsers (per the API reference); older docs show
@@ -309,9 +354,12 @@ export async function syncHoursForTenant(tenantId: string, startDate?: string, e
     mappedUsers: 0,
     activitiesReturned: activities.length,
     confirmedMappings: mapping.size,
-    dateRange: { start: startDate, end: endDate },
+    // The snapped window is what was actually pulled and written, so report it.
+    dateRange: { start: windowStart, end: windowEnd },
+    partialWeeksSkipped: [],
   };
   const weeksTouched = new Set<string>();
+  const partialWeeksSkipped = new Set<string>();
 
   for (const [connecteamUserId, weeks] of hoursByUser) {
     const tipEmployeeId = mapping.get(connecteamUserId);
@@ -324,6 +372,13 @@ export async function syncHoursForTenant(tenantId: string, startDate?: string, e
     result.mappedUsers++;
 
     for (const [week, hours] of weeks) {
+      // Connecteam can return shifts from outside the requested range. Writing
+      // one would replace a complete stored week with a fragment, so skip any
+      // week the window does not cover end to end.
+      if (week < windowStart || sundayOfWeek(week) > windowEnd) {
+        partialWeeksSkipped.add(week);
+        continue;
+      }
       const rounded = Math.round(Math.max(0, hours) * 100) / 100;
       await db.execute(sql`
         INSERT INTO tip_employee_hours (tenant_id, employee_id, week_key, hours)
@@ -337,6 +392,7 @@ export async function syncHoursForTenant(tenantId: string, startDate?: string, e
   }
 
   result.weeksTouched = [...weeksTouched].sort();
+  result.partialWeeksSkipped = [...partialWeeksSkipped].sort();
   await db.execute(sql`UPDATE tenants SET connecteam_last_sync_at = NOW() WHERE id = ${tenantId}::uuid`);
   logger.info({ tenantId, ...result, unmatchedCount: result.unmatchedUsers.length }, 'Connecteam hours sync completed');
   return result;
