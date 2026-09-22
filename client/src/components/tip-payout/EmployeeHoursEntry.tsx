@@ -159,8 +159,11 @@ export function EmployeeHoursEntry({
                   id="hours-input"
                   type="number"
                   min="0"
+                  step="0.01"
                   placeholder="Hrs"
-                  inputMode="numeric"
+                  // "decimal" (not "numeric") so the on-screen keyboard offers a
+                  // decimal point — a value like 35.25 is now honored, not truncated.
+                  inputMode="decimal"
                   value={hoursInput}
                   onChange={(e) => onHoursInputChange(e.target.value)}
                   onKeyDown={(e) => {
