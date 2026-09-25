@@ -40,6 +40,17 @@ class MissingTargetError extends Error {
   }
 }
 
+/** Thrown inside a batch-write transaction when a "create" item's name
+ * collides with an ingredient inserted by someone else between propose and
+ * confirm — ingredients.name has no DB-level unique constraint, so this is
+ * the only thing standing between two concurrent callers and an actual
+ * duplicate row. Same all-or-nothing rollback treatment as a missing target. */
+class DuplicateCreatedSinceProposeError extends Error {
+  constructor(public name: string) {
+    super(`duplicate:${name}`);
+  }
+}
+
 const usd = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 const monthLabel = (ym: string) => {
   const [y, m] = ym.split('-').map(Number);
@@ -53,8 +64,10 @@ const monthLabel = (ym: string) => {
 export interface IngredientBatchItemInput {
   id: string | null;
   name: string | null;
+  unit: string | null; // only present/used when isNew
   cost: number;
   quantity: number;
+  isNew: boolean;
 }
 
 export type IngredientBatchItemValidation =
@@ -69,20 +82,51 @@ export type IngredientBatchItemValidation =
  * which is what every recipe's margin is actually computed from, is
  * cost / quantity. Both are required on every item so a write can never
  * change one half of that ratio without the other.
+ *
+ * `new: true` marks an item as creating a brand-new ingredient rather than
+ * updating an existing one — it requires `name` + `unit` and forbids `id`
+ * (a new ingredient has no id yet). `unit` is rejected on a non-new item:
+ * it's immutable through this endpoint, so accepting it silently there
+ * would suggest a capability that doesn't exist.
  */
 export function validateIngredientBatchItem(raw: unknown, index: number): IngredientBatchItemValidation {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return { ok: false, error: `items[${index}] must be an object` };
   }
   const r = raw as Record<string, unknown>;
+  const isNew = r.new === true;
 
   const id = typeof r.id === 'string' && r.id.length > 0 ? r.id : null;
   const name = typeof r.name === 'string' && r.name.trim().length > 0 ? r.name.trim() : null;
-  if (!id && !name) {
+
+  if (isNew && id) {
+    return { ok: false, error: `items[${index}]: a new ingredient can't also specify "id"` };
+  }
+  if (isNew && !name) {
+    return { ok: false, error: `items[${index}]: a new ingredient needs a "name"` };
+  }
+  if (!isNew && !id && !name) {
     return { ok: false, error: `items[${index}] needs an "id" or a "name" to identify the ingredient` };
   }
   if (name && name.length > 200) {
     return { ok: false, error: `items[${index}].name must be 200 characters or fewer` };
+  }
+
+  let unit: string | null = null;
+  if (isNew) {
+    const unitRaw = typeof r.unit === 'string' ? r.unit.trim() : '';
+    if (!unitRaw) {
+      return { ok: false, error: `items[${index}]: a new ingredient needs a "unit" (e.g. "lb", "oz", "each")` };
+    }
+    if (unitRaw.length > 20) {
+      return { ok: false, error: `items[${index}].unit must be 20 characters or fewer` };
+    }
+    unit = unitRaw;
+  } else if (typeof r.unit === 'string' && r.unit.trim().length > 0) {
+    return {
+      ok: false,
+      error: `items[${index}]: "unit" is only accepted when "new" is true — unit can't be changed on an existing ingredient here`,
+    };
   }
 
   const costRaw = typeof r.cost === 'number' ? r.cost : Number(r.cost);
@@ -98,10 +142,15 @@ export function validateIngredientBatchItem(raw: unknown, index: number): Ingred
     };
   }
 
-  return { ok: true, value: { id, name, cost: Math.round(costRaw * 100) / 100, quantity: quantityRaw } };
+  return {
+    ok: true,
+    value: { id, name, unit, cost: Math.round(costRaw * 100) / 100, quantity: quantityRaw, isNew },
+  };
 }
 
-export interface IngredientChange {
+export interface IngredientUpdateChange {
+  kind: 'update';
+  item_id: string;
   name: string;
   unit: string;
   previous_cost: number;
@@ -110,24 +159,129 @@ export interface IngredientChange {
   quantity: number;
 }
 
+export interface IngredientCreateChange {
+  kind: 'create';
+  name: string;
+  unit: string;
+  cost: number;
+  quantity: number;
+  /** Non-blocking — the nearest existing ingredient this name resembles, if any. */
+  possible_duplicate: { id: string; name: string } | null;
+}
+
+export type IngredientBatchChange = IngredientUpdateChange | IngredientCreateChange;
+
+function ingredientUnitCost(cost: number, quantity: number): number {
+  return quantity > 0 ? cost / quantity : 0;
+}
+
 /**
- * One human-readable line for an ingredient change, always showing the
- * resulting $/unit on both sides — not just the raw package price — since a
- * package-price change with an unchanged quantity, or vice versa, is exactly
- * how unit cost (what recipe margins use) moves without anyone noticing.
+ * One human-readable line for an existing ingredient's cost/quantity change,
+ * always showing the resulting $/unit on both sides — not just the raw
+ * package price — since a package-price change with an unchanged quantity,
+ * or vice versa, is exactly how unit cost (what recipe margins use) moves
+ * without anyone noticing.
  */
-export function formatIngredientChangeLine(c: IngredientChange): string {
-  const prevUnitCost = c.previous_quantity > 0 ? c.previous_cost / c.previous_quantity : 0;
-  const newUnitCost = c.quantity > 0 ? c.cost / c.quantity : 0;
+export function formatIngredientUpdateLine(c: IngredientUpdateChange): string {
+  const prevUnitCost = ingredientUnitCost(c.previous_cost, c.previous_quantity);
+  const newUnitCost = ingredientUnitCost(c.cost, c.quantity);
   const qtyPart =
     c.previous_quantity === c.quantity ? `${c.quantity} ${c.unit}` : `${c.previous_quantity} → ${c.quantity} ${c.unit}`;
   return `${c.name}: ${usd(c.previous_cost)} → ${usd(c.cost)} for ${qtyPart} (${usd(prevUnitCost)}/${c.unit} → ${usd(newUnitCost)}/${c.unit})`;
 }
 
+/**
+ * One human-readable line for a brand-new ingredient, flagging a possible
+ * duplicate right in the line the human is asked to read before confirming
+ * — not buried in a separate field they'd have to know to check.
+ */
+export function formatIngredientCreateLine(c: IngredientCreateChange): string {
+  const unitCost = ingredientUnitCost(c.cost, c.quantity);
+  const dupSuffix = c.possible_duplicate
+    ? ` — possible duplicate of existing "${c.possible_duplicate.name}"; review before confirming`
+    : '';
+  return `${c.name} (NEW): ${usd(c.cost)} for ${c.quantity} ${c.unit} (${usd(unitCost)}/${c.unit})${dupSuffix}`;
+}
+
+export function formatIngredientChangeLine(c: IngredientBatchChange): string {
+  return c.kind === 'update' ? formatIngredientUpdateLine(c) : formatIngredientCreateLine(c);
+}
+
 /** The full multi-line summary read back to a human before they confirm a batch. */
-export function buildIngredientBatchSummary(changes: IngredientChange[]): string {
-  const header = `Update ${changes.length} ingredient${changes.length === 1 ? '' : 's'}:`;
+export function buildIngredientBatchSummary(changes: IngredientBatchChange[]): string {
+  const updateCount = changes.filter((c) => c.kind === 'update').length;
+  const createCount = changes.filter((c) => c.kind === 'create').length;
+
+  const clauses: string[] = [];
+  if (updateCount > 0) clauses.push(`update ${updateCount} ingredient${updateCount === 1 ? '' : 's'}`);
+  if (createCount > 0) clauses.push(`add ${createCount} new ingredient${createCount === 1 ? '' : 's'}`);
+  const header = `${clauses.join(' and ').replace(/^./, (ch) => ch.toUpperCase())}:`;
+
   return [header, ...changes.map((c) => `- ${formatIngredientChangeLine(c)}`)].join('\n');
+}
+
+function normalizeIngredientName(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/** Classic Levenshtein edit distance — dependency-free on purpose, this is
+ * the only place it's needed. */
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const curr = [i];
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr.push(Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost));
+    }
+    prev = curr;
+  }
+  return prev[n];
+}
+
+/**
+ * Non-blocking near-duplicate heuristic for a NEW ingredient's name against
+ * an EXISTING one. An exact match (after trim/case/whitespace normalizing)
+ * is a hard conflict handled separately — this is for the case that would
+ * otherwise sail through with no error at all: a typo or a suffixed variant
+ * ("Oat Milk" vs "Oat Milk (Case)") that creates a second, disconnected
+ * ingredient row no recipe will ever reference. Two rules, either trips it:
+ * one normalized name contains the other (both need to be a real word, not
+ * a short prefix), or they're a small edit distance apart scaled to length
+ * (an absolute threshold would over-flag short names and under-flag long
+ * ones).
+ */
+export function isLikelyDuplicateIngredientName(a: string, b: string): boolean {
+  const na = normalizeIngredientName(a);
+  const nb = normalizeIngredientName(b);
+  if (na === nb) return true;
+  if (na.length >= 4 && nb.length >= 4 && (na.includes(nb) || nb.includes(na))) return true;
+  const threshold = Math.max(1, Math.floor(Math.min(na.length, nb.length) / 4));
+  return levenshteinDistance(na, nb) <= threshold;
+}
+
+/**
+ * A confirmation token's stored payload can be up to CONFIRMATION_TTL_MS
+ * old, so a confirm can still be redeemed against a payload proposed by a
+ * previous deploy of this endpoint. Before "new" (create) items existed,
+ * every item was an update and none carried a `kind` field. Without this
+ * normalization, such an item falls through the confirm handler's
+ * kind === 'update' check into the create branch: it usually just 409s as
+ * an exact-name "duplicate" of the very ingredient it meant to update, but
+ * if that ingredient was renamed or deleted between propose and confirm,
+ * the create branch would find no match and insert a phantom duplicate
+ * instead of ever applying the intended update.
+ */
+export function normalizeLegacyIngredientPayloadItems<T extends { kind?: 'update' | 'create' }>(
+  items: T[]
+): Array<T & { kind: 'update' | 'create' }> {
+  return items.map((item) =>
+    item.kind ? (item as T & { kind: 'update' | 'create' }) : { ...item, kind: 'update' as const }
+  );
 }
 
 /**
@@ -255,25 +409,32 @@ export function registerAlfredRoutes(app: Express): void {
 
   /**
    * POST /api/alfred/ingredients — batch write path for ingredient cost /
-   * quantity updates (e.g. transcribing a distributor invoice).
+   * quantity updates AND new-ingredient creation (e.g. transcribing a
+   * distributor invoice that has both price changes and new products).
    *
    * Two-step, one endpoint, dispatched on body shape (same X-Alfred-Token
    * auth as every other Alfred route):
    *  - PROPOSE: body has { items: [...] } and NO confirmationToken. Writes
-   *    nothing. Every item must resolve to exactly one EXISTING ingredient —
-   *    if ANY item fails to resolve or validate, the whole batch is
-   *    rejected and no token is issued. There is no partial-batch propose.
-   *    Returns a human-readable `summary` (one line per ingredient, always
-   *    showing $/unit on both sides) and a single-use `confirmationToken`
-   *    covering the whole batch (5-min expiry).
+   *    nothing. Each item is either an UPDATE (id or name identifies an
+   *    existing ingredient) or a CREATE (`new: true`, needs name + unit).
+   *    If ANY item fails to resolve or validate, the whole batch is
+   *    rejected and no token is issued — no partial-batch propose. Returns
+   *    a human-readable `summary` (one line per item, always showing $/unit
+   *    for updates, flagging any create that resembles an existing
+   *    ingredient) and a single-use `confirmationToken` covering the whole
+   *    batch (5-min expiry).
    *  - CONFIRM: body has { confirmationToken }. Redeems the token and
-   *    applies every item's update in ONE transaction. If any target
-   *    ingredient was deleted since propose, the entire batch rolls back —
-   *    an invoice never half-applies.
+   *    applies every item in ONE transaction. If an update target vanished,
+   *    or a create's name collides with something inserted since propose
+   *    (ingredients.name has no DB unique constraint — see the in-transaction
+   *    re-check below), the entire batch rolls back. An invoice never
+   *    half-applies.
    *
-   * UPDATE-ONLY (no insert path yet — deliberately out of scope for now).
-   * An item that doesn't match an existing ingredient is a 400 telling the
-   * caller so, not a silent insert.
+   * A create's exact name match against an existing ingredient is a hard
+   * 400 at propose time ("already exists, update it instead"). A NEAR
+   * match is not blocked — silently creating a real duplicate is worse than
+   * a false-positive warning — but is surfaced in both the summary line and
+   * the `changes` response so a human reviews it before confirming.
    */
   app.post('/api/alfred/ingredients', async (req: Request, res: Response) => {
     try {
@@ -298,12 +459,16 @@ export function registerAlfredRoutes(app: Express): void {
           return res.status(410).json({ error: 'Confirmation token expired — re-propose to get a fresh one' });
         }
 
-        const p = rec.payload as { items: Array<IngredientChange & { item_id: string }> };
+        const rawPayload = rec.payload as {
+          items: Array<(Omit<IngredientUpdateChange, 'kind'> & { kind?: 'update' }) | IngredientCreateChange>;
+        };
+        const p = { items: normalizeLegacyIngredientPayloadItems(rawPayload.items) };
 
         type ApplyResult =
           | { status: 'ok'; items: Array<Record<string, any>> }
           | { status: 'race' }
-          | { status: 'missing'; name: string };
+          | { status: 'missing'; name: string }
+          | { status: 'duplicate'; name: string };
 
         let applied: ApplyResult;
         try {
@@ -316,26 +481,70 @@ export function registerAlfredRoutes(app: Express): void {
             );
             if (claim.rows.length === 0) return { status: 'race' as const };
 
-            // Unlike overhead's single-item write, a missing target here must
-            // undo updates already applied earlier in this same batch — so
-            // this throws to abort the transaction rather than returning a
+            // A missing update target or a name collision on a create must
+            // undo everything already applied earlier in this same batch —
+            // so both throw to abort the transaction rather than returning a
             // status, which db.transaction rolls back on.
-            const updated: Array<Record<string, any>> = [];
+            const results: Array<Record<string, any>> = [];
             for (const item of p.items) {
-              const upd = await tx.execute(
-                sql`UPDATE ingredients
-                    SET cost = ${item.cost}, quantity = ${item.quantity}
-                    WHERE id = ${item.item_id}::uuid AND tenant_id = ${tenantId}::uuid
-                    RETURNING id, name, unit, cost, quantity`
-              );
-              if (upd.rows.length === 0) throw new MissingTargetError(item.name);
-              updated.push(upd.rows[0] as Record<string, any>);
+              if (item.kind === 'update') {
+                const upd = await tx.execute(
+                  sql`UPDATE ingredients
+                      SET cost = ${item.cost}, quantity = ${item.quantity}
+                      WHERE id = ${item.item_id}::uuid AND tenant_id = ${tenantId}::uuid
+                      RETURNING id, name, unit, cost, quantity`
+                );
+                if (upd.rows.length === 0) throw new MissingTargetError(item.name);
+                results.push({ ...(upd.rows[0] as Record<string, any>), kind: 'update' });
+              } else {
+                // No DB unique constraint backs the exact-match check from
+                // propose time — two safeguards here, both necessary:
+                //
+                // 1. A transaction-scoped advisory lock keyed on (tenant,
+                //    normalized name), released automatically at commit or
+                //    rollback. A bare re-check SELECT is still a race under
+                //    READ COMMITTED — two concurrent confirms for the same
+                //    new name can each pass the SELECT before either COMMITs
+                //    and both INSERT, since nothing here serializes them
+                //    against each other (the token claim above only
+                //    serializes reuse of that ONE token). The lock forces
+                //    the second confirm to wait for the first to finish
+                //    before it even runs its own check.
+                // 2. The re-check itself must use the SAME normalization as
+                //    propose's exact-match check (normalizeIngredientName —
+                //    collapses internal whitespace, not just btrim's
+                //    leading/trailing) — otherwise "Oat Milk" vs "Oat  Milk"
+                //    (double space) inserted concurrently would slip past
+                //    both. Done in JS against a fresh fetch, reusing the
+                //    exact function propose used, rather than hand-keeping a
+                //    second SQL implementation of the same normalization in
+                //    sync with it.
+                await tx.execute(
+                  sql`SELECT pg_advisory_xact_lock(hashtext(${tenantId}::text), hashtext(${normalizeIngredientName(item.name)}::text))`
+                );
+                const existingResult = await tx.execute(
+                  sql`SELECT name FROM ingredients WHERE tenant_id = ${tenantId}::uuid`
+                );
+                const nameKey = normalizeIngredientName(item.name);
+                const collides = (existingResult.rows as Array<{ name: string }>).some(
+                  (r) => normalizeIngredientName(r.name) === nameKey
+                );
+                if (collides) throw new DuplicateCreatedSinceProposeError(item.name);
+                const ins = await tx.execute(
+                  sql`INSERT INTO ingredients (tenant_id, name, unit, cost, quantity)
+                      VALUES (${tenantId}::uuid, ${item.name}, ${item.unit}, ${item.cost}, ${item.quantity})
+                      RETURNING id, name, unit, cost, quantity`
+                );
+                results.push({ ...(ins.rows[0] as Record<string, any>), kind: 'create' });
+              }
             }
-            return { status: 'ok' as const, items: updated };
+            return { status: 'ok' as const, items: results };
           });
         } catch (err) {
           if (err instanceof MissingTargetError) {
             applied = { status: 'missing', name: err.name };
+          } else if (err instanceof DuplicateCreatedSinceProposeError) {
+            applied = { status: 'duplicate', name: err.name };
           } else {
             throw err;
           }
@@ -349,22 +558,43 @@ export function registerAlfredRoutes(app: Express): void {
             error: `"${applied.name}" no longer exists — the whole batch was NOT applied. Re-propose to apply the remaining changes.`,
           });
         }
+        if (applied.status === 'duplicate') {
+          return res.status(409).json({
+            error: `An ingredient named "${applied.name}" was created since this batch was proposed — the whole batch was NOT applied. Re-propose to review the conflict.`,
+          });
+        }
 
-        // Best-effort audit trail, one row per updated ingredient. Not part
-        // of the transaction above (logAuditEvent swallows its own errors,
-        // same as every other caller of it in this codebase) — a logging
-        // failure must never look like the write itself failed.
-        for (const item of p.items) {
-          await logAuditEvent(
-            tenantId,
-            ALFRED_SERVICE_ACTOR_ID,
-            'alfred.ingredient.cost_updated',
-            'ingredient',
-            item.item_id,
-            { cost: item.previous_cost, quantity: item.previous_quantity },
-            { cost: item.cost, quantity: item.quantity },
-            req.ip
-          );
+        // Best-effort audit trail, one row per item — index-aligned with
+        // p.items since results are pushed in the same order they're
+        // processed above. Not part of the transaction (logAuditEvent
+        // swallows its own errors, same as every other caller of it in this
+        // codebase) — a logging failure must never look like the write itself failed.
+        for (let i = 0; i < p.items.length; i++) {
+          const item = p.items[i];
+          const row = applied.items[i];
+          if (item.kind === 'update') {
+            await logAuditEvent(
+              tenantId,
+              ALFRED_SERVICE_ACTOR_ID,
+              'alfred.ingredient.cost_updated',
+              'ingredient',
+              row.id,
+              { cost: item.previous_cost, quantity: item.previous_quantity },
+              { cost: item.cost, quantity: item.quantity },
+              req.ip
+            );
+          } else {
+            await logAuditEvent(
+              tenantId,
+              ALFRED_SERVICE_ACTOR_ID,
+              'alfred.ingredient.created',
+              'ingredient',
+              row.id,
+              null,
+              { name: item.name, unit: item.unit, cost: item.cost, quantity: item.quantity },
+              req.ip
+            );
+          }
         }
 
         return res.json({
@@ -387,7 +617,7 @@ export function registerAlfredRoutes(app: Express): void {
       }
       if (body.items.length > INGREDIENT_BATCH_MAX_ITEMS) {
         return res.status(400).json({
-          error: `A batch can update at most ${INGREDIENT_BATCH_MAX_ITEMS} ingredients — split into multiple calls`,
+          error: `A batch can have at most ${INGREDIENT_BATCH_MAX_ITEMS} items — split into multiple calls`,
         });
       }
 
@@ -398,31 +628,40 @@ export function registerAlfredRoutes(app: Express): void {
         validatedItems.push(v.value);
       }
 
-      // Resolve each item to exactly one EXISTING ingredient. Any failure
-      // aborts the whole batch here, before any token is created — the only
-      // way a propose call succeeds is if every line item is resolvable.
-      const resolved: Array<IngredientChange & { item_id: string }> = [];
-      const seenIds = new Set<string>();
+      // One fetch of every ingredient this tenant has, used to resolve
+      // every item in the batch — exact id/name match for updates, exact-
+      // conflict and near-duplicate checks for creates — without an N+1
+      // query per item. Tenant ingredient lists are small (a coffee shop's
+      // full inventory, not a warehouse catalog), so this is cheap.
+      const allResult = await db.execute(
+        sql`SELECT id, name, unit, cost, quantity FROM ingredients WHERE tenant_id = ${tenantId}::uuid`
+      );
+      const all = allResult.rows as Array<{ id: string; name: string; unit: string; cost: string; quantity: string }>;
+      const byNormalizedName = new Map<string, typeof all>();
+      for (const row of all) {
+        const key = normalizeIngredientName(row.name);
+        const list = byNormalizedName.get(key) ?? [];
+        list.push(row);
+        byNormalizedName.set(key, list);
+      }
+      const byId = new Map(all.map((row) => [row.id, row]));
+
+      // Resolve every item. Any failure aborts the whole batch here, before
+      // any token is created — the only way propose succeeds is if every
+      // line item is resolvable (and every create is a genuinely new name).
+      const resolved: IngredientBatchChange[] = [];
+      const claimedTargets = new Set<string>(); // "id:<uuid>" for updates, "new:<normalized name>" for creates
+
       for (let i = 0; i < validatedItems.length; i++) {
         const item = validatedItems[i];
-        let row: any;
-        if (item.id) {
-          const byId = await db.execute(
-            sql`SELECT id, name, unit, cost, quantity FROM ingredients
-                WHERE id = ${item.id}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`
-          );
-          row = byId.rows[0];
-          if (!row)
-            return res.status(400).json({ error: `items[${i}]: no ingredient with id ${item.id} for this tenant` });
-        } else {
-          const byName = await db.execute(
-            sql`SELECT id, name, unit, cost, quantity FROM ingredients
-                WHERE tenant_id = ${tenantId}::uuid AND lower(btrim(name)) = lower(${item.name})`
-          );
-          if (byName.rows.length > 1) {
+
+        if (item.isNew) {
+          const nameKey = normalizeIngredientName(item.name as string);
+          const exact = byNormalizedName.get(nameKey);
+          if (exact && exact.length > 0) {
             return res.status(400).json({
-              error: `items[${i}]: "${item.name}" matches ${byName.rows.length} ingredients — pass an explicit "id" to disambiguate`,
-              candidates: (byName.rows as any[]).map((r) => ({
+              error: `items[${i}]: an ingredient named "${item.name}" already exists — pass its "id" to update it instead of creating a duplicate`,
+              existing: exact.map((r) => ({
                 id: r.id,
                 unit: r.unit,
                 cost: parseFloat(r.cost),
@@ -430,22 +669,73 @@ export function registerAlfredRoutes(app: Express): void {
               })),
             });
           }
-          if (byName.rows.length === 0) {
-            return res.status(400).json({
-              error: `items[${i}]: no ingredient named "${item.name}" for this tenant — this endpoint only updates existing ingredients`,
-            });
+          const claimKey = `new:${nameKey}`;
+          if (claimedTargets.has(claimKey)) {
+            return res
+              .status(400)
+              .json({ error: `items[${i}]: "${item.name}" is created by more than one item in this batch` });
           }
-          row = byName.rows[0];
+          claimedTargets.add(claimKey);
+
+          // Non-blocking — checked against what already exists, not against
+          // other creates in this batch (two genuinely new similar products
+          // on one invoice is plausible and shouldn't warn against each other).
+          let possibleDuplicate: { id: string; name: string } | null = null;
+          for (const existing of all) {
+            if (isLikelyDuplicateIngredientName(item.name as string, existing.name)) {
+              possibleDuplicate = { id: existing.id, name: existing.name };
+              break;
+            }
+          }
+
+          resolved.push({
+            kind: 'create',
+            name: item.name as string,
+            unit: item.unit as string,
+            cost: item.cost,
+            quantity: item.quantity,
+            possible_duplicate: possibleDuplicate,
+          });
+          continue;
         }
 
-        if (seenIds.has(row.id)) {
+        let row: { id: string; name: string; unit: string; cost: string; quantity: string } | undefined;
+        if (item.id) {
+          row = byId.get(item.id);
+          if (!row) {
+            return res.status(400).json({ error: `items[${i}]: no ingredient with id ${item.id} for this tenant` });
+          }
+        } else {
+          const matches = byNormalizedName.get(normalizeIngredientName(item.name as string)) ?? [];
+          if (matches.length > 1) {
+            return res.status(400).json({
+              error: `items[${i}]: "${item.name}" matches ${matches.length} ingredients — pass an explicit "id" to disambiguate`,
+              candidates: matches.map((r) => ({
+                id: r.id,
+                unit: r.unit,
+                cost: parseFloat(r.cost),
+                quantity: parseFloat(r.quantity),
+              })),
+            });
+          }
+          if (matches.length === 0) {
+            return res.status(400).json({
+              error: `items[${i}]: no ingredient named "${item.name}" for this tenant — pass "new": true (with a "unit") to create it`,
+            });
+          }
+          row = matches[0];
+        }
+
+        const claimKey = `id:${row.id}`;
+        if (claimedTargets.has(claimKey)) {
           return res
             .status(400)
             .json({ error: `items[${i}]: "${row.name}" is targeted by more than one item in this batch` });
         }
-        seenIds.add(row.id);
+        claimedTargets.add(claimKey);
 
         resolved.push({
+          kind: 'update',
           item_id: row.id,
           name: row.name,
           unit: row.unit,
@@ -471,18 +761,33 @@ export function registerAlfredRoutes(app: Express): void {
         summary,
         confirmationToken: token,
         expires_at: expiresAt,
-        changes: resolved.map((r) => ({
-          item_id: r.item_id,
-          name: r.name,
-          unit: r.unit,
-          cost: r.cost,
-          previous_cost: r.previous_cost,
-          quantity: r.quantity,
-          previous_quantity: r.previous_quantity,
-          unit_cost: Math.round((r.cost / r.quantity) * 10000) / 10000,
-          previous_unit_cost:
-            r.previous_quantity > 0 ? Math.round((r.previous_cost / r.previous_quantity) * 10000) / 10000 : null,
-        })),
+        changes: resolved.map((r) =>
+          r.kind === 'update'
+            ? {
+                kind: 'update',
+                item_id: r.item_id,
+                name: r.name,
+                unit: r.unit,
+                cost: r.cost,
+                previous_cost: r.previous_cost,
+                quantity: r.quantity,
+                previous_quantity: r.previous_quantity,
+                unit_cost: Math.round(ingredientUnitCost(r.cost, r.quantity) * 10000) / 10000,
+                previous_unit_cost:
+                  r.previous_quantity > 0
+                    ? Math.round(ingredientUnitCost(r.previous_cost, r.previous_quantity) * 10000) / 10000
+                    : null,
+              }
+            : {
+                kind: 'create',
+                name: r.name,
+                unit: r.unit,
+                cost: r.cost,
+                quantity: r.quantity,
+                unit_cost: Math.round(ingredientUnitCost(r.cost, r.quantity) * 10000) / 10000,
+                possible_duplicate: r.possible_duplicate,
+              }
+        ),
       });
     } catch (err) {
       logger.error({ err }, 'Error in POST /api/alfred/ingredients');
