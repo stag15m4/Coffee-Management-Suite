@@ -16,6 +16,7 @@ import {
   TipEmployee,
   ImportedHours,
   UnmatchedEntry,
+  isEmployeeActive,
   isEmployeeTipEligible,
 } from '@/components/tip-payout/types';
 import {
@@ -121,7 +122,17 @@ export default function TipPayout() {
       if (error) throw error;
       const all = data || [];
       setAllEmployees(all);
-      setEmployees(all.filter((employee) => employee.is_active));
+      // isEmployeeActive treats is_active === null as active (older rows
+      // predate the column being consistently set — server code elsewhere,
+      // e.g. squareService's employee matching, already does the same).
+      // A plain `employee.is_active` truthy check silently drops those rows
+      // from this active list, so they vanish from the weekly hours dropdown
+      // and timeclock-import matching (both built from `employees`, not
+      // `allEmployees`) while still showing as "active" — no Inactive badge
+      // — in Manage Employees, which uses the same helper. That combination
+      // is exactly what makes it look like an employee is missing rather
+      // than deactivated.
+      setEmployees(all.filter(isEmployeeActive));
     } catch (error: unknown) {
       console.error('Error loading employees:', error);
       toast({ title: 'Error loading employees', description: getErrorMessage(error), variant: 'destructive' });
