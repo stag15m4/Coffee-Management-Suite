@@ -16,11 +16,29 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getApiAuth } from '../service-auth';
 import { parseAllowedTenantIds } from '../service-auth-core';
+import { logAuditEvent } from './core';
 import logger from '../logger';
 
 // Overhead line-item frequencies allowed by the DB CHECK (migrations 054/055).
 const OVERHEAD_FREQUENCIES = ['daily', 'weekly', 'bi-weekly', 'monthly', 'quarterly', 'annual'] as const;
 const CONFIRMATION_TTL_MS = 5 * 60 * 1000;
+const INGREDIENT_BATCH_MAX_ITEMS = 50;
+
+// audit_logs.actor_id is UUID NOT NULL with no FK constraint (migration 143),
+// so a service-token write — which has no real user — needs a stand-in value
+// rather than null. Fixed and documented here rather than left as some
+// arbitrary UUID a future reader has to puzzle out from a database dump.
+const ALFRED_SERVICE_ACTOR_ID = 'a1fed000-0000-0000-0000-000000000000';
+
+/** Thrown inside a batch-write transaction to abort and roll back everything
+ * already applied when one target row vanished between propose and confirm
+ * (e.g. the ingredient was deleted). Caught by the route handler and turned
+ * into a 409 — a batch either fully applies or not at all. */
+class MissingTargetError extends Error {
+  constructor(public name: string) {
+    super(`missing:${name}`);
+  }
+}
 
 const usd = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 const monthLabel = (ym: string) => {
@@ -31,6 +49,86 @@ const monthLabel = (ym: string) => {
     timeZone: 'UTC',
   });
 };
+
+export interface IngredientBatchItemInput {
+  id: string | null;
+  name: string | null;
+  cost: number;
+  quantity: number;
+}
+
+export type IngredientBatchItemValidation =
+  | { ok: true; value: IngredientBatchItemInput }
+  | { ok: false; error: string };
+
+/**
+ * Validates one raw item from POST /api/alfred/ingredients's `items` array.
+ * Pure — no DB access, never throws. `cost` is the price of the whole
+ * package and `quantity` is the package size it's divided by (per
+ * shared/schema.ts: "Cost per package" / "Amount in package") — unit cost,
+ * which is what every recipe's margin is actually computed from, is
+ * cost / quantity. Both are required on every item so a write can never
+ * change one half of that ratio without the other.
+ */
+export function validateIngredientBatchItem(raw: unknown, index: number): IngredientBatchItemValidation {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return { ok: false, error: `items[${index}] must be an object` };
+  }
+  const r = raw as Record<string, unknown>;
+
+  const id = typeof r.id === 'string' && r.id.length > 0 ? r.id : null;
+  const name = typeof r.name === 'string' && r.name.trim().length > 0 ? r.name.trim() : null;
+  if (!id && !name) {
+    return { ok: false, error: `items[${index}] needs an "id" or a "name" to identify the ingredient` };
+  }
+  if (name && name.length > 200) {
+    return { ok: false, error: `items[${index}].name must be 200 characters or fewer` };
+  }
+
+  const costRaw = typeof r.cost === 'number' ? r.cost : Number(r.cost);
+  if (!Number.isFinite(costRaw) || costRaw < 0) {
+    return { ok: false, error: `items[${index}].cost must be a number >= 0` };
+  }
+
+  const quantityRaw = typeof r.quantity === 'number' ? r.quantity : Number(r.quantity);
+  if (!Number.isFinite(quantityRaw) || quantityRaw <= 0) {
+    return {
+      ok: false,
+      error: `items[${index}].quantity must be a number > 0 — it's the package size "cost" is divided by to get unit cost`,
+    };
+  }
+
+  return { ok: true, value: { id, name, cost: Math.round(costRaw * 100) / 100, quantity: quantityRaw } };
+}
+
+export interface IngredientChange {
+  name: string;
+  unit: string;
+  previous_cost: number;
+  previous_quantity: number;
+  cost: number;
+  quantity: number;
+}
+
+/**
+ * One human-readable line for an ingredient change, always showing the
+ * resulting $/unit on both sides — not just the raw package price — since a
+ * package-price change with an unchanged quantity, or vice versa, is exactly
+ * how unit cost (what recipe margins use) moves without anyone noticing.
+ */
+export function formatIngredientChangeLine(c: IngredientChange): string {
+  const prevUnitCost = c.previous_quantity > 0 ? c.previous_cost / c.previous_quantity : 0;
+  const newUnitCost = c.quantity > 0 ? c.cost / c.quantity : 0;
+  const qtyPart =
+    c.previous_quantity === c.quantity ? `${c.quantity} ${c.unit}` : `${c.previous_quantity} → ${c.quantity} ${c.unit}`;
+  return `${c.name}: ${usd(c.previous_cost)} → ${usd(c.cost)} for ${qtyPart} (${usd(prevUnitCost)}/${c.unit} → ${usd(newUnitCost)}/${c.unit})`;
+}
+
+/** The full multi-line summary read back to a human before they confirm a batch. */
+export function buildIngredientBatchSummary(changes: IngredientChange[]): string {
+  const header = `Update ${changes.length} ingredient${changes.length === 1 ? '' : 's'}:`;
+  return [header, ...changes.map((c) => `- ${formatIngredientChangeLine(c)}`)].join('\n');
+}
 
 /**
  * Shared guard for tenant-scoped read endpoints.
@@ -151,6 +249,243 @@ export function registerAlfredRoutes(app: Express): void {
       });
     } catch (err) {
       logger.error({ err }, 'Error in /api/alfred/ingredients');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * POST /api/alfred/ingredients — batch write path for ingredient cost /
+   * quantity updates (e.g. transcribing a distributor invoice).
+   *
+   * Two-step, one endpoint, dispatched on body shape (same X-Alfred-Token
+   * auth as every other Alfred route):
+   *  - PROPOSE: body has { items: [...] } and NO confirmationToken. Writes
+   *    nothing. Every item must resolve to exactly one EXISTING ingredient —
+   *    if ANY item fails to resolve or validate, the whole batch is
+   *    rejected and no token is issued. There is no partial-batch propose.
+   *    Returns a human-readable `summary` (one line per ingredient, always
+   *    showing $/unit on both sides) and a single-use `confirmationToken`
+   *    covering the whole batch (5-min expiry).
+   *  - CONFIRM: body has { confirmationToken }. Redeems the token and
+   *    applies every item's update in ONE transaction. If any target
+   *    ingredient was deleted since propose, the entire batch rolls back —
+   *    an invoice never half-applies.
+   *
+   * UPDATE-ONLY (no insert path yet — deliberately out of scope for now).
+   * An item that doesn't match an existing ingredient is a 400 telling the
+   * caller so, not a silent insert.
+   */
+  app.post('/api/alfred/ingredients', async (req: Request, res: Response) => {
+    try {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+
+      // ── CONFIRM ────────────────────────────────────────────────────────
+      if (typeof body.confirmationToken === 'string' && body.confirmationToken.length > 0) {
+        const token = body.confirmationToken;
+        const found = await db.execute(
+          sql`SELECT tenant_id, payload, summary, used_at, expires_at
+              FROM alfred_confirmation_tokens WHERE token = ${token} LIMIT 1`
+        );
+        const rec = found.rows[0] as any;
+        if (!rec) return res.status(404).json({ error: 'Unknown confirmation token' });
+
+        (req.query as any).tenant_id = rec.tenant_id;
+        const tenantId = await authorizeTenantRead(req, res);
+        if (!tenantId) return;
+
+        if (rec.used_at) return res.status(409).json({ error: 'This confirmation token has already been used' });
+        if (new Date(rec.expires_at).getTime() <= Date.now()) {
+          return res.status(410).json({ error: 'Confirmation token expired — re-propose to get a fresh one' });
+        }
+
+        const p = rec.payload as { items: Array<IngredientChange & { item_id: string }> };
+
+        type ApplyResult =
+          | { status: 'ok'; items: Array<Record<string, any>> }
+          | { status: 'race' }
+          | { status: 'missing'; name: string };
+
+        let applied: ApplyResult;
+        try {
+          applied = await db.transaction(async (tx) => {
+            // Atomically claim the token so a double-confirm can't double-write.
+            const claim = await tx.execute(
+              sql`UPDATE alfred_confirmation_tokens SET used_at = NOW()
+                  WHERE token = ${token} AND used_at IS NULL AND expires_at > NOW()
+                  RETURNING token`
+            );
+            if (claim.rows.length === 0) return { status: 'race' as const };
+
+            // Unlike overhead's single-item write, a missing target here must
+            // undo updates already applied earlier in this same batch — so
+            // this throws to abort the transaction rather than returning a
+            // status, which db.transaction rolls back on.
+            const updated: Array<Record<string, any>> = [];
+            for (const item of p.items) {
+              const upd = await tx.execute(
+                sql`UPDATE ingredients
+                    SET cost = ${item.cost}, quantity = ${item.quantity}
+                    WHERE id = ${item.item_id}::uuid AND tenant_id = ${tenantId}::uuid
+                    RETURNING id, name, unit, cost, quantity`
+              );
+              if (upd.rows.length === 0) throw new MissingTargetError(item.name);
+              updated.push(upd.rows[0] as Record<string, any>);
+            }
+            return { status: 'ok' as const, items: updated };
+          });
+        } catch (err) {
+          if (err instanceof MissingTargetError) {
+            applied = { status: 'missing', name: err.name };
+          } else {
+            throw err;
+          }
+        }
+
+        if (applied.status === 'race') {
+          return res.status(409).json({ error: 'This confirmation token has already been used' });
+        }
+        if (applied.status === 'missing') {
+          return res.status(409).json({
+            error: `"${applied.name}" no longer exists — the whole batch was NOT applied. Re-propose to apply the remaining changes.`,
+          });
+        }
+
+        // Best-effort audit trail, one row per updated ingredient. Not part
+        // of the transaction above (logAuditEvent swallows its own errors,
+        // same as every other caller of it in this codebase) — a logging
+        // failure must never look like the write itself failed.
+        for (const item of p.items) {
+          await logAuditEvent(
+            tenantId,
+            ALFRED_SERVICE_ACTOR_ID,
+            'alfred.ingredient.cost_updated',
+            'ingredient',
+            item.item_id,
+            { cost: item.previous_cost, quantity: item.previous_quantity },
+            { cost: item.cost, quantity: item.quantity },
+            req.ip
+          );
+        }
+
+        return res.json({
+          applied: true,
+          summary: rec.summary,
+          items: applied.items.map((i) => ({ ...i, cost: parseFloat(i.cost), quantity: parseFloat(i.quantity) })),
+        });
+      }
+
+      // ── PROPOSE ────────────────────────────────────────────────────────
+      // Opportunistic cleanup so the token table doesn't grow unbounded.
+      await db.execute(sql`DELETE FROM alfred_confirmation_tokens WHERE expires_at < NOW() - INTERVAL '1 day'`);
+
+      (req.query as any).tenant_id = body.tenant_id ?? (req.query as any).tenant_id;
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
+
+      if (!Array.isArray(body.items) || body.items.length === 0) {
+        return res.status(400).json({ error: '"items" must be a non-empty array' });
+      }
+      if (body.items.length > INGREDIENT_BATCH_MAX_ITEMS) {
+        return res.status(400).json({
+          error: `A batch can update at most ${INGREDIENT_BATCH_MAX_ITEMS} ingredients — split into multiple calls`,
+        });
+      }
+
+      const validatedItems: IngredientBatchItemInput[] = [];
+      for (let i = 0; i < body.items.length; i++) {
+        const v = validateIngredientBatchItem(body.items[i], i);
+        if (!v.ok) return res.status(400).json({ error: v.error });
+        validatedItems.push(v.value);
+      }
+
+      // Resolve each item to exactly one EXISTING ingredient. Any failure
+      // aborts the whole batch here, before any token is created — the only
+      // way a propose call succeeds is if every line item is resolvable.
+      const resolved: Array<IngredientChange & { item_id: string }> = [];
+      const seenIds = new Set<string>();
+      for (let i = 0; i < validatedItems.length; i++) {
+        const item = validatedItems[i];
+        let row: any;
+        if (item.id) {
+          const byId = await db.execute(
+            sql`SELECT id, name, unit, cost, quantity FROM ingredients
+                WHERE id = ${item.id}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`
+          );
+          row = byId.rows[0];
+          if (!row)
+            return res.status(400).json({ error: `items[${i}]: no ingredient with id ${item.id} for this tenant` });
+        } else {
+          const byName = await db.execute(
+            sql`SELECT id, name, unit, cost, quantity FROM ingredients
+                WHERE tenant_id = ${tenantId}::uuid AND lower(btrim(name)) = lower(${item.name})`
+          );
+          if (byName.rows.length > 1) {
+            return res.status(400).json({
+              error: `items[${i}]: "${item.name}" matches ${byName.rows.length} ingredients — pass an explicit "id" to disambiguate`,
+              candidates: (byName.rows as any[]).map((r) => ({
+                id: r.id,
+                unit: r.unit,
+                cost: parseFloat(r.cost),
+                quantity: parseFloat(r.quantity),
+              })),
+            });
+          }
+          if (byName.rows.length === 0) {
+            return res.status(400).json({
+              error: `items[${i}]: no ingredient named "${item.name}" for this tenant — this endpoint only updates existing ingredients`,
+            });
+          }
+          row = byName.rows[0];
+        }
+
+        if (seenIds.has(row.id)) {
+          return res
+            .status(400)
+            .json({ error: `items[${i}]: "${row.name}" is targeted by more than one item in this batch` });
+        }
+        seenIds.add(row.id);
+
+        resolved.push({
+          item_id: row.id,
+          name: row.name,
+          unit: row.unit,
+          cost: item.cost,
+          quantity: item.quantity,
+          previous_cost: parseFloat(row.cost),
+          previous_quantity: parseFloat(row.quantity),
+        });
+      }
+
+      const summary = buildIngredientBatchSummary(resolved);
+      const token = crypto.randomBytes(24).toString('hex');
+      const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString();
+      const payload = { items: resolved };
+
+      await db.execute(
+        sql`INSERT INTO alfred_confirmation_tokens (token, tenant_id, action, payload, summary, expires_at)
+            VALUES (${token}, ${tenantId}::uuid, 'ingredients.batch_set', ${JSON.stringify(payload)}::jsonb, ${summary}, ${expiresAt}::timestamptz)`
+      );
+
+      return res.json({
+        proposed: true,
+        summary,
+        confirmationToken: token,
+        expires_at: expiresAt,
+        changes: resolved.map((r) => ({
+          item_id: r.item_id,
+          name: r.name,
+          unit: r.unit,
+          cost: r.cost,
+          previous_cost: r.previous_cost,
+          quantity: r.quantity,
+          previous_quantity: r.previous_quantity,
+          unit_cost: Math.round((r.cost / r.quantity) * 10000) / 10000,
+          previous_unit_cost:
+            r.previous_quantity > 0 ? Math.round((r.previous_cost / r.previous_quantity) * 10000) / 10000 : null,
+        })),
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error in POST /api/alfred/ingredients');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -685,6 +1020,7 @@ export function registerAlfredRoutes(app: Express): void {
           name: string;
           amount: number;
           frequency: string;
+          previous_amount: number | null;
         };
 
         type ApplyResult = { status: 'ok'; item: Record<string, any> } | { status: 'race' } | { status: 'missing' };
@@ -724,6 +1060,20 @@ export function registerAlfredRoutes(app: Express): void {
             .status(409)
             .json({ error: 'The target overhead item no longer exists — re-propose to apply this change' });
         }
+
+        // Best-effort audit trail — logAuditEvent swallows its own errors, so
+        // a logging failure never surfaces as a write failure.
+        await logAuditEvent(
+          tenantId,
+          ALFRED_SERVICE_ACTOR_ID,
+          p.operation === 'update' ? 'alfred.overhead.updated' : 'alfred.overhead.created',
+          'overhead_item',
+          applied.item.id,
+          p.operation === 'update' ? { amount: p.previous_amount } : null,
+          { amount: parseFloat(applied.item.amount), frequency: applied.item.frequency },
+          req.ip
+        );
+
         return res.json({
           applied: true,
           operation: p.operation,
@@ -810,7 +1160,14 @@ export function registerAlfredRoutes(app: Express): void {
 
       const token = crypto.randomBytes(24).toString('hex');
       const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString();
-      const payload = { operation, item_id: itemId, name: category, amount, frequency };
+      const payload = {
+        operation,
+        item_id: itemId,
+        name: category,
+        amount,
+        frequency,
+        previous_amount: previousAmount,
+      };
 
       await db.execute(
         sql`INSERT INTO alfred_confirmation_tokens (token, tenant_id, action, payload, summary, expires_at)
