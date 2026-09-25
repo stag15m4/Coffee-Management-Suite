@@ -265,6 +265,26 @@ export function isLikelyDuplicateIngredientName(a: string, b: string): boolean {
 }
 
 /**
+ * A confirmation token's stored payload can be up to CONFIRMATION_TTL_MS
+ * old, so a confirm can still be redeemed against a payload proposed by a
+ * previous deploy of this endpoint. Before "new" (create) items existed,
+ * every item was an update and none carried a `kind` field. Without this
+ * normalization, such an item falls through the confirm handler's
+ * kind === 'update' check into the create branch: it usually just 409s as
+ * an exact-name "duplicate" of the very ingredient it meant to update, but
+ * if that ingredient was renamed or deleted between propose and confirm,
+ * the create branch would find no match and insert a phantom duplicate
+ * instead of ever applying the intended update.
+ */
+export function normalizeLegacyIngredientPayloadItems<T extends { kind?: 'update' | 'create' }>(
+  items: T[]
+): Array<T & { kind: 'update' | 'create' }> {
+  return items.map((item) =>
+    item.kind ? (item as T & { kind: 'update' | 'create' }) : { ...item, kind: 'update' as const }
+  );
+}
+
+/**
  * Shared guard for tenant-scoped read endpoints.
  * Sends the error response and returns null when the request is not allowed;
  * returns the resolved tenant ID otherwise.
@@ -439,11 +459,10 @@ export function registerAlfredRoutes(app: Express): void {
           return res.status(410).json({ error: 'Confirmation token expired — re-propose to get a fresh one' });
         }
 
-        const p = rec.payload as {
-          items: Array<
-            (IngredientUpdateChange & { item_id: string }) | (IngredientCreateChange & { item_id?: undefined })
-          >;
+        const rawPayload = rec.payload as {
+          items: Array<(Omit<IngredientUpdateChange, 'kind'> & { kind?: 'update' }) | IngredientCreateChange>;
         };
+        const p = { items: normalizeLegacyIngredientPayloadItems(rawPayload.items) };
 
         type ApplyResult =
           | { status: 'ok'; items: Array<Record<string, any>> }
@@ -479,14 +498,38 @@ export function registerAlfredRoutes(app: Express): void {
                 results.push({ ...(upd.rows[0] as Record<string, any>), kind: 'update' });
               } else {
                 // No DB unique constraint backs the exact-match check from
-                // propose time — re-check inside the transaction so a
-                // concurrent insert since propose can't produce a real
-                // duplicate.
-                const dupe = await tx.execute(
-                  sql`SELECT id FROM ingredients
-                      WHERE tenant_id = ${tenantId}::uuid AND lower(btrim(name)) = lower(${item.name}) LIMIT 1`
+                // propose time — two safeguards here, both necessary:
+                //
+                // 1. A transaction-scoped advisory lock keyed on (tenant,
+                //    normalized name), released automatically at commit or
+                //    rollback. A bare re-check SELECT is still a race under
+                //    READ COMMITTED — two concurrent confirms for the same
+                //    new name can each pass the SELECT before either COMMITs
+                //    and both INSERT, since nothing here serializes them
+                //    against each other (the token claim above only
+                //    serializes reuse of that ONE token). The lock forces
+                //    the second confirm to wait for the first to finish
+                //    before it even runs its own check.
+                // 2. The re-check itself must use the SAME normalization as
+                //    propose's exact-match check (normalizeIngredientName —
+                //    collapses internal whitespace, not just btrim's
+                //    leading/trailing) — otherwise "Oat Milk" vs "Oat  Milk"
+                //    (double space) inserted concurrently would slip past
+                //    both. Done in JS against a fresh fetch, reusing the
+                //    exact function propose used, rather than hand-keeping a
+                //    second SQL implementation of the same normalization in
+                //    sync with it.
+                await tx.execute(
+                  sql`SELECT pg_advisory_xact_lock(hashtext(${tenantId}::text), hashtext(${normalizeIngredientName(item.name)}::text))`
                 );
-                if (dupe.rows.length > 0) throw new DuplicateCreatedSinceProposeError(item.name);
+                const existingResult = await tx.execute(
+                  sql`SELECT name FROM ingredients WHERE tenant_id = ${tenantId}::uuid`
+                );
+                const nameKey = normalizeIngredientName(item.name);
+                const collides = (existingResult.rows as Array<{ name: string }>).some(
+                  (r) => normalizeIngredientName(r.name) === nameKey
+                );
+                if (collides) throw new DuplicateCreatedSinceProposeError(item.name);
                 const ins = await tx.execute(
                   sql`INSERT INTO ingredients (tenant_id, name, unit, cost, quantity)
                       VALUES (${tenantId}::uuid, ${item.name}, ${item.unit}, ${item.cost}, ${item.quantity})

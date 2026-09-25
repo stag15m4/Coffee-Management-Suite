@@ -12,6 +12,7 @@ let formatIngredientUpdateLine: typeof import('../../server/routes/alfred').form
 let formatIngredientCreateLine: typeof import('../../server/routes/alfred').formatIngredientCreateLine;
 let buildIngredientBatchSummary: typeof import('../../server/routes/alfred').buildIngredientBatchSummary;
 let isLikelyDuplicateIngredientName: typeof import('../../server/routes/alfred').isLikelyDuplicateIngredientName;
+let normalizeLegacyIngredientPayloadItems: typeof import('../../server/routes/alfred').normalizeLegacyIngredientPayloadItems;
 
 beforeAll(async () => {
   ({
@@ -21,6 +22,7 @@ beforeAll(async () => {
     formatIngredientCreateLine,
     buildIngredientBatchSummary,
     isLikelyDuplicateIngredientName,
+    normalizeLegacyIngredientPayloadItems,
   } = await import('../../server/routes/alfred'));
 });
 
@@ -353,5 +355,32 @@ describe('isLikelyDuplicateIngredientName', () => {
 
   it('does not flag genuinely different longer products', () => {
     expect(isLikelyDuplicateIngredientName('Espresso Beans', 'Chai Concentrate')).toBe(false);
+  });
+});
+
+describe('normalizeLegacyIngredientPayloadItems', () => {
+  // Regression test for a real bug a reviewer caught: a confirmation token
+  // can still be redeemed up to CONFIRMATION_TTL_MS after a deploy, against
+  // a payload the PREVIOUS version of this endpoint proposed. Before "new"
+  // items existed, every stored item was an update and had no `kind` field
+  // at all. Without this normalization, such an item falls into the
+  // confirm handler's create branch instead.
+  it('leaves an item with a kind untouched', () => {
+    const items = [{ kind: 'create' as const, name: 'Vanilla Syrup' }];
+    expect(normalizeLegacyIngredientPayloadItems(items)).toEqual(items);
+  });
+
+  it('defaults a kind-less (pre-deploy) item to update', () => {
+    const legacyItem = { item_id: 'i1', name: 'Espresso Beans', unit: 'lb', cost: 45, quantity: 5 };
+    const result = normalizeLegacyIngredientPayloadItems([legacyItem]);
+    expect(result).toEqual([{ ...legacyItem, kind: 'update' }]);
+  });
+
+  it('normalizes a mixed array item by item', () => {
+    const result = normalizeLegacyIngredientPayloadItems([
+      { item_id: 'i1', name: 'Espresso Beans' },
+      { kind: 'create' as const, name: 'Vanilla Syrup' },
+    ]);
+    expect(result.map((r) => r.kind)).toEqual(['update', 'create']);
   });
 });
