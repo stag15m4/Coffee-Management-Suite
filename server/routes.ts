@@ -69,6 +69,80 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // =====================================================
   await registerAllRouteModules(app);
 
+  // Dashboard read model: consolidate the browser's previous Supabase fan-out
+  // into one authenticated server request per location. The database work runs
+  // in parallel from Railway and only the projection needed by StoreCard is sent.
+  app.get('/api/dashboard/metrics/:tenantId', async (req: Request, res: Response) => {
+    const { userId } = await getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const tenantId = req.params.tenantId;
+    const access = await db.execute(sql`
+      SELECT up.role
+      FROM user_profiles up
+      WHERE up.id = ${userId}::uuid AND up.is_active = true
+        AND (
+          up.tenant_id = ${tenantId}::uuid
+          OR EXISTS (
+            SELECT 1 FROM tenants target
+            WHERE target.id = ${tenantId}::uuid
+              AND target.parent_tenant_id = up.tenant_id
+          )
+        )
+      LIMIT 1
+    `);
+    const role = (access.rows[0] as any)?.role as string | undefined;
+    if (!role) return res.status(403).json({ error: 'Tenant access denied' });
+
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const weekEnd = new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
+    const admin = getSupabaseAdmin();
+
+    const modulesPromise = admin.rpc('get_tenant_enabled_modules', { p_tenant_id: tenantId });
+    const employeesPromise = admin.from('user_profiles').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_active', true);
+    const adminTasksPromise = admin.from('admin_tasks')
+      .select('id,title,priority,due_date,assigned_to,assignee:user_profiles!admin_tasks_assigned_to_fkey(full_name)')
+      .eq('tenant_id', tenantId).neq('status', 'completed').lte('due_date', weekEnd).order('due_date').limit(15);
+    const maintenancePromise = admin.from('maintenance_tasks')
+      .select('id,name,next_due_at,equipment:equipment!inner(id,name,tenant_id)')
+      .eq('equipment.tenant_id', tenantId).eq('is_active', true).lte('next_due_at', weekEnd).order('next_due_at').limit(15);
+    const revenuePromise = admin.from('cash_activity').select('drawer_date,gross_revenue')
+      .eq('tenant_id', tenantId).gte('drawer_date', lastMonthStart).lt('drawer_date', nextMonth).or('archived.is.null,archived.eq.false');
+
+    const [modulesR, employeesR, adminR, maintenanceR, revenueR] = await Promise.allSettled([
+      modulesPromise, employeesPromise, adminTasksPromise, maintenancePromise, revenuePromise,
+    ]);
+    const val = (r: PromiseSettledResult<any>) => r.status === 'fulfilled' && !r.value.error ? r.value : { data: [], count: 0 };
+    const modules = (val(modulesR).data || []) as string[];
+    const adminRows = modules.includes('admin-tasks') ? (val(adminR).data || []) : [];
+    const maintenanceRows = modules.includes('equipment-maintenance') ? (val(maintenanceR).data || []) : [];
+    const revenueRows = modules.includes('cash-deposit') && (role === 'manager' || role === 'owner') ? (val(revenueR).data || []) : [];
+
+    const urgency = (d: string) => d < today ? 'overdue' : d === today ? 'today' : 'this-week';
+    const adminItems = adminRows.map((t: any) => ({ id:t.id, title:t.title, type:'admin-task', assigneeName:t.assignee?.full_name || null, dueDate:t.due_date || '', urgency:urgency(t.due_date || ''), moduleHref:'/admin-tasks', priority:t.priority }));
+    const maintenanceItems = maintenanceRows.map((t: any) => { const d=t.next_due_at ? t.next_due_at.split('T')[0] : ''; return { id:t.id, title:`${t.equipment?.name || 'Equipment'} — ${t.name}`, type:'maintenance', assigneeName:null, dueDate:d, urgency:urgency(d), moduleHref:'/equipment-maintenance' }; });
+    const order: Record<string, number> = { overdue:0, today:1, 'this-week':2 };
+    const actionItems = [...adminItems, ...maintenanceItems].sort((a:any,b:any) => order[a.urgency]-order[b.urgency] || a.dueDate.localeCompare(b.dueDate));
+    const current = revenueRows.filter((x:any) => x.drawer_date >= monthStart).reduce((s:number,x:any) => s + (Number(x.gross_revenue)||0), 0);
+    const previous = revenueRows.filter((x:any) => x.drawer_date < monthStart).reduce((s:number,x:any) => s + (Number(x.gross_revenue)||0), 0);
+    const revenue = current === 0 && previous === 0 ? null : { currentMonth:current, lastMonth:previous, percentChange:previous > 0 ? ((current-previous)/previous)*100 : 0, trend:current >= previous ? 'up' : 'down' };
+
+    res.json({
+      enabledModules: modules,
+      employeeCount: val(employeesR).count || 0,
+      revenue,
+      actionItems,
+      redFlags: {
+        overdueMaintenanceCount: maintenanceItems.filter((x:any) => x.urgency === 'overdue').length,
+        overdueTaskCount: adminItems.filter((x:any) => x.urgency === 'overdue').length,
+        unassignedTaskCount: adminItems.filter((x:any) => !x.assigneeName).length,
+      },
+    });
+  });
+
   // =====================================================
   // INGREDIENT ROUTES
   // =====================================================
