@@ -1,5 +1,4 @@
 import { useQueries } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase-queries';
 import { useAuth, type ModuleId } from '@/contexts/AuthContext';
 import { getAllModuleIds } from '@/lib/module-registry';
 
