@@ -32,6 +32,25 @@ export interface StoreMetrics {
 
 const ALL_MODULES: ModuleId[] = getAllModuleIds();
 
+/** Role-based dashboard section visibility. */
+export function canViewSection(
+  section: 'health' | 'tasks' | 'maintenance' | 'teasers',
+  role: string | undefined
+): boolean {
+  const roleLevel: Record<string, number> = { owner: 4, manager: 3, lead: 2, employee: 1 };
+  const level = roleLevel[role || ''] || 0;
+  switch (section) {
+    case 'health':
+      return level >= 3;
+    case 'tasks':
+    case 'maintenance':
+    case 'teasers':
+      return level >= 1;
+    default:
+      return false;
+  }
+}
+
 /**
  * Fetches metrics for all accessible locations in parallel using useQueries.
  * Each location gets its own query key for independent caching and loading.
