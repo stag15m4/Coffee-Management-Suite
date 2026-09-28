@@ -7,6 +7,7 @@ import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
 import { escapeHtml } from '@/lib/escapeHtml';
 import { closeWindowScript } from '@/components/tip-payout/export-helpers';
+import { compareProductByNameThenSize, sortOrderItemEntries } from '@shared/coffeeOrderSort';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Download, FileText, Plus, Trash2, Edit2, Save, X, Coffee, ShoppingCart, Store } from 'lucide-react';
@@ -627,7 +628,10 @@ export default function CoffeeOrder() {
             retailLabels: showRetailLabels ? (is12oz ? qty : retailLabels[productId] || 0) : undefined,
             category: productCategory,
           };
-        });
+        })
+        // So production sees the same product-then-size order the vendor
+        // email lists — the cart's add order is otherwise arbitrary.
+        .sort(compareProductByNameThenSize);
 
       const { getAuthHeaders } = await import('@/lib/api-helpers');
       const response = await fetch('/api/coffee-order/send-email', {
@@ -700,7 +704,10 @@ export default function CoffeeOrder() {
       const date = new Date(order.order_date).toLocaleDateString('en-US');
       const cost = order.total_cost ? order.total_cost.toFixed(2) : '0.00';
       const orderRetailLabels = order.retail_labels || {};
-      const items = Object.entries(order.items)
+      // Sorted by product then size, once, so both columns list items in
+      // the same order production works through them in.
+      const sortedItemEntries = sortOrderItemEntries(order.items, allProducts);
+      const items = sortedItemEntries
         .map(([id, qty]) => {
           const product = allProducts.find((p) => p.id === id);
           return product ? `${product.name} ${product.size} x${qty}` : `Unknown x${qty}`;
@@ -709,7 +716,7 @@ export default function CoffeeOrder() {
         .join('; ');
 
       if (hasLabels) {
-        const labels = Object.entries(order.items)
+        const labels = sortedItemEntries
           .map(([id, qty]) => {
             const product = allProducts.find((p) => p.id === id);
             const productCategory = normalizeCategory(product?.category || '');
@@ -1025,7 +1032,7 @@ export default function CoffeeOrder() {
             </thead>
             <tbody>
               ${Object.values(productTotals)
-                .sort((a, b) => b.qty - a.qty)
+                .sort(compareProductByNameThenSize)
                 .map(
                   (p) => `
                   <tr>
@@ -1076,7 +1083,7 @@ export default function CoffeeOrder() {
                 <tr><th>Product</th><th>Size</th><th>Qty</th>${retailLabelHeader}<th>Unit Price</th><th>Line Total</th></tr>
               </thead>
               <tbody>
-                ${Object.entries(order.items)
+                ${sortOrderItemEntries(order.items, allProducts)
                   .map(([id, qty]) => {
                     const product = allProducts.find((p) => p.id === id);
                     const unitPrice = product?.default_price || 0;
