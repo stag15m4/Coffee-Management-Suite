@@ -1,6 +1,7 @@
 // Resend email integration for Coffee Order module and Feedback
 import { Resend } from 'resend';
 import { escapeHtml } from '@shared/escapeHtml';
+import { compareProductByNameThenSize } from '@shared/coffeeOrderSort';
 
 function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY;
@@ -40,7 +41,12 @@ export async function sendOrderEmail(data: OrderEmailData): Promise<{ success: b
     const hasRetailLabels = data.orderItems.some((item) => item.retailLabels && item.retailLabels > 0);
     const totalRetailLabels = data.orderItems.reduce((sum, item) => sum + (item.retailLabels || 0), 0);
 
-    const itemsHtml = data.orderItems
+    // Sorted here (the actual point of rendering), not just relied on from
+    // the caller — so the guarantee holds even if a future caller forgets
+    // to pre-sort. Matches production's batching/prep order: grouped by
+    // product, ascending by size within each product.
+    const itemsHtml = [...data.orderItems]
+      .sort(compareProductByNameThenSize)
       .map((item) => {
         const retailDisplay =
           item.category === '12oz'
