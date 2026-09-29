@@ -51,19 +51,9 @@ export function registerAuthBootstrapRoutes(app: Express): void {
     const isOwner = profile.role === 'owner';
 
     const [tenantResult, childResult, assignmentsResult] = await Promise.all([
-      admin
-        .from('tenants')
-        .select('*')
-        .eq('id', primaryTenantId)
-        .eq('is_active', true)
-        .maybeSingle(),
+      admin.from('tenants').select('*').eq('id', primaryTenantId).eq('is_active', true).maybeSingle(),
       isOwner
-        ? admin
-            .from('tenants')
-            .select('*')
-            .eq('parent_tenant_id', primaryTenantId)
-            .eq('is_active', true)
-            .order('name')
+        ? admin.from('tenants').select('*').eq('parent_tenant_id', primaryTenantId).eq('is_active', true).order('name')
         : Promise.resolve({ data: [], error: null }),
       admin
         .from('user_tenant_assignments')
@@ -97,17 +87,9 @@ export function registerAuthBootstrapRoutes(app: Express): void {
     const activeTenantId = activeTenant.id as string;
 
     const [brandingResult, modulesResult, roleSettingsResult] = await Promise.all([
-      admin
-        .from('tenant_branding')
-        .select('*')
-        .eq('tenant_id', activeTenantId)
-        .maybeSingle(),
+      admin.from('tenant_branding').select('*').eq('tenant_id', activeTenantId).maybeSingle(),
       admin.rpc('get_tenant_enabled_modules', { p_tenant_id: activeTenantId }),
-      admin
-        .from('tenant_role_settings')
-        .select('*')
-        .eq('tenant_id', activeTenantId)
-        .order('role'),
+      admin.from('tenant_role_settings').select('*').eq('tenant_id', activeTenantId).order('role'),
     ]);
 
     if (modulesResult.error) {
