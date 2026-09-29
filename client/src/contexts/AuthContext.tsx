@@ -11,12 +11,6 @@ interface SupabaseResult<T> {
   error: { message: string } | null;
 }
 
-/** Typed accessor for awaited Supabase query results that arrive via Promise.allSettled + withTimeout. */
-function getSupabaseResult<T>(raw: unknown): SupabaseResult<T> {
-  const r = raw as SupabaseResult<T> | null;
-  return { data: r?.data ?? null, error: r?.error ?? null };
-}
-
 export type UserRole = 'owner' | 'manager' | 'lead' | 'employee';
 
 export interface UserProfile {
