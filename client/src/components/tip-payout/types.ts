@@ -6,6 +6,7 @@ export interface TipEmployee {
   name: string;
   is_active: boolean | null;
   tip_eligible: boolean | null;
+  user_profile_id?: string | null;
 }
 
 // Helper to treat null as active (true)

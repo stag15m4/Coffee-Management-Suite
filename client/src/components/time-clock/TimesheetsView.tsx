@@ -68,7 +68,7 @@ export function TimesheetsView({
     setGustoExporting(true);
     try {
       await exportGustoCsv({ tenantId, entries, employees, approvals, weeks, period });
-      toast({ title: 'Gusto CSV exported' });
+      toast({ title: 'Payroll review CSV exported', description: 'Choose the correct tip earning type in Gusto.' });
     } catch (err: unknown) {
       toast({ title: 'Export failed', description: getErrorMessage(err), variant: 'destructive' });
     } finally {
@@ -197,7 +197,7 @@ export function TimesheetsView({
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleGustoExport}>
                       <FileSpreadsheet className="w-4 h-4 mr-2" />
-                      Export for Gusto
+                      Payroll review CSV
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

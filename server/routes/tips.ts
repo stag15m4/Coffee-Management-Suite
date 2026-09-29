@@ -35,6 +35,32 @@ const tipPayoutApproveSchema = z.object({
 });
 
 export function registerTipRoutes(app: Express): void {
+  // Only approved, explicitly linked payouts are visible to the signed-in staff member.
+  app.get('/api/tip-payouts/mine', async (req: Request, res: Response) => {
+    try {
+      const { userId } = await getUserIdFromRequest(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
+      const result = await db.execute(sql`
+        SELECT to_char(a.week_key, 'YYYY-MM-DD') AS week_key, a.approved_at,
+               SUM((p.item->>'hours')::numeric) AS hours,
+               SUM((p.item->>'payout')::numeric) AS payout, a.tenant_id
+        FROM tip_payout_approvals a
+        JOIN user_profiles up ON up.id = ${userId}::uuid AND up.is_active = true
+          AND up.tenant_id = a.tenant_id
+        JOIN tip_employees te ON te.user_profile_id = up.id AND te.tenant_id = a.tenant_id
+        CROSS JOIN LATERAL jsonb_array_elements(a.employee_payouts) AS p(item)
+        WHERE a.status = 'approved' AND p.item->>'employee_id' = te.id::text
+        GROUP BY a.id, a.week_key, a.approved_at, a.tenant_id
+        ORDER BY a.week_key DESC LIMIT 12
+      `);
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({ payouts: result.rows });
+    } catch (error) {
+      logger.error({ err: error }, 'My tip payouts error');
+      res.status(500).json({ error: 'Unable to load tip payouts' });
+    }
+  });
+
   // POST /api/tip-payouts/calculate
   // Server-side tip calculation — fetches hours and tips from DB, computes payouts
   app.post('/api/tip-payouts/calculate', async (req: Request, res: Response) => {
@@ -50,8 +76,11 @@ export function registerTipRoutes(app: Express): void {
 
       const body = tipPayoutCalculateSchema.parse(req.body);
 
-      // Verify user belongs to the requested tenant
-      if (profile.tenant_id !== body.tenantId) {
+      const location = await db.execute(sql`
+        SELECT id FROM tenants WHERE id = ${body.tenantId}::uuid
+          AND (id = ${profile.tenant_id}::uuid OR parent_tenant_id = ${profile.tenant_id}::uuid)
+      `);
+      if (!location.rows.length) {
         return res.status(403).json({ error: 'Not authorized for this tenant' });
       }
 
@@ -92,8 +121,8 @@ export function registerTipRoutes(app: Express): void {
         JOIN tip_employees te ON te.id = teh.employee_id
         WHERE teh.tenant_id = ${tenantId}::uuid
           AND teh.week_key = ${weekKey}::date
-          AND te.is_active = true
-          AND te.tip_eligible = true
+          AND te.is_active IS DISTINCT FROM false
+          AND te.tip_eligible IS DISTINCT FROM false
         ORDER BY te.name
       `);
 
@@ -185,7 +214,11 @@ export function registerTipRoutes(app: Express): void {
 
       const body = tipPayoutApproveSchema.parse(req.body);
 
-      if (profile.tenant_id !== body.tenantId) {
+      const location = await db.execute(sql`
+        SELECT id FROM tenants WHERE id = ${body.tenantId}::uuid
+          AND (id = ${profile.tenant_id}::uuid OR parent_tenant_id = ${profile.tenant_id}::uuid)
+      `);
+      if (!location.rows.length) {
         return res.status(403).json({ error: 'Not authorized for this tenant' });
       }
 
@@ -210,34 +243,66 @@ export function registerTipRoutes(app: Express): void {
       const dbCc = parseFloat(weekData.cc_tips) || 0;
       const dbPool = dbCash + dbCc * (1 - CC_FEE_RATE);
 
-      // Verify the submitted pool matches DB within a small tolerance
-      if (Math.abs(dbPool - body.totalPool) > 0.02) {
+      // Approval must bind to the exact saved totals and roster hours, rather
+      // than accepting a browser-supplied allocation or a stale preview.
+      if (
+        Math.abs(dbCash - body.cashTips) > 0.005 ||
+        Math.abs(dbCc - body.ccTips) > 0.005 ||
+        Math.abs(dbPool - body.totalPool) > 0.005 ||
+        body.distributionMethod !== 'hours'
+      ) {
         return res.status(409).json({
-          error: 'Tip pool mismatch. The tip data may have changed. Please recalculate.',
-          serverPool: Math.round(dbPool * 100) / 100,
-          submittedPool: body.totalPool,
+          error: 'Tip totals changed. Refresh the week before approving.',
         });
       }
 
-      // Verify each employee exists and belongs to this tenant
-      const employeeIds = body.employees.map((e) => e.employee_id);
-      const empCheckResult = await db.execute(sql`
-        SELECT id FROM tip_employees
-        WHERE tenant_id = ${body.tenantId}::uuid
-          AND id = ANY(${employeeIds}::uuid[])
-          AND is_active = true
+      const hoursResult = await db.execute(sql`
+        SELECT teh.employee_id, teh.hours, te.name
+        FROM tip_employee_hours teh
+        JOIN tip_employees te ON te.id = teh.employee_id AND te.tenant_id = teh.tenant_id
+        WHERE teh.tenant_id = ${body.tenantId}::uuid AND teh.week_key = ${body.weekKey}::date
+          AND te.is_active IS DISTINCT FROM false AND te.tip_eligible IS DISTINCT FROM false
+        ORDER BY te.name, te.id
       `);
-      const validIds = new Set((empCheckResult.rows as any[]).map((r) => r.id));
-      const invalidEmployees = employeeIds.filter((id) => !validIds.has(id));
-      if (invalidEmployees.length > 0) {
-        return res.status(400).json({
-          error: `Invalid employee IDs: ${invalidEmployees.join(', ')}`,
-        });
+      const rows = hoursResult.rows as Array<{ employee_id: string; hours: string; name: string }>;
+      const hours = rows.reduce((sum, row) => sum + Number(row.hours), 0);
+      if (
+        !rows.length ||
+        hours <= 0 ||
+        body.employees.length !== rows.length ||
+        Math.abs(hours - body.totalHours) > 0.005 ||
+        Math.abs(dbPool / hours - body.hourlyRate) > 0.0001
+      ) {
+        return res.status(409).json({ error: 'Tip hours changed. Refresh the week before approving.' });
       }
+      const expected = rows.map((row) => ({
+        id: row.employee_id,
+        hours: Number(row.hours),
+        payout: Math.round(((Number(row.hours) * dbPool) / hours) * 100) / 100,
+      }));
+      const difference = Math.round((dbPool - expected.reduce((sum, row) => sum + row.payout, 0)) * 100) / 100;
+      expected[0].payout = Math.round((expected[0].payout + difference) * 100) / 100;
+      const submitted = new Map(body.employees.map((employee) => [employee.employee_id, employee]));
+      if (
+        submitted.size !== expected.length ||
+        expected.some((row) => {
+          const employee = submitted.get(row.id);
+          return (
+            !employee || Math.abs(employee.hours - row.hours) > 0.005 || Math.abs(employee.payout - row.payout) > 0.005
+          );
+        })
+      ) {
+        return res.status(409).json({ error: 'Tip allocation changed. Refresh the week before approving.' });
+      }
+      const canonicalPayouts = rows.map((row) => ({
+        employee_id: row.employee_id,
+        employee_name: row.name,
+        hours: Number(row.hours),
+        payout: expected.find((item) => item.id === row.employee_id)!.payout,
+      }));
 
-      const _ccAfterFee = body.ccTips * (1 - CC_FEE_RATE);
-
-      // Insert the approved payout record
+      // A rejected (stale) snapshot can be reapproved after corrections.
+      // Migration 154 records its former values in the immutable history table.
       const insertResult = await db.execute(sql`
         INSERT INTO tip_payout_approvals (
           tenant_id, week_key, cash_tips, cc_tips, cc_fee_rate,
@@ -254,7 +319,7 @@ export function registerTipRoutes(app: Express): void {
           ${body.totalHours},
           ${body.hourlyRate},
           ${body.distributionMethod},
-          ${JSON.stringify(body.employees)}::jsonb,
+          ${JSON.stringify(canonicalPayouts)}::jsonb,
           ${userId}::uuid,
           NOW(),
           ${userId}::uuid,
@@ -262,10 +327,20 @@ export function registerTipRoutes(app: Express): void {
           'approved',
           NOW()
         )
+        ON CONFLICT (tenant_id, week_key) DO UPDATE SET
+          cash_tips = EXCLUDED.cash_tips, cc_tips = EXCLUDED.cc_tips,
+          total_pool = EXCLUDED.total_pool, total_hours = EXCLUDED.total_hours,
+          hourly_rate = EXCLUDED.hourly_rate, distribution_method = EXCLUDED.distribution_method,
+          employee_payouts = EXCLUDED.employee_payouts,
+          calculated_by = EXCLUDED.calculated_by, calculated_at = NOW(),
+          approved_by = EXCLUDED.approved_by, approved_at = NOW(),
+          status = 'approved', updated_at = NOW()
+        WHERE tip_payout_approvals.status <> 'approved'
         RETURNING id, approved_at
       `);
 
       const approval = insertResult.rows[0] as any;
+      if (!approval) return res.status(409).json({ error: 'This week is already approved.' });
 
       await logAuditEvent(
         body.tenantId,
