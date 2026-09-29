@@ -165,22 +165,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return result;
       };
 
-      // Only the profile is on the critical path. Platform-admin detection can resolve alongside it.
-      const [adminSettled, profileSettled] = await Promise.allSettled([
-        timed('Admin query', supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle()),
-        timed('Profile query', supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle()),
-      ]);
-
-      // Extract results safely
-      const adminResult = adminSettled.status === 'fulfilled' ? adminSettled.value : null;
-      const profileResult = profileSettled.status === 'fulfilled' ? profileSettled.value : null;
-
-      // Check if platform admin
-      const admin = getSupabaseResult<PlatformAdmin>(adminResult);
-      const isPlatAdmin = admin.data && !admin.error;
-      if (isPlatAdmin) {
-        setPlatformAdmin(admin.data);
-      }
+      // The regular-user profile is the only identity lookup on the normal login critical path.
+      // Platform-admin detection is only needed when no regular tenant profile exists.
+      const profileResult = await timed(
+        'Profile query',
+        supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle()
+      );
 
       // Check for regular user profile - handle null/error cases
       const profileParsed = getSupabaseResult<UserProfile>(profileResult);
@@ -202,8 +192,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profileData = profileParsed.data;
 
       if (!profileData) {
+        const adminResult = await timed(
+          'Admin query',
+          supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle()
+        );
+        const admin = getSupabaseResult<PlatformAdmin>(adminResult);
+        const isPlatAdmin = admin.data && !admin.error;
         if (isPlatAdmin) {
           // Platform admin with no tenant profile — that's fine
+          setPlatformAdmin(admin.data);
           setProfile(null);
           setTenant(null);
           setBranding(null);
@@ -217,6 +214,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setPlatformAdmin(null);
         return false;
       }
+
+      // Regular tenant users do not need a platform-admin lookup to enter the app.
+      setPlatformAdmin(null);
 
       setProfile(profileData);
 
