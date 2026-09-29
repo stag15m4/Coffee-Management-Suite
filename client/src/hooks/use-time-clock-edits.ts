@@ -129,47 +129,12 @@ export function useReviewTimeClockEdit() {
     }) => {
       if (!user?.id) throw new Error('No user');
 
-      // First fetch the edit request to get the proposed changes
-      const { data: editReq, error: fetchErr } = await supabase
-        .from('time_clock_edit_requests')
-        .select('*')
-        .eq('id', id)
-        .single();
-      if (fetchErr) throw fetchErr;
-
-      // Update the edit request status
-      const { data, error } = await supabase
-        .from('time_clock_edit_requests')
-        .update({
-          status,
-          reviewed_by: user.id,
-          reviewed_at: new Date().toISOString(),
-          review_notes: review_notes ?? null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id)
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('review_time_clock_edit', {
+        p_id: id,
+        p_approve: status === 'approved',
+        p_notes: review_notes ?? null,
+      });
       if (error) throw error;
-
-      // If approved, apply the changes to the actual time clock entry
-      if (status === 'approved') {
-        const updates: Record<string, any> = {
-          is_edited: true,
-          edited_by: user.id,
-          edited_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        if (editReq.requested_clock_in) updates.clock_in = editReq.requested_clock_in;
-        if (editReq.requested_clock_out) updates.clock_out = editReq.requested_clock_out;
-
-        const { error: updateErr } = await supabase
-          .from('time_clock_entries')
-          .update(updates)
-          .eq('id', editReq.time_clock_entry_id);
-        if (updateErr) throw updateErr;
-      }
-
       return data;
     },
     onSuccess: () => {
@@ -185,10 +150,7 @@ export function useCancelTimeClockEdit() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('time_clock_edit_requests')
-        .update({ status: 'cancelled' as const, updated_at: new Date().toISOString() })
-        .eq('id', id);
+      const { error } = await supabase.rpc('cancel_time_clock_edit', { p_id: id });
       if (error) throw error;
     },
     onSuccess: () => {

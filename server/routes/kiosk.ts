@@ -502,7 +502,7 @@ export function registerKioskRoutes(app: Express): void {
                      ) AS breaks,
                      CASE WHEN EXISTS (
                        SELECT 1 FROM time_clock_edit_requests tcer
-                       WHERE tcer.entry_id = tce.id AND tcer.status = 'pending'
+                       WHERE tcer.time_clock_entry_id = tce.id AND tcer.status = 'pending'
                      ) THEN true ELSE false END AS has_pending_edit
               FROM time_clock_entries tce
               LEFT JOIN time_clock_breaks tcb ON tcb.time_clock_entry_id = tce.id
@@ -523,7 +523,7 @@ export function registerKioskRoutes(app: Express): void {
                      ) AS breaks,
                      CASE WHEN EXISTS (
                        SELECT 1 FROM time_clock_edit_requests tcer
-                       WHERE tcer.entry_id = tce.id AND tcer.status = 'pending'
+                       WHERE tcer.time_clock_entry_id = tce.id AND tcer.status = 'pending'
                      ) THEN true ELSE false END AS has_pending_edit
               FROM time_clock_entries tce
               LEFT JOIN time_clock_breaks tcb ON tcb.time_clock_entry_id = tce.id
@@ -553,16 +553,23 @@ export function registerKioskRoutes(app: Express): void {
       }
       // Verify entry belongs to employee
       const entryCheck = await db.execute(sql`
-        SELECT 1 FROM time_clock_entries
+        SELECT clock_in, clock_out FROM time_clock_entries
         WHERE id = ${entryId}::uuid AND employee_id = ${employeeId}::uuid AND tenant_id = ${tenantId}::uuid
         LIMIT 1
       `);
       if (entryCheck.rows.length === 0) {
         return res.status(404).json({ error: 'Entry not found' });
       }
+      const original = entryCheck.rows[0] as { clock_in: Date; clock_out: Date | null };
+      if (!correctedClockIn && !correctedClockOut) {
+        return res.status(400).json({ error: 'Provide a corrected time' });
+      }
       const result = await db.execute(sql`
-        INSERT INTO time_clock_edit_requests (tenant_id, entry_id, requested_by, corrected_clock_in, corrected_clock_out, reason, status)
+        INSERT INTO time_clock_edit_requests
+          (tenant_id, time_clock_entry_id, employee_id, original_clock_in, original_clock_out,
+           requested_clock_in, requested_clock_out, reason, status)
         VALUES (${tenantId}::uuid, ${entryId}::uuid, ${employeeId}::uuid,
+                ${original.clock_in}::timestamptz, ${original.clock_out}::timestamptz,
                 ${correctedClockIn || null}::timestamptz, ${correctedClockOut || null}::timestamptz,
                 ${reason}, 'pending')
         RETURNING id
