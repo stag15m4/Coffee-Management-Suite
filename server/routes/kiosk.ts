@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
+import { ClockEntryNotOpenError, closeClockEntry } from '../timeClockService';
 import { getUserIdFromRequest, kioskVerifyRateLimit, enforceMapLimit } from './core';
 
 // ── In-Memory State ─────────────────────────────────────────
@@ -380,28 +381,11 @@ export function registerKioskRoutes(app: Express): void {
       if (!verifyKioskSession(kioskToken, tenantId, employeeId)) {
         return res.status(401).json({ error: 'Invalid or expired kiosk session' });
       }
-      // End any active breaks and clock out atomically
-      const result = await db.transaction(async (tx) => {
-        await tx.execute(sql`
-          UPDATE time_clock_breaks
-          SET break_end = NOW()
-          WHERE time_clock_entry_id = ${entryId}::uuid AND break_end IS NULL
-        `);
-        const clockOutResult = await tx.execute(sql`
-          UPDATE time_clock_entries
-          SET clock_out = NOW(), updated_at = NOW()
-          WHERE id = ${entryId}::uuid AND (employee_id = ${employeeId}::uuid OR tip_employee_id = ${employeeId}::uuid) AND tenant_id = ${tenantId}::uuid
-          RETURNING clock_out
-        `);
-        if (clockOutResult.rows.length === 0) {
-          throw new Error('ENTRY_NOT_FOUND');
-        }
-        return clockOutResult.rows[0] as any;
-      });
-      res.json({ success: true, clockOut: result.clock_out });
+      const row = await closeClockEntry(tenantId, employeeId, entryId, true);
+      res.json({ success: true, clockOut: row.clock_out });
     } catch (err: any) {
-      if (err?.message === 'ENTRY_NOT_FOUND') {
-        return res.status(404).json({ error: 'Entry not found' });
+      if (err instanceof ClockEntryNotOpenError) {
+        return res.status(409).json({ error: 'Shift already ended or entry not found' });
       }
       res.status(500).json({ error: 'Failed to clock out' });
     }

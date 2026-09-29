@@ -115,20 +115,40 @@ export function useClockIn() {
 }
 
 export function useClockOut() {
+  const { tenant } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, notes }: { id: string; notes?: string }) => {
-      const updates: any = {
-        clock_out: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      if (notes !== undefined) updates.notes = notes;
-      const { data, error } = await supabase.from('time_clock_entries').update(updates).eq('id', id).select().single();
-      if (error) throw error;
-      return data;
+      if (!tenant?.id) throw new Error('No tenant selected');
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Please sign in again');
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      let response: Response;
+      try {
+        response = await fetch('/api/time-clock/clock-out', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ tenantId: tenant.id, entryId: id, notes }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        throw new Error(result?.error || 'Failed to clock out');
+      }
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-clock'] });
+      queryClient.invalidateQueries({ queryKey: ['time-clock-active'] });
+    },
+    onError: () => {
       queryClient.invalidateQueries({ queryKey: ['time-clock-active'] });
     },
   });
