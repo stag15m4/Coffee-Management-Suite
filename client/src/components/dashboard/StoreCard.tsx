@@ -58,7 +58,7 @@ export function StoreCard({ location, metrics, isLoading, isError, isParent }: S
 
   const handleCardClick = async () => {
     if (tenant?.id !== location.id) {
-      await switchLocation(location.id);
+      if (!(await switchLocation(location.id))) return;
     }
     setLocation(`/store/${location.id}`);
   };
@@ -66,7 +66,7 @@ export function StoreCard({ location, metrics, isLoading, isError, isParent }: S
   const handleItemClick = async (e: React.MouseEvent, moduleHref: string) => {
     e.stopPropagation();
     if (tenant?.id !== location.id) {
-      await switchLocation(location.id);
+      if (!(await switchLocation(location.id))) return;
     }
     setLocation(moduleHref);
   };

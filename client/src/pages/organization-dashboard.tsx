@@ -146,7 +146,7 @@ export default function OrganizationDashboard() {
 
   const switchToLocation = async (locationId: string) => {
     // Use the auth context to switch location
-    await authSwitchLocation(locationId);
+    if (!(await authSwitchLocation(locationId))) return;
     setLocation('/');
   };
 

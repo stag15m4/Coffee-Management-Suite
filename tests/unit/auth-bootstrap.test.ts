@@ -34,9 +34,11 @@ beforeEach(() => {
           ? { id: 'user-1', tenant_id: 'tenant-1', role: 'manager' }
           : table === 'tenants'
             ? { id: 'tenant-1', is_active: true }
-            : table === 'user_tenant_assignments' || table === 'tenant_role_settings'
-              ? []
-              : null;
+            : table === 'user_tenant_assignments'
+              ? [{ tenant: { id: 'tenant-2', is_active: true } }]
+              : table === 'tenant_role_settings'
+                ? []
+                : null;
     const query = {
       select: vi.fn(),
       eq: vi.fn(),
@@ -55,14 +57,31 @@ beforeEach(() => {
   } as unknown as Express);
 });
 
-async function bootstrap() {
+async function bootstrap(locationId?: string) {
   const res = { status: vi.fn(), json: vi.fn() };
   res.status.mockReturnValue(res);
-  await handler({ headers: { authorization: 'Bearer user-token' }, query: {} } as Request, res as unknown as Response);
+  await handler(
+    { headers: { authorization: 'Bearer user-token' }, query: locationId ? { locationId } : {} } as unknown as Request,
+    res as unknown as Response
+  );
   return res;
 }
 
 describe('auth bootstrap access', () => {
+  it('loads modules and settings for a requested assigned location', async () => {
+    const res = await bootstrap('tenant-2');
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ activeLocationId: 'tenant-2', tenant: expect.objectContaining({ id: 'tenant-2' }) })
+    );
+    expect(mocks.rpc).toHaveBeenCalledWith('get_tenant_enabled_modules', { p_tenant_id: 'tenant-2' });
+  });
+
+  it('falls back to the primary tenant if the requested location is inaccessible', async () => {
+    const res = await bootstrap('someone-elses-store');
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ activeLocationId: 'tenant-1' }));
+    expect(mocks.rpc).toHaveBeenCalledWith('get_tenant_enabled_modules', { p_tenant_id: 'tenant-1' });
+  });
+
   it('preserves platform admin status alongside a store profile and caller-scoped modules', async () => {
     const res = await bootstrap();
     expect(res.json).toHaveBeenCalledWith(
