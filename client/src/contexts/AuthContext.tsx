@@ -113,97 +113,100 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchInProgressRef = useRef<string | null>(null);
   const lastFetchedUserIdRef = useRef<string | null>(null);
 
-  const fetchUserData = useCallback(async (userId: string, _retryCount = 0, force = false): Promise<boolean> => {
-    if (fetchInProgressRef.current === userId && !force) return true;
-    if (lastFetchedUserIdRef.current === userId && !force) return true;
+  const fetchUserData = useCallback(
+    async (userId: string, _retryCount = 0, force = false, accessToken?: string): Promise<boolean> => {
+      if (fetchInProgressRef.current === userId && !force) return true;
+      if (lastFetchedUserIdRef.current === userId && !force) return true;
 
-    fetchInProgressRef.current = userId;
-    const startedAt = performance.now();
+      fetchInProgressRef.current = userId;
+      const startedAt = performance.now();
 
-    try {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-      if (!currentSession?.access_token) {
-        fetchInProgressRef.current = null;
-        return false;
-      }
-
-      const savedLocationId = sessionStorage.getItem('selected_location_id');
-      const query = savedLocationId ? `?locationId=${encodeURIComponent(savedLocationId)}` : '';
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 8000);
-      let response: Response;
       try {
-        response = await fetch(`/api/auth/bootstrap${query}`, {
-          headers: { Authorization: `Bearer ${currentSession.access_token}` },
-          signal: controller.signal,
-        });
-      } finally {
-        window.clearTimeout(timeout);
-      }
+        // Auth event callbacks already have the session. Calling getSession() from
+        // inside one can wait on Supabase's auth lock and stall the callback.
+        const token = accessToken ?? (await supabase.auth.getSession()).data.session?.access_token;
+        if (!token) {
+          fetchInProgressRef.current = null;
+          return false;
+        }
 
-      if (!response.ok) {
-        console.error(`[AuthBootstrap] CMS bootstrap failed: ${response.status}`);
+        const savedLocationId = sessionStorage.getItem('selected_location_id');
+        const query = savedLocationId ? `?locationId=${encodeURIComponent(savedLocationId)}` : '';
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 8000);
+        let response: Response;
+        try {
+          response = await fetch(`/api/auth/bootstrap${query}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+          });
+        } finally {
+          window.clearTimeout(timeout);
+        }
+
+        if (!response.ok) {
+          console.error(`[AuthBootstrap] CMS bootstrap failed: ${response.status}`);
+          fetchInProgressRef.current = null;
+          return false;
+        }
+
+        const data = (await response.json()) as {
+          profile: UserProfile | null;
+          platformAdmin: PlatformAdmin | null;
+          primaryTenant?: Tenant;
+          tenant?: Tenant;
+          accessibleLocations?: Tenant[];
+          activeLocationId?: string;
+          isParentTenant?: boolean;
+          branding?: TenantBranding | null;
+          enabledModules?: ModuleId[];
+          roleSettings?: TenantRoleSetting[] | null;
+          durationMs?: number;
+        };
+
+        setProfile(data.profile);
+        setPlatformAdmin(data.platformAdmin);
+
+        if (data.profile) {
+          const locations = data.accessibleLocations || [];
+          setPrimaryTenant(data.primaryTenant || null);
+          setTenant(data.tenant || data.primaryTenant || null);
+          setAccessibleLocations(locations);
+          setActiveLocationId(data.activeLocationId || data.primaryTenant?.id || null);
+          setIsParentTenant(Boolean(data.isParentTenant));
+          setBranding(data.branding || null);
+          setEnabledModules(data.enabledModules || []);
+          setRoleSettings(data.roleSettings || null);
+
+          if (savedLocationId && !locations.some((location) => location.id === savedLocationId)) {
+            sessionStorage.removeItem('selected_location_id');
+          }
+        } else {
+          setPrimaryTenant(null);
+          setTenant(null);
+          setAccessibleLocations([]);
+          setActiveLocationId(null);
+          setBranding(null);
+          setEnabledModules([]);
+          setRoleSettings(null);
+          setIsParentTenant(false);
+        }
+
+        setLoading(false);
+        lastFetchedUserIdRef.current = userId;
+        fetchInProgressRef.current = null;
+        console.info(
+          `[AuthBootstrap] CMS request: ${Math.round(performance.now() - startedAt)}ms (server ${data.durationMs ?? 'n/a'}ms)`
+        );
+        return true;
+      } catch (error: unknown) {
+        console.error('[AuthBootstrap] CMS bootstrap error:', getErrorMessage(error));
         fetchInProgressRef.current = null;
         return false;
       }
-
-      const data = (await response.json()) as {
-        profile: UserProfile | null;
-        platformAdmin: PlatformAdmin | null;
-        primaryTenant?: Tenant;
-        tenant?: Tenant;
-        accessibleLocations?: Tenant[];
-        activeLocationId?: string;
-        isParentTenant?: boolean;
-        branding?: TenantBranding | null;
-        enabledModules?: ModuleId[];
-        roleSettings?: TenantRoleSetting[] | null;
-        durationMs?: number;
-      };
-
-      setProfile(data.profile);
-      setPlatformAdmin(data.platformAdmin);
-
-      if (data.profile) {
-        const locations = data.accessibleLocations || [];
-        setPrimaryTenant(data.primaryTenant || null);
-        setTenant(data.tenant || data.primaryTenant || null);
-        setAccessibleLocations(locations);
-        setActiveLocationId(data.activeLocationId || data.primaryTenant?.id || null);
-        setIsParentTenant(Boolean(data.isParentTenant));
-        setBranding(data.branding || null);
-        setEnabledModules(data.enabledModules || []);
-        setRoleSettings(data.roleSettings || null);
-
-        if (savedLocationId && !locations.some((location) => location.id === savedLocationId)) {
-          sessionStorage.removeItem('selected_location_id');
-        }
-      } else {
-        setPrimaryTenant(null);
-        setTenant(null);
-        setAccessibleLocations([]);
-        setActiveLocationId(null);
-        setBranding(null);
-        setEnabledModules([]);
-        setRoleSettings(null);
-        setIsParentTenant(false);
-      }
-
-      setLoading(false);
-      lastFetchedUserIdRef.current = userId;
-      fetchInProgressRef.current = null;
-      console.info(
-        `[AuthBootstrap] CMS request: ${Math.round(performance.now() - startedAt)}ms (server ${data.durationMs ?? 'n/a'}ms)`
-      );
-      return true;
-    } catch (error: unknown) {
-      console.error('[AuthBootstrap] CMS bootstrap error:', getErrorMessage(error));
-      fetchInProgressRef.current = null;
-      return false;
-    }
-  }, []);
+    },
+    []
+  );
 
   useEffect(() => {
     // If in dev mode, use mock data
@@ -302,7 +305,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        const success = await fetchUserData(session.user.id);
+        const success = await fetchUserData(session.user.id, 0, false, session.access_token);
         // If profile fetch failed, the token may be invalid despite not looking expired
         if (!success && session) {
           console.log('[Session] Profile fetch failed, attempting session refresh...');
@@ -310,7 +313,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!error && data.session) {
             setSession(data.session);
             setUser(data.session.user);
-            await fetchUserData(data.session.user.id, 0, true);
+            await fetchUserData(data.session.user.id, 0, true, data.session.access_token);
           }
         }
       }
@@ -329,7 +332,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         // On TOKEN_REFRESHED, force re-fetch profile data with fresh token
         const force = event === 'TOKEN_REFRESHED';
-        await fetchUserData(session.user.id, 0, force);
+        await fetchUserData(session.user.id, 0, force, session.access_token);
 
         // Record last login timestamp for engagement tracking
         if (event === 'SIGNED_IN') {
