@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserData = useCallback(async (userId: string, retryCount = 0, force = false): Promise<boolean> => {
     const MAX_RETRIES = 3;
-    const TIMEOUT_MS = 30000; // Allow up to 30s for Supabase cold starts
+    const TIMEOUT_MS = 5000; // Bootstrap queries must fail fast; noncritical data must not block login
 
     // Skip if already fetching for this user (deduplication)
     if (fetchInProgressRef.current === userId && !force) {
@@ -157,22 +157,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       };
 
-      // Fetch platform admin AND user profile in parallel - use allSettled so one failure doesn't block the other
-      const [adminSettled, profileSettled] = await Promise.allSettled([
-        withTimeout(supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle(), 'Admin query'),
-        withTimeout(supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle(), 'Profile query'),
-      ]);
+      const bootstrapStartedAt = performance.now();
+      const timed = async <T,>(label: string, operation: PromiseLike<T>): Promise<T | null> => {
+        const startedAt = performance.now();
+        const result = await withTimeout(operation, label);
+        console.info(`[AuthBootstrap] ${label}: ${Math.round(performance.now() - startedAt)}ms`);
+        return result;
+      };
 
-      // Extract results safely
-      const adminResult = adminSettled.status === 'fulfilled' ? adminSettled.value : null;
-      const profileResult = profileSettled.status === 'fulfilled' ? profileSettled.value : null;
-
-      // Check if platform admin
-      const admin = getSupabaseResult<PlatformAdmin>(adminResult);
-      const isPlatAdmin = admin.data && !admin.error;
-      if (isPlatAdmin) {
-        setPlatformAdmin(admin.data);
-      }
+      // The regular-user profile is the only identity lookup on the normal login critical path.
+      // Platform-admin detection is only needed when no regular tenant profile exists.
+      const profileResult = await timed(
+        'Profile query',
+        supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle()
+      );
 
       // Check for regular user profile - handle null/error cases
       const profileParsed = getSupabaseResult<UserProfile>(profileResult);
@@ -194,8 +192,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profileData = profileParsed.data;
 
       if (!profileData) {
+        const adminResult = await timed(
+          'Admin query',
+          supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle()
+        );
+        const admin = getSupabaseResult<PlatformAdmin>(adminResult);
+        const isPlatAdmin = admin.data && !admin.error;
         if (isPlatAdmin) {
           // Platform admin with no tenant profile — that's fine
+          setPlatformAdmin(admin.data);
           setProfile(null);
           setTenant(null);
           setBranding(null);
@@ -209,6 +214,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setPlatformAdmin(null);
         return false;
       }
+
+      // Regular tenant users do not need a platform-admin lookup to enter the app.
+      setPlatformAdmin(null);
 
       setProfile(profileData);
 
@@ -227,37 +235,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         assignmentsSettled,
         roleSettingsSettled,
       ] = await Promise.allSettled([
-        withTimeout(supabase.from('tenants').select('*').eq('id', primaryTenantId).single(), 'Tenant query'),
-        withTimeout(
-          supabase.from('tenant_branding').select('*').eq('tenant_id', primaryTenantId).maybeSingle(),
-          'Branding query'
+        timed('Tenant query', supabase.from('tenants').select('*').eq('id', primaryTenantId).single()),
+        timed(
+          'Branding query',
+          supabase.from('tenant_branding').select('*').eq('tenant_id', primaryTenantId).maybeSingle()
         ),
-        withTimeout(supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: primaryTenantId }), 'Modules query'),
+        timed('Modules query', supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: primaryTenantId })),
         // Child locations — only meaningful for owners, but cheap no-op for others
         isOwner
-          ? withTimeout(
+          ? timed(
+              'Child locations query',
               supabase
                 .from('tenants')
                 .select('*')
                 .eq('parent_tenant_id', primaryTenantId)
                 .eq('is_active', true)
-                .order('name'),
-              'Child locations query'
+                .order('name')
             )
           : Promise.resolve(null),
         // Cross-tenant assignments
-        withTimeout(
+        timed(
+          'User assignments query',
           supabase
             .from('user_tenant_assignments')
             .select('tenant:tenants!inner(*)')
             .eq('user_id', userId)
-            .eq('is_active', true),
-          'User assignments query'
+            .eq('is_active', true)
         ),
         // Role settings
-        withTimeout(
-          supabase.from('tenant_role_settings').select('*').eq('tenant_id', primaryTenantId).order('role'),
-          'Role settings query'
+        timed(
+          'Role settings query',
+          supabase.from('tenant_role_settings').select('*').eq('tenant_id', primaryTenantId).order('role')
         ),
       ]);
 
@@ -375,6 +383,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRoleSettings(null);
       }
 
+      console.info(`[AuthBootstrap] complete: ${Math.round(performance.now() - bootstrapStartedAt)}ms`);
       lastFetchedUserIdRef.current = userId;
       fetchInProgressRef.current = null;
       return true;
