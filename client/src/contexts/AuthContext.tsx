@@ -5,12 +5,6 @@ import type { PermissionKey, TenantRoleSetting } from '@/hooks/use-role-settings
 import { getAllModuleIds, MODULE_REGISTRY, type ModuleId } from '@/lib/module-registry';
 import { getErrorMessage } from '@/lib/utils';
 
-/** Shape returned by Supabase `.select()` queries (single or list). */
-interface SupabaseResult<T> {
-  data: T | null;
-  error: { message: string } | null;
-}
-
 export type UserRole = 'owner' | 'manager' | 'lead' | 'employee';
 
 export interface UserProfile {
