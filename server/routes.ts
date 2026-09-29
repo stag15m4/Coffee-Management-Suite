@@ -77,14 +77,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const admin = getSupabaseAdmin();
-    const profileResult = await admin.from('user_profiles').select('*').eq('id', userId).eq('is_active', true).maybeSingle();
+    const profileResult = await admin
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .eq('is_active', true)
+      .maybeSingle();
     if (profileResult.error) {
       logger.error({ err: profileResult.error, userId }, 'Auth bootstrap profile lookup failed');
       return res.status(502).json({ error: 'Profile unavailable' });
     }
 
     if (!profileResult.data) {
-      const adminResult = await admin.from('platform_admins').select('*').eq('id', userId).eq('is_active', true).maybeSingle();
+      const adminResult = await admin
+        .from('platform_admins')
+        .select('*')
+        .eq('id', userId)
+        .eq('is_active', true)
+        .maybeSingle();
       if (adminResult.error) {
         logger.error({ err: adminResult.error, userId }, 'Auth bootstrap admin lookup failed');
         return res.status(502).json({ error: 'Admin profile unavailable' });
@@ -99,7 +109,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const [tenantResult, childResult, assignmentsResult] = await Promise.all([
       admin.from('tenants').select('*').eq('id', primaryTenantId).eq('is_active', true).maybeSingle(),
       isOwner
-        ? admin.from('tenants').select('*').eq('parent_tenant_id', primaryTenantId).eq('is_active', true).order('name')
+        ? admin
+            .from('tenants')
+            .select('*')
+            .eq('parent_tenant_id', primaryTenantId)
+            .eq('is_active', true)
+            .order('name')
         : Promise.resolve({ data: [], error: null }),
       admin
         .from('user_tenant_assignments')
@@ -136,8 +151,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       logger.error({ err: modulesResult.error, activeTenantId }, 'Auth bootstrap module lookup failed');
       return res.status(502).json({ error: 'Module access unavailable' });
     }
-    if (brandingResult.error) logger.warn({ err: brandingResult.error, activeTenantId }, 'Auth bootstrap branding unavailable');
-    if (roleSettingsResult.error) logger.warn({ err: roleSettingsResult.error, activeTenantId }, 'Auth bootstrap role settings unavailable');
+    if (brandingResult.error) {
+      logger.warn({ err: brandingResult.error, activeTenantId }, 'Auth bootstrap branding unavailable');
+    }
+    if (roleSettingsResult.error) {
+      logger.warn({ err: roleSettingsResult.error, activeTenantId }, 'Auth bootstrap role settings unavailable');
+    }
 
     res.json({
       profile,
