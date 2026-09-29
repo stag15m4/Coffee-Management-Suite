@@ -6,6 +6,7 @@ import { registerResellerRoutes } from './reseller';
 import { registerTipRoutes } from './tips';
 import { registerAlfredRoutes } from './alfred';
 import { registerConnecteamRoutes } from './connecteam';
+import { registerAuthBootstrapRoutes } from './auth-bootstrap';
 
 /**
  * Register all route sub-modules on the Express app.
@@ -18,6 +19,7 @@ export async function registerAllRouteModules(app: Express): Promise<void> {
   registerTipRoutes(app);
   registerAlfredRoutes(app);
   registerConnecteamRoutes(app);
+  registerAuthBootstrapRoutes(app);
 
   // Async registrations (dynamic imports for Stripe/reseller services)
   await registerBillingRoutes(app);
