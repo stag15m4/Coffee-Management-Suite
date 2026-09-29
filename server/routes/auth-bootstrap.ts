@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import logger from '../logger';
-import { getSupabaseAdmin } from '../supabaseAdmin';
+import { getSupabaseAdmin, getSupabaseForUser } from '../supabaseAdmin';
 import { getUserIdFromRequest } from './core';
 
 export function registerAuthBootstrapRoutes(app: Express): void {
@@ -10,12 +10,15 @@ export function registerAuthBootstrapRoutes(app: Express): void {
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const admin = getSupabaseAdmin();
-    const profileResult = await admin
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .eq('is_active', true)
-      .maybeSingle();
+    const [profileResult, adminResult] = await Promise.all([
+      admin.from('user_profiles').select('*').eq('id', userId).eq('is_active', true).maybeSingle(),
+      admin.from('platform_admins').select('*').eq('id', userId).eq('is_active', true).maybeSingle(),
+    ]);
+
+    if (adminResult.error) {
+      logger.error({ err: adminResult.error, userId }, 'Auth bootstrap admin lookup failed');
+      return res.status(502).json({ error: 'Admin profile unavailable' });
+    }
 
     if (profileResult.error) {
       logger.error({ err: profileResult.error, userId }, 'Auth bootstrap profile lookup failed');
@@ -23,18 +26,6 @@ export function registerAuthBootstrapRoutes(app: Express): void {
     }
 
     if (!profileResult.data) {
-      const adminResult = await admin
-        .from('platform_admins')
-        .select('*')
-        .eq('id', userId)
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (adminResult.error) {
-        logger.error({ err: adminResult.error, userId }, 'Auth bootstrap admin lookup failed');
-        return res.status(502).json({ error: 'Admin profile unavailable' });
-      }
-
       if (!adminResult.data) {
         return res.status(403).json({ error: 'No active profile' });
       }
@@ -86,9 +77,10 @@ export function registerAuthBootstrapRoutes(app: Express): void {
     const activeTenant = locations.find((location) => location.id === requestedLocationId) || primaryTenant;
     const activeTenantId = activeTenant.id as string;
 
+    const caller = getSupabaseForUser(req.headers.authorization!.slice(7));
     const [brandingResult, modulesResult, roleSettingsResult] = await Promise.all([
       admin.from('tenant_branding').select('*').eq('tenant_id', activeTenantId).maybeSingle(),
-      admin.rpc('get_tenant_enabled_modules', { p_tenant_id: activeTenantId }),
+      caller.rpc('get_tenant_enabled_modules', { p_tenant_id: activeTenantId }),
       admin.from('tenant_role_settings').select('*').eq('tenant_id', activeTenantId).order('role'),
     ]);
 
@@ -107,7 +99,7 @@ export function registerAuthBootstrapRoutes(app: Express): void {
 
     return res.json({
       profile,
-      platformAdmin: null,
+      platformAdmin: adminResult.data || null,
       primaryTenant,
       tenant: activeTenant,
       accessibleLocations: locations,
