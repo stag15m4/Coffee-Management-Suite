@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase-queries';
 import type { User, Session } from '@supabase/supabase-js';
 import type { PermissionKey, TenantRoleSetting } from '@/hooks/use-role-settings';
 import { getAllModuleIds, MODULE_REGISTRY, type ModuleId } from '@/lib/module-registry';
+import { createSessionResumeHandler } from '@/lib/session-resume';
 import { getErrorMessage } from '@/lib/utils';
 
 export type UserRole = 'owner' | 'manager' | 'lead' | 'employee';
@@ -357,118 +358,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDevMode]);
 
-  // Handle visibility change (iPad app switching, tab switching)
-  // Refresh session and notify pages when app returns to foreground
+  // Resume without duplicating the TOKEN_REFRESHED bootstrap or blocking UI.
   useEffect(() => {
     let isMounted = true;
-    let lastVisibilityTime = Date.now();
-    let resumeInProgress = false;
+    let hiddenAt: number | null = document.visibilityState === 'hidden' ? Date.now() : null;
+    const resume = createSessionResumeHandler({
+      getSession: () => supabase.auth.getSession(),
+      refreshSession: () => supabase.auth.refreshSession(),
+      isActive: () => isMounted && Boolean(user?.id),
+      onLongResume: () => window.dispatchEvent(new CustomEvent('app-resumed')),
+      onError: (error) => console.error('[Session] Error during visibility refresh:', error),
+    });
 
-    const handleVisibilityChange = async () => {
-      // Check visibility and that we have a user and component is still mounted
-      if (document.visibilityState === 'visible' && user && isMounted) {
-        // Prevent multiple simultaneous resume operations
-        if (resumeInProgress) {
-          console.log('[Session] Resume already in progress, skipping duplicate event');
-          return;
-        }
-
-        const timeSinceHidden = Date.now() - lastVisibilityTime;
-        console.log(`[Session] App returned to foreground after ${Math.round(timeSinceHidden / 1000)}s`);
-
-        // Only refresh if app was hidden for a meaningful amount of time
-        if (timeSinceHidden < 5000) {
-          console.log('[Session] App was only hidden briefly, skipping refresh');
-          return;
-        }
-
-        // A valid Supabase session does not need to be refreshed every time the
-        // iPad returns from another app. That refresh emits TOKEN_REFRESHED, which
-        // forces a full profile/tenant/modules reload. Only refresh the session
-        // when its access token is actually expired or within 60 seconds of expiry.
-        const {
-          data: { session: currentSession },
-        } = await supabase.auth.getSession();
-        const expiresAt = currentSession?.expires_at ? currentSession.expires_at * 1000 : 0;
-        const needsSessionRefresh = !currentSession || expiresAt < Date.now() + 60000;
-
-        if (!needsSessionRefresh) {
-          // Page-level operational data is refreshed separately after a long
-          // background period below; keep short app switches instant.
-          if (timeSinceHidden > 300000 && isMounted) {
-            window.dispatchEvent(new CustomEvent('app-resumed'));
-          }
-          return;
-        }
-
-        resumeInProgress = true;
-
-        try {
-          // Add timeout to session refresh to prevent hanging
-          const sessionRefreshPromise = supabase.auth.refreshSession();
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Session refresh timeout')), 5000)
-          );
-
-          const { data, error } = (await Promise.race([sessionRefreshPromise, timeoutPromise])) as Awaited<
-            typeof sessionRefreshPromise
-          >;
-
-          // Guard against state updates after unmount
-          if (!isMounted) return;
-
-          if (error) {
-            console.warn('[Session] Session refresh failed:', getErrorMessage(error));
-            // If refresh fails, try to get current session (with timeout)
-            try {
-              const sessionPromise = supabase.auth.getSession();
-              const { data: sessionData } = (await Promise.race([
-                sessionPromise,
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Get session timeout')), 3000)),
-              ])) as Awaited<typeof sessionPromise>;
-
-              if (sessionData?.session && isMounted) {
-                console.log('[Session] Retrieved existing session');
-                setSession(sessionData.session);
-                setUser(sessionData.session.user);
-                // Re-fetch user data to ensure profile, tenant, and modules are fresh
-                await fetchUserData(sessionData.session.user.id, 0, true);
-              } else {
-                console.warn('[Session] No valid session found, user may need to re-login');
-              }
-            } catch (sessionErr) {
-              console.error('[Session] Failed to get session:', sessionErr);
-              // Don't force logout, let existing session continue
-            }
-          } else if (data?.session) {
-            console.log('[Session] Session refreshed successfully');
-            // Update session state so modules have fresh auth data
-            if (isMounted) {
-              setSession(data.session);
-              setUser(data.session.user);
-              // Re-fetch user data to ensure profile, tenant, and modules are fresh
-              await fetchUserData(data.session.user.id, 0, true);
-            }
-          }
-
-          // Dispatch custom event to notify pages to refresh their data
-          // Only refresh if app was hidden for more than 5 minutes
-          // (Raised from 30s to preserve form state during normal app switching)
-          if (timeSinceHidden > 300000 && isMounted) {
-            console.log('[Session] Dispatching app-resumed event to refresh page data');
-            // Use setTimeout to ensure event happens after state updates complete
-            setTimeout(() => {
-              window.dispatchEvent(new CustomEvent('app-resumed'));
-            }, 100);
-          }
-        } catch (err) {
-          console.error('[Session] Error during visibility refresh:', err);
-          // Don't crash, just log and continue
-        } finally {
-          resumeInProgress = false;
-        }
-      } else if (document.visibilityState === 'hidden') {
-        lastVisibilityTime = Date.now();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+      } else if (document.visibilityState === 'visible' && hiddenAt !== null) {
+        const hiddenForMs = Date.now() - hiddenAt;
+        hiddenAt = null;
+        void resume(hiddenForMs);
       }
     };
 
@@ -477,7 +385,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isMounted = false;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user]);
+  }, [user?.id]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
