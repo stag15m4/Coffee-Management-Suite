@@ -132,8 +132,8 @@ export default function ResetPassword() {
                 Link Expired or Invalid
               </CardTitle>
               <CardDescription style={{ color: colors.brownLight }}>
-                This password link may have expired or already been used. Please ask your manager to send a new
-                invitation, or use "Forgot Password" on the login page.
+                This password link may have expired or already been used. Ask your manager for a new setup link. Email
+                accounts can also use "Forgot Password" on the login page.
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">

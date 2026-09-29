@@ -1,3 +1,4 @@
+import { loginEmail, staffIdFromEmail } from '@shared/staff-login';
 import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useLayoutEffect } from 'react';
 import { useLocation } from 'wouter';
@@ -44,6 +45,13 @@ export default function Login() {
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (resetEmail && (!resetEmail.includes('@') || staffIdFromEmail(resetEmail))) {
+      toast({
+        title: 'Ask your manager for a setup link',
+        description: 'Staff-ID accounts reset their password through a manager. No email address is needed.',
+      });
+      return;
+    }
     if (!resetEmail) {
       toast({ title: 'Please enter your email', variant: 'destructive' });
       return;
@@ -146,13 +154,13 @@ export default function Login() {
         setTimeout(() => reject(new Error('Connection timed out')), 15000)
       );
 
-      const result = await Promise.race([signIn(email, password), timeoutPromise]);
+      const result = await Promise.race([signIn(loginEmail(email), password), timeoutPromise]);
 
       if (result.error) {
         let errorMessage = result.error.message;
 
         if (result.error.message.includes('Invalid login')) {
-          errorMessage = 'Invalid email or password. Please try again.';
+          errorMessage = 'Invalid email, staff ID, or password. Please try again.';
         } else if (result.error.message.includes('fetch') || result.error.message.includes('network')) {
           errorMessage = 'Connection error. Please check your internet and try again.';
         } else if (result.error.message.includes('timed out')) {
@@ -204,12 +212,15 @@ export default function Login() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email" style={{ color: colors.brown }}>
-                  Email
+                  Email or staff ID
                 </Label>
                 <Input
                   id="email"
-                  type="email"
-                  placeholder="you@example.com"
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  placeholder="you@example.com or cob-lauren"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -246,7 +257,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => {
-                    setResetEmail(email);
+                    setResetEmail(email.includes('@') && !staffIdFromEmail(email) ? email : '');
                     setShowResetDialog(true);
                   }}
                   className="text-sm underline hover:no-underline block w-full"
@@ -275,7 +286,8 @@ export default function Login() {
           <DialogHeader>
             <DialogTitle style={{ color: colors.brown }}>Reset Password</DialogTitle>
             <DialogDescription style={{ color: colors.brownLight }}>
-              Enter your email address and we'll send you a link to reset your password.
+              For a staff ID, ask your manager for a new password setup link. For an email account, enter your email
+              below.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handlePasswordReset} className="space-y-4 mt-4">

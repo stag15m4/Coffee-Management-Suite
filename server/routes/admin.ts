@@ -413,7 +413,7 @@ export function registerAdminRoutes(app: Express): void {
 
       // Load target user's profile — must be in same tenant
       const targetResult = await db.execute(sql`
-        SELECT role, tenant_id, email FROM user_profiles
+        SELECT role, tenant_id, email, staff_login_id FROM user_profiles
         WHERE id = ${targetUserId}::uuid AND tenant_id = ${requester.tenant_id}::uuid AND is_active = true
         LIMIT 1
       `);
@@ -426,6 +426,11 @@ export function registerAdminRoutes(app: Express): void {
       if (requester.role !== 'owner' && (ROLE_HIERARCHY[target.role] || 0) >= (ROLE_HIERARCHY[requester.role] || 0)) {
         return res.status(403).json({ error: 'Cannot change email of a user with equal or higher role' });
       }
+
+      if (target.staff_login_id)
+        return res
+          .status(400)
+          .json({ error: 'This account uses a staff ID. Manage password setup through Staff access.' });
 
       // Check if new email is already in use
       const existingUser = await db.execute(sql`

@@ -154,6 +154,7 @@ export function registerKioskRoutes(app: Express): void {
       } | null = null;
       let needsHashUpgrade = false;
       let upgradeTable: 'user_profiles' | 'tip_employees' | null = null;
+      let upgradeId: string | null = null;
 
       // Fetch all active employees with PINs for this tenant (small set per coffee shop)
       const upResult = await db.execute(sql`
@@ -177,6 +178,7 @@ export function registerKioskRoutes(app: Express): void {
           if (match) {
             needsHashUpgrade = true;
             upgradeTable = 'user_profiles';
+            upgradeId = r.id;
           }
         }
         if (match) {
@@ -187,9 +189,13 @@ export function registerKioskRoutes(app: Express): void {
 
       if (!emp) {
         const teResult = await db.execute(sql`
-          SELECT id, name, avatar_url, kiosk_pin
-          FROM tip_employees
-          WHERE tenant_id = ${tenantId}::uuid AND kiosk_pin IS NOT NULL AND is_active = true
+          SELECT te.id, te.name, te.avatar_url, te.kiosk_pin, te.user_profile_id,
+                 up.full_name AS linked_name, up.role AS linked_role,
+                 EXISTS (SELECT 1 FROM time_clock_entries legacy WHERE legacy.tenant_id=te.tenant_id AND legacy.tip_employee_id=te.id AND legacy.employee_id IS NULL AND legacy.clock_out IS NULL) AS legacy_open
+          FROM tip_employees te
+          LEFT JOIN user_profiles up ON up.id=te.user_profile_id AND up.tenant_id=te.tenant_id
+          WHERE te.tenant_id = ${tenantId}::uuid AND te.kiosk_pin IS NOT NULL AND te.is_active = true
+            AND (te.user_profile_id IS NULL OR up.is_active=true)
         `);
         for (const r of teResult.rows as any[]) {
           const lockout = checkPinLockout(r.id);
@@ -204,15 +210,16 @@ export function registerKioskRoutes(app: Express): void {
             if (match) {
               needsHashUpgrade = true;
               upgradeTable = 'tip_employees';
+              upgradeId = r.id;
             }
           }
           if (match) {
             emp = {
-              id: r.id,
-              fullName: r.name,
+              id: r.user_profile_id && !r.legacy_open ? r.user_profile_id : r.id,
+              fullName: r.linked_name || r.name,
               avatarUrl: r.avatar_url || null,
-              role: 'employee',
-              source: 'tip_employee',
+              role: r.linked_role || 'employee',
+              source: r.user_profile_id && !r.legacy_open ? 'user_profile' : 'tip_employee',
             };
             break;
           }
@@ -235,14 +242,14 @@ export function registerKioskRoutes(app: Express): void {
           db.execute(
             sql`
             UPDATE user_profiles SET kiosk_pin = ${hashedPin}, updated_at = NOW()
-            WHERE id = ${emp.id}::uuid AND tenant_id = ${tenantId}::uuid
+            WHERE id = ${upgradeId}::uuid AND tenant_id = ${tenantId}::uuid
           `
           ).catch(() => {}); // non-blocking upgrade
         } else {
           db.execute(
             sql`
             UPDATE tip_employees SET kiosk_pin = ${hashedPin}, updated_at = NOW()
-            WHERE id = ${emp.id}::uuid AND tenant_id = ${tenantId}::uuid
+            WHERE id = ${upgradeId}::uuid AND tenant_id = ${tenantId}::uuid
           `
           ).catch(() => {}); // non-blocking upgrade
         }
@@ -613,6 +620,8 @@ export function registerKioskRoutes(app: Express): void {
       const existingPins = await db.execute(sql`
         SELECT id, kiosk_pin FROM user_profiles
         WHERE tenant_id = ${tenantId}::uuid AND kiosk_pin IS NOT NULL AND is_active = true AND id != ${targetUserId}::uuid
+        UNION ALL SELECT id,kiosk_pin FROM tip_employees
+        WHERE tenant_id=${tenantId}::uuid AND kiosk_pin IS NOT NULL AND is_active=true AND user_profile_id IS DISTINCT FROM ${targetUserId}::uuid
       `);
       for (const row of existingPins.rows as any[]) {
         const storedPin: string = row.kiosk_pin;
@@ -628,10 +637,16 @@ export function registerKioskRoutes(app: Express): void {
       }
       // Hash the PIN before storing
       const hashedPin = await bcrypt.hash(newPin, 10);
-      await db.execute(sql`
-        UPDATE user_profiles SET kiosk_pin = ${hashedPin}, updated_at = NOW()
-        WHERE id = ${targetUserId}::uuid AND tenant_id = ${tenantId}::uuid
-      `);
+      await db.transaction(async (tx) => {
+        const updated = await tx.execute(sql`
+          UPDATE user_profiles SET kiosk_pin = ${hashedPin}, updated_at = NOW()
+          WHERE id = ${targetUserId}::uuid AND tenant_id = ${tenantId}::uuid AND is_active=true RETURNING id
+        `);
+        if (!updated.rows.length) throw new Error('Employee not found in this location');
+        await tx.execute(
+          sql`UPDATE tip_employees SET kiosk_pin=NULL WHERE user_profile_id=${targetUserId}::uuid AND tenant_id=${tenantId}::uuid`
+        );
+      });
       res.json({ success: true });
     } catch {
       res.status(500).json({ error: 'Failed to update PIN' });

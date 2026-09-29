@@ -1,3 +1,5 @@
+import { StaffAccessPanel } from '@/components/staff/StaffAccessPanel';
+import { staffIdFromEmail } from '@shared/staff-login';
 import { getErrorMessage } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -220,9 +222,9 @@ export default function AdminUsers() {
     }
   }, [detailUser, managerData]);
 
-  const loadUsers = async () => {
+  const loadUsers = async (silent = false) => {
     if (!profile?.tenant_id) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -603,7 +605,9 @@ export default function AdminUsers() {
                           </span>
                         )}
                       </p>
-                      {user.id !== profile?.id && (user.role !== 'owner' || canEditOwners) ? (
+                      {!staffIdFromEmail(user.email) &&
+                      user.id !== profile?.id &&
+                      (user.role !== 'owner' || canEditOwners) ? (
                         <button
                           className="text-sm flex items-center gap-1 hover:underline"
                           style={{ color: colors.brownLight }}
@@ -613,12 +617,12 @@ export default function AdminUsers() {
                             setShowEmailDialog(true);
                           }}
                         >
-                          {user.email}
+                          {staffIdFromEmail(user.email) ? `Staff ID: ${staffIdFromEmail(user.email)}` : user.email}
                           <Pencil className="w-3 h-3" />
                         </button>
                       ) : (
                         <p className="text-sm" style={{ color: colors.brownLight }}>
-                          {user.email}
+                          {staffIdFromEmail(user.email) ? `Staff ID: ${staffIdFromEmail(user.email)}` : user.email}
                         </p>
                       )}
                       {hasMultipleLocations && userAssignments[user.id]?.length > 0 && (
@@ -673,7 +677,7 @@ export default function AdminUsers() {
                             </Button>
                           )}
 
-                          {user.role !== 'owner' && (
+                          {user.role !== 'owner' && !staffIdFromEmail(user.email) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -749,6 +753,13 @@ export default function AdminUsers() {
               </div>
             </CardContent>
           </Card>
+        )}
+        {profile?.tenant_id && (
+          <StaffAccessPanel
+            key={profile.tenant_id}
+            tenantId={profile.tenant_id}
+            onChanged={() => void loadUsers(true)}
+          />
         )}
         {/* Add User Sheet */}
         <Sheet open={showAddDialog} onOpenChange={setShowAddDialog}>

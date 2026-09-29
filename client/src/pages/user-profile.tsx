@@ -1,3 +1,4 @@
+import { staffIdFromEmail } from '@shared/staff-login';
 import { getErrorMessage } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -63,7 +64,7 @@ export default function UserProfile() {
       }
 
       // Update email in auth
-      if (email !== user?.email) {
+      if (!staffIdFromEmail(user?.email) && email !== user?.email) {
         const emailPromise = supabase.auth.updateUser({ email });
 
         const { error: emailError } = await Promise.race([
@@ -467,17 +468,20 @@ export default function UserProfile() {
             </div>
 
             <div>
-              <Label style={{ color: colors.brown }}>Email</Label>
+              <Label style={{ color: colors.brown }}>{staffIdFromEmail(user?.email) ? 'Staff ID' : 'Email'}</Label>
               <Input
                 type="email"
-                value={email}
+                value={staffIdFromEmail(user?.email) || email}
+                disabled={!!staffIdFromEmail(user?.email)}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your.email@example.com"
                 style={{ backgroundColor: colors.inputBg, borderColor: colors.creamDark }}
                 data-testid="input-email"
               />
               <p className="text-xs mt-1" style={{ color: colors.brownLight }}>
-                Changing your email will require confirmation at the new address
+                {staffIdFromEmail(user?.email)
+                  ? 'Use this staff ID to sign in. Ask your manager for a password setup link if needed.'
+                  : 'Changing your email will require confirmation at the new address'}
               </p>
             </div>
 

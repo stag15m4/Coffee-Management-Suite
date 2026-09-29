@@ -1,3 +1,4 @@
+import { staffIdFromEmail } from '@shared/staff-login';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-queries';
@@ -369,7 +370,11 @@ export default function MyTeam() {
                     >
                       <div className="flex items-center gap-2 text-xs" style={{ color: colors.brownLight }}>
                         <Mail className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span className="truncate">{member.email}</span>
+                        <span className="truncate">
+                          {staffIdFromEmail(member.email)
+                            ? `Staff ID: ${staffIdFromEmail(member.email)}`
+                            : member.email}
+                        </span>
                       </div>
                       {member.phone && (
                         <div className="flex items-center gap-2 text-xs" style={{ color: colors.brownLight }}>
@@ -456,7 +461,9 @@ export default function MyTeam() {
                   <div className="flex items-center gap-2 mt-1">
                     <Mail className="w-4 h-4" style={{ color: colors.brownLight }} />
                     <span className="text-sm" style={{ color: colors.brownLight }}>
-                      {selectedMember.email}
+                      {staffIdFromEmail(selectedMember.email)
+                        ? `Staff ID: ${staffIdFromEmail(selectedMember.email)}`
+                        : selectedMember.email}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">

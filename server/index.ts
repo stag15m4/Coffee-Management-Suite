@@ -315,7 +315,7 @@ app.use((req, res, next) => {
     if (path.startsWith('/api')) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       // Only log response body in development, and truncate to avoid leaking sensitive data
-      if (capturedJsonResponse && process.env.NODE_ENV !== 'production') {
+      if (capturedJsonResponse && process.env.NODE_ENV !== 'production' && !path.startsWith('/api/staff-access')) {
         const body = JSON.stringify(capturedJsonResponse);
         logLine += ` :: ${body.length > 200 ? body.slice(0, 200) + '...' : body}`;
       }
