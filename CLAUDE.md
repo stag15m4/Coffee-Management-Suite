@@ -90,3 +90,7 @@ After making changes, always commit and push to the remote branch. If unsure abo
 - `shared/schema.ts` only defines a subset of tables. Most tables exist only in Supabase migrations and are accessed via raw SQL or Supabase client.
 - Platform admin status is checked at runtime via the `platform_admins` table, not a role flag.
 - The seed function in `routes.ts` runs on every server start but no-ops if data exists.
+
+## SQL migration handoff
+
+Start every new migration and every SQL block handed to the user with a SQL comment identifying its migration number and plain-language purpose (for example, `-- Migration 152: Timesheet reapproval`). Include prerequisite migration numbers when applicable. Keep this identifier in the copied SQL itself so the user can recognize saved Supabase queries.

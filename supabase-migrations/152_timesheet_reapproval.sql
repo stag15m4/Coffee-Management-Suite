@@ -1,3 +1,7 @@
+-- Migration 152: Timesheet reapproval and guarded payroll exports
+-- Requires migrations 150 and 151. Creates the approvals table if missing.
+-- Run this entire file, including BEGIN and COMMIT.
+
 BEGIN;
 SET LOCAL search_path = public;
 
