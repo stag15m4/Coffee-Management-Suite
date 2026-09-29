@@ -117,6 +117,7 @@ export function TimesheetsView({
   if (selectedEmployee) {
     return (
       <EmployeeTimesheetView
+        key={`${selectedEmployee}:${period.start}:${period.end}`}
         employeeId={selectedEmployee}
         employees={employees}
         entries={entries}

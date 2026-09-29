@@ -25,9 +25,10 @@ function splitLocal(ts: string) {
 interface EditRequestDialogProps {
   entry: TimeClockEntry;
   onClose: () => void;
+  onSubmitted?: () => void;
 }
 
-export function EditRequestDialog({ entry, onClose }: EditRequestDialogProps) {
+export function EditRequestDialog({ entry, onClose, onSubmitted }: EditRequestDialogProps) {
   const { toast } = useToast();
   const createEdit = useCreateTimeClockEdit();
 
@@ -47,11 +48,16 @@ export function EditRequestDialog({ entry, onClose }: EditRequestDialogProps) {
       if (!date || !time) return null;
       return new Date(`${date}T${time}`).toISOString();
     };
-    const newClockIn = combineToISO(clockInDate, clockInTime);
-    const newClockOut = combineToISO(clockOutDate, clockOutTime);
-
-    const clockInChanged = newClockIn && newClockIn !== entry.clock_in;
-    const clockOutChanged = newClockOut !== entry.clock_out;
+    if (!clockInDate || !clockInTime || (entry.clock_out && (!clockOutDate || !clockOutTime))) {
+      toast({ title: 'Enter complete clock-in and clock-out times', variant: 'destructive' });
+      return;
+    }
+    const originalIn = splitLocal(entry.clock_in);
+    const originalOut = entry.clock_out ? splitLocal(entry.clock_out) : null;
+    const clockInChanged = clockInDate !== originalIn.date || clockInTime !== originalIn.time;
+    const clockOutChanged = originalOut
+      ? clockOutDate !== originalOut.date || clockOutTime !== originalOut.time
+      : !!clockOutTime;
 
     if (!clockInChanged && !clockOutChanged) {
       toast({
@@ -63,6 +69,13 @@ export function EditRequestDialog({ entry, onClose }: EditRequestDialogProps) {
     }
 
     try {
+      const newClockIn = clockInChanged ? combineToISO(clockInDate, clockInTime) : entry.clock_in;
+      const newClockOut = clockOutChanged ? combineToISO(clockOutDate, clockOutTime) : entry.clock_out;
+      if (!newClockIn || (clockOutChanged && !newClockOut)) throw new Error('Enter complete dates and times.');
+      if (newClockOut && new Date(newClockOut) <= new Date(newClockIn)) {
+        toast({ title: 'Clock out must follow clock in', variant: 'destructive' });
+        return;
+      }
       await createEdit.mutateAsync({
         time_clock_entry_id: entry.id,
         original_clock_in: entry.clock_in,
@@ -71,12 +84,16 @@ export function EditRequestDialog({ entry, onClose }: EditRequestDialogProps) {
         requested_clock_out: clockOutChanged ? newClockOut : null,
         reason: reason.trim(),
       });
-      toast({ title: 'Edit request submitted', description: 'Your manager will review it.' });
+      toast({
+        title: 'Pending manager approval',
+        description: 'Your correction was submitted. Recorded hours have not changed.',
+      });
+      onSubmitted?.();
       onClose();
     } catch {
       toast({ title: 'Error', description: 'Failed to submit edit request.', variant: 'destructive' });
     }
-  }, [entry, clockInDate, clockInTime, clockOutDate, clockOutTime, reason, createEdit, toast, onClose]);
+  }, [entry, clockInDate, clockInTime, clockOutDate, clockOutTime, reason, createEdit, toast, onClose, onSubmitted]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -88,6 +105,7 @@ export function EditRequestDialog({ entry, onClose }: EditRequestDialogProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <p className="text-sm">This correction changes recorded hours only after a manager approves it.</p>
           <div className="p-2 rounded-lg text-sm" style={{ backgroundColor: colors.cream, color: colors.brownLight }}>
             <p className="font-medium" style={{ color: colors.brown }}>
               Current entry:

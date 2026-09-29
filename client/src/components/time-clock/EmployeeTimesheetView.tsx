@@ -1,5 +1,5 @@
 import { getErrorMessage } from '@/lib/utils';
-import { useState, useMemo, useCallback, Fragment } from 'react';
+import { useState, useMemo, useCallback, useRef, Fragment } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ import { useEmployeeTimesheetApproval, useApproveTimesheet, useRejectTimesheet }
 import { useRunAccrual } from '@/hooks/use-time-off-policies';
 import { PayPeriodNav } from './PayPeriodNav';
 import { EditRequestDialog } from './EditRequestDialog';
+import { useTimeClockEdits } from '@/hooks/use-time-clock-edits';
+import { TimeCorrectionHistory } from './TimeCorrectionHistory';
 import type { PayPeriod, WeekGroup } from '@/lib/pay-periods';
 import { ChevronLeft, Check, X, Download, Trash2, Edit2 } from 'lucide-react';
 import { colors } from '@/lib/colors';
@@ -161,7 +163,7 @@ export function EmployeeTimesheetView({
   goPrev,
 }: EmployeeTimesheetViewProps) {
   const { toast } = useToast();
-  const { tenant } = useAuth();
+  const { tenant, user, hasRole, hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const editTimeClockEntry = useEditTimeClockEntry();
 
@@ -171,6 +173,22 @@ export function EmployeeTimesheetView({
     Record<string, { in1: string; out1: string; in2: string; out2: string }>
   >({});
   const [editEntry, setEditEntry] = useState<TimeClockEntry | null>(null); // employee edit-request
+  const [saveNotice, setSaveNotice] = useState('');
+  const [isSavingDay, setIsSavingDay] = useState(false);
+  const savingDay = useRef(false);
+  const { data: corrections = [], isLoading: loadingCorrections, isError: correctionsError } = useTimeClockEdits();
+  const entryIds = useMemo(
+    () => new Set(entries.filter((e) => e.employee_id === employeeId).map((e) => e.id)),
+    [entries, employeeId]
+  );
+  const employeeCorrections = corrections.filter(
+    (r) => r.employee_id === employeeId && entryIds.has(r.time_clock_entry_id)
+  );
+  const pendingEntryIds = new Set(
+    employeeCorrections.filter((r) => r.status === 'pending').map((r) => r.time_clock_entry_id)
+  );
+  const canEditTimes = canApprove && hasRole('manager');
+  const canRequestEdit = user?.id === employeeId && !canEditTimes;
 
   const employee = employees.find((e) => e.user_profile_id === employeeId);
   const firstEntry = entries.find((e) => e.employee_id === employeeId);
@@ -363,6 +381,8 @@ export function EmployeeTimesheetView({
 
   /* ── inline edit helpers ── */
   const startDayEdit = useCallback((day: string, rows: EntryRow[]) => {
+    if (savingDay.current) return;
+    setSaveNotice('');
     setEditingDay(day);
     const vals: Record<string, { in1: string; out1: string; in2: string; out2: string }> = {};
     for (const row of rows) {
@@ -386,8 +406,18 @@ export function EmployeeTimesheetView({
 
   /* ── save all punches for a day ── */
   const handleSaveDay = useCallback(async () => {
-    if (!editingDay) return;
+    if (!editingDay || savingDay.current) return;
+    savingDay.current = true;
+    setIsSavingDay(true);
+    setSaveNotice('');
     try {
+      for (const vals of Object.values(dayEditValues)) {
+        if (!parseTimeInput(vals.in1))
+          throw new Error('Enter a valid clock-in time. Use Delete entry to remove a session.');
+        if ([vals.out1, vals.in2, vals.out2].some((value) => value.trim() && !parseTimeInput(value))) {
+          throw new Error('Enter valid times, such as 7:00 AM or 14:30.');
+        }
+      }
       const dayData = dayDataMap.get(editingDay);
 
       // Handle new entry creation
@@ -436,11 +466,7 @@ export function EmployeeTimesheetView({
           const newIn2 = parseTimeInput(vals.in2);
           const newOut2 = parseTimeInput(vals.out2);
 
-          // Cleared clock-in → delete entry
-          if (!newIn1) {
-            await supabase.from('time_clock_entries').delete().eq('id', row.entry.id);
-            continue;
-          }
+          if (!newIn1) throw new Error('A clock-in time is required.');
 
           // Detect changes to clock_in / clock_out
           const origIn1 = row.in1 ? toTimeInput(row.in1) : null;
@@ -455,10 +481,11 @@ export function EmployeeTimesheetView({
             });
             // If clearing clock_out, do it directly since the hook doesn't accept null
             if (hasClockOutChange && !newOut2) {
-              await supabase
+              const { error } = await supabase
                 .from('time_clock_entries')
                 .update({ clock_out: null, updated_at: new Date().toISOString() })
                 .eq('id', row.entry.id);
+              if (error) throw error;
             }
           }
 
@@ -493,11 +520,22 @@ export function EmployeeTimesheetView({
       }
 
       invalidate();
-      toast({ title: 'Saved' });
+      setSaveNotice(
+        `Changes saved to the timesheet for ${formatDayLabel(editingDay)}. Manager edits take effect immediately.`
+      );
+      toast({ title: 'Changes saved to timesheet' });
+      cancelDayEdit();
     } catch (err: unknown) {
-      toast({ title: 'Error', description: getErrorMessage(err) || 'Failed to save', variant: 'destructive' });
+      invalidate();
+      toast({
+        title: 'Save not completed',
+        description: `${getErrorMessage(err) || 'Failed to save'}. Your inputs are still open. Some changes may have saved; check the timesheet before retrying.`,
+        variant: 'destructive',
+      });
+    } finally {
+      savingDay.current = false;
+      setIsSavingDay(false);
     }
-    cancelDayEdit();
   }, [
     editingDay,
     dayEditValues,
@@ -625,6 +663,8 @@ export function EmployeeTimesheetView({
       return (
         <input
           type="text"
+          disabled={isSavingDay}
+          aria-label={{ in1: 'Clock in', out1: 'Break start', in2: 'Break return', out2: 'Clock out' }[field]}
           value={vals[field]}
           onChange={(e) =>
             setDayEditValues((prev) => ({
@@ -652,18 +692,64 @@ export function EmployeeTimesheetView({
       <Card style={{ backgroundColor: colors.white }}>
         <CardContent className="pt-4 pb-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <Button variant="ghost" size="sm" onClick={onBack} className="h-8 px-2" style={{ color: colors.brown }}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBack}
+              disabled={isSavingDay}
+              className="h-8 px-2"
+              style={{ color: colors.brown }}
+            >
               <ChevronLeft className="w-4 h-4 mr-1" /> Back
             </Button>
             <span className="text-lg font-bold" style={{ color: colors.brown }}>
               {employeeName}
             </span>
             <div className="ml-auto">
-              <PayPeriodNav period={period} onPrev={goPrev} onNext={goNext} />
+              <PayPeriodNav
+                period={period}
+                onPrev={() => {
+                  if (!savingDay.current) goPrev();
+                }}
+                onNext={() => {
+                  if (!savingDay.current) goNext();
+                }}
+              />
             </div>
           </div>
         </CardContent>
       </Card>
+
+      <div className="rounded-lg border p-3 text-sm" style={{ borderColor: colors.creamDark, color: colors.brown }}>
+        {canEditTimes
+          ? 'Manager edits update recorded hours when you save. Approve pay period signs off on the whole timesheet.'
+          : 'Requested corrections stay pending until a manager approves them. Totals show the current recorded hours.'}
+      </div>
+      {saveNotice && (
+        <div
+          role="status"
+          className="rounded-lg border p-3 text-sm font-medium"
+          style={{ color: colors.green, borderColor: colors.green }}
+        >
+          {saveNotice}
+        </div>
+      )}
+      {correctionsError && (
+        <p role="alert" className="text-sm" style={{ color: colors.red }}>
+          Correction status could not load. Refresh before submitting another request.
+        </p>
+      )}
+      {loadingCorrections && (
+        <p role="status" className="text-sm">
+          Loading correction status…
+        </p>
+      )}
+      <TimeCorrectionHistory
+        requests={employeeCorrections}
+        canReview={hasRole('manager') && hasPermission('approve_time_edits')}
+        currentUserId={user?.id ?? ''}
+        disabled={!!editingDay}
+      />
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -714,7 +800,7 @@ export function EmployeeTimesheetView({
         {canApprove && (
           <>
             {approval?.status === 'approved' ? (
-              <Badge style={{ backgroundColor: colors.green, color: '#fff' }}>Approved</Badge>
+              <Badge style={{ backgroundColor: colors.green, color: '#fff' }}>Pay period approved</Badge>
             ) : approval?.status === 'rejected' ? (
               <Badge style={{ backgroundColor: colors.red, color: '#fff' }}>Rejected</Badge>
             ) : null}
@@ -736,7 +822,7 @@ export function EmployeeTimesheetView({
               disabled={approveTimesheet.isPending}
               style={{ backgroundColor: colors.green, color: '#fff' }}
             >
-              <Check className="w-4 h-4 mr-1" /> Approve
+              <Check className="w-4 h-4 mr-1" /> Approve pay period
             </Button>
           )}
         </div>
@@ -803,13 +889,14 @@ export function EmployeeTimesheetView({
                             <tr style={{ borderBottom: isDayEditing ? undefined : `1px solid ${colors.cream}` }}>
                               <td className="py-1.5 px-2 font-medium" style={{ color: colors.brown }}>
                                 {data.dayLabel}
-                                {canApprove && !isDayEditing && (
+                                {canEditTimes && !isDayEditing && (
                                   <button
+                                    disabled={isSavingDay}
                                     onClick={() => startDayEdit(day, [])}
-                                    className="ml-1.5 align-middle opacity-40 hover:opacity-100"
+                                    className="ml-2 inline-flex min-h-10 items-center gap-1 rounded border px-2 text-xs"
                                     style={{ color: colors.gold }}
                                   >
-                                    <Edit2 className="w-3 h-3 inline" />
+                                    <Edit2 className="w-3 h-3" /> Add times
                                   </button>
                                 )}
                               </td>
@@ -865,13 +952,15 @@ export function EmployeeTimesheetView({
                                 <td colSpan={9} className="py-1.5 px-2 text-right">
                                   <button
                                     onClick={handleSaveDay}
+                                    disabled={isSavingDay}
                                     className="text-xs font-semibold mr-3 px-3 py-1 rounded"
                                     style={{ backgroundColor: colors.green, color: '#fff' }}
                                   >
-                                    Save
+                                    {isSavingDay ? 'Saving…' : 'Save to timesheet'}
                                   </button>
                                   <button
                                     onClick={cancelDayEdit}
+                                    disabled={isSavingDay}
                                     className="text-xs px-3 py-1 rounded border"
                                     style={{ color: colors.brownLight, borderColor: colors.creamDark }}
                                   >
@@ -903,18 +992,36 @@ export function EmployeeTimesheetView({
                                   {isFirst ? (
                                     <>
                                       {data.dayLabel}
-                                      {canApprove && !isDayEditing && (
+                                      {canEditTimes && !isDayEditing && (
                                         <button
+                                          disabled={isSavingDay}
                                           onClick={() => startDayEdit(day, data.entryRows)}
-                                          className="ml-1.5 align-middle opacity-40 hover:opacity-100"
+                                          className="ml-2 inline-flex min-h-10 items-center gap-1 rounded border px-2 text-xs"
                                           style={{ color: colors.gold }}
                                         >
-                                          <Edit2 className="w-3 h-3 inline" />
+                                          <Edit2 className="w-3 h-3" /> Edit times
                                         </button>
                                       )}
                                     </>
                                   ) : (
                                     ''
+                                  )}
+                                  {data.entryRows.length > 1 && (
+                                    <div className="text-xs font-normal mt-1">Session {idx + 1}</div>
+                                  )}
+                                  {pendingEntryIds.has(eid) ? (
+                                    <Badge variant="outline" className="block mt-1 w-fit">
+                                      Pending manager approval
+                                    </Badge>
+                                  ) : (
+                                    row.entry.is_edited && (
+                                      <div className="text-xs font-normal mt-1">
+                                        Edited
+                                        {row.entry.edited_at
+                                          ? ` ${new Date(row.entry.edited_at).toLocaleString()}`
+                                          : ''}
+                                      </div>
+                                    )
                                   )}
                                 </td>
                                 <td className="py-1.5 px-1">{renderPunchCell(eid, 'in1', row.in1)}</td>
@@ -937,28 +1044,32 @@ export function EmployeeTimesheetView({
                                   {isFirst && data.scheduledHours > 0 ? diff.text : '--'}
                                 </td>
                                 <td className="py-1.5 px-1 text-center">
-                                  {canApprove ? (
+                                  {canEditTimes ? (
                                     <Button
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleDeleteEntry(eid)}
-                                      className="h-5 w-5 p-0"
+                                      disabled={isSavingDay}
+                                      className="h-10 w-10 p-0"
+                                      aria-label="Delete entry"
                                       title="Delete entry"
                                       style={{ color: colors.brownLight }}
                                     >
                                       <Trash2 className="w-3 h-3" />
                                     </Button>
                                   ) : (
-                                    (row.entry as any).source !== 'square' && (
+                                    canRequestEdit &&
+                                    row.entry.source !== 'square' && (
                                       <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setEditEntry(row.entry)}
-                                        className="h-5 w-5 p-0"
+                                        disabled={pendingEntryIds.has(eid) || loadingCorrections || correctionsError}
+                                        className="min-h-10 px-2 text-xs"
                                         title="Request edit"
                                         style={{ color: colors.brownLight }}
                                       >
-                                        <Edit2 className="w-3 h-3" />
+                                        <Edit2 className="w-3 h-3 mr-1" /> Request correction
                                       </Button>
                                     )
                                   )}
@@ -966,18 +1077,29 @@ export function EmployeeTimesheetView({
                               </tr>
                             );
                           })}
+                          {data.entryRows.length > 1 && (
+                            <tr>
+                              <td colSpan={5} className="px-2 py-2 text-right text-xs font-medium">
+                                {data.dayLabel} · {data.entryRows.length} sessions · Daily total
+                              </td>
+                              <td className="px-2 py-2 text-right font-semibold">{formatHM(data.totalNetHours)}</td>
+                              <td colSpan={3} />
+                            </tr>
+                          )}
                           {isDayEditing && (
                             <tr style={{ borderBottom: `1px solid ${colors.cream}` }}>
                               <td colSpan={9} className="py-1.5 px-2 text-right">
                                 <button
                                   onClick={handleSaveDay}
+                                  disabled={isSavingDay}
                                   className="text-xs font-semibold mr-3 px-3 py-1 rounded"
                                   style={{ backgroundColor: colors.green, color: '#fff' }}
                                 >
-                                  Save
+                                  {isSavingDay ? 'Saving…' : 'Save to timesheet'}
                                 </button>
                                 <button
                                   onClick={cancelDayEdit}
+                                  disabled={isSavingDay}
                                   className="text-xs px-3 py-1 rounded border"
                                   style={{ color: colors.brownLight, borderColor: colors.creamDark }}
                                 >
@@ -1028,7 +1150,7 @@ export function EmployeeTimesheetView({
                 disabled={approveTimesheet.isPending}
                 style={{ backgroundColor: colors.green, color: '#fff' }}
               >
-                <Check className="w-4 h-4 mr-1" /> Approve Timesheet
+                <Check className="w-4 h-4 mr-1" /> Approve pay period
               </Button>
               <Button
                 variant="outline"
@@ -1044,7 +1166,13 @@ export function EmployeeTimesheetView({
       )}
 
       {/* Employee edit-request dialog */}
-      {editEntry && !canApprove && <EditRequestDialog entry={editEntry} onClose={() => setEditEntry(null)} />}
+      {editEntry && canRequestEdit && (
+        <EditRequestDialog
+          entry={editEntry}
+          onClose={() => setEditEntry(null)}
+          onSubmitted={() => setSaveNotice('Correction pending manager approval. Recorded hours have not changed.')}
+        />
+      )}
     </div>
   );
 }
