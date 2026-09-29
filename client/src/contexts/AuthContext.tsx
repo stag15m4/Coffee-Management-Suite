@@ -79,7 +79,7 @@ interface AuthContextType {
   getRoleDisplayName: (role: UserRole) => string;
   canAccessModule: (module: ModuleId) => boolean;
   refreshEnabledModules: () => Promise<void>;
-  switchLocation: (locationId: string) => Promise<void>;
+  switchLocation: (locationId: string) => Promise<boolean>;
   retryProfileFetch: () => Promise<boolean>;
   isParentTenant: boolean;
   adminViewingTenant: boolean;
@@ -113,13 +113,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [adminViewingTenant, setAdminViewingTenant] = useState(false);
   const fetchInProgressRef = useRef<string | null>(null);
   const lastFetchedUserIdRef = useRef<string | null>(null);
+  const bootstrapRequestIdRef = useRef(0);
 
   const fetchUserData = useCallback(
-    async (userId: string, _retryCount = 0, force = false, accessToken?: string): Promise<boolean> => {
+    async (
+      userId: string,
+      _retryCount = 0,
+      force = false,
+      accessToken?: string,
+      locationId?: string
+    ): Promise<boolean> => {
       if (fetchInProgressRef.current === userId && !force) return true;
       if (lastFetchedUserIdRef.current === userId && !force) return true;
 
       fetchInProgressRef.current = userId;
+      const requestId = ++bootstrapRequestIdRef.current;
       const startedAt = performance.now();
 
       try {
@@ -127,11 +135,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // inside one can wait on Supabase's auth lock and stall the callback.
         const token = accessToken ?? (await supabase.auth.getSession()).data.session?.access_token;
         if (!token) {
-          fetchInProgressRef.current = null;
+          if (requestId === bootstrapRequestIdRef.current) fetchInProgressRef.current = null;
           return false;
         }
 
-        const savedLocationId = sessionStorage.getItem('selected_location_id');
+        const savedLocationId = locationId ?? sessionStorage.getItem('selected_location_id');
         const query = savedLocationId ? `?locationId=${encodeURIComponent(savedLocationId)}` : '';
         const controller = new AbortController();
         const timeout = window.setTimeout(() => controller.abort(), 8000);
@@ -147,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!response.ok) {
           console.error(`[AuthBootstrap] CMS bootstrap failed: ${response.status}`);
-          fetchInProgressRef.current = null;
+          if (requestId === bootstrapRequestIdRef.current) fetchInProgressRef.current = null;
           return false;
         }
 
@@ -165,6 +173,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           durationMs?: number;
         };
 
+        // A newer bootstrap (such as a location switch or token refresh) owns
+        // the context. Never let an older response overwrite its state.
+        if (requestId !== bootstrapRequestIdRef.current) return false;
+        if (locationId && data.activeLocationId !== locationId) {
+          console.error('[AuthBootstrap] Requested location is no longer accessible:', locationId);
+          fetchInProgressRef.current = null;
+          return false;
+        }
+
         setProfile(data.profile);
         setPlatformAdmin(data.platformAdmin);
 
@@ -178,6 +195,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setBranding(data.branding || null);
           setEnabledModules(data.enabledModules || []);
           setRoleSettings(data.roleSettings || null);
+
+          if (locationId) sessionStorage.setItem('selected_location_id', locationId);
 
           if (savedLocationId && !locations.some((location) => location.id === savedLocationId)) {
             sessionStorage.removeItem('selected_location_id');
@@ -195,14 +214,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setLoading(false);
         lastFetchedUserIdRef.current = userId;
-        fetchInProgressRef.current = null;
+        if (requestId === bootstrapRequestIdRef.current) fetchInProgressRef.current = null;
         console.info(
           `[AuthBootstrap] CMS request: ${Math.round(performance.now() - startedAt)}ms (server ${data.durationMs ?? 'n/a'}ms)`
         );
         return true;
       } catch (error: unknown) {
         console.error('[AuthBootstrap] CMS bootstrap error:', getErrorMessage(error));
-        fetchInProgressRef.current = null;
+        if (requestId === bootstrapRequestIdRef.current) fetchInProgressRef.current = null;
         return false;
       }
     },
@@ -346,10 +365,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           window.location.href = '/reset-password';
         }
       } else {
+        bootstrapRequestIdRef.current += 1;
+        fetchInProgressRef.current = null;
+        lastFetchedUserIdRef.current = null;
         setProfile(null);
         setPlatformAdmin(null);
         setTenant(null);
+        setPrimaryTenant(null);
+        setAccessibleLocations([]);
+        setActiveLocationId(null);
         setBranding(null);
+        setEnabledModules([]);
+        setRoleSettings(null);
+        setIsParentTenant(false);
       }
       setLoading(false);
     });
@@ -572,73 +600,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const switchLocation = useCallback(
     async (locationId: string) => {
-      // Validate the location is in accessible locations
       const targetLocation = accessibleLocations.find((loc) => loc.id === locationId);
-      if (!targetLocation) {
+      if (!user || !targetLocation) {
         console.error('Cannot switch to inaccessible location:', locationId);
-        return;
+        return false;
       }
+      // Commit tenant, branding, modules and role settings together only after
+      // the server confirms this location remains accessible.
+      const switched = await fetchUserData(user.id, 0, true, undefined, locationId);
+      if (!switched) return false;
 
-      // Update tenant context
-      setTenant(targetLocation);
-      setActiveLocationId(locationId);
-      sessionStorage.setItem('selected_location_id', locationId);
-
-      // Load branding for the new location
-      const { data: newBranding } = await supabase
-        .from('tenant_branding')
-        .select('*')
-        .eq('tenant_id', locationId)
-        .maybeSingle();
-
-      // Always update branding state - if location has no branding, set to null
-      // This prevents the previous location's branding from persisting
-      setBranding(newBranding || null);
-
-      // Refresh enabled modules for the new location
-      const { data: modules } = await supabase.rpc('get_tenant_enabled_modules', {
-        p_tenant_id: locationId,
-      });
-      if (modules) {
-        setEnabledModules(modules as ModuleId[]);
-      }
-
-      // Refresh role settings for the new location
-      const { data: newRoleSettings } = await supabase
-        .from('tenant_role_settings')
-        .select('*')
-        .eq('tenant_id', locationId)
-        .order('role');
-      if (newRoleSettings && newRoleSettings.length > 0) {
-        setRoleSettings(newRoleSettings as TenantRoleSetting[]);
-      } else {
-        // Auto-seed for new location
-        await supabase.rpc('seed_tenant_role_settings', { p_tenant_id: locationId });
-        const { data: seeded } = await supabase
-          .from('tenant_role_settings')
-          .select('*')
+      Promise.resolve(
+        supabase
+          .from('user_tenant_assignments')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('user_id', user.id)
           .eq('tenant_id', locationId)
-          .order('role');
-        setRoleSettings((seeded as TenantRoleSetting[]) || null);
-      }
+      ).catch((err: unknown) => console.warn('[AuthContext] Failed to record location switch activity:', err));
 
-      // Record activity on this tenant via user_tenant_assignments
-      if (user) {
-        supabase;
-        Promise.resolve(
-          supabase
-            .from('user_tenant_assignments')
-            .update({ updated_at: new Date().toISOString() })
-            .eq('user_id', user.id)
-            .eq('tenant_id', locationId)
-        ).catch((err: unknown) => console.warn('[AuthContext] Failed to record location switch activity:', err));
-      }
-
-      // Dispatch location-changed event so pages can refresh their data
-      console.log('[AuthContext] Dispatching location-changed event for', locationId);
-      window.dispatchEvent(new CustomEvent('location-changed', { detail: { locationId } }));
+      const committedRequestId = bootstrapRequestIdRef.current;
+      window.setTimeout(() => {
+        if (committedRequestId === bootstrapRequestIdRef.current) {
+          window.dispatchEvent(new CustomEvent('location-changed', { detail: { locationId } }));
+        }
+      }, 0);
+      return true;
     },
-    [accessibleLocations, user]
+    [accessibleLocations, user, fetchUserData]
   );
 
   // Platform admin: enter a tenant's dashboard view (requires profile or assignment)

@@ -127,7 +127,7 @@ export default function Login() {
   const handleLocationSelect = async (locationId: string) => {
     setSelectingLocation(true);
     try {
-      await switchLocation(locationId);
+      if (!(await switchLocation(locationId))) throw new Error('Unable to select this location. Please try again.');
       toast({ title: 'Location selected' });
       window.location.href = '/';
     } catch (error: unknown) {
