@@ -255,3 +255,37 @@ describe('timesheet reapproval database workflow', () => {
     await expect(exportCheck(prior)).rejects.toThrow('Recorded time changed');
   });
 });
+
+// Production regression: migrations 150/151 can exist without the older approval table.
+it('installs migration 152 when migration 094 never created the approval table', async () => {
+  const fresh = new PGlite();
+  try {
+    await fresh.exec(sqlFile('tests/fixtures/time-clock-schema.sql'));
+    await fresh.exec('CREATE ROLE anon');
+    await fresh.exec(sqlFile('supabase-migrations/150_secure_time_corrections.sql'));
+    await fresh.exec(sqlFile('supabase-migrations/151_audited_work_sessions.sql'));
+    await fresh.exec(sqlFile('supabase-migrations/152_timesheet_reapproval.sql'));
+    const result = await fresh.query<{ rls: boolean; write: boolean; read: boolean }>(`SELECT
+      relrowsecurity AS rls,
+      has_table_privilege('authenticated','public.timesheet_approvals','INSERT') AS write,
+      has_table_privilege('authenticated','public.timesheet_approvals','SELECT') AS read
+      FROM pg_class WHERE oid='public.timesheet_approvals'::regclass`);
+    expect(result.rows[0]).toEqual({ rls: true, write: false, read: true });
+    await fresh.query('INSERT INTO tenants VALUES ($1)', [tenant]);
+    await fresh.query("INSERT INTO user_profiles(id,tenant_id,role,full_name) VALUES ($1,$2,'manager','Manager')", [
+      manager,
+      tenant,
+    ]);
+    await fresh.exec('GRANT USAGE ON SCHEMA public, auth TO authenticated');
+    await fresh.query("SELECT set_config('request.jwt.claim.sub',$1,false)", [manager]);
+    await fresh.exec('SET ROLE authenticated');
+    const approval = await fresh.query<{ status: string }>(
+      "SELECT * FROM review_timesheet_period($1,$2,'2026-09-28','2026-10-11','America/New_York','[]',true,NULL)",
+      [tenant, manager]
+    );
+    expect(approval.rows[0].status).toBe('approved');
+    await expect(fresh.query("UPDATE timesheet_approvals SET status='approved'")).rejects.toThrow('permission denied');
+  } finally {
+    await fresh.close();
+  }
+}, 30000);

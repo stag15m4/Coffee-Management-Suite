@@ -2,7 +2,7 @@
 
 ## Deployment
 
-Apply `supabase-migrations/152_timesheet_reapproval.sql` in Supabase SQL Editor after migrations 150 and 151. Run the complete transaction, confirm success, then merge/deploy the matching app PR. Old browser versions cannot approve until refreshed because direct writes to approvals are revoked.
+Apply `supabase-migrations/152_timesheet_reapproval.sql` in Supabase SQL Editor after migrations 150 and 151. Run the complete transaction, confirm success, then merge/deploy the matching app PR. Migration 152 now creates the baseline approvals table if migration 094 never created it; existing approval records are preserved. If an earlier attempt failed with `timesheet_approvals does not exist`, replace the editor contents with the updated complete migration and run again. Old browser versions cannot approve until refreshed because direct writes to approvals are revoked.
 
 Existing approved periods are moved to pending once during this migration. Their previous approval is retained in `timesheet_approval_history`. They need a fresh review because previous approvals did not check a record snapshot or record the period timezone. This does not change recorded punches or previously downloaded files.
 
