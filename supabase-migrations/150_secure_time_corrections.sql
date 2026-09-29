@@ -57,6 +57,10 @@ CREATE TRIGGER guard_staff_break_change BEFORE INSERT OR UPDATE ON time_clock_br
   FOR EACH ROW EXECUTE FUNCTION guard_staff_break_change();
 
 -- No client may mark a request approved without applying the punch atomically.
+DROP POLICY IF EXISTS "Users can view time clock edit requests" ON time_clock_edit_requests;
+CREATE POLICY "Employees see own corrections and managers see tenant corrections" ON time_clock_edit_requests
+  FOR SELECT USING (can_access_tenant(tenant_id) AND
+    (employee_id = auth.uid() OR has_role_or_higher('manager'::user_role)));
 DROP POLICY IF EXISTS "Employees and leads can update edit requests" ON time_clock_edit_requests;
 DROP POLICY IF EXISTS "Employees can delete own pending, managers can delete any" ON time_clock_edit_requests;
 -- Keep request history even if a manager later tries to delete the entry.
