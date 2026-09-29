@@ -1,33 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-queries';
 
-/**
- * A unified employee record that can come from either user_profiles (logged-in
- * users) or tip_employees (tip-roster-only workers without accounts).
- */
-export interface UnifiedEmployee {
-  /** Display in dropdowns / calendar events */
-  name: string;
-  /** Set when the employee has a user_profiles login */
-  user_profile_id: string | null;
-  /** Set when the employee exists in the tip_employees roster */
-  tip_employee_id: string | null;
-  avatar_url: string | null;
-  role: string | null;
-  /** Manager-assigned calendar color (hex), or null for auto */
-  schedule_color: string | null;
-  /** Hourly rate for pay calculations (from user_profiles) */
-  hourly_rate: number | null;
-  /** Hire / start date (from user_profiles) */
-  start_date: string | null;
-  /** 'profile' | 'tip' | 'both' */
-  source: 'profile' | 'tip' | 'both';
-}
+import { mergeEmployeeIdentities, type UnifiedEmployee } from '@/lib/employee-identities';
+export type { UnifiedEmployee } from '@/lib/employee-identities';
 
-/**
- * Fetches team members from user_profiles AND tip_employees for a given
- * tenant, deduplicates by name, and returns a unified list sorted by name.
- */
+/** Combine employees using explicit profile links. Names never establish identity. */
 export function useAllEmployees(tenantId?: string) {
   return useQuery({
     queryKey: ['all-employees', tenantId],
@@ -81,65 +58,7 @@ export function useAllEmployees(tenantId?: string) {
         // Non-critical — continue without assignment data
       }
 
-      const allProfiles = [...profiles, ...assignmentProfiles];
-
-      // Build unified employee map.
-      // Priority: FK link (user_profile_id on tip_employees) > name-based matching (fallback).
-      const byId = new Map<string, UnifiedEmployee>();
-      const byName = new Map<string, UnifiedEmployee>();
-
-      // Index profiles by ID
-      for (const p of allProfiles) {
-        const name = (p.full_name || p.email || p.id).trim();
-        const entry: UnifiedEmployee = {
-          name,
-          user_profile_id: p.id,
-          tip_employee_id: null,
-          avatar_url: p.avatar_url,
-          role: p.role,
-          schedule_color: p.schedule_color ?? null,
-          hourly_rate: (p as any).hourly_rate ?? null,
-          start_date: (p as any).start_date ?? null,
-          source: 'profile',
-        };
-        byId.set(p.id, entry);
-        byName.set(name.toLowerCase(), entry);
-      }
-
-      for (const t of tipEmployees) {
-        const linkedId = (t as any).user_profile_id as string | null;
-
-        // Prefer FK link, then fall back to name match
-        const existing = (linkedId && byId.get(linkedId)) || byName.get(t.name.trim().toLowerCase());
-
-        if (existing) {
-          existing.tip_employee_id = existing.tip_employee_id ?? t.id;
-          existing.schedule_color = existing.schedule_color ?? t.schedule_color;
-          existing.source = existing.source === 'profile' ? 'both' : existing.source;
-        } else {
-          const name = t.name.trim();
-          const entry: UnifiedEmployee = {
-            name,
-            user_profile_id: null,
-            tip_employee_id: t.id,
-            avatar_url: null,
-            role: null,
-            schedule_color: t.schedule_color ?? null,
-            hourly_rate: null,
-            start_date: null,
-            source: 'tip',
-          };
-          byName.set(name.toLowerCase(), entry);
-        }
-      }
-
-      // byId entries should already be in byName, but ensure no orphans
-      byId.forEach((val, _id) => {
-        const key = val.name.toLowerCase();
-        if (!byName.has(key)) byName.set(key, val);
-      });
-
-      return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
+      return mergeEmployeeIdentities([...profiles, ...assignmentProfiles], tipEmployees);
     },
     enabled: !!tenantId,
     staleTime: 5 * 60_000,

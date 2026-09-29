@@ -1,4 +1,5 @@
 import type { Express } from 'express';
+import { registerStaffAccessRoutes } from './staff-access';
 import { registerAdminRoutes } from './admin';
 import { registerKioskRoutes } from './kiosk';
 import { registerBillingRoutes } from './billing';
@@ -16,6 +17,7 @@ import { registerTimeClockRoutes } from './time-clock';
 export async function registerAllRouteModules(app: Express): Promise<void> {
   // Synchronous registrations
   registerAdminRoutes(app);
+  registerStaffAccessRoutes(app);
   registerKioskRoutes(app);
   registerTipRoutes(app);
   registerAlfredRoutes(app);
