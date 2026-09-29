@@ -1,3 +1,4 @@
+import { timesheetSnapshot } from '@/lib/timesheet-snapshot';
 import { supabase } from '@/lib/supabase-queries';
 import type { TimeClockEntry, TimeClockBreak } from '@/hooks/use-time-clock';
 import type { TimesheetApproval } from '@/hooks/use-timesheet-approvals';
@@ -26,25 +27,6 @@ export interface GustoExportParams {
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-function calcNetHours(entry: TimeClockEntry): number {
-  if (!entry.clock_out) return 0;
-  const gross = (new Date(entry.clock_out).getTime() - new Date(entry.clock_in).getTime()) / 3_600_000;
-  const breakHrs = (entry.breaks ?? []).reduce((sum, b: TimeClockBreak) => {
-    if (!b.break_end) return sum;
-    return sum + (new Date(b.break_end).getTime() - new Date(b.break_start).getTime()) / 3_600_000;
-  }, 0);
-  return Math.max(0, gross - breakHrs);
-}
-
-/** Return the YYYY-MM-DD date portion of an ISO timestamp in local time. */
-function toDateStr(iso: string): string {
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
 /** Find Monday week_keys that overlap a pay period. */
 function getWeekKeysForPeriod(periodStart: string, periodEnd: string): string[] {
   const keys: string[] = [];
@@ -72,7 +54,7 @@ function getWeekKeysForPeriod(periodStart: string, periodEnd: string): string[] 
  * Group time clock entries by employee & week, then split into
  * regular (≤40/week) and overtime (>40/week).
  */
-function aggregateHoursByEmployee(
+export function aggregateHoursByEmployee(
   entries: TimeClockEntry[],
   employees: UnifiedEmployee[],
   weeks: WeekGroup[]
@@ -91,17 +73,35 @@ function aggregateHoursByEmployee(
   const empWeekHours = new Map<string, Map<number, number>>();
   for (const entry of entries) {
     if (!entry.clock_out) continue;
-    const hrs = calcNetHours(entry);
-    if (hrs <= 0) continue;
-
-    const dateStr = toDateStr(entry.clock_in);
-    const weekIdx = dayToWeekIdx.get(dateStr);
-    if (weekIdx === undefined) continue;
-
     const empId = entry.employee_id;
-    if (!empWeekHours.has(empId)) empWeekHours.set(empId, new Map());
-    const weekMap = empWeekHours.get(empId)!;
-    weekMap.set(weekIdx, (weekMap.get(weekIdx) ?? 0) + hrs);
+    const end = new Date(entry.clock_out);
+    let cursor = new Date(entry.clock_in);
+    while (cursor < end) {
+      const nextMidnight = new Date(cursor);
+      nextMidnight.setDate(nextMidnight.getDate() + 1);
+      nextMidnight.setHours(0, 0, 0, 0);
+      const segmentEnd = Math.min(nextMidnight.getTime(), end.getTime());
+      const day = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+      const weekIdx = dayToWeekIdx.get(day);
+      if (weekIdx !== undefined) {
+        const breakMs = (entry.breaks ?? []).reduce((sum, b: TimeClockBreak) => {
+          if (!b.break_end) return sum;
+          return (
+            sum +
+            Math.max(
+              0,
+              Math.min(new Date(b.break_end).getTime(), segmentEnd) -
+                Math.max(new Date(b.break_start).getTime(), cursor.getTime())
+            )
+          );
+        }, 0);
+        const hours = Math.max(0, segmentEnd - cursor.getTime() - breakMs) / 3_600_000;
+        if (!empWeekHours.has(empId)) empWeekHours.set(empId, new Map());
+        const weekMap = empWeekHours.get(empId)!;
+        weekMap.set(weekIdx, (weekMap.get(weekIdx) ?? 0) + hours);
+      }
+      cursor = new Date(segmentEnd);
+    }
   }
 
   // Split into regular / overtime
@@ -230,7 +230,21 @@ function downloadCsv(csv: string, filename: string): void {
 // ── Main export orchestrator ────────────────────────────────────────────
 
 export async function exportGustoCsv(params: GustoExportParams): Promise<void> {
-  const { tenantId, entries, employees, approvals, weeks, period } = params;
+  const { tenantId, entries, employees, weeks, period } = params;
+  // Validate the exact on-screen records against current database approvals.
+  // Repeat immediately before download to detect edits while tips are loading.
+  const validateApproval = async (): Promise<TimesheetApproval[]> => {
+    const { data, error } = await supabase.rpc('validate_timesheet_export', {
+      p_tenant: tenantId,
+      p_start: period.start,
+      p_end: period.end,
+      p_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      p_expected: timesheetSnapshot(entries),
+    });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  };
+  const approvals = await validateApproval();
 
   // 1. Aggregate hours with regular/OT split
   const hoursMap = aggregateHoursByEmployee(entries, employees, weeks);
@@ -268,5 +282,6 @@ export async function exportGustoCsv(params: GustoExportParams): Promise<void> {
   // 5. Build CSV and trigger download
   const csv = buildGustoCsv(rows);
   const filename = `gusto_payroll_${period.start}_${period.end}.csv`;
+  await validateApproval();
   downloadCsv(csv, filename);
 }

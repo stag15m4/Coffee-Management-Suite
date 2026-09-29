@@ -54,6 +54,8 @@ export function useWorkSessionActions() {
       'time-clock-edits',
       'missing-time-sessions',
       'time-clock-audit',
+      'timesheet-approval',
+      'timesheet-approvals',
     ]) {
       void queryClient.invalidateQueries({ queryKey: [key] });
     }
