@@ -95,12 +95,17 @@ export function ClockInOutCard() {
                 </Button>
                 <Button
                   onClick={handleClockOut}
-                  disabled={clockOut.isPending}
+                  disabled={clockOut.isPending || !!activeBreak}
                   style={{ backgroundColor: colors.red, color: '#fff' }}
                 >
                   <Square className="w-4 h-4 mr-1" /> Clock Out
                 </Button>
               </div>
+              {activeBreak && (
+                <p className="text-sm text-center" style={{ color: colors.brownLight }}>
+                  End your break before clocking out.
+                </p>
+              )}
             </>
           ) : (
             <>
