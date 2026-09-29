@@ -69,6 +69,188 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // =====================================================
   await registerAllRouteModules(app);
 
+  // Dashboard read model: consolidate the browser's Supabase fan-out behind one
+  // authenticated CMS request per location.
+  app.get('/api/dashboard/metrics/:tenantId', async (req: Request, res: Response) => {
+    const { userId } = await getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const tenantId = req.params.tenantId;
+    const access = await db.execute(sql`
+      SELECT
+        CASE
+          WHEN up.tenant_id = ${tenantId}::uuid THEN up.role::text
+          WHEN uta.role IS NOT NULL THEN uta.role::text
+          WHEN up.role = 'owner' AND child.id IS NOT NULL THEN up.role::text
+          ELSE NULL
+        END AS effective_role
+      FROM user_profiles up
+      LEFT JOIN user_tenant_assignments uta
+        ON uta.user_id = up.id
+        AND uta.tenant_id = ${tenantId}::uuid
+        AND uta.is_active = true
+      LEFT JOIN tenants child
+        ON child.id = ${tenantId}::uuid
+        AND child.parent_tenant_id = up.tenant_id
+        AND child.is_active = true
+      WHERE up.id = ${userId}::uuid
+        AND up.is_active = true
+      LIMIT 1
+    `);
+    const accessRow = access.rows[0] as { effective_role?: string | null } | undefined;
+    const role = accessRow?.effective_role ?? undefined;
+    if (!role) return res.status(403).json({ error: 'Tenant access denied' });
+
+    // The browser supplies its local calendar date so month boundaries preserve
+    // the store user's calendar rather than Railway's server timezone.
+    const clientDate = typeof req.query.localDate === 'string' ? req.query.localDate : '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(clientDate)) {
+      return res.status(400).json({ error: 'Valid localDate is required' });
+    }
+    const [year, month] = clientDate.split('-').map(Number);
+    const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+    const nextMonthDate = new Date(Date.UTC(year, month, 1));
+    const nextMonth = nextMonthDate.toISOString().slice(0, 10);
+    const lastMonthDate = new Date(Date.UTC(year, month - 2, 1));
+    const lastMonthStart = lastMonthDate.toISOString().slice(0, 10);
+    const today = clientDate;
+    const weekEndDate = new Date(`${clientDate}T00:00:00Z`);
+    weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 7);
+    const weekEnd = weekEndDate.toISOString().slice(0, 10);
+    const admin = getSupabaseAdmin();
+
+    // Modules are foundational: if this lookup fails, fail the dashboard request
+    // instead of returning a misleading successful-but-empty card.
+    const modulesResult = await admin.rpc('get_tenant_enabled_modules', { p_tenant_id: tenantId });
+    if (modulesResult.error) {
+      logger.error({ err: modulesResult.error, tenantId }, 'Dashboard module lookup failed');
+      return res.status(502).json({ error: 'Dashboard modules unavailable' });
+    }
+    const modules = (modulesResult.data || []) as string[];
+
+    const employeesPromise = admin
+      .from('user_profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .eq('is_active', true);
+    const adminTasksPromise = modules.includes('admin-tasks')
+      ? admin
+          .from('admin_tasks')
+          .select(
+            'id,title,priority,due_date,assigned_to,assignee:user_profiles!admin_tasks_assigned_to_fkey(full_name)'
+          )
+          .eq('tenant_id', tenantId)
+          .neq('status', 'completed')
+          .lte('due_date', weekEnd)
+          .order('due_date')
+          .limit(15)
+      : Promise.resolve({ data: [], error: null });
+    const maintenancePromise = modules.includes('equipment-maintenance')
+      ? admin
+          .from('maintenance_tasks')
+          .select('id,name,next_due_at,equipment:equipment!inner(id,name,tenant_id)')
+          .eq('equipment.tenant_id', tenantId)
+          .eq('is_active', true)
+          .lte('next_due_at', weekEnd)
+          .order('next_due_at')
+          .limit(15)
+      : Promise.resolve({ data: [], error: null });
+    const canViewRevenue = modules.includes('cash-deposit') && (role === 'manager' || role === 'owner');
+    const revenuePromise = canViewRevenue
+      ? admin
+          .from('cash_activity')
+          .select('drawer_date,gross_revenue')
+          .eq('tenant_id', tenantId)
+          .gte('drawer_date', lastMonthStart)
+          .lt('drawer_date', nextMonth)
+          .or('archived.is.null,archived.eq.false')
+      : Promise.resolve({ data: [], error: null });
+
+    const [employeesR, adminR, maintenanceR, revenueR] = await Promise.all([
+      employeesPromise,
+      adminTasksPromise,
+      maintenancePromise,
+      revenuePromise,
+    ]);
+    const failed = [employeesR, adminR, maintenanceR, revenueR].find((result) => result.error);
+    if (failed?.error) {
+      logger.error({ err: failed.error, tenantId }, 'Dashboard metric lookup failed');
+      return res.status(502).json({ error: 'Dashboard metrics unavailable' });
+    }
+
+    type AdminTaskRow = {
+      id: string;
+      title: string;
+      priority: string;
+      due_date: string | null;
+      assignee: { full_name: string | null } | null;
+    };
+    type MaintenanceRow = {
+      id: string;
+      name: string;
+      next_due_at: string | null;
+      equipment: { name: string } | null;
+    };
+    type RevenueRow = { drawer_date: string; gross_revenue: number | string | null };
+
+    const urgency = (date: string): 'overdue' | 'today' | 'this-week' =>
+      date < today ? 'overdue' : date === today ? 'today' : 'this-week';
+    const adminItems = ((adminR.data || []) as unknown as AdminTaskRow[]).map((task) => ({
+      id: task.id,
+      title: task.title,
+      type: 'admin-task' as const,
+      assigneeName: task.assignee?.full_name || null,
+      dueDate: task.due_date || '',
+      urgency: urgency(task.due_date || ''),
+      moduleHref: '/admin-tasks',
+      priority: task.priority,
+    }));
+    const maintenanceItems = ((maintenanceR.data || []) as unknown as MaintenanceRow[]).map((task) => {
+      const dueDate = task.next_due_at ? task.next_due_at.split('T')[0] : '';
+      return {
+        id: task.id,
+        title: `${task.equipment?.name || 'Equipment'} — ${task.name}`,
+        type: 'maintenance' as const,
+        assigneeName: null,
+        dueDate,
+        urgency: urgency(dueDate),
+        moduleHref: '/equipment-maintenance',
+      };
+    });
+    const urgencyOrder = { overdue: 0, today: 1, 'this-week': 2 };
+    const actionItems = [...adminItems, ...maintenanceItems].sort(
+      (a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency] || a.dueDate.localeCompare(b.dueDate)
+    );
+    const revenueRows = (revenueR.data || []) as RevenueRow[];
+    const current = revenueRows
+      .filter((row) => row.drawer_date >= monthStart)
+      .reduce((sum, row) => sum + (Number(row.gross_revenue) || 0), 0);
+    const previous = revenueRows
+      .filter((row) => row.drawer_date < monthStart)
+      .reduce((sum, row) => sum + (Number(row.gross_revenue) || 0), 0);
+    const revenue =
+      current === 0 && previous === 0
+        ? null
+        : {
+            currentMonth: current,
+            lastMonth: previous,
+            percentChange: previous > 0 ? ((current - previous) / previous) * 100 : 0,
+            trend: current >= previous ? 'up' : 'down',
+          };
+
+    res.json({
+      enabledModules: modules,
+      employeeCount: employeesR.count || 0,
+      revenue,
+      actionItems,
+      redFlags: {
+        overdueMaintenanceCount: maintenanceItems.filter((item) => item.urgency === 'overdue').length,
+        overdueTaskCount: adminItems.filter((item) => item.urgency === 'overdue').length,
+        unassignedTaskCount: adminItems.filter((item) => !item.assigneeName).length,
+      },
+    });
+  });
+
   // =====================================================
   // INGREDIENT ROUTES
   // =====================================================
