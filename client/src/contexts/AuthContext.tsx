@@ -125,278 +125,94 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchInProgressRef = useRef<string | null>(null);
   const lastFetchedUserIdRef = useRef<string | null>(null);
 
-  const fetchUserData = useCallback(async (userId: string, retryCount = 0, force = false): Promise<boolean> => {
-    const MAX_RETRIES = 3;
-    const TIMEOUT_MS = 5000; // Bootstrap queries must fail fast; noncritical data must not block login
-
-    // Skip if already fetching for this user (deduplication)
-    if (fetchInProgressRef.current === userId && !force) {
-      return true;
-    }
-
-    // Skip if we already have data for this user (caching)
-    if (lastFetchedUserIdRef.current === userId && !force) {
-      return true;
-    }
+  const fetchUserData = useCallback(async (userId: string, _retryCount = 0, force = false): Promise<boolean> => {
+    if (fetchInProgressRef.current === userId && !force) return true;
+    if (lastFetchedUserIdRef.current === userId && !force) return true;
 
     fetchInProgressRef.current = userId;
+    const startedAt = performance.now();
 
     try {
-      // Add timeout wrapper for network resilience - returns null on timeout instead of throwing
-      const withTimeout = async <T,>(thenable: PromiseLike<T>, label: string): Promise<T | null> => {
-        try {
-          return await Promise.race([
-            Promise.resolve(thenable),
-            new Promise<T>((_, reject) =>
-              setTimeout(() => reject(new Error(`${label} timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
-            ),
-          ]);
-        } catch (e) {
-          console.error(`Error fetching user data: ${e instanceof Error ? e.message : 'Unknown error'}`);
-          return null;
-        }
-      };
-
-      const bootstrapStartedAt = performance.now();
-      const timed = async <T,>(label: string, operation: PromiseLike<T>): Promise<T | null> => {
-        const startedAt = performance.now();
-        const result = await withTimeout(operation, label);
-        console.info(`[AuthBootstrap] ${label}: ${Math.round(performance.now() - startedAt)}ms`);
-        return result;
-      };
-
-      // The regular-user profile is the only identity lookup on the normal login critical path.
-      // Platform-admin detection is only needed when no regular tenant profile exists.
-      const profileResult = await timed(
-        'Profile query',
-        supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle()
-      );
-
-      // Check for regular user profile - handle null/error cases
-      const profileParsed = getSupabaseResult<UserProfile>(profileResult);
-      if (profileParsed.error) {
-        console.error('Profile query error:', profileParsed.error.message);
-        // Retry on network errors
-        if (
-          profileParsed.error.message?.includes('Load failed') ||
-          profileParsed.error.message?.includes('fetch') ||
-          profileParsed.error.message?.includes('network')
-        ) {
-          if (retryCount < MAX_RETRIES) {
-            console.log(`Retrying profile fetch (attempt ${retryCount + 2}/${MAX_RETRIES + 1})...`);
-            await new Promise((resolve) => setTimeout(resolve, 1000 * (retryCount + 1)));
-            return fetchUserData(userId, retryCount + 1);
-          }
-        }
-      }
-      const profileData = profileParsed.data;
-
-      if (!profileData) {
-        const adminResult = await timed(
-          'Admin query',
-          supabase.from('platform_admins').select('*').eq('id', userId).maybeSingle()
-        );
-        const admin = getSupabaseResult<PlatformAdmin>(adminResult);
-        const isPlatAdmin = admin.data && !admin.error;
-        if (isPlatAdmin) {
-          // Platform admin with no tenant profile — that's fine
-          setPlatformAdmin(admin.data);
-          setProfile(null);
-          setTenant(null);
-          setBranding(null);
-          setEnabledModules([]);
-          lastFetchedUserIdRef.current = userId;
-          fetchInProgressRef.current = null;
-          return true;
-        }
-        console.error('No profile found for user:', userId);
-        setProfile(null);
-        setPlatformAdmin(null);
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      if (!currentSession?.access_token) {
+        fetchInProgressRef.current = null;
         return false;
       }
 
-      // Regular tenant users do not need a platform-admin lookup to enter the app.
-      setPlatformAdmin(null);
-
-      setProfile(profileData);
-
-      // -----------------------------------------------------------------------
-      // SINGLE parallel batch: fetch everything that depends only on profileData
-      // Previously this was 4 sequential round-trips; now it's 1 parallel batch.
-      // -----------------------------------------------------------------------
-      const isOwner = profileData.role === 'owner';
-      const primaryTenantId = profileData.tenant_id;
-
-      const [
-        tenantSettled,
-        brandingSettled,
-        modulesSettled,
-        childLocationsSettled,
-        assignmentsSettled,
-        roleSettingsSettled,
-      ] = await Promise.allSettled([
-        timed('Tenant query', supabase.from('tenants').select('*').eq('id', primaryTenantId).single()),
-        timed(
-          'Branding query',
-          supabase.from('tenant_branding').select('*').eq('tenant_id', primaryTenantId).maybeSingle()
-        ),
-        timed('Modules query', supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: primaryTenantId })),
-        // Child locations — only meaningful for owners, but cheap no-op for others
-        isOwner
-          ? timed(
-              'Child locations query',
-              supabase
-                .from('tenants')
-                .select('*')
-                .eq('parent_tenant_id', primaryTenantId)
-                .eq('is_active', true)
-                .order('name')
-            )
-          : Promise.resolve(null),
-        // Cross-tenant assignments
-        timed(
-          'User assignments query',
-          supabase
-            .from('user_tenant_assignments')
-            .select('tenant:tenants!inner(*)')
-            .eq('user_id', userId)
-            .eq('is_active', true)
-        ),
-        // Role settings
-        timed(
-          'Role settings query',
-          supabase.from('tenant_role_settings').select('*').eq('tenant_id', primaryTenantId).order('role')
-        ),
-      ]);
-
-      // --- Process tenant ---
-      const tenantResult = tenantSettled.status === 'fulfilled' ? tenantSettled.value : null;
-      const brandingResult = brandingSettled.status === 'fulfilled' ? brandingSettled.value : null;
-      const modulesResult = modulesSettled.status === 'fulfilled' ? modulesSettled.value : null;
-      let restoredSavedLocation = false;
-
-      const tenantParsed = getSupabaseResult<Tenant>(tenantResult);
-      if (tenantParsed.data && !tenantParsed.error) {
-        const tenantData = tenantParsed.data;
-        setTenant(tenantData);
-        setPrimaryTenant(tenantData);
-
-        // --- Build accessible locations list ---
-        let allLocations: Tenant[] = [tenantData];
-
-        try {
-          if (isOwner) {
-            const childResult = childLocationsSettled.status === 'fulfilled' ? childLocationsSettled.value : null;
-            const childParsed = getSupabaseResult<Tenant[]>(childResult);
-            const childLocations = childParsed.data;
-            allLocations = [tenantData, ...(childLocations || [])];
-            setIsParentTenant((childLocations?.length || 0) > 0);
-          } else {
-            setIsParentTenant(false);
-          }
-
-          const assignResult = assignmentsSettled.status === 'fulfilled' ? assignmentsSettled.value : null;
-          const assignParsed = getSupabaseResult<Array<{ tenant: Tenant }>>(assignResult);
-          const assignments = assignParsed.data;
-
-          if (assignments && assignments.length > 0) {
-            const assignedTenants = assignments
-              .map((a) => a.tenant)
-              .filter((t: Tenant) => t.is_active && !allLocations.find((l) => l.id === t.id));
-            allLocations = [...allLocations, ...assignedTenants];
-          }
-        } catch (err) {
-          console.warn('[AuthContext] Failed to load additional locations:', err);
-        }
-
-        setAccessibleLocations(allLocations);
-
-        // --- Restore saved location ---
-        const savedLocationId = sessionStorage.getItem('selected_location_id');
-        if (savedLocationId && savedLocationId !== tenantData.id) {
-          const savedLocation = allLocations.find((loc) => loc.id === savedLocationId);
-
-          if (savedLocation) {
-            setTenant(savedLocation);
-            setActiveLocationId(savedLocationId);
-            restoredSavedLocation = true;
-
-            // Record activity (fire-and-forget)
-            Promise.resolve(
-              supabase
-                .from('user_tenant_assignments')
-                .update({ updated_at: new Date().toISOString() })
-                .eq('user_id', userId)
-                .eq('tenant_id', savedLocationId)
-            ).catch((err: unknown) => console.warn('[AuthContext] Failed to record restored location activity:', err));
-
-            // Load branding and modules for the saved location
-            const [savedBrandingResult, savedModulesResult] = await Promise.all([
-              supabase.from('tenant_branding').select('*').eq('tenant_id', savedLocationId).maybeSingle(),
-              supabase.rpc('get_tenant_enabled_modules', { p_tenant_id: savedLocationId }),
-            ]);
-            setBranding(savedBrandingResult.data || null);
-            if (savedModulesResult.data) setEnabledModules(savedModulesResult.data as ModuleId[]);
-          } else {
-            sessionStorage.removeItem('selected_location_id');
-            setActiveLocationId(tenantData.id);
-          }
-        } else {
-          setActiveLocationId(tenantData.id);
-        }
-      }
-
-      // --- Process branding (only if we didn't already load a saved location's branding) ---
-      const brandingParsed = getSupabaseResult<TenantBranding>(brandingResult);
-      if (!restoredSavedLocation && brandingParsed.data && !brandingParsed.error) {
-        setBranding(brandingParsed.data);
-      }
-
-      // --- Process modules (only if we didn't already load a saved location's modules) ---
-      if (!restoredSavedLocation) {
-        const modulesParsed = getSupabaseResult<ModuleId[]>(modulesResult);
-        if (modulesParsed.error || !modulesResult) {
-          console.warn('Module access RPC failed:', modulesParsed.error?.message ?? 'Query failed');
-          setEnabledModules([]);
-        } else {
-          setEnabledModules(modulesParsed.data || []);
-        }
-      }
-
-      // The dashboard can render once identity, tenant, locations, modules and branding are ready.
-      // Role settings are supplemental because hasPermission() already has safe role defaults.
-      setLoading(false);
-
-      // --- Process role settings ---
+      const savedLocationId = sessionStorage.getItem('selected_location_id');
+      const query = savedLocationId ? `?locationId=${encodeURIComponent(savedLocationId)}` : '';
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 8000);
+      let response: Response;
       try {
-        const rsResult = roleSettingsSettled.status === 'fulfilled' ? roleSettingsSettled.value : null;
-        const rsParsed = getSupabaseResult<TenantRoleSetting[]>(rsResult);
-        let settings = rsParsed.data;
-        if (!settings || settings.length === 0) {
-          // Defaults are already enforced by hasPermission(). Seeding belongs in setup/admin flows,
-          // not on the login critical path.
-          settings = null;
-        }
-        setRoleSettings(settings || null);
-      } catch {
-        console.warn('[AuthContext] Failed to load role settings');
-        setRoleSettings(null);
+        response = await fetch(`/api/auth/bootstrap${query}`, {
+          headers: { Authorization: `Bearer ${currentSession.access_token}` },
+          signal: controller.signal,
+        });
+      } finally {
+        window.clearTimeout(timeout);
       }
 
-      console.info(`[AuthBootstrap] complete: ${Math.round(performance.now() - bootstrapStartedAt)}ms`);
+      if (!response.ok) {
+        console.error(`[AuthBootstrap] CMS bootstrap failed: ${response.status}`);
+        fetchInProgressRef.current = null;
+        return false;
+      }
+
+      const data = (await response.json()) as {
+        profile: UserProfile | null;
+        platformAdmin: PlatformAdmin | null;
+        primaryTenant?: Tenant;
+        tenant?: Tenant;
+        accessibleLocations?: Tenant[];
+        activeLocationId?: string;
+        isParentTenant?: boolean;
+        branding?: TenantBranding | null;
+        enabledModules?: ModuleId[];
+        roleSettings?: TenantRoleSetting[] | null;
+        durationMs?: number;
+      };
+
+      setProfile(data.profile);
+      setPlatformAdmin(data.platformAdmin);
+
+      if (data.profile) {
+        const locations = data.accessibleLocations || [];
+        setPrimaryTenant(data.primaryTenant || null);
+        setTenant(data.tenant || data.primaryTenant || null);
+        setAccessibleLocations(locations);
+        setActiveLocationId(data.activeLocationId || data.primaryTenant?.id || null);
+        setIsParentTenant(Boolean(data.isParentTenant));
+        setBranding(data.branding || null);
+        setEnabledModules(data.enabledModules || []);
+        setRoleSettings(data.roleSettings || null);
+
+        if (savedLocationId && !locations.some((location) => location.id === savedLocationId)) {
+          sessionStorage.removeItem('selected_location_id');
+        }
+      } else {
+        setPrimaryTenant(null);
+        setTenant(null);
+        setAccessibleLocations([]);
+        setActiveLocationId(null);
+        setBranding(null);
+        setEnabledModules([]);
+        setRoleSettings(null);
+        setIsParentTenant(false);
+      }
+
+      setLoading(false);
       lastFetchedUserIdRef.current = userId;
       fetchInProgressRef.current = null;
+      console.info(
+        `[AuthBootstrap] CMS request: ${Math.round(performance.now() - startedAt)}ms (server ${data.durationMs ?? 'n/a'}ms)`
+      );
       return true;
     } catch (error: unknown) {
-      const msg = getErrorMessage(error);
-      console.error('Error fetching user data:', msg);
+      console.error('[AuthBootstrap] CMS bootstrap error:', getErrorMessage(error));
       fetchInProgressRef.current = null;
-      // Don't clear profile/admin on timeout - keep trying
-      if (!msg.includes('timed out')) {
-        setProfile(null);
-        setPlatformAdmin(null);
-        setEnabledModules([]);
-      }
       return false;
     }
   }, []);
