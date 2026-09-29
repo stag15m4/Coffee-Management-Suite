@@ -2775,7 +2775,7 @@ export default function CalendarWorkforce() {
   const canManageShifts = hasPermission('manage_shifts');
   const canDeleteShifts = hasPermission('delete_shifts');
   const canApproveTimeOff = hasPermission('approve_time_off');
-  const canApproveTimeEdits = hasPermission('approve_time_edits');
+  const canApproveTimeEdits = isManager && hasPermission('approve_time_edits');
   const canApproveTimesheets = hasPermission('approve_timesheets');
   const canExportPayroll = hasPermission('export_payroll');
   const isExempt = profile?.is_exempt ?? false;
