@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import path from 'path';
 
 export default defineConfig({
+  esbuild: { jsx: 'automatic' },
   test: {
     include: ['**/*.test.ts', '**/*.test.tsx'],
     exclude: ['**/node_modules/**', 'dist', 'website/**'],
