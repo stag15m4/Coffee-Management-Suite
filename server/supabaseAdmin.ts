@@ -14,3 +14,15 @@ export function getSupabaseAdmin() {
   }
   return cachedClient;
 }
+
+// Keep caller-dependent RPCs (auth.uid()) in the verified user's context.
+// Never change the Authorization header on the shared admin client.
+export function getSupabaseForUser(accessToken: string) {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
+  }
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+}
