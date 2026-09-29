@@ -363,19 +363,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+
+      // The dashboard can render once identity, tenant, locations, modules and branding are ready.
+      // Role settings are supplemental because hasPermission() already has safe role defaults.
+      setLoading(false);
+
       // --- Process role settings ---
       try {
         const rsResult = roleSettingsSettled.status === 'fulfilled' ? roleSettingsSettled.value : null;
         const rsParsed = getSupabaseResult<TenantRoleSetting[]>(rsResult);
         let settings = rsParsed.data;
         if (!settings || settings.length === 0) {
-          await supabase.rpc('seed_tenant_role_settings', { p_tenant_id: primaryTenantId });
-          const { data: seeded } = await supabase
-            .from('tenant_role_settings')
-            .select('*')
-            .eq('tenant_id', primaryTenantId)
-            .order('role');
-          settings = seeded;
+          // Defaults are already enforced by hasPermission(). Seeding belongs in setup/admin flows,
+          // not on the login critical path.
+          settings = null;
         }
         setRoleSettings(settings || null);
       } catch {
