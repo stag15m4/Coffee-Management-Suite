@@ -363,7 +363,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-
       // The dashboard can render once identity, tenant, locations, modules and branding are ready.
       // Role settings are supplemental because hasPermission() already has safe role defaults.
       setLoading(false);
