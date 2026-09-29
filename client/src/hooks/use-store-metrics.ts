@@ -67,7 +67,8 @@ export function useAllStoreMetrics() {
       queryFn: async (): Promise<StoreMetrics> => {
         const token = session?.access_token;
         if (!token) throw new Error('Not authenticated');
-        const response = await fetch(`/api/dashboard/metrics/${location.id}`, {
+        const localDate = new Date().toLocaleDateString('en-CA');
+        const response = await fetch(`/api/dashboard/metrics/${location.id}?localDate=${localDate}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) throw new Error(`Dashboard metrics failed (${response.status})`);
