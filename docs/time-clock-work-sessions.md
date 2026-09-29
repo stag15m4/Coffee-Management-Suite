@@ -23,6 +23,6 @@ The migration was exercised with PGlite PostgreSQL using the existing migration 
 
 - Normal clock/kiosk/integration writes are recorded too. Server writes without a signed-in database identity appear as system/integration/kiosk, not as a falsely attributed manager action.
 - Old-client direct manager edits are captured but may have no reason. The new editor requires one.
-- This release does not lock approved pay periods or reset their approval automatically after an edit. Pay-period approval controls remain a separate stabilization item before payroll reliance.
+- Migration 152 adds automatic approval invalidation and guarded reapproval; see `timesheet-reapproval.md`.
 - Employees represented only as tip/kiosk identities still need the planned unified staff identity work to use account-based requests.
 - Overlap checks are in the session-save/approval functions; existing integration import paths are not changed into a global overlap constraint.

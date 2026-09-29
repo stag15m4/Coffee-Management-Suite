@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-queries';
+import type { TimeClockEntry } from './use-time-clock';
+import { timesheetSnapshot } from '@/lib/timesheet-snapshot';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface TimesheetApproval {
@@ -9,6 +11,9 @@ export interface TimesheetApproval {
   period_start: string;
   period_end: string;
   status: 'pending' | 'approved' | 'rejected';
+  invalidated_at: string | null;
+  invalidation_reason: string | null;
+  approval_count: number;
   approved_by: string | null;
   approved_at: string | null;
   manager_notes: string | null;
@@ -50,7 +55,8 @@ export function useTimesheetApprovals(periodStart: string, periodEnd: string) {
       return (data || []).map(mapApproval);
     },
     enabled: !!tenant?.id && !!periodStart && !!periodEnd,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchInterval: 30_000,
   });
 }
 
@@ -73,7 +79,8 @@ export function useEmployeeTimesheetApproval(employeeId: string, periodStart: st
       return data ? mapApproval(data) : null;
     },
     enabled: !!tenant?.id && !!employeeId && !!periodStart && !!periodEnd,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchInterval: 30_000,
   });
 }
 
@@ -87,42 +94,32 @@ export function useApproveTimesheet() {
       periodStart,
       periodEnd,
       managerNotes,
-      totalRegularHours,
-      totalBreakHours,
-      totalPtoHours,
+      entries,
     }: {
       employeeId: string;
       periodStart: string;
       periodEnd: string;
       managerNotes?: string;
-      totalRegularHours?: number;
-      totalBreakHours?: number;
-      totalPtoHours?: number;
+      entries: TimeClockEntry[];
     }) => {
       if (!tenant?.id || !user?.id) throw new Error('No tenant or user');
-      const { data, error } = await supabase
-        .from('timesheet_approvals')
-        .upsert(
-          {
-            tenant_id: tenant.id,
-            employee_id: employeeId,
-            period_start: periodStart,
-            period_end: periodEnd,
-            status: 'approved',
-            approved_by: user.id,
-            approved_at: new Date().toISOString(),
-            manager_notes: managerNotes ?? null,
-            total_regular_hours: totalRegularHours ?? null,
-            total_break_hours: totalBreakHours ?? null,
-            total_pto_hours: totalPtoHours ?? null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'tenant_id,employee_id,period_start,period_end' }
-        )
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('review_timesheet_period', {
+        p_tenant: tenant.id,
+        p_employee: employeeId,
+        p_start: periodStart,
+        p_end: periodEnd,
+        p_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        p_expected: timesheetSnapshot(entries),
+        p_approve: true,
+        p_notes: managerNotes ?? null,
+      });
       if (error) throw error;
       return data;
+    },
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey: ['time-clock'] });
+      void queryClient.invalidateQueries({ queryKey: ['timesheet-approval'] });
+      void queryClient.invalidateQueries({ queryKey: ['timesheet-approvals'] });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timesheet-approvals'] });
@@ -148,26 +145,23 @@ export function useRejectTimesheet() {
       managerNotes?: string;
     }) => {
       if (!tenant?.id || !user?.id) throw new Error('No tenant or user');
-      const { data, error } = await supabase
-        .from('timesheet_approvals')
-        .upsert(
-          {
-            tenant_id: tenant.id,
-            employee_id: employeeId,
-            period_start: periodStart,
-            period_end: periodEnd,
-            status: 'rejected',
-            approved_by: user.id,
-            approved_at: new Date().toISOString(),
-            manager_notes: managerNotes ?? null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'tenant_id,employee_id,period_start,period_end' }
-        )
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('review_timesheet_period', {
+        p_tenant: tenant.id,
+        p_employee: employeeId,
+        p_start: periodStart,
+        p_end: periodEnd,
+        p_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        p_expected: [],
+        p_approve: false,
+        p_notes: managerNotes ?? null,
+      });
       if (error) throw error;
       return data;
+    },
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey: ['time-clock'] });
+      void queryClient.invalidateQueries({ queryKey: ['timesheet-approval'] });
+      void queryClient.invalidateQueries({ queryKey: ['timesheet-approvals'] });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timesheet-approvals'] });

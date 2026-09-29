@@ -32,6 +32,7 @@ export interface EmployeeTimesheetRow {
   dayHours: Map<string, number>; // YYYY-MM-DD → net hours
   totalHours: number;
   totalPay: number | null;
+  needsReapproval?: boolean;
   approvalStatus: string | null; // 'approved' | 'rejected' | 'pending' | null (draft)
 }
 
@@ -151,6 +152,7 @@ export function TimesheetGrid({
         totalHours,
         totalPay: emp.hourly_rate ? totalHours * emp.hourly_rate : null,
         approvalStatus: approval?.status ?? null,
+        needsReapproval: !!approval?.invalidated_at,
       });
     }
 
@@ -175,6 +177,7 @@ export function TimesheetGrid({
         totalHours,
         totalPay: null,
         approvalStatus: approvalMap.get(empId)?.status ?? null,
+        needsReapproval: !!approvalMap.get(empId)?.invalidated_at,
       });
     }
 
@@ -202,7 +205,7 @@ export function TimesheetGrid({
   const grandTotalHours = filteredRows.reduce((sum, r) => sum + r.totalHours, 0);
   const grandTotalPay = filteredRows.reduce((sum, r) => sum + (r.totalPay ?? 0), 0);
 
-  const statusBadge = (status: string | null) => {
+  const statusBadge = (status: string | null, needsReapproval?: boolean) => {
     if (!status) return null;
     const styles: Record<string, { bg: string; color: string }> = {
       approved: { bg: colors.green, color: '#fff' },
@@ -212,7 +215,7 @@ export function TimesheetGrid({
     const s = styles[status] || { bg: colors.brownLight, color: '#fff' };
     return (
       <Badge className="text-[10px]" style={{ backgroundColor: s.bg, color: s.color }}>
-        {status}
+        {needsReapproval ? 'Needs reapproval' : status}
       </Badge>
     );
   };
@@ -276,7 +279,7 @@ export function TimesheetGrid({
                       <span className="font-medium" style={{ color: colors.brown }}>
                         {row.name}
                       </span>
-                      {statusBadge(row.approvalStatus)}
+                      {statusBadge(row.approvalStatus, row.needsReapproval)}
                     </div>
                   </td>
                   {days.map((day) => {

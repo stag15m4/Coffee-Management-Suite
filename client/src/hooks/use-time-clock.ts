@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-queries';
+import { payPeriodBounds } from '@/lib/timesheet-snapshot';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface TimeClockBreak {
@@ -109,6 +110,8 @@ export function useClockIn() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-clock'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approval'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['time-clock-active'] });
     },
   });
@@ -146,6 +149,8 @@ export function useClockOut() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-clock'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approval'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['time-clock-active'] });
     },
     onError: () => {
@@ -176,6 +181,8 @@ export function useStartBreak() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-clock-active'] });
       queryClient.invalidateQueries({ queryKey: ['time-clock'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approval'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approvals'] });
     },
   });
 }
@@ -196,6 +203,8 @@ export function useEndBreak() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-clock-active'] });
       queryClient.invalidateQueries({ queryKey: ['time-clock'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approval'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approvals'] });
     },
   });
 }
@@ -236,8 +245,8 @@ export function usePayPeriodTimeClockEntries(periodStart: string, periodEnd: str
         .from('time_clock_entries')
         .select(ENTRY_SELECT)
         .eq('tenant_id', tenant.id)
-        .gte('clock_in', `${periodStart}T00:00:00`)
-        .lte('clock_in', `${periodEnd}T23:59:59`)
+        .lt('clock_in', payPeriodBounds(periodStart, periodEnd).end)
+        .or(`clock_out.gt.${payPeriodBounds(periodStart, periodEnd).start},clock_out.is.null`)
         .order('clock_in', { ascending: false });
       if (error) throw error;
       return (data || []).map(mapEntry);
@@ -259,8 +268,8 @@ export function useEmployeePayPeriodEntries(employeeId: string, periodStart: str
         .select(ENTRY_SELECT)
         .eq('tenant_id', tenant.id)
         .eq('employee_id', employeeId)
-        .gte('clock_in', `${periodStart}T00:00:00`)
-        .lte('clock_in', `${periodEnd}T23:59:59`)
+        .lt('clock_in', payPeriodBounds(periodStart, periodEnd).end)
+        .or(`clock_out.gt.${payPeriodBounds(periodStart, periodEnd).start},clock_out.is.null`)
         .order('clock_in', { ascending: true });
       if (error) throw error;
       return (data || []).map(mapEntry);
@@ -286,6 +295,8 @@ export function useUpdateEntryManagerNotes() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-clock'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approval'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approvals'] });
     },
   });
 }
@@ -321,6 +332,8 @@ export function useEditTimeClockEntry() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-clock'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approval'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['time-clock-active'] });
     },
   });

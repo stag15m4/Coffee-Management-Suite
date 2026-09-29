@@ -1,3 +1,4 @@
+import { payPeriodBounds } from '@/lib/timesheet-snapshot';
 import { useState, useMemo, useCallback, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -305,14 +306,31 @@ export function EmployeeTimesheetView({
   /* ── summary ── */
   const summary = useMemo(() => {
     let regularHours = 0;
-    let breakHoursTotal = 0;
+    const bounds = payPeriodBounds(period.start, period.end);
+    const startMs = new Date(bounds.start).getTime();
+    const endMs = new Date(bounds.end).getTime();
+    const breakHoursTotal = empEntries.reduce(
+      (sum, entry) =>
+        sum +
+        (entry.breaks ?? []).reduce((subtotal, b) => {
+          if (!b.break_end) return subtotal;
+          return (
+            subtotal +
+            Math.max(
+              0,
+              Math.min(new Date(b.break_end).getTime(), endMs) - Math.max(new Date(b.break_start).getTime(), startMs)
+            ) /
+              3_600_000
+          );
+        }, 0),
+      0
+    );
     let workedDays = 0;
     let totalScheduled = 0;
     for (const data of Array.from(dayDataMap.values())) {
       regularHours += data.totalNetHours;
       totalScheduled += data.scheduledHours;
       if (data.totalNetHours > 0) workedDays++;
-      for (const row of data.entryRows) breakHoursTotal += calcBreakHours(row.entry.breaks ?? []);
     }
     return {
       regularHours,
@@ -322,41 +340,55 @@ export function EmployeeTimesheetView({
       totalDifference: regularHours - totalScheduled,
       totalPay: employee?.hourly_rate ? regularHours * employee.hourly_rate : null,
     };
-  }, [dayDataMap, employee]);
+  }, [dayDataMap, employee, empEntries, period]);
 
   /* ── approval ── */
   const handleApprove = useCallback(async () => {
     try {
-      await approveTimesheet.mutateAsync({
+      const approved = await approveTimesheet.mutateAsync({
         employeeId,
         periodStart: period.start,
         periodEnd: period.end,
         managerNotes: approvalNotes || undefined,
-        totalRegularHours: summary.regularHours,
-        totalBreakHours: summary.breakHours,
+        entries: empEntries,
       });
 
-      // Run PTO accrual for the hours worked in this pay period
-      if (summary.regularHours > 0) {
+      let accrualWarning: string | undefined;
+      // Award PTO once; corrected-period balance adjustments require separate review.
+      if (approved.approval_count === 1 && Number(approved.total_regular_hours) > 0) {
         try {
           await runAccrual.mutateAsync({
             employeeId,
-            hoursWorked: summary.regularHours,
+            hoursWorked: Number(approved.total_regular_hours),
+            referenceId: approved.id,
             periodDescription: `${period.start} to ${period.end}`,
             employeeStartDate: employee?.start_date ?? undefined,
           });
         } catch {
-          // Accrual failure shouldn't block the approval toast
-          console.warn('PTO accrual failed for employee', employeeId);
+          accrualWarning = 'PTO accrual failed. Review the employee balance separately.';
         }
       }
 
-      toast({ title: 'Timesheet approved' });
+      toast({
+        title: 'Timesheet approved',
+        description:
+          accrualWarning ??
+          (approved.approval_count > 1
+            ? 'PTO was not awarded again. Review any PTO balance adjustment separately.'
+            : undefined),
+      });
       setApprovalNotes('');
-    } catch {
-      toast({ title: 'Error', description: 'Failed to approve timesheet.', variant: 'destructive' });
+    } catch (error) {
+      toast({
+        title: 'Approval not saved',
+        description:
+          error instanceof Error
+            ? error.message
+            : (error as { message?: string })?.message || 'Failed to approve timesheet.',
+        variant: 'destructive',
+      });
     }
-  }, [approveTimesheet, runAccrual, employeeId, period, approvalNotes, summary, employee, toast]);
+  }, [approveTimesheet, runAccrual, employeeId, period, approvalNotes, empEntries, employee, toast]);
 
   const handleReject = useCallback(async () => {
     try {
@@ -375,7 +407,17 @@ export function EmployeeTimesheetView({
 
   /* ── export ── */
   const handleExport = useCallback(() => {
-    const headers = ['Date', 'Clock In', 'Break Out', 'Break In', 'Clock Out', 'Net Hours', 'Scheduled', 'Difference'];
+    const headers = [
+      'Date',
+      'Clock In',
+      'Break Out',
+      'Break In',
+      'Clock Out',
+      'Net Hours',
+      'Scheduled',
+      'Difference',
+      'Record Type',
+    ];
     const csvRows: string[][] = [];
     for (const day of days) {
       const data = dayDataMap.get(day);
@@ -397,12 +439,14 @@ export function EmployeeTimesheetView({
         }
       }
     }
-    const csv = [headers, ...csvRows].map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
+    const csv = [headers, ...csvRows.map((row) => [...row, 'Review copy - not payroll approval'])]
+      .map((r) => r.map((c) => `"${c}"`).join(','))
+      .join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `timesheet_${employeeName.replace(/\s+/g, '_')}_${period.start}_${period.end}.csv`;
+    link.download = `timesheet_review_${employeeName.replace(/\s+/g, '_')}_${period.start}_${period.end}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   }, [days, dayDataMap, employeeName, period]);
@@ -429,7 +473,7 @@ export function EmployeeTimesheetView({
 
       <div className="rounded-lg border p-3 text-sm" style={{ borderColor: colors.creamDark, color: colors.brown }}>
         {canEditTimes
-          ? 'Manager edits update recorded hours when you save. Approve pay period signs off on the whole timesheet.'
+          ? 'Manager edits update recorded hours when you save. Changes to approved time require the pay period to be approved again.'
           : 'Requested corrections stay pending until a manager approves them. Totals show the current recorded hours.'}
       </div>
       {saveNotice && (
@@ -510,10 +554,12 @@ export function EmployeeTimesheetView({
 
       {/* Actions */}
       <div className="flex items-center gap-2 flex-wrap">
-        {canApprove && (
+        {(canApprove || user?.id === employeeId) && (
           <>
             {approval?.status === 'approved' ? (
               <Badge style={{ backgroundColor: colors.green, color: '#fff' }}>Pay period approved</Badge>
+            ) : approval?.invalidated_at ? (
+              <Badge style={{ backgroundColor: colors.yellow, color: colors.brown }}>Needs reapproval</Badge>
             ) : approval?.status === 'rejected' ? (
               <Badge style={{ backgroundColor: colors.red, color: '#fff' }}>Rejected</Badge>
             ) : null}
@@ -526,7 +572,7 @@ export function EmployeeTimesheetView({
             onClick={handleExport}
             style={{ borderColor: colors.creamDark, color: colors.brown }}
           >
-            <Download className="w-4 h-4 mr-1" /> Export
+            <Download className="w-4 h-4 mr-1" /> Export review copy
           </Button>
           {canApprove && approval?.status !== 'approved' && (
             <Button

@@ -88,6 +88,7 @@ export function TimesheetsView({
       'Break Hours',
       'Net Hours',
       'Position',
+      'Record Type',
     ];
     const rows = entries.map((e) => {
       const totalHrs = calcHours(e.clock_in, e.clock_out);
@@ -101,6 +102,7 @@ export function TimesheetsView({
         breakHrs.toFixed(2),
         Math.max(0, totalHrs - breakHrs).toFixed(2),
         (e as any).position || '',
+        'Review copy - not payroll approval',
       ];
     });
     const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
@@ -108,7 +110,7 @@ export function TimesheetsView({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `payroll_${period.start}_${period.end}.csv`;
+    link.download = `timesheet_review_${period.start}_${period.end}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   }, [entries, period]);
@@ -191,7 +193,7 @@ export function TimesheetsView({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={handleExport}>
                       <Download className="w-4 h-4 mr-2" />
-                      Export CSV
+                      Export review CSV
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleGustoExport}>
                       <FileSpreadsheet className="w-4 h-4 mr-2" />

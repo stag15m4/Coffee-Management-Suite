@@ -141,6 +141,8 @@ export function useReviewTimeClockEdit() {
       queryClient.invalidateQueries({ queryKey: ['time-clock-edits'] });
       queryClient.invalidateQueries({ queryKey: ['time-clock-edits-mine'] });
       queryClient.invalidateQueries({ queryKey: ['time-clock'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approval'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['time-clock-active'] });
     },
   });
