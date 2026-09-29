@@ -74,10 +74,7 @@ export function registerAuthBootstrapRoutes(app: Express): void {
 
     const scopeError = tenantResult.error || childResult.error || assignmentsResult.error;
     if (scopeError || !tenantResult.data) {
-      logger.error(
-        { err: scopeError, userId, primaryTenantId },
-        'Auth bootstrap tenant scope lookup failed'
-      );
+      logger.error({ err: scopeError, userId, primaryTenantId }, 'Auth bootstrap tenant scope lookup failed');
       return res.status(502).json({ error: 'Tenant scope unavailable' });
     }
 
@@ -90,18 +87,13 @@ export function registerAuthBootstrapRoutes(app: Express): void {
         is_active?: boolean;
       };
 
-      if (
-        assignedTenant?.is_active &&
-        !locations.some((location) => location.id === assignedTenant.id)
-      ) {
+      if (assignedTenant?.is_active && !locations.some((location) => location.id === assignedTenant.id)) {
         locations.push(assignedTenant as typeof primaryTenant);
       }
     }
 
-    const requestedLocationId =
-      typeof req.query.locationId === 'string' ? req.query.locationId : null;
-    const activeTenant =
-      locations.find((location) => location.id === requestedLocationId) || primaryTenant;
+    const requestedLocationId = typeof req.query.locationId === 'string' ? req.query.locationId : null;
+    const activeTenant = locations.find((location) => location.id === requestedLocationId) || primaryTenant;
     const activeTenantId = activeTenant.id as string;
 
     const [brandingResult, modulesResult, roleSettingsResult] = await Promise.all([
@@ -124,17 +116,11 @@ export function registerAuthBootstrapRoutes(app: Express): void {
     }
 
     if (brandingResult.error) {
-      logger.warn(
-        { err: brandingResult.error, activeTenantId },
-        'Auth bootstrap branding unavailable'
-      );
+      logger.warn({ err: brandingResult.error, activeTenantId }, 'Auth bootstrap branding unavailable');
     }
 
     if (roleSettingsResult.error) {
-      logger.warn(
-        { err: roleSettingsResult.error, activeTenantId },
-        'Auth bootstrap role settings unavailable'
-      );
+      logger.warn({ err: roleSettingsResult.error, activeTenantId }, 'Auth bootstrap role settings unavailable');
     }
 
     return res.json({
