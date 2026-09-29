@@ -73,7 +73,10 @@ DROP POLICY IF EXISTS "Employees can request edits for own entries" ON time_cloc
 CREATE POLICY "Employees can propose own punch corrections" ON time_clock_edit_requests
   FOR INSERT WITH CHECK (
     can_access_tenant(tenant_id) AND employee_id = auth.uid() AND status = 'pending'
-    AND reviewed_by IS NULL AND reviewed_at IS NULL
+    AND reviewed_by IS NULL AND reviewed_at IS NULL AND review_notes IS NULL
+    AND length(btrim(reason)) > 0
+    AND abs(extract(epoch FROM (created_at - now()))) < 120
+    AND abs(extract(epoch FROM (updated_at - now()))) < 120
     AND (requested_clock_in IS NOT NULL OR requested_clock_out IS NOT NULL)
     AND EXISTS (SELECT 1 FROM time_clock_entries e WHERE e.id = time_clock_entry_id
       AND e.tenant_id = time_clock_edit_requests.tenant_id AND e.employee_id = auth.uid()
