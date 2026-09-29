@@ -7,6 +7,7 @@ import { useTimeClockEntries, useActiveClockedIn, type TimeClockEntry } from '@/
 import type { UnifiedEmployee } from '@/hooks/use-all-employees';
 import { ClockInOutCard } from './ClockInOutCard';
 import { EditRequestsList } from './EditRequestsList';
+import { MissingSessionRequests } from './MissingSessionRequests';
 import { ManagerClockOutDialog } from './ManagerClockOutDialog';
 import { AlertTriangle } from 'lucide-react';
 import { colors } from '@/lib/colors';
@@ -381,6 +382,11 @@ export function TodayView({
 
       {/* Edit requests */}
       <EditRequestsList canApprove={canApprove} currentUserId={currentUserId} />
+      <MissingSessionRequests
+        employeeId={canApprove ? undefined : currentUserId}
+        currentUserId={currentUserId}
+        canReview={canApprove}
+      />
 
       {/* Manager clock-out dialog */}
       {clockOutEntry && (

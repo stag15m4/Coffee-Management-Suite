@@ -1,14 +1,10 @@
-import { getErrorMessage } from '@/lib/utils';
-import { useState, useMemo, useCallback, useRef, Fragment } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useState, useMemo, useCallback, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase-queries';
-import { useEditTimeClockEntry } from '@/hooks/use-time-clock';
 import type { TimeClockEntry } from '@/hooks/use-time-clock';
 import type { Shift } from '@/hooks/use-shifts';
 import type { UnifiedEmployee } from '@/hooks/use-all-employees';
@@ -18,8 +14,11 @@ import { PayPeriodNav } from './PayPeriodNav';
 import { EditRequestDialog } from './EditRequestDialog';
 import { useTimeClockEdits } from '@/hooks/use-time-clock-edits';
 import { TimeCorrectionHistory } from './TimeCorrectionHistory';
+import { WorkSessionEditor } from './WorkSessionEditor';
+import { SessionHistoryPanel } from './SessionHistoryPanel';
+import { MissingSessionRequests } from './MissingSessionRequests';
 import type { PayPeriod, WeekGroup } from '@/lib/pay-periods';
-import { ChevronLeft, Check, X, Download, Trash2, Edit2 } from 'lucide-react';
+import { ChevronLeft, Check, X, Download, Edit2, Plus } from 'lucide-react';
 import { colors } from '@/lib/colors';
 
 /* ─── helpers ─── */
@@ -64,52 +63,11 @@ function formatDiff(diff: number): { text: string; color: string } {
   return { text: `${sign}${hrs}:${String(mins).padStart(2, '0')}`, color: diff > 0 ? colors.green : colors.red };
 }
 
-/** Extract "HH:MM" from ISO timestamp for <input type="time"> */
-function toTimeInput(ts: string): string {
-  const d = new Date(ts);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-/** Combine "YYYY-MM-DD" + "HH:MM" → ISO timestamp in local tz */
-function toISO(date: string, time: string): string {
-  return new Date(`${date}T${time}:00`).toISOString();
-}
-
 function formatDayLabel(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   const date = new Date(y, m - 1, d);
   const dow = date.toLocaleDateString('en-US', { weekday: 'short' });
   return `${dow} ${m}/${d}`;
-}
-
-/** Parse flexible time input → "HH:MM" (24h) or null */
-function parseTimeInput(input: string): string | null {
-  const s = input.trim();
-  if (!s) return null;
-  const ampm = s.match(/^(\d{1,2}):?(\d{2})\s*(am|pm|a|p)$/i);
-  if (ampm) {
-    let h = parseInt(ampm[1]);
-    const m = parseInt(ampm[2]);
-    const isPM = /p/i.test(ampm[3]);
-    if (isPM && h < 12) h += 12;
-    if (!isPM && h === 12) h = 0;
-    if (h > 23 || m > 59) return null;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-  }
-  const mil = s.match(/^(\d{1,2}):(\d{2})$/);
-  if (mil) {
-    const h = parseInt(mil[1]);
-    const m = parseInt(mil[2]);
-    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    }
-  }
-  return null;
-}
-
-/** Format ISO timestamp → "h:mm AM" for pre-populating text inputs */
-function formatTimeForEdit(ts: string): string {
-  return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 /* ─── types ─── */
@@ -163,19 +121,12 @@ export function EmployeeTimesheetView({
   goPrev,
 }: EmployeeTimesheetViewProps) {
   const { toast } = useToast();
-  const { tenant, user, hasRole, hasPermission } = useAuth();
-  const queryClient = useQueryClient();
-  const editTimeClockEntry = useEditTimeClockEntry();
+  const { user, hasRole, hasPermission } = useAuth();
 
   const [approvalNotes, setApprovalNotes] = useState('');
-  const [editingDay, setEditingDay] = useState<string | null>(null);
-  const [dayEditValues, setDayEditValues] = useState<
-    Record<string, { in1: string; out1: string; in2: string; out2: string }>
-  >({});
+  const [sessionEditor, setSessionEditor] = useState<{ day: string; entry?: TimeClockEntry } | null>(null);
   const [editEntry, setEditEntry] = useState<TimeClockEntry | null>(null); // employee edit-request
   const [saveNotice, setSaveNotice] = useState('');
-  const [isSavingDay, setIsSavingDay] = useState(false);
-  const savingDay = useRef(false);
   const { data: corrections = [], isLoading: loadingCorrections, isError: correctionsError } = useTimeClockEdits();
   const entryIds = useMemo(
     () => new Set(entries.filter((e) => e.employee_id === employeeId).map((e) => e.id)),
@@ -208,10 +159,6 @@ export function EmployeeTimesheetView({
   );
 
   const empShifts = useMemo(() => shifts.filter((s) => s.employee_id === employeeId), [shifts, employeeId]);
-
-  const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['time-clock'] });
-  }, [queryClient]);
 
   /* ── build day data (with overnight split) ── */
   const dayDataMap = useMemo<Map<string, DayData>>(() => {
@@ -258,15 +205,13 @@ export function EmployeeTimesheetView({
         const midnightISO = midnightAfterIn.toISOString();
 
         // Helper: calc break hours within a time window
-        const breakHoursInWindow = (windowStart: Date, windowEnd: Date) => {
-          if (!brk?.break_start) return 0;
-          const bs = new Date(brk.break_start);
-          const be = brk.break_end ? new Date(brk.break_end) : null;
-          if (!be) return 0;
-          const overlapStart = Math.max(bs.getTime(), windowStart.getTime());
-          const overlapEnd = Math.min(be.getTime(), windowEnd.getTime());
-          return overlapEnd > overlapStart ? (overlapEnd - overlapStart) / 3_600_000 : 0;
-        };
+        const breakHoursInWindow = (windowStart: Date, windowEnd: Date) =>
+          (e.breaks ?? []).reduce((total, item) => {
+            if (!item.break_end) return total;
+            const overlapStart = Math.max(new Date(item.break_start).getTime(), windowStart.getTime());
+            const overlapEnd = Math.min(new Date(item.break_end).getTime(), windowEnd.getTime());
+            return total + Math.max(0, overlapEnd - overlapStart) / 3_600_000;
+          }, 0);
 
         // Day A (clock_in day): clock_in to midnight
         const dayAHours = (midnightAfterIn.getTime() - inDate.getTime()) / 3_600_000;
@@ -379,200 +324,6 @@ export function EmployeeTimesheetView({
     };
   }, [dayDataMap, employee]);
 
-  /* ── inline edit helpers ── */
-  const startDayEdit = useCallback((day: string, rows: EntryRow[]) => {
-    if (savingDay.current) return;
-    setSaveNotice('');
-    setEditingDay(day);
-    const vals: Record<string, { in1: string; out1: string; in2: string; out2: string }> = {};
-    for (const row of rows) {
-      vals[row.entry.id] = {
-        in1: row.in1 ? formatTimeForEdit(row.in1) : '',
-        out1: row.out1 ? formatTimeForEdit(row.out1) : '',
-        in2: row.in2 ? formatTimeForEdit(row.in2) : '',
-        out2: row.out2 ? formatTimeForEdit(row.out2) : '',
-      };
-    }
-    if (rows.length === 0) {
-      vals[`new:${day}`] = { in1: '', out1: '', in2: '', out2: '' };
-    }
-    setDayEditValues(vals);
-  }, []);
-
-  const cancelDayEdit = useCallback(() => {
-    setEditingDay(null);
-    setDayEditValues({});
-  }, []);
-
-  /* ── save all punches for a day ── */
-  const handleSaveDay = useCallback(async () => {
-    if (!editingDay || savingDay.current) return;
-    savingDay.current = true;
-    setIsSavingDay(true);
-    setSaveNotice('');
-    try {
-      for (const vals of Object.values(dayEditValues)) {
-        if (!parseTimeInput(vals.in1))
-          throw new Error('Enter a valid clock-in time. Use Delete entry to remove a session.');
-        if ([vals.out1, vals.in2, vals.out2].some((value) => value.trim() && !parseTimeInput(value))) {
-          throw new Error('Enter valid times, such as 7:00 AM or 14:30.');
-        }
-      }
-      const dayData = dayDataMap.get(editingDay);
-
-      // Handle new entry creation
-      const newVals = dayEditValues[`new:${editingDay}`];
-      if (newVals) {
-        const in1 = parseTimeInput(newVals.in1);
-        if (in1) {
-          const out2 = parseTimeInput(newVals.out2);
-          const { data: created, error } = await supabase
-            .from('time_clock_entries')
-            .insert({
-              tenant_id: tenant?.id,
-              employee_id: employeeId,
-              clock_in: toISO(editingDay, in1),
-              clock_out: out2 ? toISO(editingDay, out2) : null,
-              employee_name: employeeName,
-              source: 'manual',
-            })
-            .select()
-            .single();
-          if (error) throw error;
-          const out1 = parseTimeInput(newVals.out1);
-          const in2 = parseTimeInput(newVals.in2);
-          if (out1 && created) {
-            const { error: bErr } = await supabase.from('time_clock_breaks').insert({
-              tenant_id: tenant?.id,
-              time_clock_entry_id: created.id,
-              break_start: toISO(editingDay, out1),
-              break_end: in2 ? toISO(editingDay, in2) : null,
-              break_type: 'break',
-            });
-            if (bErr) throw bErr;
-          }
-        }
-      }
-
-      // Handle existing entry edits
-      if (dayData) {
-        for (const row of dayData.entryRows) {
-          const vals = dayEditValues[row.entry.id];
-          if (!vals) continue; // entry was deleted during edit
-
-          const date = new Date(row.entry.clock_in).toLocaleDateString('sv-SE');
-          const newIn1 = parseTimeInput(vals.in1);
-          const newOut1 = parseTimeInput(vals.out1);
-          const newIn2 = parseTimeInput(vals.in2);
-          const newOut2 = parseTimeInput(vals.out2);
-
-          if (!newIn1) throw new Error('A clock-in time is required.');
-
-          // Detect changes to clock_in / clock_out
-          const origIn1 = row.in1 ? toTimeInput(row.in1) : null;
-          const origOut2 = row.out2 ? toTimeInput(row.out2) : null;
-          const hasClockInChange = newIn1 !== origIn1;
-          const hasClockOutChange = (newOut2 ?? null) !== (origOut2 ?? null);
-          if (hasClockInChange || hasClockOutChange) {
-            await editTimeClockEntry.mutateAsync({
-              id: row.entry.id,
-              ...(hasClockInChange && { clock_in: toISO(date, newIn1) }),
-              ...(hasClockOutChange && { clock_out: newOut2 ? toISO(date, newOut2) : undefined }),
-            });
-            // If clearing clock_out, do it directly since the hook doesn't accept null
-            if (hasClockOutChange && !newOut2) {
-              const { error } = await supabase
-                .from('time_clock_entries')
-                .update({ clock_out: null, updated_at: new Date().toISOString() })
-                .eq('id', row.entry.id);
-              if (error) throw error;
-            }
-          }
-
-          // Handle break changes
-          const brk = (row.entry.breaks ?? [])[0];
-          const origOut1 = row.out1 ? toTimeInput(row.out1) : null;
-          const origIn2 = row.in2 ? toTimeInput(row.in2) : null;
-          if (newOut1) {
-            if (brk) {
-              const brkUp: Record<string, string | null> = {};
-              if (newOut1 !== origOut1) brkUp.break_start = toISO(date, newOut1);
-              if ((newIn2 ?? null) !== (origIn2 ?? null)) brkUp.break_end = newIn2 ? toISO(date, newIn2) : null;
-              if (Object.keys(brkUp).length > 0) {
-                const { error } = await supabase.from('time_clock_breaks').update(brkUp).eq('id', brk.id);
-                if (error) throw error;
-              }
-            } else {
-              const { error } = await supabase.from('time_clock_breaks').insert({
-                tenant_id: tenant?.id,
-                time_clock_entry_id: row.entry.id,
-                break_start: toISO(date, newOut1),
-                break_end: newIn2 ? toISO(date, newIn2) : null,
-                break_type: 'break',
-              });
-              if (error) throw error;
-            }
-          } else if (brk) {
-            const { error } = await supabase.from('time_clock_breaks').delete().eq('id', brk.id);
-            if (error) throw error;
-          }
-        }
-      }
-
-      invalidate();
-      setSaveNotice(
-        `Changes saved to the timesheet for ${formatDayLabel(editingDay)}. Manager edits take effect immediately.`
-      );
-      toast({ title: 'Changes saved to timesheet' });
-      cancelDayEdit();
-    } catch (err: unknown) {
-      invalidate();
-      toast({
-        title: 'Save not completed',
-        description: `${getErrorMessage(err) || 'Failed to save'}. Your inputs are still open. Some changes may have saved; check the timesheet before retrying.`,
-        variant: 'destructive',
-      });
-    } finally {
-      savingDay.current = false;
-      setIsSavingDay(false);
-    }
-  }, [
-    editingDay,
-    dayEditValues,
-    dayDataMap,
-    tenant,
-    employeeId,
-    employeeName,
-    editTimeClockEntry,
-    invalidate,
-    cancelDayEdit,
-    toast,
-  ]);
-
-  /* ── delete entry ── */
-  const handleDeleteEntry = useCallback(
-    async (entryId: string) => {
-      if (!confirm('Delete this time entry?')) return;
-      try {
-        const { error } = await supabase.from('time_clock_entries').delete().eq('id', entryId);
-        if (error) throw error;
-        // Remove from edit state if currently editing
-        if (editingDay) {
-          setDayEditValues((prev) => {
-            const next = { ...prev };
-            delete next[entryId];
-            return next;
-          });
-        }
-        invalidate();
-        toast({ title: 'Entry deleted' });
-      } catch (err: unknown) {
-        toast({ title: 'Error', description: getErrorMessage(err) || 'Failed to delete', variant: 'destructive' });
-      }
-    },
-    [editingDay, invalidate, toast]
-  );
-
   /* ── approval ── */
   const handleApprove = useCallback(async () => {
     try {
@@ -656,35 +407,6 @@ export function EmployeeTimesheetView({
     URL.revokeObjectURL(url);
   }, [days, dayDataMap, employeeName, period]);
 
-  /* ── render a single punch cell ── */
-  const renderPunchCell = (entryKey: string, field: 'in1' | 'out1' | 'in2' | 'out2', value: string | null) => {
-    const vals = dayEditValues[entryKey];
-    if (vals) {
-      return (
-        <input
-          type="text"
-          disabled={isSavingDay}
-          aria-label={{ in1: 'Clock in', out1: 'Break start', in2: 'Break return', out2: 'Clock out' }[field]}
-          value={vals[field]}
-          onChange={(e) =>
-            setDayEditValues((prev) => ({
-              ...prev,
-              [entryKey]: { ...prev[entryKey], [field]: e.target.value },
-            }))
-          }
-          placeholder="0:00 AM"
-          className="w-[5.5rem] px-1 py-0.5 text-xs rounded border"
-          style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
-        />
-      );
-    }
-    return (
-      <span className="text-xs" style={{ color: value ? colors.brown : colors.brownLight }}>
-        {value ? formatTime(value) : '--'}
-      </span>
-    );
-  };
-
   /* ─── JSX ─── */
   return (
     <div className="space-y-4">
@@ -692,29 +414,14 @@ export function EmployeeTimesheetView({
       <Card style={{ backgroundColor: colors.white }}>
         <CardContent className="pt-4 pb-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onBack}
-              disabled={isSavingDay}
-              className="h-8 px-2"
-              style={{ color: colors.brown }}
-            >
+            <Button variant="ghost" size="sm" onClick={onBack} className="h-8 px-2" style={{ color: colors.brown }}>
               <ChevronLeft className="w-4 h-4 mr-1" /> Back
             </Button>
             <span className="text-lg font-bold" style={{ color: colors.brown }}>
               {employeeName}
             </span>
             <div className="ml-auto">
-              <PayPeriodNav
-                period={period}
-                onPrev={() => {
-                  if (!savingDay.current) goPrev();
-                }}
-                onNext={() => {
-                  if (!savingDay.current) goNext();
-                }}
-              />
+              <PayPeriodNav period={period} onPrev={goPrev} onNext={goNext} />
             </div>
           </div>
         </CardContent>
@@ -748,9 +455,15 @@ export function EmployeeTimesheetView({
         requests={employeeCorrections}
         canReview={hasRole('manager') && hasPermission('approve_time_edits')}
         currentUserId={user?.id ?? ''}
-        disabled={!!editingDay}
+        disabled={!!sessionEditor}
       />
 
+      <MissingSessionRequests
+        employeeId={employeeId}
+        currentUserId={user?.id ?? ''}
+        period={period}
+        canReview={hasRole('manager') && hasPermission('approve_time_edits')}
+      />
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card style={{ backgroundColor: colors.white }}>
@@ -880,234 +593,103 @@ export function EmployeeTimesheetView({
                       const data = dayDataMap.get(day);
                       if (!data) return null;
                       const diff = formatDiff(data.difference);
-                      const isDayEditing = editingDay === day;
-
-                      /* Empty day — no entries */
-                      if (data.entryRows.length === 0) {
-                        return (
-                          <Fragment key={day}>
-                            <tr style={{ borderBottom: isDayEditing ? undefined : `1px solid ${colors.cream}` }}>
-                              <td className="py-1.5 px-2 font-medium" style={{ color: colors.brown }}>
-                                {data.dayLabel}
-                                {canEditTimes && !isDayEditing && (
-                                  <button
-                                    disabled={isSavingDay}
-                                    onClick={() => startDayEdit(day, [])}
-                                    className="ml-2 inline-flex min-h-10 items-center gap-1 rounded border px-2 text-xs"
-                                    style={{ color: colors.gold }}
-                                  >
-                                    <Edit2 className="w-3 h-3" /> Add times
-                                  </button>
-                                )}
-                              </td>
-                              <td className="py-1.5 px-1">
-                                {isDayEditing ? (
-                                  renderPunchCell(`new:${day}`, 'in1', null)
-                                ) : (
-                                  <span className="text-xs" style={{ color: colors.brownLight }}>
-                                    --
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-1.5 px-1">
-                                {isDayEditing ? (
-                                  renderPunchCell(`new:${day}`, 'out1', null)
-                                ) : (
-                                  <span className="text-xs" style={{ color: colors.brownLight }}>
-                                    --
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-1.5 px-1">
-                                {isDayEditing ? (
-                                  renderPunchCell(`new:${day}`, 'in2', null)
-                                ) : (
-                                  <span className="text-xs" style={{ color: colors.brownLight }}>
-                                    --
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-1.5 px-1">
-                                {isDayEditing ? (
-                                  renderPunchCell(`new:${day}`, 'out2', null)
-                                ) : (
-                                  <span className="text-xs" style={{ color: colors.brownLight }}>
-                                    --
-                                  </span>
-                                )}
-                              </td>
-                              <td className="text-right py-1.5 px-2" style={{ color: colors.brownLight }}>
-                                --
-                              </td>
-                              <td className="text-right py-1.5 px-2" style={{ color: colors.brownLight }}>
-                                {data.scheduledHours > 0 ? formatHM(data.scheduledHours) : '--'}
-                              </td>
-                              <td className="text-right py-1.5 px-2" style={{ color: colors.brownLight }}>
-                                --
-                              </td>
-                              <td />
-                            </tr>
-                            {isDayEditing && (
-                              <tr style={{ borderBottom: `1px solid ${colors.cream}` }}>
-                                <td colSpan={9} className="py-1.5 px-2 text-right">
-                                  <button
-                                    onClick={handleSaveDay}
-                                    disabled={isSavingDay}
-                                    className="text-xs font-semibold mr-3 px-3 py-1 rounded"
-                                    style={{ backgroundColor: colors.green, color: '#fff' }}
-                                  >
-                                    {isSavingDay ? 'Saving…' : 'Save to timesheet'}
-                                  </button>
-                                  <button
-                                    onClick={cancelDayEdit}
-                                    disabled={isSavingDay}
-                                    className="text-xs px-3 py-1 rounded border"
-                                    style={{ color: colors.brownLight, borderColor: colors.creamDark }}
-                                  >
-                                    Cancel
-                                  </button>
-                                </td>
-                              </tr>
-                            )}
-                          </Fragment>
-                        );
-                      }
-
-                      /* Day with entries */
                       return (
                         <Fragment key={day}>
-                          {data.entryRows.map((row, idx) => {
-                            const eid = row.entry.id;
-                            const isFirst = idx === 0;
-                            const isLast = idx === data.entryRows.length - 1;
-
-                            return (
-                              <tr
-                                key={eid}
-                                style={{
-                                  borderBottom: isLast && !isDayEditing ? `1px solid ${colors.cream}` : undefined,
-                                }}
-                              >
-                                <td className="py-1.5 px-2 font-medium" style={{ color: colors.brown }}>
-                                  {isFirst ? (
-                                    <>
-                                      {data.dayLabel}
-                                      {canEditTimes && !isDayEditing && (
-                                        <button
-                                          disabled={isSavingDay}
-                                          onClick={() => startDayEdit(day, data.entryRows)}
-                                          className="ml-2 inline-flex min-h-10 items-center gap-1 rounded border px-2 text-xs"
-                                          style={{ color: colors.gold }}
-                                        >
-                                          <Edit2 className="w-3 h-3" /> Edit times
-                                        </button>
-                                      )}
-                                    </>
-                                  ) : (
-                                    ''
-                                  )}
+                          {data.entryRows.length === 0 ? (
+                            <tr>
+                              <td className="px-2 py-3 font-medium">{data.dayLabel}</td>
+                              <td colSpan={8} className="px-2 py-3 text-xs">
+                                No recorded session
+                              </td>
+                            </tr>
+                          ) : (
+                            data.entryRows.map((row, index) => (
+                              <tr key={row.entry.id} className="border-b">
+                                <td className="px-2 py-3 font-medium">
+                                  {data.dayLabel}
                                   {data.entryRows.length > 1 && (
-                                    <div className="text-xs font-normal mt-1">Session {idx + 1}</div>
+                                    <div className="text-xs font-normal">Session {index + 1}</div>
                                   )}
-                                  {pendingEntryIds.has(eid) ? (
-                                    <Badge variant="outline" className="block mt-1 w-fit">
-                                      Pending manager approval
-                                    </Badge>
-                                  ) : (
-                                    row.entry.is_edited && (
-                                      <div className="text-xs font-normal mt-1">
-                                        Edited
-                                        {row.entry.edited_at
-                                          ? ` ${new Date(row.entry.edited_at).toLocaleString()}`
-                                          : ''}
-                                      </div>
-                                    )
+                                  {pendingEntryIds.has(row.entry.id) && (
+                                    <Badge variant="outline">Pending manager approval</Badge>
+                                  )}
+                                  {row.entry.is_edited && (
+                                    <div className="text-xs font-normal">
+                                      Edited
+                                      {row.entry.edited_at ? ` ${new Date(row.entry.edited_at).toLocaleString()}` : ''}
+                                    </div>
                                   )}
                                 </td>
-                                <td className="py-1.5 px-1">{renderPunchCell(eid, 'in1', row.in1)}</td>
-                                <td className="py-1.5 px-1">{renderPunchCell(eid, 'out1', row.out1)}</td>
-                                <td className="py-1.5 px-1">{renderPunchCell(eid, 'in2', row.in2)}</td>
-                                <td className="py-1.5 px-1">{renderPunchCell(eid, 'out2', row.out2)}</td>
-                                <td
-                                  className="text-right py-1.5 px-2 font-medium"
-                                  style={{ color: row.netHours > 0 ? colors.brown : colors.brownLight }}
-                                >
-                                  {row.netHours > 0 ? formatHM(row.netHours) : '--'}
+                                <td className="px-1 py-3 text-xs">{row.in1 ? formatTime(row.in1) : '--'}</td>
+                                <td className="px-1 py-3 text-xs">
+                                  {row.out1 ? formatTime(row.out1) : '--'}
+                                  {(row.entry.breaks?.length ?? 0) > 1 && (
+                                    <div>+{row.entry.breaks!.length - 1} more breaks</div>
+                                  )}
                                 </td>
-                                <td className="text-right py-1.5 px-2" style={{ color: colors.brownLight }}>
-                                  {isFirst && data.scheduledHours > 0 ? formatHM(data.scheduledHours) : '--'}
+                                <td className="px-1 py-3 text-xs">{row.in2 ? formatTime(row.in2) : '--'}</td>
+                                <td className="px-1 py-3 text-xs">{row.out2 ? formatTime(row.out2) : '--'}</td>
+                                <td className="px-2 py-3 text-right font-medium">{formatHM(row.netHours)}</td>
+                                <td className="px-2 py-3 text-right text-xs">
+                                  {index === 0 && data.scheduledHours > 0 ? formatHM(data.scheduledHours) : '--'}
                                 </td>
-                                <td
-                                  className="text-right py-1.5 px-2"
-                                  style={{ color: isFirst ? diff.color : colors.brownLight }}
-                                >
-                                  {isFirst && data.scheduledHours > 0 ? diff.text : '--'}
+                                <td className="px-2 py-3 text-right text-xs" style={{ color: diff.color }}>
+                                  {index === 0 && data.scheduledHours > 0 ? diff.text : '--'}
                                 </td>
-                                <td className="py-1.5 px-1 text-center">
+                                <td className="px-1 py-3">
                                   {canEditTimes ? (
                                     <Button
-                                      variant="ghost"
+                                      variant="outline"
                                       size="sm"
-                                      onClick={() => handleDeleteEntry(eid)}
-                                      disabled={isSavingDay}
-                                      className="h-10 w-10 p-0"
-                                      aria-label="Delete entry"
-                                      title="Delete entry"
-                                      style={{ color: colors.brownLight }}
+                                      onClick={() => {
+                                        setSaveNotice('');
+                                        setSessionEditor({ day, entry: row.entry });
+                                      }}
                                     >
-                                      <Trash2 className="w-3 h-3" />
+                                      <Edit2 className="w-3 h-3 mr-1" />
+                                      Edit session
                                     </Button>
                                   ) : (
                                     canRequestEdit &&
                                     row.entry.source !== 'square' && (
                                       <Button
-                                        variant="ghost"
+                                        variant="outline"
                                         size="sm"
+                                        disabled={
+                                          pendingEntryIds.has(row.entry.id) || loadingCorrections || correctionsError
+                                        }
                                         onClick={() => setEditEntry(row.entry)}
-                                        disabled={pendingEntryIds.has(eid) || loadingCorrections || correctionsError}
-                                        className="min-h-10 px-2 text-xs"
-                                        title="Request edit"
-                                        style={{ color: colors.brownLight }}
                                       >
-                                        <Edit2 className="w-3 h-3 mr-1" /> Request correction
+                                        Request correction
                                       </Button>
                                     )
                                   )}
                                 </td>
                               </tr>
-                            );
-                          })}
-                          {data.entryRows.length > 1 && (
-                            <tr>
-                              <td colSpan={5} className="px-2 py-2 text-right text-xs font-medium">
-                                {data.dayLabel} · {data.entryRows.length} sessions · Daily total
-                              </td>
-                              <td className="px-2 py-2 text-right font-semibold">{formatHM(data.totalNetHours)}</td>
-                              <td colSpan={3} />
-                            </tr>
+                            ))
                           )}
-                          {isDayEditing && (
-                            <tr style={{ borderBottom: `1px solid ${colors.cream}` }}>
-                              <td colSpan={9} className="py-1.5 px-2 text-right">
-                                <button
-                                  onClick={handleSaveDay}
-                                  disabled={isSavingDay}
-                                  className="text-xs font-semibold mr-3 px-3 py-1 rounded"
-                                  style={{ backgroundColor: colors.green, color: '#fff' }}
+                          <tr className="border-b">
+                            <td colSpan={5} className="px-2 py-2">
+                              {(canEditTimes || canRequestEdit) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSaveNotice('');
+                                    setSessionEditor({ day });
+                                  }}
                                 >
-                                  {isSavingDay ? 'Saving…' : 'Save to timesheet'}
-                                </button>
-                                <button
-                                  onClick={cancelDayEdit}
-                                  disabled={isSavingDay}
-                                  className="text-xs px-3 py-1 rounded border"
-                                  style={{ color: colors.brownLight, borderColor: colors.creamDark }}
-                                >
-                                  Cancel
-                                </button>
-                              </td>
-                            </tr>
-                          )}
+                                  <Plus className="w-3 h-3 mr-1" />
+                                  {canEditTimes ? 'Add work session' : 'Request missed session'}
+                                </Button>
+                              )}
+                            </td>
+                            <td className="px-2 py-2 text-right font-semibold">
+                              <span className="block text-xs font-normal">Daily total</span>
+                              {formatHM(data.totalNetHours)}
+                            </td>
+                            <td colSpan={3} />
+                          </tr>
                         </Fragment>
                       );
                     })}
@@ -1165,6 +747,17 @@ export function EmployeeTimesheetView({
         </Card>
       )}
 
+      <SessionHistoryPanel employeeId={employeeId} />
+      {sessionEditor && (
+        <WorkSessionEditor
+          employeeId={employeeId}
+          entry={sessionEditor.entry}
+          day={sessionEditor.day}
+          requestOnly={!canEditTimes}
+          onClose={() => setSessionEditor(null)}
+          onSaved={setSaveNotice}
+        />
+      )}
       {/* Employee edit-request dialog */}
       {editEntry && canRequestEdit && (
         <EditRequestDialog
