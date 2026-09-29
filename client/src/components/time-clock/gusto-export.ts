@@ -4,7 +4,6 @@ import type { TimeClockEntry, TimeClockBreak } from '@/hooks/use-time-clock';
 import type { TimesheetApproval } from '@/hooks/use-timesheet-approvals';
 import type { UnifiedEmployee } from '@/hooks/use-all-employees';
 import type { WeekGroup } from '@/lib/pay-periods';
-import { CC_FEE_RATE } from '@/components/tip-payout/types';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -12,7 +11,7 @@ interface GustoEmployeeRow {
   name: string;
   regularHours: number;
   overtimeHours: number;
-  cashTips: number;
+  tipTotal: number;
   ptoHours: number;
 }
 
@@ -127,86 +126,111 @@ export function aggregateHoursByEmployee(
 // ── Tip payout fetch ────────────────────────────────────────────────────
 
 /**
- * Query tip_weekly_data and tip_employee_hours from Supabase for weeks
- * overlapping the pay period, then compute each employee's tip payout.
- * Returns a Map keyed by employee name (for matching to hours data).
+ * Read approved weekly payouts by explicit roster-to-account link. A payroll
+ * period containing a partial tip week cannot safely allocate that week's pool.
  */
 async function fetchTipPayoutsForPeriod(
   tenantId: string,
   periodStart: string,
   periodEnd: string,
-  employees: UnifiedEmployee[]
+  employeeIds: Set<string>
 ): Promise<Map<string, number>> {
   const weekKeys = getWeekKeysForPeriod(periodStart, periodEnd);
   if (weekKeys.length === 0) return new Map();
 
-  const [weeklyRes, hoursRes] = await Promise.all([
-    supabase.from('tip_weekly_data').select('*').eq('tenant_id', tenantId).in('week_key', weekKeys),
+  const [weeklyRes, approvalsRes, rosterRes] = await Promise.all([
     supabase
-      .from('tip_employee_hours')
-      .select('*, tip_employees(id, name)')
+      .from('tip_weekly_data')
+      .select('week_key,cash_tips,cc_tips')
       .eq('tenant_id', tenantId)
       .in('week_key', weekKeys),
+    supabase
+      .from('tip_payout_approvals')
+      .select('week_key,status,employee_payouts')
+      .eq('tenant_id', tenantId)
+      .in('week_key', weekKeys),
+    supabase.from('tip_employees').select('id,user_profile_id').eq('tenant_id', tenantId),
   ]);
 
   if (weeklyRes.error) throw weeklyRes.error;
-  if (hoursRes.error) throw hoursRes.error;
+  if (approvalsRes.error) throw approvalsRes.error;
+  if (rosterRes.error) throw rosterRes.error;
 
-  const weeklyData = weeklyRes.data ?? [];
-  const hoursData = hoursRes.data ?? [];
+  return sumApprovedTipPayouts({
+    weeks: weeklyRes.data ?? [],
+    approvals: approvalsRes.data ?? [],
+    roster: rosterRes.data ?? [],
+    periodStart,
+    periodEnd,
+    employeeIds,
+  });
+}
 
-  // Build tip_employee_id → employee name map from UnifiedEmployee
-  const tipIdToName = new Map<string, string>();
-  for (const e of employees) {
-    if (e.tip_employee_id) tipIdToName.set(e.tip_employee_id, e.name);
-  }
-
-  // Per-employee accumulated tip payout, keyed by name
-  const payoutByName = new Map<string, number>();
-
-  // Process each week independently
-  for (const wd of weeklyData) {
-    const cashTotal = parseFloat(String(wd.cash_tips)) || 0;
-    const ccTotal = parseFloat(String(wd.cc_tips)) || 0;
-    const pool = cashTotal + ccTotal * (1 - CC_FEE_RATE);
-
-    // Get employee hours for this week
-    const weekHours = hoursData.filter((h: any) => h.week_key === wd.week_key);
-    const totalTeamHours = weekHours.reduce((sum: number, h: any) => sum + (parseFloat(String(h.hours)) || 0), 0);
-    if (totalTeamHours <= 0 || pool <= 0) continue;
-
-    const hourlyTipRate = pool / totalTeamHours;
-
-    for (const h of weekHours) {
-      const empHours = parseFloat(String(h.hours)) || 0;
-      if (empHours <= 0) continue;
-
-      // Resolve employee name: first by tip_employee_id via UnifiedEmployee, then by joined name
-      const tipEmpId = h.employee_id;
-      let name = tipIdToName.get(tipEmpId) ?? h.tip_employees?.name ?? null;
-      if (!name) continue;
-
-      const payout = empHours * hourlyTipRate;
-      payoutByName.set(name, (payoutByName.get(name) ?? 0) + payout);
+export function sumApprovedTipPayouts({
+  weeks,
+  approvals: snapshots,
+  roster,
+  periodStart,
+  periodEnd,
+  employeeIds,
+}: {
+  weeks: Array<{ week_key: string; cash_tips: number | string | null; cc_tips: number | string | null }>;
+  approvals: Array<{
+    week_key: string;
+    status: string;
+    employee_payouts: Array<{ employee_id: string; payout: number }>;
+  }>;
+  roster: Array<{ id: string; user_profile_id: string | null }>;
+  periodStart: string;
+  periodEnd: string;
+  employeeIds: Set<string>;
+}): Map<string, number> {
+  const links = new Map(roster.map((person) => [person.id, person.user_profile_id]));
+  const approvals = new Map(snapshots.map((approval) => [approval.week_key, approval]));
+  const payoutByAccount = new Map<string, number>();
+  for (const week of weeks) {
+    if (Number(week.cash_tips) + Number(week.cc_tips) <= 0) continue;
+    const start = new Date(`${week.week_key}T00:00:00`);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    const lastDay = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+    if (week.week_key < periodStart || lastDay > periodEnd) {
+      throw new Error(`Tip week ${week.week_key} crosses the pay period. Review it separately.`);
+    }
+    const approved = approvals.get(week.week_key);
+    if (approved?.status !== 'approved') {
+      throw new Error(`Tip week ${week.week_key} needs manager approval before payroll review.`);
+    }
+    for (const payout of approved.employee_payouts) {
+      const profileId = links.get(payout.employee_id);
+      if (!profileId || !employeeIds.has(profileId)) {
+        throw new Error(`Tip week ${week.week_key} has a payout without a linked timesheet account.`);
+      }
+      payoutByAccount.set(profileId, (payoutByAccount.get(profileId) ?? 0) + Number(payout.payout));
     }
   }
-
-  return payoutByName;
+  return payoutByAccount;
 }
 
 // ── CSV builder ─────────────────────────────────────────────────────────
 
 function buildGustoCsv(rows: GustoEmployeeRow[]): string {
-  const headers = ['Employee', 'Regular Hours', 'Overtime Hours', 'Cash Tips', 'PTO Hours'];
+  const headers = ['Employee', 'Regular Hours', 'Overtime Hours', 'Tip Total (Review)', 'PTO Hours'];
   const lines = [headers.map((h) => `"${h}"`).join(',')];
+  const names = new Set<string>();
 
   for (const r of rows.sort((a, b) => a.name.localeCompare(b.name))) {
+    const key = r.name.trim().toLowerCase();
+    if (names.has(key))
+      throw new Error(`Two payroll accounts are named ${r.name}. Match them to Gusto before exporting.`);
+    names.add(key);
+    const safeName = r.name.replace(/"/g, '""').replace(/^[=+@-]/, "'$&");
     lines.push(
       [
-        `"${r.name}"`,
+        `"${safeName}"`,
         r.regularHours.toFixed(2),
         r.overtimeHours.toFixed(2),
-        r.cashTips.toFixed(2),
+        r.tipTotal.toFixed(2),
         r.ptoHours.toFixed(2),
       ].join(',')
     );
@@ -250,7 +274,7 @@ export async function exportGustoCsv(params: GustoExportParams): Promise<void> {
   const hoursMap = aggregateHoursByEmployee(entries, employees, weeks);
 
   // 2. Fetch tip payouts for the period
-  const tipMap = await fetchTipPayoutsForPeriod(tenantId, period.start, period.end, employees);
+  const tipMap = await fetchTipPayoutsForPeriod(tenantId, period.start, period.end, new Set(hoursMap.keys()));
 
   // 3. Build PTO lookup from approvals (employee_id → pto hours)
   const ptoByEmpId = new Map<string, number>();
@@ -263,14 +287,14 @@ export async function exportGustoCsv(params: GustoExportParams): Promise<void> {
   // 4. Merge into rows — only employees who have time clock hours
   const rows: GustoEmployeeRow[] = [];
   Array.from(hoursMap.entries()).forEach(([empId, data]) => {
-    const cashTips = tipMap.get(data.name) ?? 0;
+    const tipTotal = tipMap.get(empId) ?? 0;
     const ptoHours = ptoByEmpId.get(empId) ?? 0;
 
     rows.push({
       name: data.name,
       regularHours: data.regularHours,
       overtimeHours: data.overtimeHours,
-      cashTips,
+      tipTotal,
       ptoHours,
     });
   });
@@ -281,7 +305,7 @@ export async function exportGustoCsv(params: GustoExportParams): Promise<void> {
 
   // 5. Build CSV and trigger download
   const csv = buildGustoCsv(rows);
-  const filename = `gusto_payroll_${period.start}_${period.end}.csv`;
+  const filename = `payroll_review_${period.start}_${period.end}.csv`;
   await validateApproval();
   downloadCsv(csv, filename);
 }

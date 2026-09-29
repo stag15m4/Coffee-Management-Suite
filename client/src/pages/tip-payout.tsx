@@ -66,6 +66,8 @@ export default function TipPayout() {
   }, []);
   const [employeeHours, setEmployeeHours] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [approvalStatus, setApprovalStatus] = useState<'approved' | 'pending' | 'rejected' | null>(null);
+  const [approving, setApproving] = useState(false);
 
   // Tips entry
   const [cashEntries, setCashEntries] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
@@ -177,6 +179,14 @@ export default function TipPayout() {
           }
         });
         setEmployeeHours(hoursMap);
+        const { data: approval, error: approvalError } = await supabase
+          .from('tip_payout_approvals')
+          .select('status')
+          .eq('tenant_id', tenant.id)
+          .eq('week_key', weekKey)
+          .maybeSingle();
+        if (approvalError) throw approvalError;
+        setApprovalStatus(approval?.status ?? null);
       } catch (error: unknown) {
         console.error('Error loading week data:', error);
         toast({ title: 'Error loading data', description: getErrorMessage(error), variant: 'destructive' });
@@ -302,6 +312,7 @@ export default function TipPayout() {
       );
       if (error) throw error;
       toast({ title: 'Tips saved!' });
+      setApprovalStatus(null);
       loadWeekData();
     } catch (error: unknown) {
       toast({ title: 'Error saving tips', description: getErrorMessage(error), variant: 'destructive' });
@@ -352,6 +363,7 @@ export default function TipPayout() {
       toast({ title: `${selectedEmployee}: ${formatHoursMinutes(totalHours)} saved` });
       setHoursInput('');
       setMinutesInput('');
+      setApprovalStatus(null);
       loadWeekData();
     } catch (error: unknown) {
       toast({ title: 'Error saving hours', description: getErrorMessage(error), variant: 'destructive' });
@@ -373,6 +385,7 @@ export default function TipPayout() {
         .eq('week_key', weekKey);
       if (error) throw error;
       toast({ title: `${employeeName}'s hours removed` });
+      setApprovalStatus(null);
       loadWeekData();
     } catch (error: unknown) {
       toast({ title: 'Error deleting hours', description: getErrorMessage(error), variant: 'destructive' });
@@ -440,7 +453,7 @@ export default function TipPayout() {
       // Build lookup maps for tip-eligible employees only
       const eligible = employees.filter(isEmployeeTipEligible);
       const byTipId = new Map(eligible.map((e) => [e.id, e]));
-      const byNameLower = new Map(eligible.map((e) => [e.name.trim().toLowerCase(), e]));
+      const byAccountId = new Map(eligible.filter((e) => e.user_profile_id).map((e) => [e.user_profile_id, e]));
 
       const hoursMap = new Map<string, ImportedHours>();
       const unmatchedMap = new Map<string, UnmatchedEntry>();
@@ -457,8 +470,8 @@ export default function TipPayout() {
         if (entry.tip_employee_id) {
           tipEmp = byTipId.get(entry.tip_employee_id);
         }
-        if (!tipEmp && entry.employee_name) {
-          tipEmp = byNameLower.get(entry.employee_name.trim().toLowerCase());
+        if (!tipEmp && entry.employee_id) {
+          tipEmp = byAccountId.get(entry.employee_id);
         }
 
         const netHours = calcNetHoursFromEntry(entry);
@@ -536,6 +549,7 @@ export default function TipPayout() {
 
       toast({ title: `Imported hours for ${matched.length} ${matched.length === 1 ? 'employee' : 'employees'}` });
       setImportDialogOpen(false);
+      setApprovalStatus(null);
       loadWeekData();
     } catch (error: unknown) {
       toast({ title: 'Error importing hours', description: getErrorMessage(error), variant: 'destructive' });
@@ -545,6 +559,54 @@ export default function TipPayout() {
   };
 
   // --- Exports ---
+
+  const approveWeek = async () => {
+    if (!tenant?.id || approving) return;
+    setApproving(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Please sign in again');
+      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` };
+      const request = async (action: 'calculate' | 'approve', body: object) => {
+        const response = await fetch(`/api/tip-payouts/${action}`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Tip approval failed');
+        return result;
+      };
+      const calculation = await request('calculate', { tenantId: tenant.id, weekKey });
+      if (
+        Math.abs(calculation.cashTips - cashTotal) > 0.005 ||
+        Math.abs(calculation.ccTips - ccTotal) > 0.005 ||
+        Math.abs(calculation.totalHours - totalTeamHours) > 0.005
+      ) {
+        throw new Error('Save and refresh this week before approving its tip payout.');
+      }
+      await request('approve', {
+        tenantId: tenant.id,
+        weekKey,
+        distributionMethod: 'hours',
+        cashTips: calculation.cashTips,
+        ccTips: calculation.ccTips,
+        totalPool: calculation.totalPool,
+        totalHours: calculation.totalHours,
+        hourlyRate: calculation.hourlyRate,
+        employees: calculation.employees,
+      });
+      setApprovalStatus('approved');
+      toast({ title: 'Weekly tip payout approved', description: 'Team members can now see their amount.' });
+    } catch (error: unknown) {
+      toast({ title: 'Approval failed', description: getErrorMessage(error), variant: 'destructive' });
+      await loadWeekData(true);
+    } finally {
+      setApproving(false);
+    }
+  };
 
   const exportCSV = () => {
     // Tip distribution docs list tip-eligible staff only
@@ -802,6 +864,19 @@ export default function TipPayout() {
                   onExportCSV={exportCSV}
                   onExportPDF={exportPDF}
                 />
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    onClick={approveWeek}
+                    disabled={approving || approvalStatus === 'approved' || totalTeamHours <= 0 || totalPool <= 0}
+                  >
+                    {approving ? 'Approving...' : approvalStatus === 'approved' ? 'Approved' : 'Approve weekly payout'}
+                  </Button>
+                  <span className="text-sm" style={{ color: colors.brownLight }}>
+                    {approvalStatus === 'approved'
+                      ? 'Visible to linked staff accounts'
+                      : 'Staff see an amount only after approval'}
+                  </span>
+                </div>
 
                 <TeamHoursVerify
                   colors={colors}

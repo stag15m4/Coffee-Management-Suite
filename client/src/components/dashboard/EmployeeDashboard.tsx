@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTrialStatus } from '@/hooks/use-trial-status';
 import { EmployeeWelcomeCard } from '@/components/onboarding/EmployeeWelcomeCard';
 import { OutstandingOrdersCard } from '@/components/dashboard/OutstandingOrdersCard';
+import { MyTipsCard } from '@/components/dashboard/MyTipsCard';
 import {
   useActiveClockEntry,
   useClockIn,
@@ -331,6 +332,8 @@ export default function EmployeeDashboard() {
             </div>
           )}
         </Section>
+
+        <MyTipsCard />
 
         {/* Outstanding bulk orders — visible to leads+ with order access */}
         {canAccessModule('bulk-ordering') && <OutstandingOrdersCard />}
