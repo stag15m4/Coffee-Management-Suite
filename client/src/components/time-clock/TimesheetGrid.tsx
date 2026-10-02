@@ -44,6 +44,7 @@ interface TimesheetGridProps {
   searchQuery: string;
   statusFilter: string;
   onEmployeeClick: (employeeId: string) => void;
+  canViewAll: boolean;
 }
 
 export function TimesheetGrid({
@@ -54,6 +55,7 @@ export function TimesheetGrid({
   searchQuery,
   statusFilter,
   onEmployeeClick,
+  canViewAll,
 }: TimesheetGridProps) {
   const rows = useMemo<EmployeeTimesheetRow[]>(() => {
     // Split entry hours across days (handles overnight shifts)
@@ -227,7 +229,9 @@ export function TimesheetGrid({
         <span>
           <strong style={{ color: colors.brown }}>{formatHM(grandTotalHours)}</strong> Total Paid Hours
         </span>
-        {grandTotalPay > 0 && (
+        {/* Pay data is now scoped server-side (migration 157), but a plain
+            employee's own rate alone isn't a "team total" — keep this manager-only. */}
+        {canViewAll && grandTotalPay > 0 && (
           <span className="ml-auto font-semibold" style={{ color: colors.brown }}>
             ${grandTotalPay.toFixed(2)} Pay per dates
           </span>

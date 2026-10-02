@@ -114,6 +114,7 @@ export function TimeClockTab({
           tenantId={tenantId}
           canApprove={canApproveTimesheets}
           canExport={canExport}
+          canViewAll={canViewAll}
           currentUserId={currentUserId}
           employees={employees}
         />

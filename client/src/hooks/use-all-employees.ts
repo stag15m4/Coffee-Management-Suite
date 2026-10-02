@@ -15,7 +15,7 @@ export function useAllEmployees(tenantId?: string) {
       const [profilesResult, tipResult] = await Promise.all([
         supabase
           .from('user_profiles')
-          .select('id, full_name, avatar_url, role, email, schedule_color, hourly_rate, start_date')
+          .select('id, full_name, avatar_url, role, email, schedule_color, start_date')
           .eq('tenant_id', tenantId)
           .eq('is_active', true),
         supabase
@@ -48,7 +48,7 @@ export function useAllEmployees(tenantId?: string) {
           if (extraIds.length > 0) {
             const { data: extra } = await supabase
               .from('user_profiles')
-              .select('id, full_name, avatar_url, role, email, schedule_color, hourly_rate, start_date')
+              .select('id, full_name, avatar_url, role, email, schedule_color, start_date')
               .in('id', extraIds)
               .eq('is_active', true);
             if (extra) assignmentProfiles = extra;
@@ -58,7 +58,28 @@ export function useAllEmployees(tenantId?: string) {
         // Non-critical — continue without assignment data
       }
 
-      return mergeEmployeeIdentities([...profiles, ...assignmentProfiles], tipEmployees);
+      const unified = mergeEmployeeIdentities([...profiles, ...assignmentProfiles], tipEmployees);
+
+      // hourly_rate is deliberately not on the profiles select above — it's
+      // column-revoked for everyone but the employee themself and managers+
+      // (see migration 157). Pull it from the scoped view instead: a plain
+      // employee only gets their own rate back here, a manager gets everyone's.
+      try {
+        const { data: payRates } = await supabase
+          .from('user_pay_rates')
+          .select('id, hourly_rate')
+          .eq('tenant_id', tenantId);
+        const rateById = new Map((payRates || []).map((r) => [r.id, r.hourly_rate]));
+        for (const emp of unified) {
+          if (emp.user_profile_id && rateById.has(emp.user_profile_id)) {
+            emp.hourly_rate = rateById.get(emp.user_profile_id) ?? null;
+          }
+        }
+      } catch {
+        // Non-critical — pay-estimate features degrade to no rate, rest of the list still works
+      }
+
+      return unified;
     },
     enabled: !!tenantId,
     staleTime: 5 * 60_000,
