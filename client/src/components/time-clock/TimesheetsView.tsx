@@ -41,6 +41,7 @@ interface TimesheetsViewProps {
   tenantId: string;
   canApprove: boolean;
   canExport: boolean;
+  canViewAll: boolean;
   currentUserId: string;
   employees: UnifiedEmployee[];
 }
@@ -49,6 +50,7 @@ export function TimesheetsView({
   tenantId,
   canApprove,
   canExport,
+  canViewAll,
   currentUserId: _currentUserId,
   employees,
 }: TimesheetsViewProps) {
@@ -221,6 +223,7 @@ export function TimesheetsView({
               searchQuery={searchQuery}
               statusFilter={statusFilter}
               onEmployeeClick={setSelectedEmployee}
+              canViewAll={canViewAll}
             />
           )}
         </CardContent>

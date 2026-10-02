@@ -13,6 +13,12 @@ const tipPayoutCalculateSchema = z.object({
   distributionMethod: z.enum(['hours', 'equal', 'points']).default('hours'),
 });
 
+const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be YYYY-MM-DD');
+const myTipPayoutsQuerySchema = z.object({
+  start: dateString.optional(),
+  end: dateString.optional(),
+});
+
 const tipPayoutApproveSchema = z.object({
   tenantId: z.string().uuid(),
   weekKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'weekKey must be YYYY-MM-DD'),
@@ -36,11 +42,18 @@ const tipPayoutApproveSchema = z.object({
 
 export function registerTipRoutes(app: Express): void {
   // Only approved, explicitly linked payouts are visible to the signed-in staff member.
+  // With no ?start/?end, returns the last 12 weeks (the dashboard card's default view).
+  // A date range drops that cap — it's still scoped to the caller's own payouts,
+  // bounded by whatever range they searched.
   app.get('/api/tip-payouts/mine', async (req: Request, res: Response) => {
     try {
       const { userId } = await getUserIdFromRequest(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
-      const result = await db.execute(sql`
+      const parsed = myTipPayoutsQuerySchema.safeParse(req.query ?? {});
+      if (!parsed.success) return res.status(400).json({ error: 'Invalid start/end date' });
+      const { start, end } = parsed.data;
+
+      let query = sql`
         SELECT to_char(a.week_key, 'YYYY-MM-DD') AS week_key, a.approved_at,
                SUM((p.item->>'hours')::numeric) AS hours,
                SUM((p.item->>'payout')::numeric) AS payout, a.tenant_id
@@ -50,9 +63,13 @@ export function registerTipRoutes(app: Express): void {
         JOIN tip_employees te ON te.user_profile_id = up.id AND te.tenant_id = a.tenant_id
         CROSS JOIN LATERAL jsonb_array_elements(a.employee_payouts) AS p(item)
         WHERE a.status = 'approved' AND p.item->>'employee_id' = te.id::text
-        GROUP BY a.id, a.week_key, a.approved_at, a.tenant_id
-        ORDER BY a.week_key DESC LIMIT 12
-      `);
+      `;
+      if (start) query = sql`${query} AND a.week_key >= ${start}::date`;
+      if (end) query = sql`${query} AND a.week_key <= ${end}::date`;
+      query = sql`${query} GROUP BY a.id, a.week_key, a.approved_at, a.tenant_id ORDER BY a.week_key DESC`;
+      query = start || end ? sql`${query} LIMIT 500` : sql`${query} LIMIT 12`;
+
+      const result = await db.execute(query);
       res.setHeader('Cache-Control', 'no-store');
       res.json({ payouts: result.rows });
     } catch (error) {
