@@ -27,11 +27,11 @@ GET /api/alfred/time-clock-hours
 
 Query params (all optional except `tenant_id`, which auth already provides):
 
-| Param | Format | Notes |
-|---|---|---|
-| `date` | `YYYY-MM-DD` | A single day. |
-| `start_date` / `end_date` | `YYYY-MM-DD` | A range, inclusive. Must both be given together. Max 31 days. |
-| `timezone` | IANA name, e.g. `America/New_York` | Default `America/New_York`. Rejected with 400 if not a real IANA name. |
+| Param                     | Format                             | Notes                                                                  |
+| ------------------------- | ---------------------------------- | ---------------------------------------------------------------------- |
+| `date`                    | `YYYY-MM-DD`                       | A single day.                                                          |
+| `start_date` / `end_date` | `YYYY-MM-DD`                       | A range, inclusive. Must both be given together. Max 31 days.          |
+| `timezone`                | IANA name, e.g. `America/New_York` | Default `America/New_York`. Rejected with 400 if not a real IANA name. |
 
 **With no date params at all, this defaults to yesterday** (in `timezone`) —
 the common case ("how many hours did I owe for labor yesterday") needs no
@@ -100,6 +100,6 @@ to use.
 
 This endpoint returns **hours only**, not dollars. Employee hourly rates are
 deliberately not exposed to Alfred through this path. If you need labor
-*cost* (hours × rate), that would need a separate, explicitly-scoped
+_cost_ (hours × rate), that would need a separate, explicitly-scoped
 endpoint — don't try to combine this with another Alfred endpoint to back
 into a wage figure.
