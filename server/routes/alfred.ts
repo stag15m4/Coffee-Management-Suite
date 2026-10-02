@@ -18,6 +18,13 @@ import { getApiAuth } from '../service-auth';
 import { parseAllowedTenantIds } from '../service-auth-core';
 import { logAuditEvent } from './core';
 import logger from '../logger';
+import {
+  computeDailyHours,
+  addDaysToDateString,
+  todayInTimeZone,
+  type ClockSession,
+  type ClockBreak,
+} from '../timeClockDailyHours';
 
 // Overhead line-item frequencies allowed by the DB CHECK (migrations 054/055).
 const OVERHEAD_FREQUENCIES = ['daily', 'weekly', 'bi-weekly', 'monthly', 'quarterly', 'annual'] as const;
@@ -1104,6 +1111,159 @@ export function registerAlfredRoutes(app: Express): void {
       });
     } catch (err) {
       logger.error({ err }, 'Error in /api/alfred/employee-hours');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  const DEFAULT_TIME_CLOCK_TIMEZONE = 'America/New_York';
+  const MAX_TIME_CLOCK_DAYS = 31;
+
+  /**
+   * GET /api/alfred/time-clock-hours
+   * Net labor hours per employee per local calendar day — "how many hours
+   * do I owe for day X" — computed from raw time_clock_entries/breaks
+   * (what the Connecteam sync and the native time clock both write to).
+   * This is NOT the same data as /api/alfred/employee-hours, which is the
+   * separate weekly tip_employee_hours aggregate used for tip-pool math.
+   *
+   * Query params: tenant_id (required).
+   *   date (YYYY-MM-DD) — a single day.
+   *   start_date / end_date (YYYY-MM-DD) — a range, inclusive, max 31 days.
+   *   With neither given, defaults to yesterday (in `timezone`).
+   *   timezone — IANA name, default America/New_York. Clock timestamps are
+   *   stored in UTC with no stored tenant timezone, so day boundaries are
+   *   only correct for whichever timezone is passed (or the default).
+   *
+   * Net hours = gross session time minus only UNPAID breaks (a break
+   * flagged is_paid still counts as worked time), matching
+   * calcNetHoursFromEntry — the same formula already used for payroll/tip
+   * import elsewhere in this app.
+   */
+  app.get('/api/alfred/time-clock-hours', async (req: Request, res: Response) => {
+    try {
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
+
+      const timezone = (req.query.timezone as string) || DEFAULT_TIME_CLOCK_TIMEZONE;
+      try {
+        new Intl.DateTimeFormat('en-US', { timeZone: timezone });
+      } catch {
+        res.status(400).json({ error: `timezone "${timezone}" is not a recognized IANA timezone name` });
+        return;
+      }
+
+      const dateParam = (req.query.date as string) || null;
+      const startParam = (req.query.start_date as string) || null;
+      const endParam = (req.query.end_date as string) || null;
+      for (const [name, value] of [
+        ['date', dateParam],
+        ['start_date', startParam],
+        ['end_date', endParam],
+      ] as const) {
+        if (value && !DATE_RE.test(value)) {
+          res.status(400).json({ error: `${name} must be YYYY-MM-DD (got "${value}")` });
+          return;
+        }
+      }
+
+      let startDate: string;
+      let endDate: string;
+      if (dateParam) {
+        startDate = dateParam;
+        endDate = dateParam;
+      } else if (startParam || endParam) {
+        if (!startParam || !endParam) {
+          res.status(400).json({ error: 'start_date and end_date must both be given (or use date for a single day)' });
+          return;
+        }
+        startDate = startParam;
+        endDate = endParam;
+      } else {
+        const yesterday = addDaysToDateString(todayInTimeZone(timezone), -1);
+        startDate = yesterday;
+        endDate = yesterday;
+      }
+      if (startDate > endDate) {
+        res.status(400).json({ error: `start_date ${startDate} is after end_date ${endDate}` });
+        return;
+      }
+
+      const dates: string[] = [];
+      for (let d = startDate; d <= endDate; d = addDaysToDateString(d, 1)) {
+        dates.push(d);
+        if (dates.length > MAX_TIME_CLOCK_DAYS) {
+          res.status(400).json({ error: `Range too large — max ${MAX_TIME_CLOCK_DAYS} days` });
+          return;
+        }
+      }
+
+      // Pad the fetch window a day on each side so a shift that crosses
+      // midnight at either edge of the requested range is still captured.
+      const fetchStart = addDaysToDateString(startDate, -1);
+      const fetchEnd = addDaysToDateString(endDate, 1);
+
+      const entriesResult = await db.execute(sql`
+        SELECT tce.id,
+               COALESCE(tce.employee_id::text, tce.tip_employee_id::text) AS employee_key,
+               COALESCE(up.full_name, te.name, 'Unknown') AS employee_name,
+               tce.clock_in, tce.clock_out
+        FROM time_clock_entries tce
+        LEFT JOIN user_profiles up ON up.id = tce.employee_id
+        LEFT JOIN tip_employees te ON te.id = tce.tip_employee_id
+        WHERE tce.tenant_id = ${tenantId}::uuid
+          AND tce.clock_in >= ${fetchStart}::date
+          AND tce.clock_in < ${fetchEnd}::date
+      `);
+
+      const entryIds = (entriesResult.rows as any[]).map((r) => r.id);
+      const breaksResult = entryIds.length
+        ? await db.execute(sql`
+            SELECT time_clock_entry_id, break_start, break_end, is_paid
+            FROM time_clock_breaks
+            WHERE tenant_id = ${tenantId}::uuid AND time_clock_entry_id = ANY(${entryIds}::uuid[])
+          `)
+        : { rows: [] };
+
+      const sessions: ClockSession[] = (entriesResult.rows as any[]).map((r) => ({
+        id: r.id,
+        employeeId: r.employee_key ?? 'unknown',
+        employeeName: r.employee_name,
+        clockIn: r.clock_in,
+        clockOut: r.clock_out,
+      }));
+      const breaks: ClockBreak[] = (breaksResult.rows as any[]).map((r) => ({
+        timeClockEntryId: r.time_clock_entry_id,
+        breakStart: r.break_start,
+        breakEnd: r.break_end,
+        isPaid: !!r.is_paid,
+      }));
+
+      const byDay = computeDailyHours(sessions, breaks, dates, timezone);
+
+      const totalsByDate = new Map<string, number>();
+      for (const row of byDay) {
+        totalsByDate.set(row.date, Math.round(((totalsByDate.get(row.date) ?? 0) + row.hours) * 100) / 100);
+      }
+
+      res.json({
+        tenant_id: tenantId,
+        timezone,
+        start_date: startDate,
+        end_date: endDate,
+        days: dates.map((date) => ({
+          date,
+          total_hours: totalsByDate.get(date) ?? 0,
+          employees: byDay
+            .filter((r) => r.date === date)
+            .map(({ employeeId, employeeName, hours }) => ({
+              employee_id: employeeId,
+              employee_name: employeeName,
+              hours,
+            })),
+        })),
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error in /api/alfred/time-clock-hours');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
