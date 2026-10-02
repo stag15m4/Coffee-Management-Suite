@@ -264,10 +264,14 @@ export function Sidebar() {
         {/* My Team — free, not module-gated */}
         <SidebarLink href="/my-team" label="My Team" icon={Users} isActive={location === '/my-team'} />
 
-        {/* Module categories */}
+        {/* Module categories — only modules this role can actually open.
+            A module the tenant has enabled but this role is below the
+            minRole for (e.g. Recipe Costing for an employee) is left out of
+            the nav entirely rather than shown grayed-out; "Explore modules"
+            below still surfaces tenant-disabled (unpurchased) modules. */}
         {NAV_CATEGORIES.map((category) => {
-          const enabledInCategory = category.modules.filter((m) => enabledModules.includes(m));
-          if (enabledInCategory.length === 0) return null;
+          const visibleInCategory = category.modules.filter((m) => enabledModules.includes(m) && canAccessModule(m));
+          if (visibleInCategory.length === 0) return null;
 
           return (
             <div key={category.label}>
@@ -279,25 +283,17 @@ export function Sidebar() {
                   {category.label}
                 </p>
               </div>
-              {enabledInCategory.map((moduleId) => {
+              {visibleInCategory.map((moduleId) => {
                 const nav = MODULE_NAV[moduleId];
                 if (!nav) return null;
-                const accessible = canAccessModule(moduleId);
                 const isOnModule = location === nav.href;
 
-                if (nav.tabs && accessible) {
+                if (nav.tabs) {
                   return <ExpandableModule key={moduleId} nav={nav} isOnModule={isOnModule} />;
                 }
 
                 return (
-                  <SidebarLink
-                    key={moduleId}
-                    href={nav.href}
-                    label={nav.label}
-                    icon={nav.icon}
-                    isActive={isOnModule}
-                    disabled={!accessible}
-                  />
+                  <SidebarLink key={moduleId} href={nav.href} label={nav.label} icon={nav.icon} isActive={isOnModule} />
                 );
               })}
             </div>

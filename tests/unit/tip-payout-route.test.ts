@@ -50,10 +50,10 @@ beforeEach(() => {
     },
   } as unknown as Express);
 });
-async function request(handler: typeof approve, payload = body) {
+async function request(handler: typeof approve, payload = body, query: Record<string, string> = {}) {
   const res = { status: vi.fn(), json: vi.fn(), setHeader: vi.fn() };
   res.status.mockReturnValue(res);
-  await handler({ body: payload, ip: 'test' } as Request, res as unknown as Response);
+  await handler({ body: payload, query, ip: 'test' } as unknown as Request, res as unknown as Response);
   return res;
 }
 describe('approved tip publication', () => {
@@ -72,6 +72,30 @@ describe('approved tip publication', () => {
     mocks.identity.mockResolvedValueOnce({ userId: null });
     const res = await request(mine);
     expect(res.status).toHaveBeenCalledWith(401);
+    expect(mocks.execute).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/tip-payouts/mine date-range search', () => {
+  beforeEach(() => {
+    mocks.identity.mockResolvedValue({ userId: manager });
+  });
+  it('returns results with no start/end (the dashboard card default)', async () => {
+    mocks.execute.mockReset().mockResolvedValueOnce({ rows: [{ week_key: '2026-09-28', hours: '10', payout: '50' }] });
+    const res = await request(mine, body, {});
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ payouts: [{ week_key: '2026-09-28', hours: '10', payout: '50' }] });
+  });
+  it('accepts a valid start/end search range', async () => {
+    mocks.execute.mockReset().mockResolvedValueOnce({ rows: [] });
+    const res = await request(mine, body, { start: '2026-01-01', end: '2026-01-31' });
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ payouts: [] });
+  });
+  it('rejects a malformed date instead of passing it to the query', async () => {
+    mocks.execute.mockReset();
+    const res = await request(mine, body, { start: 'not-a-date' });
+    expect(res.status).toHaveBeenCalledWith(400);
     expect(mocks.execute).not.toHaveBeenCalled();
   });
 });
