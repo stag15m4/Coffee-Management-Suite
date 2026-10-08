@@ -103,6 +103,10 @@ export interface OverheadSettings {
   owner_tips_enabled?: boolean;
   use_store_hours?: boolean;
   items_per_transaction?: number;
+  /** Whether Menu Pricing's Sale Price already has sales tax baked in. */
+  prices_include_tax?: boolean;
+  /** Decimal fraction (0.0825 for 8.25%), used only when prices_include_tax is true. */
+  sales_tax_rate?: number;
 }
 
 /** Real overhead-per-item costing derived from actual logged transaction volume,

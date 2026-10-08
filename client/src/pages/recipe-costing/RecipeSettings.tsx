@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/lib/colors';
-import { formatCurrency, calculateCostPerUsageUnit } from './utils';
+import { formatCurrency, calculateCostPerUsageUnit, getNetSalePrice } from './utils';
 import { Switch } from '@/components/ui/switch';
 import type {
   Ingredient,
@@ -53,6 +53,8 @@ export const RecipeSettings = ({
   });
   const [editingItemsPerTxn, setEditingItemsPerTxn] = useState(false);
   const [itemsPerTxnInput, setItemsPerTxnInput] = useState(String(overhead?.items_per_transaction ?? 1));
+  const [editingTaxRate, setEditingTaxRate] = useState(false);
+  const [taxRateInput, setTaxRateInput] = useState(String((Number(overhead?.sales_tax_rate) || 0) * 100));
 
   const useStoreHours = overhead?.use_store_hours ?? false;
   const displayDays = useStoreHours ? autoHours.daysPerWeek : overhead?.operating_days_per_week || 7;
@@ -84,6 +86,17 @@ export const RecipeSettings = ({
     if (!Number.isFinite(parsed) || parsed <= 0) return;
     await onUpdateOverhead({ items_per_transaction: parsed });
     setEditingItemsPerTxn(false);
+  };
+
+  const handleToggleTaxInclusive = async (checked: boolean) => {
+    await onUpdateOverhead({ prices_include_tax: checked });
+  };
+
+  const handleSaveTaxRate = async () => {
+    const parsedPercent = parseFloat(taxRateInput);
+    if (!Number.isFinite(parsedPercent) || parsedPercent < 0) return;
+    await onUpdateOverhead({ sales_tax_rate: parsedPercent / 100 });
+    setEditingTaxRate(false);
   };
 
   return (
@@ -343,6 +356,91 @@ export const RecipeSettings = ({
           )}
         </div>
 
+        <div
+          className="mt-4 p-4 rounded-lg border-2"
+          style={{ backgroundColor: colors.white, borderColor: colors.gold }}
+          data-testid="box-sales-tax"
+        >
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <div className="text-sm font-medium" style={{ color: colors.brown }}>
+              Menu prices include sales tax
+            </div>
+            <Switch
+              checked={overhead?.prices_include_tax ?? false}
+              onCheckedChange={handleToggleTaxInclusive}
+              data-testid="toggle-prices-include-tax"
+            />
+          </div>
+          <div className="text-xs" style={{ color: colors.brownLight }}>
+            Turn this on if the Sale Price you type into Menu Pricing is a round, tax-inclusive menu-board price (e.g. a
+            flat $5.00) rather than a pre-tax price. CMS will back the tax out before computing margin and profit — that
+            tax is owed to the state, not real revenue.
+          </div>
+          {overhead?.prices_include_tax && (
+            <>
+              <div className="mt-3 flex items-center gap-2">
+                <label className="text-xs font-medium" style={{ color: colors.brown }}>
+                  Sales tax rate:
+                </label>
+                {editingTaxRate ? (
+                  <>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={taxRateInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || /^\d*\.?\d*$/.test(val)) setTaxRateInput(val);
+                      }}
+                      onFocus={(e) => e.target.select()}
+                      className="w-16 px-2 py-1 text-sm rounded border-2 outline-none"
+                      style={{ borderColor: colors.gold }}
+                      data-testid="input-sales-tax-rate"
+                    />
+                    <span className="text-xs" style={{ color: colors.brownLight }}>
+                      %
+                    </span>
+                    <button
+                      onClick={handleSaveTaxRate}
+                      className="text-xs px-2 py-1 font-semibold rounded"
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                      data-testid="button-save-sales-tax-rate"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTaxRateInput(String((Number(overhead?.sales_tax_rate) || 0) * 100));
+                        setEditingTaxRate(false);
+                      }}
+                      className="text-xs px-2 py-1 font-semibold rounded"
+                      style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setTaxRateInput(String((Number(overhead?.sales_tax_rate) || 0) * 100));
+                      setEditingTaxRate(true);
+                    }}
+                    className="text-sm font-semibold underline"
+                    style={{ color: colors.brown }}
+                    data-testid="button-edit-sales-tax-rate"
+                  >
+                    {((Number(overhead?.sales_tax_rate) || 0) * 100).toFixed(3)}%
+                  </button>
+                )}
+              </div>
+              <div className="text-xs mt-2" style={{ color: colors.brownLight }}>
+                To compare against Square, use Square's <strong>Net Sales</strong> report, not Gross — Net Sales is
+                already tax-excluded, matching what the Pricing Matrix now shows.
+              </div>
+            </>
+          )}
+        </div>
+
         <div className="mt-4">
           <label className="text-sm font-medium block mb-1" style={{ color: colors.brown }}>
             Notes
@@ -495,8 +593,9 @@ export const RecipeSettings = ({
                   const totalCost = ingredientCost + overheadCost;
                   const pricing = recipePricing.find((rp) => rp.recipe_id === recipe.id && rp.size_id === size.id);
                   const salePrice = pricing ? Number(pricing.sale_price) || 0 : 0;
-                  const margin = salePrice > 0 ? ((salePrice - totalCost) / salePrice) * 100 : 0;
-                  const profit = salePrice - totalCost;
+                  const netSalePrice = getNetSalePrice(salePrice, overhead);
+                  const margin = netSalePrice > 0 ? ((netSalePrice - totalCost) / netSalePrice) * 100 : 0;
+                  const profit = netSalePrice - totalCost;
 
                   csv += `"${recipe.name}","${category}","${size.name}","${baseTemplate?.name || 'None'}",${ingredientCost.toFixed(2)},${overheadCost.toFixed(2)},${totalCost.toFixed(2)},${salePrice.toFixed(2)},${margin.toFixed(1)},${profit.toFixed(2)}\n`;
                 });

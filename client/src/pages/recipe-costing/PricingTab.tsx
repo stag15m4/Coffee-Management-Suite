@@ -1,6 +1,6 @@
 import { useMemo, useState, Fragment } from 'react';
 import { colors } from '@/lib/colors';
-import { formatCurrency, formatPercent, calculateCostPerUsageUnit } from './utils';
+import { formatCurrency, formatPercent, calculateCostPerUsageUnit, getNetSalePrice } from './utils';
 import type {
   Recipe,
   Ingredient,
@@ -51,6 +51,18 @@ export const PricingTab = ({
     }
     return overhead;
   }, [costBasis, overhead, actualVolumeOverhead]);
+
+  // When prices_include_tax is on, Sale Price is a tax-inclusive menu
+  // price — the tax portion is collected for the state, not real revenue,
+  // so margin/profit are computed on the price with tax backed out. The
+  // displayed/editable "Sale" cell always shows the raw menu price as
+  // entered; only the derived profit and margin change.
+  const computeProfitAndMargin = (cost: number, rawSalePrice: number) => {
+    const netSalePrice = getNetSalePrice(rawSalePrice, effectiveOverhead);
+    const profit = netSalePrice - cost;
+    const margin = netSalePrice > 0 ? (profit / netSalePrice) * 100 : 0;
+    return { profit, margin };
+  };
 
   // Filter out bulk sizes and separate drink sizes from food/merchandise sizes
   // Exclude bulk from all sections
@@ -271,8 +283,7 @@ export const PricingTab = ({
         const cost = calculateSizeCost(recipe, size.id);
         const salePrice = getSalePrice(recipe.id, size.id);
         if (salePrice > 0) {
-          const profit = salePrice - cost;
-          const margin = (profit / salePrice) * 100;
+          const { profit, margin } = computeProfitAndMargin(cost, salePrice);
           averages[size.id].costs.push(cost);
           averages[size.id].sales.push(salePrice);
           averages[size.id].profits.push(profit);
@@ -314,8 +325,7 @@ export const PricingTab = ({
         const cost = calculateSizeCost(recipe, size.id);
         const salePrice = getSalePrice(recipe.id, size.id);
         if (salePrice > 0) {
-          const profit = salePrice - cost;
-          const margin = (profit / salePrice) * 100;
+          const { profit, margin } = computeProfitAndMargin(cost, salePrice);
           averages[size.id].costs.push(cost);
           averages[size.id].sales.push(salePrice);
           averages[size.id].profits.push(profit);
@@ -357,8 +367,7 @@ export const PricingTab = ({
         const cost = calculateSizeCost(recipe, size.id);
         const salePrice = getSalePrice(recipe.id, size.id);
         if (salePrice > 0) {
-          const profit = salePrice - cost;
-          const margin = (profit / salePrice) * 100;
+          const { profit, margin } = computeProfitAndMargin(cost, salePrice);
           averages[size.id].costs.push(cost);
           averages[size.id].sales.push(salePrice);
           averages[size.id].profits.push(profit);
@@ -687,8 +696,7 @@ export const PricingTab = ({
                           const cost = calculateSizeCost(recipe, size.id);
                           const cellKey = `${recipe.id}-${size.id}`;
                           const salePrice = getSalePrice(recipe.id, size.id);
-                          const profit = salePrice - cost;
-                          const margin = salePrice > 0 ? (profit / salePrice) * 100 : 0;
+                          const { profit, margin } = computeProfitAndMargin(cost, salePrice);
                           const marginColor = margin > 31 ? colors.green : margin > 25 ? colors.gold : colors.red;
                           const isEditing = editingCell === cellKey;
 
@@ -874,8 +882,7 @@ export const PricingTab = ({
                               const cost = calculateSizeCost(recipe, size.id);
                               const cellKey = `${recipe.id}-${size.id}`;
                               const salePrice = getSalePrice(recipe.id, size.id);
-                              const profit = salePrice - cost;
-                              const margin = salePrice > 0 ? (profit / salePrice) * 100 : 0;
+                              const { profit, margin } = computeProfitAndMargin(cost, salePrice);
                               const marginColor = margin > 31 ? colors.green : margin > 25 ? colors.gold : colors.red;
                               const isEditing = editingCell === cellKey;
 
@@ -1041,8 +1048,7 @@ export const PricingTab = ({
                               const cost = calculateSizeCost(recipe, size.id);
                               const cellKey = `${recipe.id}-${size.id}`;
                               const salePrice = getSalePrice(recipe.id, size.id);
-                              const profit = salePrice - cost;
-                              const margin = salePrice > 0 ? (profit / salePrice) * 100 : 0;
+                              const { profit, margin } = computeProfitAndMargin(cost, salePrice);
                               const marginColor = margin > 31 ? colors.green : margin > 25 ? colors.gold : colors.red;
                               const isEditing = editingCell === cellKey;
 
