@@ -70,6 +70,9 @@ export function getSquareOAuthUrl(tenantId: string, redirectUri: string): string
   });
 
   // Square expects scopes as space-separated (%20), not plus-encoded (+)
-  const scopes = 'TIMECARDS_READ TIMECARDS_SETTINGS_READ EMPLOYEES_READ MERCHANT_PROFILE_READ';
+  // ORDERS_READ powers the daily transaction-count sync (feeds cash_activity.transaction_count).
+  // Tenants who connected before this scope was added must disconnect and reconnect Square
+  // for it to take effect — Square does not retroactively grant scopes to an existing token.
+  const scopes = 'TIMECARDS_READ TIMECARDS_SETTINGS_READ EMPLOYEES_READ MERCHANT_PROFILE_READ ORDERS_READ';
   return `${baseUrl}/oauth2/authorize?${params.toString()}&scope=${encodeURIComponent(scopes)}`;
 }

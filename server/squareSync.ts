@@ -31,6 +31,16 @@ async function runSync(): Promise<void> {
       } catch (err: any) {
         log(`Square sync error for tenant ${tenant.id}: ${err.message}`, 'square');
       }
+
+      // Independent of the shifts sync above: a tenant connected before
+      // ORDERS_READ was added to the OAuth scope will fail here until they
+      // reconnect — logged and skipped, never lets one tenant's failure
+      // block the rest of the loop.
+      try {
+        await squareService.syncTransactionCountsForTenant(tenant.id);
+      } catch (err: any) {
+        log(`Square transaction sync error for tenant ${tenant.id}: ${err.message}`, 'square');
+      }
     }
   } catch (err: any) {
     log(`Square sync scheduler error: ${err.message}`, 'square');

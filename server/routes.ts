@@ -753,7 +753,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         startDate: parsed.data.startDate,
         endDate: parsed.data.endDate,
       });
-      res.json(result);
+
+      let transactions: { daysUpdated: number; daysSkippedNoRow: number; ordersSeen: number } | null = null;
+      let transactionsError: string | null = null;
+      try {
+        transactions = await squareService.syncTransactionCountsForTenant(auth.tenantId, {
+          startDate: parsed.data.startDate.slice(0, 10),
+          endDate: parsed.data.endDate.slice(0, 10),
+        });
+      } catch (err: any) {
+        // Most likely an existing connection that predates the ORDERS_READ
+        // scope — report it without failing the whole sync request.
+        transactionsError = err.message;
+      }
+
+      res.json({ ...result, transactions, transactionsError });
     } catch (error: any) {
       logger.error({ err: error }, 'Internal server error');
       res.status(500).json({ error: 'Internal server error' });
