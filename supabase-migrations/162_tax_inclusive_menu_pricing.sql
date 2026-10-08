@@ -14,5 +14,8 @@
 -- itself is often set at the municipality/county level.
 
 ALTER TABLE overhead_settings ADD COLUMN IF NOT EXISTS prices_include_tax BOOLEAN DEFAULT false;
--- Decimal fraction (0.0825 for 8.25%), not a whole percentage.
-ALTER TABLE overhead_settings ADD COLUMN IF NOT EXISTS sales_tax_rate NUMERIC(6, 4) DEFAULT 0;
+-- Decimal fraction (0.0825 for 8.25%), not a whole percentage. Scale 6
+-- (not 4) so common three-decimal percentage rates — e.g. NYC's 8.875%,
+-- which is 0.08875 as a fraction — survive exactly instead of rounding
+-- to 0.0888.
+ALTER TABLE overhead_settings ADD COLUMN IF NOT EXISTS sales_tax_rate NUMERIC(8, 6) DEFAULT 0;

@@ -429,7 +429,7 @@ export const RecipeSettings = ({
                     style={{ color: colors.brown }}
                     data-testid="button-edit-sales-tax-rate"
                   >
-                    {((Number(overhead?.sales_tax_rate) || 0) * 100).toFixed(2)}%
+                    {((Number(overhead?.sales_tax_rate) || 0) * 100).toFixed(3)}%
                   </button>
                 )}
               </div>
