@@ -80,6 +80,22 @@ export const calculateActualVolumeOverhead = (params: {
   };
 };
 
+/**
+ * Backs sales tax out of a tax-inclusive menu price so margin/profit is
+ * computed on real revenue, not on tax collected for the state. Only the
+ * sale side is affected — ingredient cost is untouched, since sales tax is
+ * charged to the customer, not paid by the business on its own COGS.
+ */
+export const getNetSalePrice = (
+  salePrice: number,
+  overhead: { prices_include_tax?: boolean; sales_tax_rate?: number } | null | undefined
+): number => {
+  if (!overhead?.prices_include_tax) return salePrice;
+  const rate = Number(overhead.sales_tax_rate) || 0;
+  if (rate <= 0) return salePrice;
+  return salePrice / (1 + rate);
+};
+
 export const calculateCostPerUsageUnit = (
   cost: number,
   purchaseQty: number,
