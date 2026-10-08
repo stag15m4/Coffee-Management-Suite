@@ -3,6 +3,7 @@ import { db } from './db';
 import { getSquareClient, getSquareAppClient, getSquareAppId, getSquareAppSecret } from './squareClient';
 import { log } from './index';
 import { encrypt, decrypt, isEncrypted } from './crypto';
+import { localDayBoundsUtc, addDaysToDateString, todayInTimeZone } from './timeClockDailyHours';
 
 // ---------------------------------------------------------------------------
 // Token helpers — encrypt before writing, decrypt after reading.
@@ -41,6 +42,14 @@ export interface SquareTenantConfig {
   square_location_id: string | null;
   square_sync_enabled: boolean;
   square_last_sync_at: string | null;
+  square_transactions_last_sync_at: string | null;
+  square_transactions_sync_watermark: string | null;
+}
+
+export interface TransactionSyncResult {
+  daysUpdated: number;
+  daysSkippedNoRow: number;
+  ordersSeen: number;
 }
 
 export interface SquareTeamMember {
@@ -186,7 +195,8 @@ export class SquareService {
     const result = await db.execute(sql`
       SELECT id, square_merchant_id, square_access_token, square_refresh_token,
              square_token_expires_at, square_location_id, square_sync_enabled,
-             square_last_sync_at
+             square_last_sync_at, square_transactions_last_sync_at,
+             square_transactions_sync_watermark
       FROM tenants
       WHERE id = ${tenantId}::uuid
     `);
@@ -235,6 +245,8 @@ export class SquareService {
         square_location_id = NULL,
         square_sync_enabled = false,
         square_last_sync_at = NULL,
+        square_transactions_last_sync_at = NULL,
+        square_transactions_sync_watermark = NULL,
         updated_at = NOW()
       WHERE id = ${tenantId}::uuid
     `);
@@ -385,6 +397,60 @@ export class SquareService {
     return timecards;
   }
 
+  async getLocationTimezone(tenantId: string): Promise<string> {
+    const { client, tenant } = await this.getAuthenticatedClient(tenantId);
+    if (!tenant.square_location_id) return 'America/New_York';
+    try {
+      const result = await client.locations.get({ locationId: tenant.square_location_id });
+      return result.location?.timezone || 'America/New_York';
+    } catch (err: any) {
+      log(`Square getLocationTimezone error for tenant ${tenantId}: ${err.message}`, 'square');
+      return 'America/New_York';
+    }
+  }
+
+  /** Completed orders' closedAt timestamps within [startAtIso, endAtIso), for an already-resolved client. */
+  private async searchCompletedOrderCloseTimesWithClient(
+    client: ReturnType<typeof getSquareClient>,
+    locationId: string,
+    startAtIso: string,
+    endAtIso: string
+  ): Promise<string[]> {
+    const closeTimes: string[] = [];
+    let cursor: string | undefined;
+
+    do {
+      const result = await client.orders.search({
+        locationIds: [locationId],
+        query: {
+          filter: {
+            stateFilter: { states: ['COMPLETED'] },
+            dateTimeFilter: { closedAt: { startAt: startAtIso, endAt: endAtIso } },
+          },
+          sort: { sortField: 'CLOSED_AT', sortOrder: 'ASC' },
+        },
+        limit: 500,
+        cursor,
+      });
+
+      for (const order of result.orders || []) {
+        if (order.closedAt) closeTimes.push(order.closedAt);
+      }
+      cursor = result.cursor;
+    } while (cursor);
+
+    return closeTimes;
+  }
+
+  /** Completed orders' closedAt timestamps within [startAtIso, endAtIso). */
+  async searchCompletedOrderCloseTimes(tenantId: string, startAtIso: string, endAtIso: string): Promise<string[]> {
+    const { client, tenant } = await this.getAuthenticatedClient(tenantId);
+    if (!tenant.square_location_id) {
+      throw new Error('Square location not configured');
+    }
+    return this.searchCompletedOrderCloseTimesWithClient(client, tenant.square_location_id, startAtIso, endAtIso);
+  }
+
   // -------------------------------------------------------------------------
   // Sync logic
   // -------------------------------------------------------------------------
@@ -469,6 +535,118 @@ export class SquareService {
     );
 
     return result;
+  }
+
+  /**
+   * Pulls completed-order counts from Square and writes them into
+   * cash_activity.transaction_count, bucketed by local calendar day in the
+   * Square location's own timezone. Only ever UPDATEs a day that already
+   * has a cash_activity row (created by the owner logging that day's cash
+   * numbers) — it never inserts a new row. A row the owner hasn't created
+   * yet has no reconciled revenue figure, and writing gross_revenue: 0 to
+   * back it would silently corrupt the daily-revenue average elsewhere in
+   * the app. A day only "arrives" here once there's something to attach
+   * its transaction count to.
+   */
+  async syncTransactionCountsForTenant(
+    tenantId: string,
+    options?: { startDate?: string; endDate?: string }
+  ): Promise<TransactionSyncResult> {
+    const { client, tenant } = await this.getAuthenticatedClient(tenantId);
+    if (!tenant.square_location_id) {
+      throw new Error('Square not fully configured for this tenant');
+    }
+
+    // The location's timezone decides which calendar day each order is
+    // bucketed into. Guessing a default on failure (rather than aborting)
+    // would, for any tenant outside Eastern time, silently write wrong
+    // transaction_count values and still mark the sync successful —
+    // persistently corrupting historical counts from a single transient
+    // Square error. Fail loudly instead; the caller already retries on its
+    // own schedule.
+    const locationResult = await client.locations.get({ locationId: tenant.square_location_id });
+    const timezone = locationResult.location?.timezone;
+    if (!timezone) {
+      throw new Error(`Square location ${tenant.square_location_id} has no timezone set`);
+    }
+
+    let startDate = options?.startDate;
+    if (!startDate) {
+      if (tenant.square_transactions_sync_watermark) {
+        // Resumes from the oldest day a previous run couldn't update yet
+        // (no cash_activity row for it at the time) — see the watermark
+        // update below. A day the owner hasn't logged cash numbers for
+        // yet stays eligible for backfill no matter how old it gets.
+        startDate = tenant.square_transactions_sync_watermark;
+      } else {
+        // First sync: a wider backfill window.
+        const d = new Date();
+        d.setDate(d.getDate() - 60);
+        startDate = d.toISOString().slice(0, 10);
+      }
+    }
+    const endDate = options?.endDate || todayInTimeZone(timezone);
+
+    const { start } = localDayBoundsUtc(startDate, timezone);
+    // localDayBoundsUtc(endDate).end is local midnight starting the day
+    // AFTER endDate — exactly the exclusive upper bound that fully
+    // includes endDate's own day.
+    const { end: endExclusive } = localDayBoundsUtc(endDate, timezone);
+
+    const closeTimes = await this.searchCompletedOrderCloseTimesWithClient(
+      client,
+      tenant.square_location_id,
+      start.toISOString(),
+      endExclusive.toISOString()
+    );
+
+    const countsByDay = new Map<string, number>();
+    for (let d = startDate; d <= endDate; d = addDaysToDateString(d, 1)) {
+      countsByDay.set(d, 0);
+    }
+    for (const closedAt of closeTimes) {
+      const day = todayInTimeZone(timezone, new Date(closedAt));
+      countsByDay.set(day, (countsByDay.get(day) || 0) + 1);
+    }
+
+    let daysUpdated = 0;
+    let daysSkippedNoRow = 0;
+    let oldestSkippedDate: string | null = null;
+    for (const [day, count] of countsByDay) {
+      const updateResult = await db.execute(sql`
+        UPDATE cash_activity
+        SET transaction_count = ${count}, updated_at = NOW()
+        WHERE tenant_id = ${tenantId}::uuid AND drawer_date = ${day}::date
+      `);
+      if ((updateResult.rowCount ?? 0) > 0) {
+        daysUpdated++;
+      } else {
+        daysSkippedNoRow++;
+        if (!oldestSkippedDate || day < oldestSkippedDate) oldestSkippedDate = day;
+      }
+    }
+
+    // Next run starts from whichever is earlier: a day still waiting on its
+    // cash_activity row (so it keeps getting retried, however old it gets),
+    // or the usual few-day overlap buffer before this run's end.
+    const overlapBufferDate = addDaysToDateString(endDate, -3);
+    const nextWatermark =
+      oldestSkippedDate && oldestSkippedDate < overlapBufferDate ? oldestSkippedDate : overlapBufferDate;
+
+    await db.execute(sql`
+      UPDATE tenants SET
+        square_transactions_last_sync_at = NOW(),
+        square_transactions_sync_watermark = ${nextWatermark}::date,
+        updated_at = NOW()
+      WHERE id = ${tenantId}::uuid
+    `);
+
+    log(
+      `Square transaction sync for tenant ${tenantId}: ${daysUpdated} days updated, ${daysSkippedNoRow} skipped (no cash_activity row), ${closeTimes.length} orders seen`,
+      'square'
+    );
+
+    return { daysUpdated, daysSkippedNoRow, ordersSeen: closeTimes.length };
   }
 
   async processSingleTimecard(
@@ -752,6 +930,7 @@ export class SquareService {
       locationId: tenant.square_location_id,
       syncEnabled: tenant.square_sync_enabled,
       lastSyncAt: tenant.square_last_sync_at,
+      transactionsLastSyncAt: tenant.square_transactions_last_sync_at,
       mappingStats: {
         confirmed: Number(stats.confirmed || 0),
         suggested: Number(stats.suggested || 0),

@@ -17,6 +17,7 @@ interface SquareStatus {
   locationId: string | null;
   syncEnabled: boolean;
   lastSyncAt: string | null;
+  transactionsLastSyncAt: string | null;
   mappingStats: {
     confirmed: number;
     suggested: number;
@@ -84,6 +85,7 @@ export default function SquareIntegrationSettings() {
         locationId: null,
         syncEnabled: false,
         lastSyncAt: null,
+        transactionsLastSyncAt: null,
         mappingStats: { confirmed: 0, suggested: 0, ignored: 0 },
       });
     }
@@ -189,7 +191,13 @@ export default function SquareIntegrationSettings() {
       const result = await apiFetch(`/api/square/sync/${tenant.id}`, { method: 'POST' });
       toast({
         title: 'Sync complete',
-        description: `${result.synced} synced, ${result.skipped} skipped, ${result.errors} errors`,
+        description: `Timeclock: ${result.synced} synced, ${result.skipped} skipped. ${
+          result.transactions
+            ? `Transaction counts: ${result.transactions.daysUpdated} days updated.`
+            : result.transactionsError
+              ? 'Transaction counts: disconnect and reconnect Square to enable this.'
+              : ''
+        }`,
       });
       await fetchStatus();
     } catch (err: unknown) {
@@ -292,7 +300,9 @@ export default function SquareIntegrationSettings() {
                 </svg>
                 Square Integration
               </CardTitle>
-              <CardDescription>Sync timeclock data from Square's Labor API</CardDescription>
+              <CardDescription>
+                Syncs timeclock data and daily transaction counts (for Menu Cost Manager overhead costing) from Square
+              </CardDescription>
             </div>
             {status?.connected && (
               <Badge className="text-white" style={{ backgroundColor: colors.green }}>
@@ -412,8 +422,20 @@ export default function SquareIntegrationSettings() {
 
               {status.lastSyncAt && (
                 <p className="text-xs" style={{ color: colors.brownLight }}>
-                  Last synced: {new Date(status.lastSyncAt).toLocaleString()}
+                  Timeclock last synced: {new Date(status.lastSyncAt).toLocaleString()}
                 </p>
+              )}
+              {status.transactionsLastSyncAt ? (
+                <p className="text-xs" style={{ color: colors.brownLight }}>
+                  Transaction counts last synced: {new Date(status.transactionsLastSyncAt).toLocaleString()}
+                </p>
+              ) : (
+                status.lastSyncAt && (
+                  <p className="text-xs" style={{ color: '#b45309' }}>
+                    Transaction counts haven't synced yet — if you connected Square before this feature existed,
+                    disconnect and reconnect to grant the extra permission it needs.
+                  </p>
+                )
               )}
 
               {/* Mapping summary */}

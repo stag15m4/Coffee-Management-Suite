@@ -17,6 +17,7 @@ import { OverheadTab } from './OverheadTab';
 import { RecipeSettings } from './RecipeSettings';
 import { BaseTemplatesTab } from './BaseTemplatesTab';
 import { VendorsTab } from './VendorsTab';
+import { calculateActualVolumeOverhead } from './utils';
 import {
   supabase,
   queryKeys,
@@ -46,7 +47,7 @@ import {
 } from '@/lib/supabase-queries';
 import { colors } from '@/lib/colors';
 import { ModuleIntroNudge } from '@/components/onboarding/ModuleIntroNudge';
-import type { Ingredient, Recipe, OverheadSettings, OverheadItem } from './types';
+import type { Ingredient, Recipe, OverheadSettings, OverheadItem, ActualVolumeOverhead } from './types';
 
 // ---------------------------------------------------------------------------
 // Tab button
@@ -166,17 +167,24 @@ export default function RecipeCostingPage() {
 
   const autoHours = useMemo(() => computeHoursFromStoreProfile(storeHours || []), [storeHours]);
 
-  const calculatedCostPerMinute = useMemo(() => {
-    let operatingDays: number;
-    let hoursPerDay: number;
-
+  const effectiveHours = useMemo(() => {
     if (overhead?.use_store_hours && storeHours && storeHours.length > 0) {
-      operatingDays = Math.max(1, autoHours.daysPerWeek);
-      hoursPerDay = Math.max(1, autoHours.avgHoursPerDay);
-    } else {
-      operatingDays = Math.max(1, overhead?.operating_days_per_week || 7);
-      hoursPerDay = Math.max(1, overhead?.hours_open_per_day || 8);
+      return { operatingDays: Math.max(1, autoHours.daysPerWeek), hoursPerDay: Math.max(1, autoHours.avgHoursPerDay) };
     }
+    return {
+      operatingDays: Math.max(1, overhead?.operating_days_per_week || 7),
+      hoursPerDay: Math.max(1, overhead?.hours_open_per_day || 8),
+    };
+  }, [
+    overhead?.use_store_hours,
+    overhead?.operating_days_per_week,
+    overhead?.hours_open_per_day,
+    autoHours,
+    storeHours,
+  ]);
+
+  const calculatedCostPerMinute = useMemo(() => {
+    const { operatingDays, hoursPerDay } = effectiveHours;
 
     const weeksPerMonth = 4.33;
     const daysPerMonth = operatingDays * weeksPerMonth;
@@ -209,26 +217,58 @@ export default function RecipeCostingPage() {
     }, 0);
 
     return minutesPerMonth > 0 ? monthlyTotal / minutesPerMonth : 0;
-  }, [
-    overhead?.operating_days_per_week,
-    overhead?.hours_open_per_day,
-    overhead?.use_store_hours,
-    autoHours,
-    storeHours,
-    overheadItems,
-  ]);
+  }, [effectiveHours, overheadItems]);
 
   const enhancedOverhead = useMemo(() => {
     if (!overhead) return overhead;
     return { ...overhead, cost_per_minute: calculatedCostPerMinute };
   }, [overhead, calculatedCostPerMinute]);
 
+  // Actual-volume overhead costing: the per-item rate above assumes the shop
+  // is making an item every `minutes_per_drink` minutes for the ENTIRE time
+  // it's open. This derives the real rate from actual transaction counts
+  // logged on Cash Deposits instead, and a scaling factor that rescales any
+  // theoretical per-recipe overhead cost down (or up) to match it while
+  // preserving each recipe's relative prep-time weighting.
   const includedCashDays = useMemo(() => cashActivity.filter((e: any) => !e.excluded_from_average), [cashActivity]);
   const avgDailyRevenue = useMemo(() => {
     if (includedCashDays.length === 0) return 0;
     const total = includedCashDays.reduce((sum: number, entry: any) => sum + (Number(entry.gross_revenue) || 0), 0);
     return total / includedCashDays.length;
   }, [includedCashDays]);
+
+  // A logged 0 is real signal (a day that still cost full overhead but sold
+  // nothing) and must stay in the average — only an unset count should be
+  // excluded, or the average overstates typical daily volume.
+  const includedTransactionDays = useMemo(
+    () => includedCashDays.filter((e: any) => e.transaction_count != null),
+    [includedCashDays]
+  );
+  const avgDailyTransactions = useMemo(() => {
+    if (includedTransactionDays.length === 0) return 0;
+    const total = includedTransactionDays.reduce((sum: number, e: any) => sum + Number(e.transaction_count), 0);
+    return total / includedTransactionDays.length;
+  }, [includedTransactionDays]);
+
+  const actualVolumeOverhead: ActualVolumeOverhead | null = useMemo(
+    () =>
+      calculateActualVolumeOverhead({
+        avgDailyTransactions,
+        transactionDayCount: includedTransactionDays.length,
+        itemsPerTransaction: Number(overhead?.items_per_transaction) || 1,
+        costPerMinute: calculatedCostPerMinute,
+        hoursPerDay: effectiveHours.hoursPerDay,
+        assumedMinutesPerItem: overhead?.minutes_per_drink || 1,
+      }),
+    [
+      avgDailyTransactions,
+      includedTransactionDays,
+      overhead?.items_per_transaction,
+      overhead?.minutes_per_drink,
+      calculatedCostPerMinute,
+      effectiveHours,
+    ]
+  );
 
   // ---------------------------------------------------------------------------
   // Loading / error
@@ -929,6 +969,7 @@ export default function RecipeCostingPage() {
             baseTemplates={baseTemplates}
             productSizes={productSizes}
             overhead={enhancedOverhead}
+            actualVolumeOverhead={actualVolumeOverhead}
             pricingData={pricingData}
             recipeSizeBases={recipeSizeBases}
             onUpdatePricing={handleUpdatePricing}
@@ -1013,6 +1054,7 @@ export default function RecipeCostingPage() {
             recipePricing={pricingData}
             autoHours={autoHours}
             hasStoreHours={!!storeHours && storeHours.length > 0}
+            actualVolumeOverhead={actualVolumeOverhead}
           />
         )}
       </main>
@@ -1099,6 +1141,7 @@ export default function RecipeCostingPage() {
                 recipePricing={pricingData}
                 autoHours={autoHours}
                 hasStoreHours={!!storeHours && storeHours.length > 0}
+                actualVolumeOverhead={actualVolumeOverhead}
               />
             )}
           </div>

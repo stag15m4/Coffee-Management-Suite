@@ -311,7 +311,7 @@ export function useCashActivityRevenue() {
     queryFn: async () => {
       let query = supabase
         .from('cash_activity')
-        .select('drawer_date, gross_revenue, excluded_from_average')
+        .select('drawer_date, gross_revenue, excluded_from_average, transaction_count')
         .or('archived.is.null,archived.eq.false');
       if (tenant?.id) query = query.eq('tenant_id', tenant.id);
       const { data, error } = await query.order('drawer_date', { ascending: false });
