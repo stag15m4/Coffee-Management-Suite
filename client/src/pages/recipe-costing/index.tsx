@@ -17,7 +17,7 @@ import { OverheadTab } from './OverheadTab';
 import { RecipeSettings } from './RecipeSettings';
 import { BaseTemplatesTab } from './BaseTemplatesTab';
 import { VendorsTab } from './VendorsTab';
-import { calculateActualVolumeOverhead } from './utils';
+import { calculateActualVolumeOverhead, estimateAverageIngredientCostPerItem } from './utils';
 import {
   supabase,
   queryKeys,
@@ -269,6 +269,29 @@ export default function RecipeCostingPage() {
       effectiveHours,
     ]
   );
+
+  // Blended average ingredient-only cost across the menu, and an estimate
+  // of real items sold per day (from the same real transaction volume used
+  // above) — together these let the Overhead tab show a true daily profit
+  // figure (Revenue − Overhead − estimated COGS), not just Revenue minus
+  // Overhead, which on its own ignores ingredient cost entirely and can
+  // show a healthy-looking "margin" on a day that's actually underwater.
+  const avgIngredientCostPerItem = useMemo(
+    () =>
+      estimateAverageIngredientCostPerItem({
+        recipes,
+        ingredients,
+        baseTemplates,
+        recipeSizeBases,
+        productSizes,
+        pricingData,
+      }),
+    [recipes, ingredients, baseTemplates, recipeSizeBases, productSizes, pricingData]
+  );
+
+  const estimatedItemsPerDay = actualVolumeOverhead
+    ? actualVolumeOverhead.avgDailyTransactions * actualVolumeOverhead.itemsPerTransaction
+    : 0;
 
   // ---------------------------------------------------------------------------
   // Loading / error
@@ -1037,6 +1060,8 @@ export default function RecipeCostingPage() {
             overheadItems={overheadItems as OverheadItem[]}
             avgDailyRevenue={avgDailyRevenue}
             cashDayCount={includedCashDays.length}
+            avgIngredientCostPerItem={avgIngredientCostPerItem.avgIngredientCost}
+            estimatedItemsPerDay={estimatedItemsPerDay}
             onAddOverheadItem={handleAddOverheadItem}
             onUpdateOverheadItem={handleUpdateOverheadItem}
             onDeleteOverheadItem={handleDeleteOverheadItem}
@@ -1092,6 +1117,8 @@ export default function RecipeCostingPage() {
                 overheadItems={overheadItems as OverheadItem[]}
                 avgDailyRevenue={avgDailyRevenue}
                 cashDayCount={includedCashDays.length}
+                avgIngredientCostPerItem={avgIngredientCostPerItem.avgIngredientCost}
+                estimatedItemsPerDay={estimatedItemsPerDay}
                 onAddOverheadItem={handleAddOverheadItem}
                 onUpdateOverheadItem={handleUpdateOverheadItem}
                 onDeleteOverheadItem={handleDeleteOverheadItem}

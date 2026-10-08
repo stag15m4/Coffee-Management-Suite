@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Check, X, Pencil, Trash2, Info } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { colors } from '@/lib/colors';
-import { formatCurrency } from './utils';
+import { formatCurrency, getNetSalePrice } from './utils';
 import type { OverheadSettings, OverheadItem } from './types';
 
 interface OverheadTabProps {
@@ -10,6 +10,10 @@ interface OverheadTabProps {
   overheadItems: OverheadItem[];
   avgDailyRevenue: number;
   cashDayCount: number;
+  /** Blended average ingredient-only (no overhead) cost per item across the menu. */
+  avgIngredientCostPerItem: number;
+  /** Estimated real items sold per day, from actual logged transaction volume. 0 if unknown. */
+  estimatedItemsPerDay: number;
   onAddOverheadItem: (item: { name: string; amount: number; frequency: string }) => Promise<void>;
   onUpdateOverheadItem: (id: string, updates: { name?: string; amount?: number; frequency?: string }) => Promise<void>;
   onDeleteOverheadItem: (id: string) => Promise<void>;
@@ -20,6 +24,8 @@ export const OverheadTab = ({
   overheadItems,
   avgDailyRevenue,
   cashDayCount,
+  avgIngredientCostPerItem,
+  estimatedItemsPerDay,
   onAddOverheadItem,
   onUpdateOverheadItem,
   onDeleteOverheadItem,
@@ -115,6 +121,17 @@ export const OverheadTab = ({
     { daily: 0, weekly: 0, monthly: 0, quarterly: 0, annual: 0 }
   );
 
+  // Revenue minus overhead alone (below) ignores ingredient cost entirely —
+  // it can show a comfortable green number on a day that's actually
+  // unprofitable once COGS is counted. True profit needs a real estimate
+  // of daily ingredient cost, which needs a real estimate of items sold
+  // per day — only available once transaction counts are being logged
+  // (manually or via the Square sync).
+  const netAvgDailyRevenue = getNetSalePrice(avgDailyRevenue, overhead);
+  const hasVolumeData = estimatedItemsPerDay > 0 && avgIngredientCostPerItem > 0;
+  const estimatedDailyCogs = hasVolumeData ? avgIngredientCostPerItem * estimatedItemsPerDay : 0;
+  const trueDailyProfit = netAvgDailyRevenue - totals.daily - estimatedDailyCogs;
+
   const payrollAverage = useMemo(() => {
     const run1 = payrollInputs.run1 !== '' ? parseFloat(payrollInputs.run1) || 0 : null;
     const run2 = payrollInputs.run2 !== '' ? parseFloat(payrollInputs.run2) || 0 : null;
@@ -204,12 +221,19 @@ export const OverheadTab = ({
                   below, converted to a daily amount based on your {operatingDays}-day operating week.
                 </li>
                 <li>
-                  <strong style={{ color: colors.brown }}>Daily Margin</strong> — Revenue minus overhead. Green means
-                  you're covering your costs; red means overhead exceeds revenue.
+                  <strong style={{ color: colors.brown }}>Revenue − Overhead</strong> — Revenue minus overhead only.
+                  This does <em>not</em> subtract ingredient cost, so it can still look healthy on a day that isn't —
+                  see True Daily Profit below for the full picture.
                 </li>
                 <li>
                   <strong style={{ color: colors.brown }}>Overhead %</strong> — What percentage of your daily revenue
                   goes to overhead. Lower is better.
+                </li>
+                <li>
+                  <strong style={{ color: colors.brown }}>True Daily Profit</strong> — Revenue minus overhead minus an
+                  estimated ingredient cost (the menu's average ingredient cost per item, x an estimated number of items
+                  sold per day from your logged transaction counts). This is the real number. If tax-inclusive pricing
+                  is on, revenue here is already tax-excluded to match.
                 </li>
               </ul>
             </div>
@@ -242,13 +266,16 @@ export const OverheadTab = ({
                 </div>
                 <div className="text-center">
                   <div className="text-xs font-medium mb-1" style={{ color: colors.brownLight }}>
-                    Daily Margin
+                    Revenue − Overhead
                   </div>
                   <div
                     className="text-xl font-bold"
                     style={{ color: avgDailyRevenue - totals.daily >= 0 ? '#22c55e' : '#ef4444' }}
                   >
                     {formatCurrency(avgDailyRevenue - totals.daily)}
+                  </div>
+                  <div className="text-xs" style={{ color: colors.brownLight }}>
+                    excludes ingredient cost
                   </div>
                 </div>
                 <div className="text-center">
@@ -267,6 +294,39 @@ export const OverheadTab = ({
                     of revenue
                   </div>
                 </div>
+              </div>
+            )}
+            {cashDayCount > 0 && (
+              <div
+                className="mt-4 p-4 rounded-lg border-2 text-center"
+                style={{
+                  backgroundColor: colors.white,
+                  borderColor: hasVolumeData ? (trueDailyProfit >= 0 ? '#22c55e' : '#ef4444') : colors.creamDark,
+                }}
+                data-testid="box-true-daily-profit"
+              >
+                <div className="text-sm font-medium" style={{ color: colors.brownLight }}>
+                  True Daily Profit
+                </div>
+                {hasVolumeData ? (
+                  <>
+                    <div className="text-3xl font-bold" style={{ color: trueDailyProfit >= 0 ? '#16a34a' : '#dc2626' }}>
+                      {formatCurrency(trueDailyProfit)}
+                    </div>
+                    <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                      {formatCurrency(netAvgDailyRevenue)} revenue
+                      {overhead?.prices_include_tax ? ' (tax excluded)' : ''} − {formatCurrency(totals.daily)} overhead
+                      − {formatCurrency(estimatedDailyCogs)} est. ingredient cost (
+                      {formatCurrency(avgIngredientCostPerItem)}/item x {estimatedItemsPerDay.toFixed(1)} items/day)
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
+                    Needs a transaction count logged (manually on Cash Deposits, or automatically once Square is
+                    reconnected) and at least one priced recipe with ingredients, to estimate real ingredient cost per
+                    day.
+                  </p>
+                )}
               </div>
             )}
           </div>
