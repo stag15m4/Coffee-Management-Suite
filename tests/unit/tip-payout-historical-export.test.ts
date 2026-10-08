@@ -77,3 +77,42 @@ describe('buildHistoricalIndividualHtml — tip-eligibility filtering', () => {
     expect(html).toContain('$100.00'); // Seth's full payout
   });
 });
+
+describe('cash_tips/cc_tips numeric-string safety', () => {
+  // tip_weekly_data.cash_tips/cc_tips are Postgres numeric columns, which come
+  // back from the DB as strings (same reason the Gusto export already wraps
+  // them in Number()). `"100.00" + 96.5` would silently string-concatenate
+  // into "100.0096.5" instead of adding to 196.5 — this must not happen.
+  const stringyWeek = { week_key: '2026-09-21', cash_tips: '100.00', cc_tips: '100.00' };
+
+  it('buildHistoricalGroupHtml adds string-typed cash_tips/cc_tips numerically, not by concatenation', () => {
+    const hoursData = [hoursRow(eligible, 10)];
+    const html = buildHistoricalGroupHtml({
+      startRange: '9/21/2026',
+      endRange: '9/27/2026',
+      weeklyData: [stringyWeek],
+      hoursData,
+      allEmployees: [eligible],
+    });
+    // pool = 100 + 100*0.965 = 196.50; rate = 196.50 / 10 = 19.65/hr
+    expect(html).toContain('$19.65');
+    expect(html).toContain('$196.50');
+    expect(html).not.toMatch(/\$NaN/);
+  });
+
+  it('buildHistoricalIndividualHtml adds string-typed cash_tips/cc_tips numerically, not by concatenation', () => {
+    const hoursData = [hoursRow(eligible, 10)];
+    const html = buildHistoricalIndividualHtml({
+      employeeName: 'Seth',
+      startRange: '9/21/2026',
+      endRange: '9/27/2026',
+      weeklyData: [stringyWeek],
+      hoursData,
+      employeeId: eligible.id,
+      allEmployees: [eligible],
+    });
+    expect(html).toContain('$19.65');
+    expect(html).toContain('$196.50');
+    expect(html).not.toMatch(/\$NaN/);
+  });
+});

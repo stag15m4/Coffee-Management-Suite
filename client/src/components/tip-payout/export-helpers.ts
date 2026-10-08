@@ -424,8 +424,13 @@ export function buildHistoricalGroupHtml(params: HistoricalGroupParams): string 
     // payout page already applies via isEmployeeTipEligible.
     const weekHours = weekHoursAll.filter((h: any) => isHoursRowTipEligible(h, allEmployees));
     const totalHours = weekHours.reduce((sum: number, h: any) => sum + (parseFloat(h.hours) || 0), 0);
-    const ccAfter = week.cc_tips * (1 - CC_FEE_RATE);
-    const pool = week.cash_tips + ccAfter;
+    // cash_tips/cc_tips are numeric DB columns that can come back as strings
+    // (same reason tip-payout's Gusto export coerces them with Number()) —
+    // `"100" + ccAfter` would silently string-concatenate instead of adding.
+    const cashTips = Number(week.cash_tips) || 0;
+    const ccTips = Number(week.cc_tips) || 0;
+    const ccAfter = ccTips * (1 - CC_FEE_RATE);
+    const pool = cashTips + ccAfter;
     const rate = totalHours > 0 ? pool / totalHours : 0;
     const weekRange = getWeekRange(week.week_key);
 
@@ -580,8 +585,10 @@ export function buildHistoricalIndividualHtml(params: HistoricalIndividualParams
     // page — an ineligible employee's hours must not dilute this rate.
     const weekHours = weekHoursAll.filter((h: any) => isHoursRowTipEligible(h, allEmployees));
     const totalTeamHrs = weekHours.reduce((sum: number, h: any) => sum + (parseFloat(h.hours) || 0), 0);
-    const ccAfter = week.cc_tips * (1 - CC_FEE_RATE);
-    const pool = week.cash_tips + ccAfter;
+    const cashTips = Number(week.cash_tips) || 0;
+    const ccTips = Number(week.cc_tips) || 0;
+    const ccAfter = ccTips * (1 - CC_FEE_RATE);
+    const pool = cashTips + ccAfter;
     const rate = totalTeamHrs > 0 ? pool / totalTeamHrs : 0;
     const weekRange = getWeekRange(week.week_key);
 
