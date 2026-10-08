@@ -61,7 +61,7 @@ export function MyTipsCard() {
   };
 
   return (
-    <section className="rounded-xl p-4" style={{ background: 'var(--color-background, white)' }}>
+    <section className="rounded-xl p-4 mb-6" style={{ background: 'var(--color-background, white)' }}>
       <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
         <h2 className="text-sm font-semibold" style={{ color: 'var(--color-secondary, #4a3728)' }}>
           My Tip Payouts
