@@ -237,8 +237,11 @@ export default function RecipeCostingPage() {
     return total / includedCashDays.length;
   }, [includedCashDays]);
 
+  // A logged 0 is real signal (a day that still cost full overhead but sold
+  // nothing) and must stay in the average — only an unset count should be
+  // excluded, or the average overstates typical daily volume.
   const includedTransactionDays = useMemo(
-    () => includedCashDays.filter((e: any) => e.transaction_count != null && Number(e.transaction_count) > 0),
+    () => includedCashDays.filter((e: any) => e.transaction_count != null),
     [includedCashDays]
   );
   const avgDailyTransactions = useMemo(() => {

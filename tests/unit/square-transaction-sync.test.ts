@@ -51,6 +51,7 @@ function tenantConfigRow(overrides: Record<string, unknown> = {}) {
         square_sync_enabled: true,
         square_last_sync_at: null,
         square_transactions_last_sync_at: null,
+        square_transactions_sync_watermark: null,
         ...overrides,
       },
     ],
@@ -130,11 +131,11 @@ describe('syncTransactionCountsForTenant', () => {
     expect(mocks.execute.mock.calls[2][0].queryChunks).toContain(0);
   });
 
-  it('uses a 60-day backfill window on first sync (no square_transactions_last_sync_at yet)', async () => {
+  it('uses a 60-day backfill window on first sync (no watermark yet)', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-08T18:00:00Z'));
     try {
-      mocks.execute.mockResolvedValueOnce(tenantConfigRow({ square_transactions_last_sync_at: null }));
+      mocks.execute.mockResolvedValueOnce(tenantConfigRow({ square_transactions_sync_watermark: null }));
       mocks.ordersSearch.mockResolvedValueOnce({ orders: [], cursor: undefined });
       // Stub out the per-day UPDATE loop + final tenant UPDATE with a catch-all.
       mocks.execute.mockResolvedValue({ rowCount: 0 });
@@ -157,5 +158,77 @@ describe('syncTransactionCountsForTenant', () => {
   it('throws when Square is not fully configured (no location set)', async () => {
     mocks.execute.mockResolvedValueOnce(tenantConfigRow({ square_location_id: null }));
     await expect(squareService.syncTransactionCountsForTenant(tenantId)).rejects.toThrow('Square not fully configured');
+  });
+
+  it('aborts rather than guessing a timezone when the location lookup fails', async () => {
+    mocks.execute.mockResolvedValueOnce(tenantConfigRow());
+    mocks.locationsGet.mockRejectedValueOnce(new Error('Square API unavailable'));
+
+    await expect(
+      squareService.syncTransactionCountsForTenant(tenantId, { startDate: '2026-10-01', endDate: '2026-10-01' })
+    ).rejects.toThrow('Square API unavailable');
+
+    // Never reached the order search or any cash_activity/tenant write —
+    // a transient failure here must not corrupt or mark anything synced.
+    expect(mocks.ordersSearch).not.toHaveBeenCalled();
+    expect(mocks.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('aborts when the location has no timezone set, rather than defaulting to one', async () => {
+    mocks.execute.mockResolvedValueOnce(tenantConfigRow());
+    mocks.locationsGet.mockResolvedValueOnce({ location: { timezone: undefined } });
+
+    await expect(squareService.syncTransactionCountsForTenant(tenantId)).rejects.toThrow('no timezone set');
+    expect(mocks.ordersSearch).not.toHaveBeenCalled();
+  });
+
+  it('keeps retrying a day with no cash_activity row by pinning the watermark to it, not advancing past it', async () => {
+    // A 10-day range where only the OLDEST day (09-01) is missing its
+    // cash_activity row — well outside the usual 3-day overlap buffer
+    // behind endDate (10-10 - 3 = 10-07), so the fix only shows up if the
+    // watermark tracks the skipped day specifically rather than just
+    // always using that buffer.
+    mocks.execute.mockImplementation(async (sqlObj: any) => {
+      const rendered = renderSql(sqlObj);
+      if (rendered.includes('FROM tenants')) return tenantConfigRow();
+      if (rendered.includes('UPDATE cash_activity')) {
+        const isMissingRowDay = sqlObj.queryChunks.includes('2026-09-01');
+        return { rowCount: isMissingRowDay ? 0 : 1 };
+      }
+      return { rowCount: undefined }; // final tenant UPDATE
+    });
+
+    mocks.ordersSearch.mockResolvedValueOnce({ orders: [], cursor: undefined });
+
+    const result = await squareService.syncTransactionCountsForTenant(tenantId, {
+      startDate: '2026-09-01',
+      endDate: '2026-09-10',
+    });
+
+    expect(result).toEqual({ daysUpdated: 9, daysSkippedNoRow: 1, ordersSeen: 0 });
+
+    const tenantUpdateCall = mocks.execute.mock.calls.find((c) => renderSql(c[0]).includes('UPDATE tenants'));
+    expect(tenantUpdateCall).toBeDefined();
+    // The watermark must stay at the oldest unresolved day (09-01), not the
+    // usual end-of-range overlap buffer (09-07) — otherwise that day falls
+    // out of range forever once it's more than a few days old.
+    expect(tenantUpdateCall![0].queryChunks).toContain('2026-09-01');
+  });
+
+  it('advances the watermark to the usual overlap buffer when nothing was skipped', async () => {
+    mocks.execute
+      .mockResolvedValueOnce(tenantConfigRow())
+      .mockResolvedValueOnce({ rowCount: 1 }) // the single day in range, row exists
+      .mockResolvedValueOnce({ rowCount: undefined });
+
+    mocks.ordersSearch.mockResolvedValueOnce({ orders: [], cursor: undefined });
+
+    await squareService.syncTransactionCountsForTenant(tenantId, {
+      startDate: '2026-10-01',
+      endDate: '2026-10-01',
+    });
+
+    // 3 days before endDate (2026-10-01) is 2026-09-28.
+    expect(mocks.execute.mock.calls[2][0].queryChunks).toContain('2026-09-28');
   });
 });

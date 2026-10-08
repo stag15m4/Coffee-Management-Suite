@@ -43,6 +43,7 @@ export interface SquareTenantConfig {
   square_sync_enabled: boolean;
   square_last_sync_at: string | null;
   square_transactions_last_sync_at: string | null;
+  square_transactions_sync_watermark: string | null;
 }
 
 export interface TransactionSyncResult {
@@ -194,7 +195,8 @@ export class SquareService {
     const result = await db.execute(sql`
       SELECT id, square_merchant_id, square_access_token, square_refresh_token,
              square_token_expires_at, square_location_id, square_sync_enabled,
-             square_last_sync_at, square_transactions_last_sync_at
+             square_last_sync_at, square_transactions_last_sync_at,
+             square_transactions_sync_watermark
       FROM tenants
       WHERE id = ${tenantId}::uuid
     `);
@@ -243,6 +245,8 @@ export class SquareService {
         square_location_id = NULL,
         square_sync_enabled = false,
         square_last_sync_at = NULL,
+        square_transactions_last_sync_at = NULL,
+        square_transactions_sync_watermark = NULL,
         updated_at = NOW()
       WHERE id = ${tenantId}::uuid
     `);
@@ -553,22 +557,27 @@ export class SquareService {
       throw new Error('Square not fully configured for this tenant');
     }
 
-    let timezone = 'America/New_York';
-    try {
-      const locationResult = await client.locations.get({ locationId: tenant.square_location_id });
-      timezone = locationResult.location?.timezone || timezone;
-    } catch (err: any) {
-      log(`Square getLocationTimezone error for tenant ${tenantId}: ${err.message}`, 'square');
+    // The location's timezone decides which calendar day each order is
+    // bucketed into. Guessing a default on failure (rather than aborting)
+    // would, for any tenant outside Eastern time, silently write wrong
+    // transaction_count values and still mark the sync successful —
+    // persistently corrupting historical counts from a single transient
+    // Square error. Fail loudly instead; the caller already retries on its
+    // own schedule.
+    const locationResult = await client.locations.get({ locationId: tenant.square_location_id });
+    const timezone = locationResult.location?.timezone;
+    if (!timezone) {
+      throw new Error(`Square location ${tenant.square_location_id} has no timezone set`);
     }
 
     let startDate = options?.startDate;
     if (!startDate) {
-      if (tenant.square_transactions_last_sync_at) {
-        // Incremental, with a few days of overlap to catch orders that
-        // closed late or were backdated since the last run.
-        const d = new Date(tenant.square_transactions_last_sync_at);
-        d.setDate(d.getDate() - 3);
-        startDate = d.toISOString().slice(0, 10);
+      if (tenant.square_transactions_sync_watermark) {
+        // Resumes from the oldest day a previous run couldn't update yet
+        // (no cash_activity row for it at the time) — see the watermark
+        // update below. A day the owner hasn't logged cash numbers for
+        // yet stays eligible for backfill no matter how old it gets.
+        startDate = tenant.square_transactions_sync_watermark;
       } else {
         // First sync: a wider backfill window.
         const d = new Date();
@@ -602,6 +611,7 @@ export class SquareService {
 
     let daysUpdated = 0;
     let daysSkippedNoRow = 0;
+    let oldestSkippedDate: string | null = null;
     for (const [day, count] of countsByDay) {
       const updateResult = await db.execute(sql`
         UPDATE cash_activity
@@ -612,12 +622,21 @@ export class SquareService {
         daysUpdated++;
       } else {
         daysSkippedNoRow++;
+        if (!oldestSkippedDate || day < oldestSkippedDate) oldestSkippedDate = day;
       }
     }
+
+    // Next run starts from whichever is earlier: a day still waiting on its
+    // cash_activity row (so it keeps getting retried, however old it gets),
+    // or the usual few-day overlap buffer before this run's end.
+    const overlapBufferDate = addDaysToDateString(endDate, -3);
+    const nextWatermark =
+      oldestSkippedDate && oldestSkippedDate < overlapBufferDate ? oldestSkippedDate : overlapBufferDate;
 
     await db.execute(sql`
       UPDATE tenants SET
         square_transactions_last_sync_at = NOW(),
+        square_transactions_sync_watermark = ${nextWatermark}::date,
         updated_at = NOW()
       WHERE id = ${tenantId}::uuid
     `);
