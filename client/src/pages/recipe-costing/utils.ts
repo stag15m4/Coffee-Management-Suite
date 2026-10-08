@@ -41,7 +41,7 @@ export const unitConversions: Record<string, Record<string, number>> = {
   kg: { g: 1000, grams: 1000, gram: 1000, oz: 35.274, lb: 2.20462, kg: 1 },
 };
 
-import type { ActualVolumeOverhead } from './types';
+import type { ActualVolumeOverhead, Recipe, Ingredient, BaseTemplate, ProductSize, RecipeIngredient } from './types';
 
 /**
  * Derives a real overhead-per-item rate from actual logged transaction
@@ -117,3 +117,117 @@ export const calculateCostPerUsageUnit = (
 
   return null;
 };
+
+function getIngredientCostPerUnit(ing: Ingredient): number {
+  const cost = typeof ing.cost === 'string' ? parseFloat(ing.cost) : ing.cost;
+  const quantity = typeof ing.quantity === 'string' ? parseFloat(ing.quantity) : ing.quantity;
+  if (!cost || !quantity) return 0;
+  const usageUnit = ing.usage_unit || ing.unit;
+  const costPerUnit = calculateCostPerUsageUnit(cost, quantity, ing.unit, usageUnit);
+  return costPerUnit || cost / quantity;
+}
+
+/**
+ * Pure ingredient cost for one (recipe, size) — ingredients plus any base
+ * template's ingredients, deliberately excluding overhead entirely (unlike
+ * the Pricing Matrix's cost, which folds overhead in). A syrup/bulk-recipe
+ * ingredient is costed from its own raw ingredients only, not the overhead
+ * the Pricing Matrix adds on top of it for a standalone syrup batch — this
+ * is meant to estimate aggregate daily COGS, not reproduce per-drink
+ * pricing, and double-counting overhead there would overstate it.
+ */
+function calculateIngredientOnlyCost(
+  recipe: Recipe,
+  sizeId: string,
+  ctx: { recipes: Recipe[]; ingredients: Ingredient[]; baseTemplates: BaseTemplate[]; productSizes: ProductSize[] }
+): number {
+  let totalCost = 0;
+
+  const getBulkRecipeCostPerOz = (bulkRecipeId: string): number => {
+    const bulkRecipe = ctx.recipes.find((r) => r.id === bulkRecipeId);
+    if (!bulkRecipe || !bulkRecipe.is_bulk_recipe) return 0;
+    const bulkSizes = ctx.productSizes.filter((s) => s.name.toLowerCase().includes('bulk'));
+    let cost = 0;
+    let batchSizeOz = 0;
+    for (const size of bulkSizes) {
+      const sizeIngredients =
+        bulkRecipe.recipe_ingredients?.filter((ri: RecipeIngredient) => ri.size_id === size.id) || [];
+      if (sizeIngredients.length > 0) {
+        batchSizeOz = size.size_value;
+        for (const ri of sizeIngredients) {
+          const ing = ctx.ingredients.find((i) => i.id === ri.ingredient_id);
+          if (ing) cost += ri.quantity * getIngredientCostPerUnit(ing);
+        }
+        break;
+      }
+    }
+    return batchSizeOz > 0 ? cost / batchSizeOz : 0;
+  };
+
+  const sizeIngredients = recipe.recipe_ingredients?.filter((ri) => ri.size_id === sizeId) || [];
+  for (const ri of sizeIngredients) {
+    if (ri.syrup_recipe_id) {
+      totalCost += ri.quantity * getBulkRecipeCostPerOz(ri.syrup_recipe_id);
+    } else if (ri.ingredient_id) {
+      const ing = ctx.ingredients.find((i) => i.id === ri.ingredient_id);
+      if (ing) totalCost += ri.quantity * getIngredientCostPerUnit(ing);
+    }
+  }
+
+  return totalCost;
+}
+
+/**
+ * Blended average ingredient-only cost across every non-bulk (recipe, size)
+ * with a sale price set — the same "simple average across the menu"
+ * methodology the Pricing Matrix's own Store Averages row already uses, so
+ * this stays directly comparable to it. Used to estimate aggregate daily
+ * COGS (this average x an estimated items/day) for the Overhead tab's true
+ * profit figure, since no per-sale ingredient cost is tracked anywhere.
+ */
+export function estimateAverageIngredientCostPerItem(params: {
+  recipes: Recipe[];
+  ingredients: Ingredient[];
+  baseTemplates: BaseTemplate[];
+  recipeSizeBases: { recipe_id: string; size_id: string; base_template_id: string }[];
+  productSizes: ProductSize[];
+  pricingData: { recipe_id: string; size_id: string; sale_price: number }[];
+}): { avgIngredientCost: number; sampleCount: number } {
+  const { recipes, ingredients, baseTemplates, recipeSizeBases, productSizes, pricingData } = params;
+  const nonBulkRecipes = recipes.filter((r) => !r.is_bulk_recipe);
+  const ctx = { recipes, ingredients, baseTemplates, productSizes };
+
+  const costs: number[] = [];
+  for (const recipe of nonBulkRecipes) {
+    for (const size of productSizes) {
+      if (size.name.toLowerCase().includes('bulk')) continue;
+      const pricing = pricingData.find((p) => p.recipe_id === recipe.id && p.size_id === size.id);
+      if (!pricing || !(Number(pricing.sale_price) > 0)) continue;
+
+      const hasDirectIngredients = (recipe.recipe_ingredients || []).some((ri) => ri.size_id === size.id);
+      // Per-size override first, falling back to the recipe's own legacy
+      // base_template_id — same precedence RecipeSettings/RecipesTab use —
+      // so recipes that never got a recipe_size_bases row aren't silently
+      // skipped here.
+      const sizeBaseId =
+        recipeSizeBases.find((rsb) => rsb.recipe_id === recipe.id && rsb.size_id === size.id)?.base_template_id ||
+        recipe.base_template_id;
+      const baseTemplate = sizeBaseId ? baseTemplates.find((bt) => bt.id === sizeBaseId) : null;
+      const hasBaseIngredients = (baseTemplate?.ingredients || []).some((bi) => bi.size_id === size.id);
+      if (!hasDirectIngredients && !hasBaseIngredients) continue;
+
+      let cost = calculateIngredientOnlyCost(recipe, size.id, ctx);
+      if (baseTemplate) {
+        for (const bi of baseTemplate.ingredients || []) {
+          if (bi.size_id !== size.id) continue;
+          const ing = ingredients.find((i) => i.id === bi.ingredient_id);
+          if (ing) cost += bi.quantity * getIngredientCostPerUnit(ing);
+        }
+      }
+      costs.push(cost);
+    }
+  }
+
+  if (costs.length === 0) return { avgIngredientCost: 0, sampleCount: 0 };
+  return { avgIngredientCost: costs.reduce((a, b) => a + b, 0) / costs.length, sampleCount: costs.length };
+}

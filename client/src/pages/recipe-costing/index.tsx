@@ -17,7 +17,7 @@ import { OverheadTab } from './OverheadTab';
 import { RecipeSettings } from './RecipeSettings';
 import { BaseTemplatesTab } from './BaseTemplatesTab';
 import { VendorsTab } from './VendorsTab';
-import { calculateActualVolumeOverhead } from './utils';
+import { calculateActualVolumeOverhead, estimateAverageIngredientCostPerItem } from './utils';
 import {
   supabase,
   queryKeys,
@@ -269,6 +269,43 @@ export default function RecipeCostingPage() {
       effectiveHours,
     ]
   );
+
+  // Blended average ingredient-only cost across the menu, and an estimate
+  // of real items sold per day (from the same real transaction volume used
+  // above) — together these let the Overhead tab show a true daily profit
+  // figure (Revenue − Overhead − estimated COGS), not just Revenue minus
+  // Overhead, which on its own ignores ingredient cost entirely and can
+  // show a healthy-looking "margin" on a day that's actually underwater.
+  const avgIngredientCostPerItem = useMemo(
+    () =>
+      estimateAverageIngredientCostPerItem({
+        recipes,
+        ingredients,
+        baseTemplates,
+        recipeSizeBases,
+        productSizes,
+        pricingData,
+      }),
+    [recipes, ingredients, baseTemplates, recipeSizeBases, productSizes, pricingData]
+  );
+
+  const estimatedItemsPerDay = actualVolumeOverhead
+    ? actualVolumeOverhead.avgDailyTransactions * actualVolumeOverhead.itemsPerTransaction
+    : 0;
+
+  // True Daily Profit needs revenue and estimated COGS averaged over the
+  // same set of days — mixing avgDailyRevenue (every included cash day)
+  // with volume derived only from days that have a transaction_count would
+  // let historical pre-tracking days dilute revenue without diluting the
+  // COGS estimate, understating profit for no real reason.
+  const avgDailyRevenueForVolumeDays = useMemo(() => {
+    if (includedTransactionDays.length === 0) return 0;
+    const total = includedTransactionDays.reduce(
+      (sum: number, entry: any) => sum + (Number(entry.gross_revenue) || 0),
+      0
+    );
+    return total / includedTransactionDays.length;
+  }, [includedTransactionDays]);
 
   // ---------------------------------------------------------------------------
   // Loading / error
@@ -1036,7 +1073,10 @@ export default function RecipeCostingPage() {
             overhead={enhancedOverhead}
             overheadItems={overheadItems as OverheadItem[]}
             avgDailyRevenue={avgDailyRevenue}
+            avgDailyRevenueForVolumeDays={avgDailyRevenueForVolumeDays}
             cashDayCount={includedCashDays.length}
+            avgIngredientCostPerItem={avgIngredientCostPerItem.avgIngredientCost}
+            estimatedItemsPerDay={estimatedItemsPerDay}
             onAddOverheadItem={handleAddOverheadItem}
             onUpdateOverheadItem={handleUpdateOverheadItem}
             onDeleteOverheadItem={handleDeleteOverheadItem}
@@ -1091,7 +1131,10 @@ export default function RecipeCostingPage() {
                 overhead={enhancedOverhead}
                 overheadItems={overheadItems as OverheadItem[]}
                 avgDailyRevenue={avgDailyRevenue}
+                avgDailyRevenueForVolumeDays={avgDailyRevenueForVolumeDays}
                 cashDayCount={includedCashDays.length}
+                avgIngredientCostPerItem={avgIngredientCostPerItem.avgIngredientCost}
+                estimatedItemsPerDay={estimatedItemsPerDay}
                 onAddOverheadItem={handleAddOverheadItem}
                 onUpdateOverheadItem={handleUpdateOverheadItem}
                 onDeleteOverheadItem={handleDeleteOverheadItem}
