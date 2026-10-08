@@ -718,6 +718,7 @@ export default function TipPayout() {
           weeklyData,
           hoursData,
           employeeId: historySelectedEmployee,
+          allEmployees,
         });
         exportWindow.document.open();
         exportWindow.document.write(html);
