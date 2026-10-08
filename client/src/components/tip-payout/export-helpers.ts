@@ -571,6 +571,10 @@ export function buildHistoricalIndividualHtml(params: HistoricalIndividualParams
   const { employeeName, startRange, endRange, weeklyData, hoursData, employeeId, allEmployees } = params;
 
   const employeeHoursFiltered = hoursData?.filter((h: any) => h.tip_employees?.id === employeeId) || [];
+  // The employee selector offers every employee, including tip-ineligible
+  // ones — this report must never show a nonzero payout for one, no matter
+  // how the rate itself is computed.
+  const selectedEmployeeEligible = allEmployees.find((e) => e.id === employeeId)?.tip_eligible !== false;
 
   let totalEarnings = 0;
   let totalHoursWorked = 0;
@@ -593,7 +597,7 @@ export function buildHistoricalIndividualHtml(params: HistoricalIndividualParams
     const weekRange = getWeekRange(week.week_key);
 
     const hours = parseFloat(empHour.hours) || 0;
-    const payout = hours * rate;
+    const payout = selectedEmployeeEligible ? hours * rate : 0;
     totalEarnings += payout;
     totalHoursWorked += hours;
 

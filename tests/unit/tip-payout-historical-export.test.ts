@@ -76,6 +76,26 @@ describe('buildHistoricalIndividualHtml — tip-eligibility filtering', () => {
     expect(html).toContain('$10.00'); // rate: $100 / 10h, not /15h
     expect(html).toContain('$100.00'); // Seth's full payout
   });
+
+  it('shows a $0 payout when the selected employee is themselves tip-ineligible', () => {
+    // The employee selector offers every employee, eligible or not, so a
+    // manager can select Ava directly and must still see $0 — never a
+    // payout computed from the (now-correct, undiluted) team rate.
+    const hoursData = [hoursRow(eligible, 10), hoursRow(ineligible, 5)];
+    const html = buildHistoricalIndividualHtml({
+      employeeName: 'Ava',
+      startRange: '9/21/2026',
+      endRange: '10/4/2026',
+      weeklyData,
+      hoursData,
+      employeeId: ineligible.id,
+      allEmployees: [eligible, ineligible],
+    });
+
+    expect(html).toContain('$0.00');
+    // Without the fix this would be 5h * ($100/10h rate) = $50.00.
+    expect(html).not.toContain('$50.00');
+  });
 });
 
 describe('cash_tips/cc_tips numeric-string safety', () => {
