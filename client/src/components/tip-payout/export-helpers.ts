@@ -29,6 +29,12 @@ interface HistoricalIndividualParams {
   weeklyData: any[];
   hoursData: any[];
   employeeId: string;
+  allEmployees: TipEmployee[];
+}
+
+function isHoursRowTipEligible(h: any, allEmployees: TipEmployee[]): boolean {
+  const empRecord = allEmployees.find((e) => e.id === h.tip_employees?.id);
+  return empRecord?.tip_eligible !== false;
 }
 
 export function buildCsvContent(params: {
@@ -412,10 +418,19 @@ export function buildHistoricalGroupHtml(params: HistoricalGroupParams): string 
   const employeeTotals: Record<string, { name: string; hours: number; payout: number; isActive: boolean }> = {};
 
   weeklyData.forEach((week: any) => {
-    const weekHours = hoursData?.filter((h: any) => h.week_key === week.week_key) || [];
+    const weekHoursAll = hoursData?.filter((h: any) => h.week_key === week.week_key) || [];
+    // Tip-ineligible employees' hours must not dilute the rate, and they must
+    // not appear in the payout table/summary — same rule the live weekly
+    // payout page already applies via isEmployeeTipEligible.
+    const weekHours = weekHoursAll.filter((h: any) => isHoursRowTipEligible(h, allEmployees));
     const totalHours = weekHours.reduce((sum: number, h: any) => sum + (parseFloat(h.hours) || 0), 0);
-    const ccAfter = week.cc_tips * (1 - CC_FEE_RATE);
-    const pool = week.cash_tips + ccAfter;
+    // cash_tips/cc_tips are numeric DB columns that can come back as strings
+    // (same reason tip-payout's Gusto export coerces them with Number()) —
+    // `"100" + ccAfter` would silently string-concatenate instead of adding.
+    const cashTips = Number(week.cash_tips) || 0;
+    const ccTips = Number(week.cc_tips) || 0;
+    const ccAfter = ccTips * (1 - CC_FEE_RATE);
+    const pool = cashTips + ccAfter;
     const rate = totalHours > 0 ? pool / totalHours : 0;
     const weekRange = getWeekRange(week.week_key);
 
@@ -553,9 +568,13 @@ export function buildHistoricalGroupHtml(params: HistoricalGroupParams): string 
 }
 
 export function buildHistoricalIndividualHtml(params: HistoricalIndividualParams): string {
-  const { employeeName, startRange, endRange, weeklyData, hoursData, employeeId } = params;
+  const { employeeName, startRange, endRange, weeklyData, hoursData, employeeId, allEmployees } = params;
 
   const employeeHoursFiltered = hoursData?.filter((h: any) => h.tip_employees?.id === employeeId) || [];
+  // The employee selector offers every employee, including tip-ineligible
+  // ones — this report must never show a nonzero payout for one, no matter
+  // how the rate itself is computed.
+  const selectedEmployeeEligible = allEmployees.find((e) => e.id === employeeId)?.tip_eligible !== false;
 
   let totalEarnings = 0;
   let totalHoursWorked = 0;
@@ -565,15 +584,20 @@ export function buildHistoricalIndividualHtml(params: HistoricalIndividualParams
     const empHour = employeeHoursFiltered.find((h: any) => h.week_key === week.week_key);
     if (!empHour) return;
 
-    const weekHours = hoursData?.filter((h: any) => h.week_key === week.week_key) || [];
+    const weekHoursAll = hoursData?.filter((h: any) => h.week_key === week.week_key) || [];
+    // Same tip-eligibility filter as the group report and the live weekly
+    // page — an ineligible employee's hours must not dilute this rate.
+    const weekHours = weekHoursAll.filter((h: any) => isHoursRowTipEligible(h, allEmployees));
     const totalTeamHrs = weekHours.reduce((sum: number, h: any) => sum + (parseFloat(h.hours) || 0), 0);
-    const ccAfter = week.cc_tips * (1 - CC_FEE_RATE);
-    const pool = week.cash_tips + ccAfter;
+    const cashTips = Number(week.cash_tips) || 0;
+    const ccTips = Number(week.cc_tips) || 0;
+    const ccAfter = ccTips * (1 - CC_FEE_RATE);
+    const pool = cashTips + ccAfter;
     const rate = totalTeamHrs > 0 ? pool / totalTeamHrs : 0;
     const weekRange = getWeekRange(week.week_key);
 
     const hours = parseFloat(empHour.hours) || 0;
-    const payout = hours * rate;
+    const payout = selectedEmployeeEligible ? hours * rate : 0;
     totalEarnings += payout;
     totalHoursWorked += hours;
 
