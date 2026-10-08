@@ -102,6 +102,19 @@ export interface OverheadSettings {
   hours_open_per_day?: number;
   owner_tips_enabled?: boolean;
   use_store_hours?: boolean;
+  items_per_transaction?: number;
+}
+
+/** Real overhead-per-item costing derived from actual logged transaction volume,
+ * instead of the assumed-full-capacity (minutes-open ÷ prep-time) rate. */
+export interface ActualVolumeOverhead {
+  avgDailyTransactions: number;
+  transactionDayCount: number;
+  itemsPerTransaction: number;
+  trueMinutesPerItem: number;
+  trueOverheadPerItem: number;
+  /** Multiply any theoretical per-recipe overhead cost by this to rescale it to actual volume. */
+  scalingFactor: number;
 }
 
 export interface OverheadItem {

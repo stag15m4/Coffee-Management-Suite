@@ -12,6 +12,7 @@ import type {
   RecipeSizeBase,
   RecipeSizePricing,
   RecipeIngredient,
+  ActualVolumeOverhead,
 } from './types';
 
 interface RecipeSettingsProps {
@@ -25,6 +26,7 @@ interface RecipeSettingsProps {
   recipePricing: RecipeSizePricing[];
   autoHours: { daysPerWeek: number; avgHoursPerDay: number };
   hasStoreHours: boolean;
+  actualVolumeOverhead: ActualVolumeOverhead | null;
 }
 
 export const RecipeSettings = ({
@@ -38,6 +40,7 @@ export const RecipeSettings = ({
   recipePricing,
   autoHours,
   hasStoreHours,
+  actualVolumeOverhead,
 }: RecipeSettingsProps) => {
   const { tenant } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -48,6 +51,8 @@ export const RecipeSettings = ({
     operating_days_per_week: overhead?.operating_days_per_week || 7,
     hours_open_per_day: overhead?.hours_open_per_day || 8,
   });
+  const [editingItemsPerTxn, setEditingItemsPerTxn] = useState(false);
+  const [itemsPerTxnInput, setItemsPerTxnInput] = useState(String(overhead?.items_per_transaction ?? 1));
 
   const useStoreHours = overhead?.use_store_hours ?? false;
   const displayDays = useStoreHours ? autoHours.daysPerWeek : overhead?.operating_days_per_week || 7;
@@ -72,6 +77,13 @@ export const RecipeSettings = ({
   const handleSave = async () => {
     await onUpdateOverhead(form);
     setEditing(false);
+  };
+
+  const handleSaveItemsPerTxn = async () => {
+    const parsed = parseFloat(itemsPerTxnInput);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    await onUpdateOverhead({ items_per_transaction: parsed });
+    setEditingItemsPerTxn(false);
   };
 
   return (
@@ -228,6 +240,107 @@ export const RecipeSettings = ({
           <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
             Cost/min ({formatCurrency(costPerMinute)}) x Prep min ({overhead?.minutes_per_drink || 1})
           </div>
+          <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
+            Assumes the shop is making an item every {overhead?.minutes_per_drink || 1} min, nonstop, for the whole time
+            it's open.
+          </div>
+        </div>
+
+        <div
+          className="mt-4 p-4 rounded-lg border-2"
+          style={{ backgroundColor: colors.white, borderColor: colors.gold }}
+          data-testid="box-actual-volume-overhead"
+        >
+          <div className="text-sm font-medium" style={{ color: colors.brownLight }}>
+            Overhead per Item — Actual Volume
+          </div>
+          {actualVolumeOverhead ? (
+            <>
+              <div className="text-3xl font-bold" style={{ color: colors.gold }}>
+                {formatCurrency(actualVolumeOverhead.trueOverheadPerItem)}
+              </div>
+              <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                Cost/min ({formatCurrency(costPerMinute)}) x True min/item (
+                {actualVolumeOverhead.trueMinutesPerItem.toFixed(2)}), from{' '}
+                {actualVolumeOverhead.avgDailyTransactions.toFixed(1)} avg daily transactions over{' '}
+                {actualVolumeOverhead.transactionDayCount}{' '}
+                {actualVolumeOverhead.transactionDayCount === 1 ? 'day' : 'days'} logged
+              </div>
+              {overheadPerDrink > 0 && (
+                <div
+                  className="text-xs mt-2 font-semibold"
+                  style={{
+                    color: actualVolumeOverhead.trueOverheadPerItem > overheadPerDrink * 1.1 ? '#dc2626' : colors.brown,
+                  }}
+                >
+                  {actualVolumeOverhead.trueOverheadPerItem > overheadPerDrink
+                    ? `${formatCurrency(actualVolumeOverhead.trueOverheadPerItem - overheadPerDrink)} higher than the theoretical Overhead per Item above — your real sales volume is below what that figure assumes.`
+                    : `${formatCurrency(overheadPerDrink - actualVolumeOverhead.trueOverheadPerItem)} lower than the theoretical Overhead per Item above — your real sales volume is above what that figure assumes.`}
+                </div>
+              )}
+              <div className="mt-3 flex items-center gap-2">
+                <label className="text-xs font-medium" style={{ color: colors.brown }}>
+                  Items per transaction:
+                </label>
+                {editingItemsPerTxn ? (
+                  <>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={itemsPerTxnInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || /^\d*\.?\d*$/.test(val)) setItemsPerTxnInput(val);
+                      }}
+                      onFocus={(e) => e.target.select()}
+                      className="w-16 px-2 py-1 text-sm rounded border-2 outline-none"
+                      style={{ borderColor: colors.gold }}
+                      data-testid="input-items-per-transaction"
+                    />
+                    <button
+                      onClick={handleSaveItemsPerTxn}
+                      className="text-xs px-2 py-1 font-semibold rounded"
+                      style={{ backgroundColor: colors.gold, color: colors.white }}
+                      data-testid="button-save-items-per-transaction"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => {
+                        setItemsPerTxnInput(String(overhead?.items_per_transaction ?? 1));
+                        setEditingItemsPerTxn(false);
+                      }}
+                      className="text-xs px-2 py-1 font-semibold rounded"
+                      style={{ backgroundColor: colors.creamDark, color: colors.brown }}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setItemsPerTxnInput(String(overhead?.items_per_transaction ?? 1));
+                      setEditingItemsPerTxn(true);
+                    }}
+                    className="text-sm font-semibold underline"
+                    style={{ color: colors.brown }}
+                    data-testid="button-edit-items-per-transaction"
+                  >
+                    {overhead?.items_per_transaction ?? 1}
+                  </button>
+                )}
+              </div>
+              <div className="text-xs mt-1" style={{ color: colors.brownLight }}>
+                Leave at 1 for the most conservative estimate (treats every transaction as a single item). Raise it if
+                your average ticket usually includes more than one item.
+              </div>
+            </>
+          ) : (
+            <p className="text-sm mt-1" style={{ color: colors.brownLight }}>
+              Log a transaction count alongside your daily numbers on the Cash Deposits page to see your real
+              overhead-per-item, based on actual sales volume instead of an assumed full-capacity rate.
+            </p>
+          )}
         </div>
 
         <div className="mt-4">

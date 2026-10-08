@@ -41,6 +41,45 @@ export const unitConversions: Record<string, Record<string, number>> = {
   kg: { g: 1000, grams: 1000, gram: 1000, oz: 35.274, lb: 2.20462, kg: 1 },
 };
 
+import type { ActualVolumeOverhead } from './types';
+
+/**
+ * Derives a real overhead-per-item rate from actual logged transaction
+ * volume, instead of assuming the shop makes an item every `assumedMinutesPerItem`
+ * minutes for its entire open time. `scalingFactor` rescales any theoretical
+ * per-recipe overhead cost (cost_per_minute x that recipe's own prep
+ * minutes) to match actual volume while preserving each recipe's relative
+ * prep-time weighting.
+ */
+export const calculateActualVolumeOverhead = (params: {
+  avgDailyTransactions: number;
+  transactionDayCount: number;
+  itemsPerTransaction: number;
+  costPerMinute: number;
+  hoursPerDay: number;
+  assumedMinutesPerItem: number;
+}): ActualVolumeOverhead | null => {
+  const { avgDailyTransactions, transactionDayCount, costPerMinute, hoursPerDay } = params;
+  if (avgDailyTransactions <= 0 || costPerMinute <= 0) return null;
+
+  const itemsPerTransaction = Math.max(0.01, params.itemsPerTransaction || 1);
+  const assumedMinutesPerItem = Math.max(0.01, params.assumedMinutesPerItem || 1);
+  const minutesPerDay = hoursPerDay * 60;
+  const itemsPerDay = avgDailyTransactions * itemsPerTransaction;
+  const trueMinutesPerItem = itemsPerDay > 0 ? minutesPerDay / itemsPerDay : 0;
+  const trueOverheadPerItem = costPerMinute * trueMinutesPerItem;
+  const scalingFactor = trueMinutesPerItem / assumedMinutesPerItem;
+
+  return {
+    avgDailyTransactions,
+    transactionDayCount,
+    itemsPerTransaction,
+    trueMinutesPerItem,
+    trueOverheadPerItem,
+    scalingFactor,
+  };
+};
+
 export const calculateCostPerUsageUnit = (
   cost: number,
   purchaseQty: number,

@@ -1,4 +1,4 @@
-import { useState, Fragment } from 'react';
+import { useMemo, useState, Fragment } from 'react';
 import { colors } from '@/lib/colors';
 import { formatCurrency, formatPercent, calculateCostPerUsageUnit } from './utils';
 import type {
@@ -9,6 +9,7 @@ import type {
   OverheadSettings,
   RecipeSizePricing,
   RecipeIngredient,
+  ActualVolumeOverhead,
 } from './types';
 
 interface PricingTabProps {
@@ -17,6 +18,7 @@ interface PricingTabProps {
   baseTemplates: BaseTemplate[];
   productSizes: ProductSize[];
   overhead: OverheadSettings | null;
+  actualVolumeOverhead: ActualVolumeOverhead | null;
   pricingData: RecipeSizePricing[];
   recipeSizeBases: { id?: string; recipe_id: string; size_id: string; base_template_id: string }[];
   onUpdatePricing: (recipeId: string, sizeId: string, salePrice: number) => Promise<void>;
@@ -28,12 +30,27 @@ export const PricingTab = ({
   baseTemplates,
   productSizes,
   overhead,
+  actualVolumeOverhead,
   pricingData,
   recipeSizeBases,
   onUpdatePricing,
 }: PricingTabProps) => {
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [costBasis, setCostBasis] = useState<'theoretical' | 'actual'>('theoretical');
+
+  // "Actual" rescales each recipe's per-minute overhead rate so the whole
+  // menu's overhead recovery matches real transaction volume, rather than
+  // the full-capacity assumption behind `overhead.cost_per_minute` — same
+  // relative weighting between recipes (a longer prep time still costs
+  // more), just calibrated to reality instead of a hypothetical never-idle
+  // shop. Falls back to theoretical automatically if there's no volume data.
+  const effectiveOverhead = useMemo(() => {
+    if (costBasis === 'actual' && overhead && actualVolumeOverhead) {
+      return { ...overhead, cost_per_minute: overhead.cost_per_minute * actualVolumeOverhead.scalingFactor };
+    }
+    return overhead;
+  }, [costBasis, overhead, actualVolumeOverhead]);
 
   // Filter out bulk sizes and separate drink sizes from food/merchandise sizes
   // Exclude bulk from all sections
@@ -168,8 +185,8 @@ export const PricingTab = ({
     }
 
     // Add overhead time cost for making the batch
-    if (overhead && bulkRecipe.minutes_per_drink != null) {
-      totalCost += (overhead.cost_per_minute || 0) * bulkRecipe.minutes_per_drink;
+    if (effectiveOverhead && bulkRecipe.minutes_per_drink != null) {
+      totalCost += (effectiveOverhead.cost_per_minute || 0) * bulkRecipe.minutes_per_drink;
     }
 
     if (batchSizeOz > 0) {
@@ -206,9 +223,9 @@ export const PricingTab = ({
         }
       }
       // Add overhead cost to base
-      if (overhead && baseTemplate) {
-        const recipeMinutes = recipe.minutes_per_drink ?? overhead.minutes_per_drink ?? 1;
-        const overheadCost = (overhead.cost_per_minute || 0) * recipeMinutes;
+      if (effectiveOverhead && baseTemplate) {
+        const recipeMinutes = recipe.minutes_per_drink ?? effectiveOverhead.minutes_per_drink ?? 1;
+        const overheadCost = (effectiveOverhead.cost_per_minute || 0) * recipeMinutes;
         totalCost += overheadCost;
       }
     }
@@ -415,6 +432,48 @@ export const PricingTab = ({
 
   return (
     <div className="space-y-4">
+      <div
+        className="rounded-2xl shadow-md px-4 py-3 flex flex-wrap items-center justify-between gap-2"
+        style={{ backgroundColor: colors.white }}
+      >
+        <div>
+          <div className="text-sm font-semibold" style={{ color: colors.brown }}>
+            Overhead basis
+          </div>
+          <div className="text-xs" style={{ color: colors.brownLight }}>
+            {costBasis === 'theoretical'
+              ? 'Assumes the shop makes an item every few minutes, nonstop, for its entire open hours.'
+              : 'Based on your actual logged transaction volume — this is what your margins really look like.'}
+          </div>
+        </div>
+        <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: colors.creamDark }}>
+          <button
+            onClick={() => setCostBasis('theoretical')}
+            className="px-3 py-1.5 text-xs font-semibold transition-colors"
+            style={{
+              backgroundColor: costBasis === 'theoretical' ? colors.brown : colors.cream,
+              color: costBasis === 'theoretical' ? colors.white : colors.brownLight,
+            }}
+            data-testid="toggle-cost-basis-theoretical"
+          >
+            Theoretical
+          </button>
+          <button
+            onClick={() => actualVolumeOverhead && setCostBasis('actual')}
+            disabled={!actualVolumeOverhead}
+            title={actualVolumeOverhead ? undefined : 'Log a transaction count on Cash Deposits to enable this'}
+            className="px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: costBasis === 'actual' ? colors.brown : colors.cream,
+              color: costBasis === 'actual' ? colors.white : colors.brownLight,
+            }}
+            data-testid="toggle-cost-basis-actual"
+          >
+            Actual Volume
+          </button>
+        </div>
+      </div>
+
       <div className="rounded-2xl overflow-hidden shadow-md" style={{ backgroundColor: colors.white }}>
         <table className="w-full text-sm">
           <thead>
