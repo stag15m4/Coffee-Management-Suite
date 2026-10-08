@@ -293,6 +293,20 @@ export default function RecipeCostingPage() {
     ? actualVolumeOverhead.avgDailyTransactions * actualVolumeOverhead.itemsPerTransaction
     : 0;
 
+  // True Daily Profit needs revenue and estimated COGS averaged over the
+  // same set of days — mixing avgDailyRevenue (every included cash day)
+  // with volume derived only from days that have a transaction_count would
+  // let historical pre-tracking days dilute revenue without diluting the
+  // COGS estimate, understating profit for no real reason.
+  const avgDailyRevenueForVolumeDays = useMemo(() => {
+    if (includedTransactionDays.length === 0) return 0;
+    const total = includedTransactionDays.reduce(
+      (sum: number, entry: any) => sum + (Number(entry.gross_revenue) || 0),
+      0
+    );
+    return total / includedTransactionDays.length;
+  }, [includedTransactionDays]);
+
   // ---------------------------------------------------------------------------
   // Loading / error
   // ---------------------------------------------------------------------------
@@ -1059,6 +1073,7 @@ export default function RecipeCostingPage() {
             overhead={enhancedOverhead}
             overheadItems={overheadItems as OverheadItem[]}
             avgDailyRevenue={avgDailyRevenue}
+            avgDailyRevenueForVolumeDays={avgDailyRevenueForVolumeDays}
             cashDayCount={includedCashDays.length}
             avgIngredientCostPerItem={avgIngredientCostPerItem.avgIngredientCost}
             estimatedItemsPerDay={estimatedItemsPerDay}
@@ -1116,6 +1131,7 @@ export default function RecipeCostingPage() {
                 overhead={enhancedOverhead}
                 overheadItems={overheadItems as OverheadItem[]}
                 avgDailyRevenue={avgDailyRevenue}
+                avgDailyRevenueForVolumeDays={avgDailyRevenueForVolumeDays}
                 cashDayCount={includedCashDays.length}
                 avgIngredientCostPerItem={avgIngredientCostPerItem.avgIngredientCost}
                 estimatedItemsPerDay={estimatedItemsPerDay}

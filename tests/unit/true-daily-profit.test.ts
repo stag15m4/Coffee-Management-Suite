@@ -144,4 +144,45 @@ describe('estimateAverageIngredientCostPerItem', () => {
     expect(result.sampleCount).toBe(1);
     expect(result.avgIngredientCost).toBeCloseTo(2.5, 4);
   });
+
+  it("falls back to the recipe's legacy base_template_id when no recipe_size_bases row exists", () => {
+    const espresso = ingredient('ing-espresso', 'Espresso Beans', 20, 16); // $1.25/oz
+    const baseTemplate: BaseTemplate = {
+      id: 'base1',
+      name: 'Espresso Base',
+      drink_type: 'espresso',
+      is_active: true,
+      ingredients: [
+        {
+          id: 'bi1',
+          base_template_id: 'base1',
+          ingredient_id: espresso.id,
+          size_id: size.id,
+          quantity: 2,
+        },
+      ],
+    };
+    const recipe: Recipe = {
+      id: 'r5',
+      name: 'Legacy Americano',
+      category_id: 'c1',
+      is_active: true,
+      tenant_id: 't1',
+      base_template_id: 'base1',
+      recipe_ingredients: [],
+    };
+
+    const result = estimateAverageIngredientCostPerItem({
+      recipes: [recipe],
+      ingredients: [espresso],
+      baseTemplates: [baseTemplate],
+      recipeSizeBases: [], // no per-size override row — only the legacy field
+      productSizes: [size],
+      pricingData: [{ recipe_id: 'r5', size_id: size.id, sale_price: 4 }],
+    });
+
+    // 2oz x $1.25/oz = $2.50
+    expect(result.sampleCount).toBe(1);
+    expect(result.avgIngredientCost).toBeCloseTo(2.5, 4);
+  });
 });

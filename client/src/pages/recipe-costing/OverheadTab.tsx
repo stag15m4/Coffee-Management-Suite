@@ -9,6 +9,8 @@ interface OverheadTabProps {
   overhead: OverheadSettings | null;
   overheadItems: OverheadItem[];
   avgDailyRevenue: number;
+  /** Avg daily revenue over only the days with a logged transaction_count — the same day-set estimatedItemsPerDay is derived from, so True Daily Profit isn't skewed by days missing from one side. */
+  avgDailyRevenueForVolumeDays: number;
   cashDayCount: number;
   /** Blended average ingredient-only (no overhead) cost per item across the menu. */
   avgIngredientCostPerItem: number;
@@ -23,6 +25,7 @@ export const OverheadTab = ({
   overhead,
   overheadItems,
   avgDailyRevenue,
+  avgDailyRevenueForVolumeDays,
   cashDayCount,
   avgIngredientCostPerItem,
   estimatedItemsPerDay,
@@ -127,7 +130,7 @@ export const OverheadTab = ({
   // of daily ingredient cost, which needs a real estimate of items sold
   // per day — only available once transaction counts are being logged
   // (manually or via the Square sync).
-  const netAvgDailyRevenue = getNetSalePrice(avgDailyRevenue, overhead);
+  const netAvgDailyRevenue = getNetSalePrice(avgDailyRevenueForVolumeDays, overhead);
   const hasVolumeData = estimatedItemsPerDay > 0 && avgIngredientCostPerItem > 0;
   const estimatedDailyCogs = hasVolumeData ? avgIngredientCostPerItem * estimatedItemsPerDay : 0;
   const trueDailyProfit = netAvgDailyRevenue - totals.daily - estimatedDailyCogs;

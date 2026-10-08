@@ -205,9 +205,13 @@ export function estimateAverageIngredientCostPerItem(params: {
       if (!pricing || !(Number(pricing.sale_price) > 0)) continue;
 
       const hasDirectIngredients = (recipe.recipe_ingredients || []).some((ri) => ri.size_id === size.id);
-      const sizeBaseId = recipeSizeBases.find(
-        (rsb) => rsb.recipe_id === recipe.id && rsb.size_id === size.id
-      )?.base_template_id;
+      // Per-size override first, falling back to the recipe's own legacy
+      // base_template_id — same precedence RecipeSettings/RecipesTab use —
+      // so recipes that never got a recipe_size_bases row aren't silently
+      // skipped here.
+      const sizeBaseId =
+        recipeSizeBases.find((rsb) => rsb.recipe_id === recipe.id && rsb.size_id === size.id)?.base_template_id ||
+        recipe.base_template_id;
       const baseTemplate = sizeBaseId ? baseTemplates.find((bt) => bt.id === sizeBaseId) : null;
       const hasBaseIngredients = (baseTemplate?.ingredients || []).some((bi) => bi.size_id === size.id);
       if (!hasDirectIngredients && !hasBaseIngredients) continue;
