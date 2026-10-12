@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase-queries';
 import { buildMyTipsCsv, buildMyTipsPrintHtml, type MyTipPayout } from '@/lib/my-tips-export';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import { Search, Download, Printer } from 'lucide-react';
 
 export function MyTipsCard() {
@@ -61,7 +62,7 @@ export function MyTipsCard() {
   };
 
   return (
-    <section className="rounded-xl p-4 mb-6" style={{ background: 'var(--color-background, white)' }}>
+    <Card className="p-4 mb-6" style={{ background: 'var(--color-background, white)' }}>
       <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
         <h2 className="text-sm font-semibold" style={{ color: 'var(--color-secondary, #4a3728)' }}>
           My Tip Payouts
@@ -131,6 +132,6 @@ export function MyTipsCard() {
           <p className="text-xs opacity-70">Tip statement only. Payroll and taxes are handled in Gusto.</p>
         </div>
       )}
-    </section>
+    </Card>
   );
 }
