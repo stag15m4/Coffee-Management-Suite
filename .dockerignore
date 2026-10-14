@@ -6,7 +6,8 @@ dist
 *.md
 .gitignore
 .dockerignore
-supabase-migrations
+supabase-migrations/*
+!supabase-migrations/163_compliance_delegation.sql
 attached_assets
 *.pdf
 *.html
