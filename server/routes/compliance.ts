@@ -62,7 +62,7 @@ export function registerComplianceRoutes(app: Express) {
       const rows = await db.transaction(async (tx) => {
         await tx.execute(sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY`);
         return tx.execute(sql`SELECT t.id, t.title, t.description, t.due_date, t.status,
-          t.completed_at, t.recurrence, t.updated_at, t.assigned_to
+          t.completed_at, t.recurrence, t.updated_at, t.assigned_to, t.parent_task_id
           FROM admin_tasks t JOIN admin_task_categories c ON c.id = t.category_id AND c.tenant_id = t.tenant_id
           WHERE t.tenant_id = ${tenant}::uuid AND lower(c.name) = 'compliance'
           AND t.due_date IS NOT NULL ORDER BY t.id LIMIT 10001`);
@@ -79,6 +79,7 @@ export function registerComplianceRoutes(app: Express) {
           const r = raw as Record<string, unknown>;
           return {
             id: r.id,
+            parent_source_record_id: r.parent_task_id ?? null,
             title: r.title,
             notes: r.description,
             due_date: formatComplianceDate(r.due_date),
