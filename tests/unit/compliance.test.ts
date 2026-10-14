@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Express, Request, Response } from 'express';
 const execute = vi.hoisted(() => vi.fn());
 vi.mock('../../server/db', () => ({ db: { execute, transaction: vi.fn(async (fn) => fn({ execute })) } }));
+import pg from 'pg';
 import { registerComplianceRoutes } from '../../server/routes/compliance';
 const handlers = new Map<string, (req: Request, res: Response) => Promise<void>>();
 registerComplianceRoutes({
@@ -54,7 +55,7 @@ describe('Legal compliance source', () => {
         {
           id: 'task-1',
           title: 'License',
-          due_date: '2027-10-27',
+          due_date: pg.types.getTypeParser(1082)('2027-10-27'),
           status: 'completed',
           completed_at: '2027-10-26T12:00:00Z',
           recurrence: 'yearly',
