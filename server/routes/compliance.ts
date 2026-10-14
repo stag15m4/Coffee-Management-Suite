@@ -4,6 +4,15 @@ import { db } from '../db';
 import { parseAllowedTenantIds, timingSafeTokenMatch } from '../service-auth-core';
 import logger from '../logger';
 
+// pg parses PostgreSQL DATE as local-midnight Date objects. Preserve the civil
+// components instead of slicing Date.toString() or converting it through UTC.
+export function formatComplianceDate(value: unknown): string {
+  if (value instanceof Date) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+  }
+  return String(value).slice(0, 10);
+}
+
 // A separate read-only credential: Legal never receives Alfred's write access.
 export function complianceScope(req: Request): string[] | null {
   if (!timingSafeTokenMatch(req.headers['x-compliance-token'], process.env.COMPLIANCE_SERVICE_TOKEN)) return null;
@@ -72,7 +81,7 @@ export function registerComplianceRoutes(app: Express) {
             id: r.id,
             title: r.title,
             notes: r.description,
-            due_date: String(r.due_date).slice(0, 10),
+            due_date: formatComplianceDate(r.due_date),
             status: r.status,
             completed_date: r.completed_at ? new Date(String(r.completed_at)).toISOString().slice(0, 10) : null,
             recurrence: r.recurrence,
