@@ -182,6 +182,7 @@ export default function AdminTasks() {
   const [categories, setCategories] = useState<TaskCategory[]>([]);
   const [users, setUsers] = useState<TaskUser[]>([]);
   const [tasks, setTasks] = useState<AdminTask[]>([]);
+  const [delegatedTaskIds, setDelegatedTaskIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   const [showSettings, setShowSettings] = useState(false);
@@ -284,7 +285,7 @@ export default function AdminTasks() {
       if (!silent) setLoading(true);
 
       try {
-        const [categoriesRes, usersRes, tasksRes] = await Promise.all([
+        const [categoriesRes, usersRes, tasksRes, linksRes] = await Promise.all([
           supabase.from('admin_task_categories').select('*').eq('tenant_id', tenant.id).order('name'),
           supabase
             .from('user_profiles')
@@ -292,6 +293,7 @@ export default function AdminTasks() {
             .eq('tenant_id', tenant.id)
             .eq('is_active', true),
           supabase.from('admin_tasks').select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
+          supabase.from('compliance_workflow_links').select('task_id').eq('tenant_id', tenant.id),
         ]);
 
         if (categoriesRes.error) throw categoriesRes.error;
@@ -301,6 +303,7 @@ export default function AdminTasks() {
         setCategories(categoriesRes.data || []);
         setUsers(usersRes.data || []);
         setTasks(tasksRes.data || []);
+        setDelegatedTaskIds(new Set((linksRes.data || []).map((link: { task_id: string }) => link.task_id)));
       } catch (error: unknown) {
         toast({ title: 'Error loading data', description: getErrorMessage(error), variant: 'destructive' });
       } finally {
@@ -443,6 +446,14 @@ export default function AdminTasks() {
   };
 
   const handleStatusChange = async (task: AdminTask, newStatus: string) => {
+    if (delegatedTaskIds.has(task.id)) {
+      toast({
+        title: 'Owner verification required',
+        description:
+          'Submit evidence under Personnel → Compliance duties. The accountable owner verifies completion in Legal.',
+      });
+      return;
+    }
     setIsSaving(true);
     setSaveError(null);
     try {

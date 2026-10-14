@@ -3,6 +3,7 @@ import express, { type Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
+import { timingSafeTokenMatch } from './service-auth-core';
 import { registerRoutes } from './routes';
 import { serveStatic } from './static';
 import { createServer } from 'http';
@@ -179,6 +180,8 @@ app.post('/api/square/webhook', express.raw({ type: 'application/json' }), async
   }
 });
 
+// Evidence submissions are capped separately; ordinary API limits stay at 1 MB.
+app.use('/api/compliance/work', express.json({ limit: '8mb' }));
 app.use(
   express.json({
     limit: '1mb',
@@ -258,6 +261,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   // not cookies, so they are not CSRF-vulnerable: a cross-site browser request
   // cannot set a custom header without a CORS preflight, nor know the token.
   // The endpoint still verifies the token itself (getApiAuth).
+  if (
+    req.path === '/api/integrations/compliance/workflow' &&
+    timingSafeTokenMatch(req.headers['x-compliance-workflow-token'], process.env.COMPLIANCE_WORKFLOW_TOKEN)
+  )
+    return next();
+
   if (req.headers['x-alfred-token'] !== undefined) {
     return next();
   }

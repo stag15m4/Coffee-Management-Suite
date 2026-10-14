@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "fingerprints": [
+    {
+      "title": "PCI compliance",
+      "due_date": "2027-10-27",
+      "notes": null,
+      "recurrence": "yearly",
+      "fingerprint": "5380dd42ab29bb5e34654ad7bae6eefbebdab1fb4cac19307af95e949ce1f6d5"
+    },
+    {
+      "title": " Licénse ☕ ",
+      "due_date": "2028-02-29",
+      "notes": "Receipt\nRef #123",
+      "recurrence": "monthly",
+      "fingerprint": "623e4a56376395e671e9fd8429d656872bc6bddba72c55c1c634a1b8c16b4be4"
+    }
+  ],
+  "stages": ["open", "submitted", "returned", "verification_pending", "verified"]
+}

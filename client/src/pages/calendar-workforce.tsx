@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearch, useLocation } from 'wouter';
 import { useComplianceCalendar, useCreateComplianceDeadline } from '@/hooks/use-compliance-calendar';
+import { ComplianceWorkPanel } from '@/components/ComplianceWorkPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
@@ -105,7 +106,7 @@ const EMPLOYEE_COLORS = [
   '#DAA520',
 ];
 
-type TabType = 'schedule' | 'time-off' | 'time-clock';
+type TabType = 'schedule' | 'time-off' | 'time-clock' | 'compliance';
 
 function getMonday(d: Date): Date {
   const date = new Date(d);
@@ -2887,6 +2888,7 @@ export default function CalendarWorkforce() {
   }
 
   const tabs: { key: TabType; label: string; icon: typeof CalendarDays; show: boolean }[] = [
+    { key: 'compliance', label: 'Compliance duties', icon: CalendarDays, show: true },
     { key: 'schedule', label: 'Schedule', icon: CalendarDays, show: true },
     { key: 'time-off', label: 'Time Off', icon: Plane, show: true },
     { key: 'time-clock', label: 'Time Clock', icon: Clock, show: !isExempt || isManager },
@@ -2930,6 +2932,7 @@ export default function CalendarWorkforce() {
         </div>
 
         {/* Tab content */}
+        {activeTab === 'compliance' && <ComplianceWorkPanel tenantId={tenantId} />}
         {activeTab === 'schedule' && (
           <ScheduleTab
             tenantId={tenantId}
