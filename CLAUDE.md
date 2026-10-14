@@ -94,3 +94,11 @@ After making changes, always commit and push to the remote branch. If unsure abo
 ## SQL migration handoff
 
 Start every new migration and every SQL block handed to the user with a SQL comment identifying its migration number and plain-language purpose (for example, `-- Migration 152: Timesheet reapproval`). Include prerequisite migration numbers when applicable. Keep this identifier in the copied SQL itself so the user can recognize saved Supabase queries.
+
+## Alfred integration contract (required)
+
+Before designing, implementing, reviewing, or wiring any endpoint Alfred can call, read [Alfred Integration Conventions](docs/ALFRED_API_CONVENTIONS.md) and [implementation notes](docs/ALFRED_API_IMPLEMENTATION_NOTES.md). Apply the same contract in this app and on Alfred's calling side.
+
+Use `X-Alfred-Token` with the app's shared secret; reject missing/wrong tokens with HTTP 401 and a JSON `message`. Reads return JSON with human-readable messages on errors; file-returning reads return raw bytes with a real Content-Type. Every Alfred write requires a mutation-free proposal and a separately approved confirmation on the same POST URL. Confirm sends only `confirmationToken`; tokens are single-use with a 300-second TTL. Show the returned summary verbatim, never auto-confirm, return distinguishable token errors, and return candidates for ambiguous matches.
+
+Preserve all existing tenant/entity permissions and owner-verification requirements. Dedicated compliance service credentials remain separate. Document known legacy differences instead of claiming unverified compliance or silently changing live APIs. For new apps, copy the standard and the Claude/Codex pointers before adding their first Alfred integration.
