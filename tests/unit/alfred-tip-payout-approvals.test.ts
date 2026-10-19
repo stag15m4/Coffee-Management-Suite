@@ -17,7 +17,14 @@ let handler: (req: Request, res: Response) => Promise<unknown>;
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.execute.mockReset();
-  mocks.getApiAuth.mockResolvedValue({ authenticated: true, tenantId: tenant, tenantForbidden: false });
+  // Default: a service-token caller (the common Alfred case) — already scoped
+  // by ALFRED_ALLOWED_TENANT_IDS, so it skips the extra per-user role check.
+  mocks.getApiAuth.mockResolvedValue({
+    authenticated: true,
+    tenantId: tenant,
+    tenantForbidden: false,
+    isServiceToken: true,
+  });
   const app = {
     get: (path: string, h: typeof handler) => {
       if (path === '/api/alfred/tip-payout-approvals') handler = h;
@@ -66,6 +73,83 @@ describe('GET /api/alfred/tip-payout-approvals — validation', () => {
     const res = await request({ start_date: '2026-10-05', end_date: '2026-10-01' });
     expect(res.status).toHaveBeenCalledWith(400);
     expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it('rejects a date that matches the YYYY-MM-DD pattern but is not a real calendar date', async () => {
+    const res = await request({ start_date: '2026-02-30' });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it('includes a human-readable message on every error response', async () => {
+    const res = await request({ start_date: '2026-02-30' });
+    const body = res.json.mock.calls[0][0];
+    expect(typeof body.message).toBe('string');
+    expect(body.message.length).toBeGreaterThan(0);
+  });
+});
+
+describe('GET /api/alfred/tip-payout-approvals — manager-only over a user session', () => {
+  it("403s a non-manager employee session — this data includes every coworker's payout, not just their own", async () => {
+    mocks.getApiAuth.mockResolvedValueOnce({
+      authenticated: true,
+      tenantId: tenant,
+      tenantForbidden: false,
+      isServiceToken: false,
+      userId: 'user-employee',
+    });
+    mocks.execute.mockResolvedValueOnce({ rows: [{ role: 'employee' }] });
+
+    const res = await request();
+    expect(res.status).toHaveBeenCalledWith(403);
+    // Only the role lookup ran — never the payout query itself.
+    expect(mocks.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('403s a user session with no active profile row', async () => {
+    mocks.getApiAuth.mockResolvedValueOnce({
+      authenticated: true,
+      tenantId: tenant,
+      tenantForbidden: false,
+      isServiceToken: false,
+      userId: 'user-ghost',
+    });
+    mocks.execute.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request();
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it('allows a manager user session through to the payout query', async () => {
+    mocks.getApiAuth.mockResolvedValueOnce({
+      authenticated: true,
+      tenantId: tenant,
+      tenantForbidden: false,
+      isServiceToken: false,
+      userId: 'user-manager',
+    });
+    mocks.execute.mockResolvedValueOnce({ rows: [{ role: 'manager' }] }).mockResolvedValueOnce({ rows: [] });
+
+    const res = await request();
+    expect(res.status).not.toHaveBeenCalled();
+    expect(mocks.execute).toHaveBeenCalledTimes(2);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ tenant_id: tenant, payouts: [] }));
+  });
+
+  it('allows an owner user session through to the payout query', async () => {
+    mocks.getApiAuth.mockResolvedValueOnce({
+      authenticated: true,
+      tenantId: tenant,
+      tenantForbidden: false,
+      isServiceToken: false,
+      userId: 'user-owner',
+    });
+    mocks.execute.mockResolvedValueOnce({ rows: [{ role: 'owner' }] }).mockResolvedValueOnce({ rows: [] });
+
+    const res = await request();
+    expect(res.status).not.toHaveBeenCalled();
+    expect(mocks.execute).toHaveBeenCalledTimes(2);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ tenant_id: tenant, payouts: [] }));
   });
 });
 

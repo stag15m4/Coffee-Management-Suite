@@ -317,7 +317,61 @@ async function authorizeTenantRead(req: Request, res: Response): Promise<string 
   return auth.tenantId;
 }
 
+/**
+ * Guard for tenant-scoped reads that must stay manager-only even over a
+ * normal user session — e.g. approved tip payout snapshots, which include
+ * every employee's hours and payout, not just the caller's own (migration
+ * 154 restricts direct reads of tip_payout_approvals to managers/owners;
+ * /api/tip-payouts/mine is the self-service path for an individual
+ * employee). A service token is already scoped by ALFRED_ALLOWED_TENANT_IDS
+ * rather than a per-user role, so only a real user session needs the extra
+ * check. Every response includes `message` alongside `error`, per the
+ * Alfred read contract in docs/ALFRED_API_CONVENTIONS.md.
+ */
+async function authorizeManagerTenantRead(req: Request, res: Response): Promise<string | null> {
+  const auth = await getApiAuth(req);
+  if (!auth.authenticated) {
+    res.status(401).json({ error: 'Authentication required', message: 'Authentication required', debug: auth.debug });
+    return null;
+  }
+  if (auth.tenantForbidden) {
+    const msg = `Token is not authorized for tenant ${req.query.tenant_id ?? '(none)'} — check tenant_id against the token's allowlist`;
+    res.status(403).json({ error: msg, message: msg });
+    return null;
+  }
+  if (!auth.tenantId) {
+    res
+      .status(400)
+      .json({ error: 'tenant_id query parameter required', message: 'tenant_id query parameter required' });
+    return null;
+  }
+  if (!auth.isServiceToken) {
+    const roleResult = await db.execute(
+      sql`SELECT role FROM user_profiles WHERE id = ${auth.userId}::uuid AND is_active = true LIMIT 1`
+    );
+    const role = (roleResult.rows[0] as any)?.role;
+    if (!role || !['manager', 'owner'].includes(role)) {
+      const msg = 'Only managers or owners can read approved tip payout snapshots.';
+      res.status(403).json({ error: msg, message: msg });
+      return null;
+    }
+  }
+  return auth.tenantId;
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Rejects a value that merely matches DATE_RE's digit grouping but isn't a
+ * real calendar date (e.g. 2026-02-30, 2026-13-01) — which would otherwise
+ * reach a Postgres ::date cast and crash the request to a 500 instead of
+ * the clean 400 malformed input should get.
+ */
+function isRealCalendarDate(value: string): boolean {
+  const [y, m, d] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
 
 interface RangeAndPagination {
   startDate: string | null;
@@ -346,23 +400,32 @@ function parseRangeAndPagination(
     ['end_date', endDate],
   ] as const) {
     if (value && !DATE_RE.test(value)) {
-      res.status(400).json({ error: `${name} must be YYYY-MM-DD (got "${value}")` });
+      const msg = `${name} must be YYYY-MM-DD (got "${value}")`;
+      res.status(400).json({ error: msg, message: msg });
+      return null;
+    }
+    if (value && !isRealCalendarDate(value)) {
+      const msg = `${name} is not a real calendar date (got "${value}")`;
+      res.status(400).json({ error: msg, message: msg });
       return null;
     }
   }
   if (startDate && endDate && startDate > endDate) {
-    res.status(400).json({ error: `start_date ${startDate} is after end_date ${endDate}` });
+    const msg = `start_date ${startDate} is after end_date ${endDate}`;
+    res.status(400).json({ error: msg, message: msg });
     return null;
   }
 
   const rawLimit = req.query.limit === undefined ? opts.defaultLimit : Number(req.query.limit);
   const rawOffset = req.query.offset === undefined ? 0 : Number(req.query.offset);
   if (!Number.isInteger(rawLimit) || rawLimit < 1) {
-    res.status(400).json({ error: `limit must be a positive integer (max ${opts.maxLimit})` });
+    const msg = `limit must be a positive integer (max ${opts.maxLimit})`;
+    res.status(400).json({ error: msg, message: msg });
     return null;
   }
   if (!Number.isInteger(rawOffset) || rawOffset < 0) {
-    res.status(400).json({ error: 'offset must be a non-negative integer' });
+    const msg = 'offset must be a non-negative integer';
+    res.status(400).json({ error: msg, message: msg });
     return null;
   }
 
@@ -1068,7 +1131,7 @@ export function registerAlfredRoutes(app: Express): void {
    */
   app.get('/api/alfred/tip-payout-approvals', async (req: Request, res: Response) => {
     try {
-      const tenantId = await authorizeTenantRead(req, res);
+      const tenantId = await authorizeManagerTenantRead(req, res);
       if (!tenantId) return;
 
       const page = parseRangeAndPagination(req, res, { defaultLimit: 52, maxLimit: 1000 });
