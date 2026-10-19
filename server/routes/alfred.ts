@@ -1120,7 +1120,7 @@ export function registerAlfredRoutes(app: Express): void {
       });
     } catch (err) {
       logger.error({ err }, 'Error in /api/alfred/tip-payout-approvals');
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ error: 'Internal server error', message: 'Internal server error' });
     }
   });
 
