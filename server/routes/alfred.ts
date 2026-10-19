@@ -1053,6 +1053,78 @@ export function registerAlfredRoutes(app: Express): void {
   });
 
   /**
+   * GET /api/alfred/tip-payout-approvals
+   * Officially approved tip payout snapshots — the manager-approved, audit-logged
+   * record shown to employees on /api/tip-payouts/mine, not a live recomputation
+   * from current hours/tips (that's what /api/alfred/tip-payouts returns, and it
+   * can drift from what was actually approved if hours are corrected afterward —
+   * migration 154 rejects the stale approval in that case rather than silently
+   * updating it). Use this endpoint, not /api/alfred/tip-payouts, as the source
+   * for anything that enters an already-approved total somewhere else (e.g. a
+   * payroll system) — it only ever returns a snapshot a manager actually signed
+   * off on, and never a number that's since been invalidated.
+   * Query params: tenant_id, start_date (YYYY-MM-DD), end_date (YYYY-MM-DD) —
+   * date filters apply to week_key.
+   */
+  app.get('/api/alfred/tip-payout-approvals', async (req: Request, res: Response) => {
+    try {
+      const tenantId = await authorizeTenantRead(req, res);
+      if (!tenantId) return;
+
+      const page = parseRangeAndPagination(req, res, { defaultLimit: 52, maxLimit: 1000 });
+      if (!page) return;
+      const { startDate, endDate, limit, offset } = page;
+
+      let query = sql`
+        SELECT to_char(week_key, 'YYYY-MM-DD') AS week_key,
+               cash_tips, cc_tips, cc_fee_rate, total_pool, total_hours, hourly_rate,
+               distribution_method, employee_payouts, approved_at
+        FROM tip_payout_approvals
+        WHERE tenant_id = ${tenantId}::uuid AND status = 'approved'
+      `;
+      if (startDate) query = sql`${query} AND week_key >= ${startDate}::date`;
+      if (endDate) query = sql`${query} AND week_key <= ${endDate}::date`;
+      query = sql`${query} ORDER BY week_key DESC LIMIT ${limit + 1} OFFSET ${offset}`;
+
+      const result = await db.execute(query);
+      const hasMore = result.rows.length > limit;
+      if (hasMore) result.rows.length = limit;
+
+      const payouts = (result.rows as any[]).map((row) => ({
+        week_key: row.week_key,
+        status: 'approved' as const,
+        cash_tips: parseFloat(row.cash_tips) || 0,
+        cc_tips: parseFloat(row.cc_tips) || 0,
+        cc_fee_rate: parseFloat(row.cc_fee_rate) || 0,
+        total_pool: parseFloat(row.total_pool) || 0,
+        total_hours: parseFloat(row.total_hours) || 0,
+        hourly_rate: parseFloat(row.hourly_rate) || 0,
+        distribution_method: row.distribution_method,
+        approved_at: row.approved_at,
+        employees: (row.employee_payouts || []).map((e: any) => ({
+          employee_id: e.employee_id,
+          employee_name: e.employee_name,
+          hours: Number(e.hours) || 0,
+          payout: Number(e.payout) || 0,
+        })),
+      }));
+
+      res.json({
+        tenant_id: tenantId,
+        count: payouts.length,
+        limit,
+        offset,
+        has_more: hasMore,
+        next_offset: hasMore ? offset + limit : null,
+        payouts,
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error in /api/alfred/tip-payout-approvals');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
    * GET /api/alfred/employee-hours
    * Per-employee logged hours for ALL hourly staff (tipped or not), with the
    * pay period each entry belongs to. Hours are stored per week; week_start is
