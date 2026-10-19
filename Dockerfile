@@ -25,6 +25,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy built artifacts from builder
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/scripts/apply-compliance-migration.cjs ./scripts/apply-compliance-migration.cjs
+COPY --from=builder /app/supabase-migrations/163_compliance_delegation.sql ./supabase-migrations/163_compliance_delegation.sql
 
 # Run as non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup

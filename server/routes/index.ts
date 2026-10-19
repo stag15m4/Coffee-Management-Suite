@@ -9,6 +9,8 @@ import { registerAlfredRoutes } from './alfred';
 import { registerConnecteamRoutes } from './connecteam';
 import { registerAuthBootstrapRoutes } from './auth-bootstrap';
 import { registerTimeClockRoutes } from './time-clock';
+import { registerComplianceDelegationRoutes } from './compliance-delegation';
+import { registerComplianceRoutes } from './compliance';
 
 /**
  * Register all route sub-modules on the Express app.
@@ -24,6 +26,8 @@ export async function registerAllRouteModules(app: Express): Promise<void> {
   registerConnecteamRoutes(app);
   registerAuthBootstrapRoutes(app);
   registerTimeClockRoutes(app);
+  registerComplianceRoutes(app);
+  registerComplianceDelegationRoutes(app);
 
   // Async registrations (dynamic imports for Stripe/reseller services)
   await registerBillingRoutes(app);

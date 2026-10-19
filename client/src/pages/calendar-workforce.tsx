@@ -1,5 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearch, useLocation } from 'wouter';
+import { useComplianceCalendar, useCreateComplianceDeadline } from '@/hooks/use-compliance-calendar';
+import { ComplianceWorkPanel } from '@/components/ComplianceWorkPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppResume } from '@/hooks/use-app-resume';
 import { useLocationChange } from '@/hooks/use-location-change';
@@ -104,7 +106,7 @@ const EMPLOYEE_COLORS = [
   '#DAA520',
 ];
 
-type TabType = 'schedule' | 'time-off' | 'time-clock';
+type TabType = 'schedule' | 'time-off' | 'time-clock' | 'compliance';
 
 function getMonday(d: Date): Date {
   const date = new Date(d);
@@ -236,6 +238,9 @@ function ScheduleTab({
 
   // Calendar events
   const { data: calendarEvents } = useCalendarEvents(startDate, endDate);
+  const { data: complianceTasks } = useComplianceCalendar(startDate, endDate);
+  const createComplianceDeadline = useCreateComplianceDeadline();
+  const [newEventIsCompliance, setNewEventIsCompliance] = useState(false);
   const createCalendarEvent = useCreateCalendarEvent();
   const _updateCalendarEvent = useUpdateCalendarEvent();
   const deleteCalendarEvent = useDeleteCalendarEvent();
@@ -556,8 +561,36 @@ function ScheduleTab({
       }
     }
 
-    return [...shiftEvents, ...eventBanners, ...blackoutBanners, ...anniversaryEvents, ...unavailEvents];
-  }, [shifts, calendarEvents, blackoutDates, scheduleUnavailability, employeeColorMap, startDate, endDate, employees]);
+    const complianceBanners: EventInput[] = (complianceTasks || []).map((t) => ({
+      id: `compliance-${t.id}`,
+      title: `${t.status === 'completed' ? '✓ ' : ''}${t.title}`,
+      start: t.due_date,
+      allDay: true,
+      editable: false,
+      backgroundColor: t.status === 'completed' ? '#16a34a' : '#7c3aed',
+      borderColor: '#7c3aed',
+      textColor: '#fff',
+      extendedProps: { type: 'compliance' },
+    }));
+    return [
+      ...complianceBanners,
+      ...shiftEvents,
+      ...eventBanners,
+      ...blackoutBanners,
+      ...anniversaryEvents,
+      ...unavailEvents,
+    ];
+  }, [
+    shifts,
+    calendarEvents,
+    complianceTasks,
+    blackoutDates,
+    scheduleUnavailability,
+    employeeColorMap,
+    startDate,
+    endDate,
+    employees,
+  ]);
 
   const handleDateSelect = useCallback(
     (selectInfo: DateSelectArg) => {
@@ -580,6 +613,10 @@ function ScheduleTab({
   const handleEventClick = useCallback(
     (clickInfo: EventClickArg) => {
       const eventType = clickInfo.event.extendedProps.type;
+      if (eventType === 'compliance') {
+        window.location.assign('/admin-tasks');
+        return;
+      }
       if (eventType === 'event') {
         setViewingEvent(clickInfo.event.extendedProps.calendarEvent as CalendarEvent);
         return;
@@ -890,6 +927,20 @@ function ScheduleTab({
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="sm:col-span-2">
+                  <label className="flex gap-2 items-center text-sm mb-2">
+                    <input
+                      type="checkbox"
+                      checked={newEventIsCompliance}
+                      onChange={(e) => setNewEventIsCompliance(e.target.checked)}
+                    />
+                    Compliance deadline
+                  </label>
+                  {newEventIsCompliance && (
+                    <p className="text-xs mb-2">
+                      Creates a Compliance task due on the start date. Manage completion and renewals in Administrative
+                      Tasks. Connected deadlines also appear in Legal.
+                    </p>
+                  )}
                   <Input
                     placeholder="Event title"
                     value={newEventTitle}
@@ -959,26 +1010,44 @@ function ScheduleTab({
                 </div>
                 <div className="sm:col-span-2">
                   <Button
-                    disabled={!newEventTitle || !newEventStartDate || !newEventEndDate || createCalendarEvent.isPending}
+                    disabled={
+                      !newEventTitle ||
+                      !newEventStartDate ||
+                      (!newEventIsCompliance && !newEventEndDate) ||
+                      createCalendarEvent.isPending ||
+                      createComplianceDeadline.isPending
+                    }
                     onClick={async () => {
                       try {
-                        await createCalendarEvent.mutateAsync({
-                          title: newEventTitle,
-                          start_date: newEventStartDate,
-                          end_date: newEventEndDate,
-                          location: newEventLocation || null,
-                          description: newEventDescription || null,
-                          color: newEventColor,
-                        });
+                        if (newEventIsCompliance) {
+                          await createComplianceDeadline.mutateAsync({
+                            title: newEventTitle,
+                            due_date: newEventStartDate,
+                            description: newEventDescription || null,
+                          });
+                        } else {
+                          await createCalendarEvent.mutateAsync({
+                            title: newEventTitle,
+                            start_date: newEventStartDate,
+                            end_date: newEventEndDate,
+                            location: newEventLocation || null,
+                            description: newEventDescription || null,
+                            color: newEventColor,
+                          });
+                        }
                         setNewEventTitle('');
                         setNewEventStartDate('');
                         setNewEventEndDate('');
                         setNewEventLocation('');
                         setNewEventDescription('');
                         setNewEventColor('#3b82f6');
-                        toast({ title: 'Event created' });
-                      } catch {
-                        toast({ title: 'Error', description: 'Failed to create event.', variant: 'destructive' });
+                        toast({ title: newEventIsCompliance ? 'Compliance deadline created' : 'Event created' });
+                      } catch (error) {
+                        toast({
+                          title: 'Error',
+                          description: error instanceof Error ? error.message : 'Failed to create event.',
+                          variant: 'destructive',
+                        });
                       }
                     }}
                     style={{ backgroundColor: colors.gold, color: colors.white }}
@@ -2794,6 +2863,7 @@ export default function CalendarWorkforce() {
     queryClient.invalidateQueries({ queryKey: ['time-clock-edits'] });
     queryClient.invalidateQueries({ queryKey: ['time-clock-edits-mine'] });
     queryClient.invalidateQueries({ queryKey: ['all-employees'] });
+    queryClient.invalidateQueries({ queryKey: ['compliance-calendar'] });
     queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
     queryClient.invalidateQueries({ queryKey: ['ical-subscriptions'] });
   }, []);
@@ -2808,6 +2878,7 @@ export default function CalendarWorkforce() {
     queryClient.invalidateQueries({ queryKey: ['time-clock-edits'] });
     queryClient.invalidateQueries({ queryKey: ['time-clock-edits-mine'] });
     queryClient.invalidateQueries({ queryKey: ['all-employees'] });
+    queryClient.invalidateQueries({ queryKey: ['compliance-calendar'] });
     queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
     queryClient.invalidateQueries({ queryKey: ['ical-subscriptions'] });
   }, []);
@@ -2817,6 +2888,7 @@ export default function CalendarWorkforce() {
   }
 
   const tabs: { key: TabType; label: string; icon: typeof CalendarDays; show: boolean }[] = [
+    { key: 'compliance', label: 'Compliance duties', icon: CalendarDays, show: true },
     { key: 'schedule', label: 'Schedule', icon: CalendarDays, show: true },
     { key: 'time-off', label: 'Time Off', icon: Plane, show: true },
     { key: 'time-clock', label: 'Time Clock', icon: Clock, show: !isExempt || isManager },
@@ -2860,6 +2932,7 @@ export default function CalendarWorkforce() {
         </div>
 
         {/* Tab content */}
+        {activeTab === 'compliance' && <ComplianceWorkPanel tenantId={tenantId} />}
         {activeTab === 'schedule' && (
           <ScheduleTab
             tenantId={tenantId}

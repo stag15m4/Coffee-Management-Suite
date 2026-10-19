@@ -2,6 +2,7 @@
 dockerfilePath = "Dockerfile"
 
 [deploy]
+preDeployCommand = ["node scripts/apply-compliance-migration.cjs"]
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
