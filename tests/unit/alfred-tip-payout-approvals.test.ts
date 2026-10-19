@@ -124,8 +124,30 @@ describe('GET /api/alfred/tip-payout-approvals — shape', () => {
   it('reports has_more and next_offset when a fuller page than requested comes back', async () => {
     mocks.execute.mockResolvedValueOnce({
       rows: [
-        { week_key: '2026-10-06', cash_tips: '1', cc_tips: '1', cc_fee_rate: '0.035', total_pool: '1', total_hours: '1', hourly_rate: '1', distribution_method: 'hours', approved_at: null, employee_payouts: [] },
-        { week_key: '2026-09-29', cash_tips: '1', cc_tips: '1', cc_fee_rate: '0.035', total_pool: '1', total_hours: '1', hourly_rate: '1', distribution_method: 'hours', approved_at: null, employee_payouts: [] },
+        {
+          week_key: '2026-10-06',
+          cash_tips: '1',
+          cc_tips: '1',
+          cc_fee_rate: '0.035',
+          total_pool: '1',
+          total_hours: '1',
+          hourly_rate: '1',
+          distribution_method: 'hours',
+          approved_at: null,
+          employee_payouts: [],
+        },
+        {
+          week_key: '2026-09-29',
+          cash_tips: '1',
+          cc_tips: '1',
+          cc_fee_rate: '0.035',
+          total_pool: '1',
+          total_hours: '1',
+          hourly_rate: '1',
+          distribution_method: 'hours',
+          approved_at: null,
+          employee_payouts: [],
+        },
       ],
     });
 
