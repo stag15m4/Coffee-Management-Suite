@@ -317,7 +317,61 @@ async function authorizeTenantRead(req: Request, res: Response): Promise<string 
   return auth.tenantId;
 }
 
+/**
+ * Guard for tenant-scoped reads that must stay manager-only even over a
+ * normal user session — e.g. approved tip payout snapshots, which include
+ * every employee's hours and payout, not just the caller's own (migration
+ * 154 restricts direct reads of tip_payout_approvals to managers/owners;
+ * /api/tip-payouts/mine is the self-service path for an individual
+ * employee). A service token is already scoped by ALFRED_ALLOWED_TENANT_IDS
+ * rather than a per-user role, so only a real user session needs the extra
+ * check. Every response includes `message` alongside `error`, per the
+ * Alfred read contract in docs/ALFRED_API_CONVENTIONS.md.
+ */
+async function authorizeManagerTenantRead(req: Request, res: Response): Promise<string | null> {
+  const auth = await getApiAuth(req);
+  if (!auth.authenticated) {
+    res.status(401).json({ error: 'Authentication required', message: 'Authentication required', debug: auth.debug });
+    return null;
+  }
+  if (auth.tenantForbidden) {
+    const msg = `Token is not authorized for tenant ${req.query.tenant_id ?? '(none)'} — check tenant_id against the token's allowlist`;
+    res.status(403).json({ error: msg, message: msg });
+    return null;
+  }
+  if (!auth.tenantId) {
+    res
+      .status(400)
+      .json({ error: 'tenant_id query parameter required', message: 'tenant_id query parameter required' });
+    return null;
+  }
+  if (!auth.isServiceToken) {
+    const roleResult = await db.execute(
+      sql`SELECT role FROM user_profiles WHERE id = ${auth.userId}::uuid AND is_active = true LIMIT 1`
+    );
+    const role = (roleResult.rows[0] as any)?.role;
+    if (!role || !['manager', 'owner'].includes(role)) {
+      const msg = 'Only managers or owners can read approved tip payout snapshots.';
+      res.status(403).json({ error: msg, message: msg });
+      return null;
+    }
+  }
+  return auth.tenantId;
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Rejects a value that merely matches DATE_RE's digit grouping but isn't a
+ * real calendar date (e.g. 2026-02-30, 2026-13-01) — which would otherwise
+ * reach a Postgres ::date cast and crash the request to a 500 instead of
+ * the clean 400 malformed input should get.
+ */
+function isRealCalendarDate(value: string): boolean {
+  const [y, m, d] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
 
 interface RangeAndPagination {
   startDate: string | null;
@@ -346,23 +400,32 @@ function parseRangeAndPagination(
     ['end_date', endDate],
   ] as const) {
     if (value && !DATE_RE.test(value)) {
-      res.status(400).json({ error: `${name} must be YYYY-MM-DD (got "${value}")` });
+      const msg = `${name} must be YYYY-MM-DD (got "${value}")`;
+      res.status(400).json({ error: msg, message: msg });
+      return null;
+    }
+    if (value && !isRealCalendarDate(value)) {
+      const msg = `${name} is not a real calendar date (got "${value}")`;
+      res.status(400).json({ error: msg, message: msg });
       return null;
     }
   }
   if (startDate && endDate && startDate > endDate) {
-    res.status(400).json({ error: `start_date ${startDate} is after end_date ${endDate}` });
+    const msg = `start_date ${startDate} is after end_date ${endDate}`;
+    res.status(400).json({ error: msg, message: msg });
     return null;
   }
 
   const rawLimit = req.query.limit === undefined ? opts.defaultLimit : Number(req.query.limit);
   const rawOffset = req.query.offset === undefined ? 0 : Number(req.query.offset);
   if (!Number.isInteger(rawLimit) || rawLimit < 1) {
-    res.status(400).json({ error: `limit must be a positive integer (max ${opts.maxLimit})` });
+    const msg = `limit must be a positive integer (max ${opts.maxLimit})`;
+    res.status(400).json({ error: msg, message: msg });
     return null;
   }
   if (!Number.isInteger(rawOffset) || rawOffset < 0) {
-    res.status(400).json({ error: 'offset must be a non-negative integer' });
+    const msg = 'offset must be a non-negative integer';
+    res.status(400).json({ error: msg, message: msg });
     return null;
   }
 
@@ -1049,6 +1112,78 @@ export function registerAlfredRoutes(app: Express): void {
     } catch (err) {
       logger.error({ err }, 'Error in /api/alfred/tip-payouts');
       res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * GET /api/alfred/tip-payout-approvals
+   * Officially approved tip payout snapshots — the manager-approved, audit-logged
+   * record shown to employees on /api/tip-payouts/mine, not a live recomputation
+   * from current hours/tips (that's what /api/alfred/tip-payouts returns, and it
+   * can drift from what was actually approved if hours are corrected afterward —
+   * migration 154 rejects the stale approval in that case rather than silently
+   * updating it). Use this endpoint, not /api/alfred/tip-payouts, as the source
+   * for anything that enters an already-approved total somewhere else (e.g. a
+   * payroll system) — it only ever returns a snapshot a manager actually signed
+   * off on, and never a number that's since been invalidated.
+   * Query params: tenant_id, start_date (YYYY-MM-DD), end_date (YYYY-MM-DD) —
+   * date filters apply to week_key.
+   */
+  app.get('/api/alfred/tip-payout-approvals', async (req: Request, res: Response) => {
+    try {
+      const tenantId = await authorizeManagerTenantRead(req, res);
+      if (!tenantId) return;
+
+      const page = parseRangeAndPagination(req, res, { defaultLimit: 52, maxLimit: 1000 });
+      if (!page) return;
+      const { startDate, endDate, limit, offset } = page;
+
+      let query = sql`
+        SELECT to_char(week_key, 'YYYY-MM-DD') AS week_key,
+               cash_tips, cc_tips, cc_fee_rate, total_pool, total_hours, hourly_rate,
+               distribution_method, employee_payouts, approved_at
+        FROM tip_payout_approvals
+        WHERE tenant_id = ${tenantId}::uuid AND status = 'approved'
+      `;
+      if (startDate) query = sql`${query} AND week_key >= ${startDate}::date`;
+      if (endDate) query = sql`${query} AND week_key <= ${endDate}::date`;
+      query = sql`${query} ORDER BY week_key DESC LIMIT ${limit + 1} OFFSET ${offset}`;
+
+      const result = await db.execute(query);
+      const hasMore = result.rows.length > limit;
+      if (hasMore) result.rows.length = limit;
+
+      const payouts = (result.rows as any[]).map((row) => ({
+        week_key: row.week_key,
+        status: 'approved' as const,
+        cash_tips: parseFloat(row.cash_tips) || 0,
+        cc_tips: parseFloat(row.cc_tips) || 0,
+        cc_fee_rate: parseFloat(row.cc_fee_rate) || 0,
+        total_pool: parseFloat(row.total_pool) || 0,
+        total_hours: parseFloat(row.total_hours) || 0,
+        hourly_rate: parseFloat(row.hourly_rate) || 0,
+        distribution_method: row.distribution_method,
+        approved_at: row.approved_at,
+        employees: (row.employee_payouts || []).map((e: any) => ({
+          employee_id: e.employee_id,
+          employee_name: e.employee_name,
+          hours: Number(e.hours) || 0,
+          payout: Number(e.payout) || 0,
+        })),
+      }));
+
+      res.json({
+        tenant_id: tenantId,
+        count: payouts.length,
+        limit,
+        offset,
+        has_more: hasMore,
+        next_offset: hasMore ? offset + limit : null,
+        payouts,
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error in /api/alfred/tip-payout-approvals');
+      res.status(500).json({ error: 'Internal server error', message: 'Internal server error' });
     }
   });
 
