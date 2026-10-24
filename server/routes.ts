@@ -13,6 +13,7 @@ import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import * as qboService from './qboService';
 import logger from './logger';
+import { squareSyncRequestSchema } from './squareSyncRequest';
 
 // Import shared helpers from route modules
 import {
@@ -735,16 +736,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const auth = await verifySquareAdmin(req, res);
       if (!auth) return;
 
-      const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}(T[\d:.]+Z?)?$/, 'Invalid date format');
-      const syncSchema = z
-        .object({
-          startDate: isoDate,
-          endDate: isoDate,
-        })
-        .refine((d) => new Date(d.startDate) <= new Date(d.endDate), {
-          message: 'startDate must not be after endDate',
-        });
-      const parsed = syncSchema.safeParse(req.body);
+      const parsed = squareSyncRequestSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid date parameters', details: parsed.error.flatten() });
       }
@@ -758,8 +750,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       let transactionsError: string | null = null;
       try {
         transactions = await squareService.syncTransactionCountsForTenant(auth.tenantId, {
-          startDate: parsed.data.startDate.slice(0, 10),
-          endDate: parsed.data.endDate.slice(0, 10),
+          startDate: parsed.data.startDate?.slice(0, 10),
+          endDate: parsed.data.endDate?.slice(0, 10),
         });
       } catch (err: any) {
         // Most likely an existing connection that predates the ORDERS_READ
