@@ -221,8 +221,9 @@ export default function SquareIntegrationSettings() {
     }
   };
 
-  const handleConfirmMapping = async (mappingId: string) => {
-    const selection = localSelections[mappingId];
+  const handleConfirmMapping = async (mapping: SquareMapping) => {
+    const mappingId = mapping.id;
+    const selection = getEmployeeSelectValue(mapping);
     if (!selection) {
       toast({ title: 'Select a local employee first', variant: 'destructive' });
       return;
@@ -536,7 +537,7 @@ export default function SquareIntegrationSettings() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleConfirmMapping(mapping.id)}
+                            onClick={() => handleConfirmMapping(mapping)}
                             className="text-green-600 hover:bg-green-50"
                           >
                             <Check className="h-4 w-4" />
