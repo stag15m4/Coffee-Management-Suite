@@ -33,8 +33,4 @@ Tests exercise malformed/oversized input, duplicates, token-value preservation a
 
 This is a compensating application control. It does not remove the vulnerable dependency, resolve other decoder consumers or lower the npm advisory count. Continue to track the QuickBooks dependency chain as open until a compatible patched library is deployed. The remaining Drizzle, Zod, ip-address and nanoid findings also remain open.
 
-No production change, account reconnection or database migration is performed by this work. Before production release, perform an authorized sandbox OAuth connection test; do not disconnect the working production account solely for testing.
-
-## Release review
-
-PR 64 now targets main so pull-request CI can run. PR 63 remains its dependency and should merge first. On October 30, GitHub CI passed for PR 60 (run 41124862437), PR 61 (41130357146), PR 62 (41130984055), and PR 63 (41131728593). A local combined candidate merged all five changes without conflicts; combined tests are tracked separately. No merge to main or production deployment has been performed by this review.
+No production change, account reconnection or database migration is performed by this work. After release, perform an authorized sandbox OAuth connection test; do not disconnect the working production account solely for testing.
