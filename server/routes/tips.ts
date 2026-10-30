@@ -3,7 +3,7 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 import logger from '../logger';
-import { getUserIdFromRequest, logAuditEvent } from './core';
+import { getUserIdFromRequest } from './core';
 
 const CC_FEE_RATE = 0.035;
 
@@ -320,7 +320,9 @@ export function registerTipRoutes(app: Express): void {
 
       // A rejected (stale) snapshot can be reapproved after corrections.
       // Migration 154 records its former values in the immutable history table.
+      // One SQL statement commits the approval and audit event together.
       const insertResult = await db.execute(sql`
+        WITH approval AS (
         INSERT INTO tip_payout_approvals (
           tenant_id, week_key, cash_tips, cc_tips, cc_fee_rate,
           total_pool, total_hours, hourly_rate, distribution_method,
@@ -354,26 +356,28 @@ export function registerTipRoutes(app: Express): void {
           status = 'approved', updated_at = NOW()
         WHERE tip_payout_approvals.status <> 'approved'
         RETURNING id, approved_at
+        ), audit AS (
+          INSERT INTO audit_logs (
+            tenant_id, actor_id, action, resource_type, resource_id, old_value, new_value, ip_address
+          )
+          SELECT ${body.tenantId}::uuid, ${userId}::uuid,
+            'tip_payout.approved', 'tip_payout', approval.id, NULL,
+            ${JSON.stringify({
+              weekKey: body.weekKey,
+              totalPool: body.totalPool,
+              employeeCount: body.employees.length,
+              distributionMethod: body.distributionMethod,
+            })}::jsonb,
+            ${req.ip ?? null}
+          FROM approval
+          RETURNING resource_id
+        )
+        SELECT approval.id, approval.approved_at
+        FROM approval JOIN audit ON audit.resource_id = approval.id
       `);
 
       const approval = insertResult.rows[0] as any;
       if (!approval) return res.status(409).json({ error: 'This week is already approved.' });
-
-      await logAuditEvent(
-        body.tenantId,
-        userId,
-        'tip_payout.approved',
-        'tip_payout',
-        approval.id,
-        null,
-        {
-          weekKey: body.weekKey,
-          totalPool: body.totalPool,
-          employeeCount: body.employees.length,
-          distributionMethod: body.distributionMethod,
-        },
-        req.ip
-      );
 
       logger.info(
         {
