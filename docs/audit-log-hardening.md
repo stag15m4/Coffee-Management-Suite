@@ -1,6 +1,6 @@
 # Audit-log access hardening
 
-Migration: **164**, supports either an existing migration-143 table or a missing audit table. Status: implemented and locally tested; not applied to production by this work.
+Migration: **164**, supports either an existing migration-143 table or a missing audit table. Status: applied manually by Seth in production on 2026-10-30; user-supplied SQL results confirm expected table grants, enabled RLS and both SELECT policies. Nine real approval events confirm the tip-payout writer.
 
 ## Boundary enforced
 
@@ -36,7 +36,7 @@ The helper still catches audit failures. Several callers already commit their bu
 Read-only inspection (run as a database administrator; do not share connection strings):
 
 ```sql
--- Migration 164 verification: inspect audit-log access; prerequisite migration 143.
+-- Migration 164 verification: inspect audit-log access after applying 164.
 SELECT policyname, roles, cmd, qual, with_check
 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'audit_logs';
 
@@ -56,6 +56,22 @@ FROM (VALUES ('anon'), ('authenticated'), ('service_role')) AS roles(role_name);
 
 Expected table privileges: anon none; authenticated SELECT only (further restricted by RLS); service_role SELECT and INSERT only. Inspect inherited role or column-level grants if these checks disagree. Database owners/superusers are outside this browser/service-role boundary.
 
-## Production configuration check, 2026-10-30
+## Production verification, 2026-10-30
 
-Railway project Coffee Management Suite has only a production environment in the connected account. APP_URL is present; Seth confirmed its value as https://coffeemanagementsuite.com, satisfying the origin-format requirement. Railway reports the current service deployment as SUCCESS, with no staged changes. No staging environment, deployment, database migration or production write was created during this check. PR 60 still requires staging smoke checks. Seth confirmed project tfsostlmjmmggomoejpx and the postgres pooled database role; his SQL check shows tenants and user_profiles exist but public.audit_logs does not. Migration 164 now supports that missing-table state. The dashboard displays no backups; backup coverage remains unverified.
+Evidence source: Seth's Supabase dashboard and SQL results supplied in the implementation conversation; no direct production database connection was used by the agent.
+
+- Project: tfsostlmjmmggomoejpx, Coffee Management Suite production. Operator: Seth Gundersen, SQL editor role postgres.
+- Before application, tenants and user_profiles existed and audit_logs was absent. Seth manually applied the supplied migration 164.
+- Privilege results: postgres SELECT/INSERT/UPDATE/DELETE/TRUNCATE; anon none; authenticated SELECT only; service_role SELECT/INSERT only.
+- RLS enabled. Exactly two SELECT policies returned: audit_logs_select (can_access_tenant plus manager-or-higher) and audit_logs_platform_admin_select (active platform_admins member).
+- Nine tip_payout.approved events for resource type tip_payout were returned, from 2026-10-30 21:11:53.106503+00 through 21:14:51.921426+00 (5:11–5:14 p.m. Eastern).
+- This verifies the production tip-approval write path and inspected configuration. It does not establish live employee/cross-tenant denial tests, actor attribution for each event, delivery for every writer, historical backfill, immutable retention or certification.
+- Local database tests: 25 passing across fresh-install and upgrade paths. GitHub CI run 41127902685 passed for implementation commit b67c41a6c9953cd54c535fc39408fd44ccece1a4.
+
+Railway has only a production environment in the connected account. Seth confirmed APP_URL=https://coffeemanagementsuite.com. PR 60 staging smoke checks remain pending. The Supabase dashboard displayed no backups; backup coverage and restore ability remain unverified.
+
+## Next recovery checkpoint
+
+Inspect the project's Database > Backups page before choosing a recovery approach. Record the latest available restore point, retention and plan limitations. The dashboard summary alone does not establish whether an independent backup exists.
+
+Supabase's [backup documentation](https://supabase.com/docs/guides/platform/backups) recommends regular CLI exports and off-site copies for free-tier projects. Database backups exclude Storage API file objects; any uploaded files need separate coverage. No backup schedule, paid upgrade or restore has been configured by this work. A recovery test must use an isolated target and must not overwrite production.
