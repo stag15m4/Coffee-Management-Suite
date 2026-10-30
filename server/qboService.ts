@@ -4,6 +4,7 @@
  */
 
 import OAuthClient from 'intuit-oauth';
+import { safeQboCallbackUrl } from './qbo-callback';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
 import { getSupabaseAdmin } from './supabaseAdmin';
@@ -49,7 +50,7 @@ export async function exchangeQboCode(url: string): Promise<{
   expiresAt: Date;
 }> {
   const oauthClient = getOAuthClient();
-  const authResponse = await oauthClient.createToken(url);
+  const authResponse = await oauthClient.createToken(safeQboCallbackUrl(url));
   const token = authResponse.getJson();
 
   return {
