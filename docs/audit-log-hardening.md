@@ -1,6 +1,6 @@
 # Audit-log access hardening
 
-Migration: **164**, prerequisite **143**. Status: implemented and locally tested; not applied to production by this work.
+Migration: **164**, supports either an existing migration-143 table or a missing audit table. Status: implemented and locally tested; not applied to production by this work.
 
 ## Boundary enforced
 
@@ -27,8 +27,8 @@ The helper still catches audit failures. Several callers already commit their bu
 
 ## Deployment procedure
 
-1. Confirm migration 143 exists and inventory actual audit_logs policies/grants. Confirm the Node DATABASE_URL role is the table owner or a trusted role with SELECT/INSERT rights. A custom database role relying on PUBLIC grants needs an explicit, reviewed grant before applying 164. Do not grant INSERT to authenticated or anon to work around a configuration problem.
-2. Apply 164 to an isolated staging database. It is transactional and re-runnable. The local tests execute the actual migration against PostgreSQL-compatible PGlite with realistic browser/service roles; they use fixture identity helpers and do not substitute for deployed Supabase RLS checks.
+1. Confirm the tenant/auth schema exists (tenants, platform_admins, auth.uid(), can_access_tenant and has_role_or_higher). If audit_logs is absent, 164 creates it with restricted permissions in the same transaction; do not apply 143 afterward. If the table exists, inventory its policies/grants. Confirm the Node DATABASE_URL role is the table owner or a trusted role with SELECT/INSERT rights. A custom database role relying on PUBLIC grants needs an explicit, reviewed grant before applying 164. Do not grant INSERT to authenticated or anon to work around a configuration problem.
+2. Apply 164 to an isolated staging database. It is transactional and re-runnable. The local tests execute the actual migration against PostgreSQL-compatible PGlite with realistic browser/service roles; both fresh-install and upgrade paths use fixture identity helpers and do not substitute for deployed Supabase RLS checks.
 3. Verify an existing authorized application action produces its audit event. Verify manager/owner reads, platform-admin reads, employee denial and cross-tenant denial. Confirm existing integrations still produce events without printing sensitive payloads.
 4. After staging verification, apply the same numbered migration to production. Record operator, time, release, database/environment and result in restricted operational evidence. Merging the PR does not apply this SQL automatically.
 5. If logging fails, check the Node database role and grant only the required privileges to that trusted role. A rollback that restores browser writes reintroduces event forgery; prefer a forward permission correction. Existing records are not rewritten by this migration.
@@ -58,4 +58,4 @@ Expected table privileges: anon none; authenticated SELECT only (further restric
 
 ## Production configuration check, 2026-10-30
 
-Railway project Coffee Management Suite has only a production environment in the connected account. APP_URL is present, but the OAuth connection redacts its value; the exact origin has not been verified. Railway reports the current service deployment as SUCCESS, with no staged changes. No staging environment, deployment, database migration or production write was created during this check. PR 60 still requires its APP_URL value check and staging smoke checks.
+Railway project Coffee Management Suite has only a production environment in the connected account. APP_URL is present; Seth confirmed its value as https://coffeemanagementsuite.com, satisfying the origin-format requirement. Railway reports the current service deployment as SUCCESS, with no staged changes. No staging environment, deployment, database migration or production write was created during this check. PR 60 still requires staging smoke checks. Seth confirmed project tfsostlmjmmggomoejpx and the postgres pooled database role; his SQL check shows tenants and user_profiles exist but public.audit_logs does not. Migration 164 now supports that missing-table state. The dashboard displays no backups; backup coverage remains unverified.
