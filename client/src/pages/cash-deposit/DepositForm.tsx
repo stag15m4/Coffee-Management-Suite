@@ -84,6 +84,7 @@ export function DepositForm({
                   inputMode="decimal"
                   value={formData.gross_revenue}
                   onChange={(e) => onUpdateField('gross_revenue', e.target.value)}
+                  onFocus={(e) => e.target.select()}
                   onBlur={handleCurrencyBlur('gross_revenue')}
                   className="pl-7"
                   style={{ backgroundColor: colors.inputBg }}
@@ -99,6 +100,7 @@ export function DepositForm({
                 inputMode="numeric"
                 value={formData.transaction_count ?? ''}
                 onChange={(e) => onUpdateField('transaction_count', e.target.value.replace(/[^0-9]/g, ''))}
+                onFocus={(e) => e.target.select()}
                 style={{ backgroundColor: colors.inputBg }}
                 placeholder="Optional"
                 data-testid="input-transaction-count"
@@ -131,6 +133,7 @@ export function DepositForm({
                   inputMode="decimal"
                   value={formData.cash_sales}
                   onChange={(e) => onUpdateField('cash_sales', e.target.value)}
+                  onFocus={(e) => e.target.select()}
                   onBlur={handleCurrencyBlur('cash_sales')}
                   className="pl-7"
                   style={{ backgroundColor: colors.inputBg }}
@@ -176,6 +179,7 @@ export function DepositForm({
                       inputMode="decimal"
                       value={formData.tip_pool}
                       onChange={(e) => onUpdateField('tip_pool', e.target.value)}
+                      onFocus={(e) => e.target.select()}
                       onBlur={handleCurrencyBlur('tip_pool')}
                       className="pl-7"
                       style={{ backgroundColor: colors.inputBg }}
@@ -193,6 +197,7 @@ export function DepositForm({
                       inputMode="decimal"
                       value={formData.cash_refund}
                       onChange={(e) => onUpdateField('cash_refund', e.target.value)}
+                      onFocus={(e) => e.target.select()}
                       onBlur={handleCurrencyBlur('cash_refund')}
                       className="pl-7"
                       style={{ backgroundColor: colors.inputBg }}
@@ -210,6 +215,7 @@ export function DepositForm({
                       inputMode="decimal"
                       value={formData.pay_in}
                       onChange={(e) => onUpdateField('pay_in', e.target.value)}
+                      onFocus={(e) => e.target.select()}
                       onBlur={handleCurrencyBlur('pay_in')}
                       className="pl-7"
                       style={{ backgroundColor: colors.inputBg }}
@@ -227,6 +233,7 @@ export function DepositForm({
                       inputMode="decimal"
                       value={formData.pay_out}
                       onChange={(e) => onUpdateField('pay_out', e.target.value)}
+                      onFocus={(e) => e.target.select()}
                       onBlur={handleCurrencyBlur('pay_out')}
                       className="pl-7"
                       style={{ backgroundColor: colors.inputBg }}
@@ -259,6 +266,7 @@ export function DepositForm({
                       inputMode="decimal"
                       value={formData.owner_tips}
                       onChange={(e) => onUpdateField('owner_tips', e.target.value)}
+                      onFocus={(e) => e.target.select()}
                       onBlur={handleCurrencyBlur('owner_tips')}
                       className="pl-7"
                       style={{
@@ -284,6 +292,7 @@ export function DepositForm({
                   inputMode="decimal"
                   value={formData.actual_deposit}
                   onChange={(e) => onUpdateField('actual_deposit', e.target.value)}
+                  onFocus={(e) => e.target.select()}
                   onBlur={handleCurrencyBlur('actual_deposit')}
                   className="pl-7"
                   style={{ backgroundColor: colors.inputBg }}
