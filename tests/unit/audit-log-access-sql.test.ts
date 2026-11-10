@@ -6,7 +6,7 @@ const tenantA = '00000000-0000-0000-0000-000000000001';
 const tenantB = '00000000-0000-0000-0000-000000000002';
 const actor = '00000000-0000-0000-0000-000000000010';
 const serviceActor = 'a1fed000-0000-0000-0000-000000000000';
-const migration = readFileSync('supabase-migrations/164_audit_log_access_hardening.sql', 'utf8');
+const migration = readFileSync('supabase-migrations/165_audit_log_access_hardening.sql', 'utf8');
 
 it('rolls back fresh table creation when required tenant helpers are missing', async () => {
   const isolated = new PGlite();
@@ -22,7 +22,7 @@ it('rolls back fresh table creation when required tenant helpers are missing', a
   }
 }, 30000);
 
-describe.each(['fresh', 'upgrade'] as const)('migration 164 %s path', (mode) => {
+describe.each(['fresh', 'upgrade'] as const)('migration 165 %s path', (mode) => {
   let db: PGlite;
 
   beforeAll(async () => {
@@ -81,7 +81,7 @@ describe.each(['fresh', 'upgrade'] as const)('migration 164 %s path', (mode) => 
     );
   }
 
-  describe('migration 164 audit access boundaries', () => {
+  describe('migration 165 audit access boundaries', () => {
     it('can be reapplied without losing existing records', async () => {
       await db.exec(migration);
       expect((await db.query('SELECT * FROM audit_logs')).rows).toHaveLength(2);

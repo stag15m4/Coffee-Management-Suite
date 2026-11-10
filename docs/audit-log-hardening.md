@@ -1,10 +1,10 @@
 # Audit-log access hardening
 
-Migration: **164**, supports either an existing migration-143 table or a missing audit table. Status: applied manually by Seth in production on 2026-10-30; user-supplied SQL results confirm expected table grants, enabled RLS and both SELECT policies. Nine real approval events confirm the tip-payout writer.
+Migration: **165** (formerly 164), supports either an existing migration-143 table or a missing audit table. Status: applied manually by Seth in production on 2026-10-30; user-supplied SQL results confirm expected table grants, enabled RLS and both SELECT policies. Nine real approval events confirm the tip-payout writer.
 
 ## Boundary enforced
 
-Migration 164 removes the tenant browser INSERT policy and replaces the platform-admin FOR ALL policy with SELECT-only access. It revokes table privileges from PUBLIC, anon, authenticated and service_role, then grants authenticated SELECT and service_role SELECT/INSERT. Revoking privileges also covers TRUNCATE, which row-level security does not control.
+Migration 165 removes the tenant browser INSERT policy and replaces the platform-admin FOR ALL policy with SELECT-only access. It revokes table privileges from PUBLIC, anon, authenticated and service_role, then grants authenticated SELECT and service_role SELECT/INSERT. Revoking privileges also covers TRUNCATE, which row-level security does not control.
 
 Tenant managers/owners retain the existing tenant-scoped SELECT policy. Active platform admins retain cross-tenant reads. Ordinary employees and anonymous sessions cannot read logs. Browser users cannot manufacture events, actor IDs or timestamps, even when they are platform admins. Service-role connections can append/read but cannot update, delete or truncate the table.
 
@@ -27,8 +27,8 @@ The helper still catches audit failures. Several callers already commit their bu
 
 ## Deployment procedure
 
-1. Confirm the tenant/auth schema exists (tenants, platform_admins, auth.uid(), can_access_tenant and has_role_or_higher). If audit_logs is absent, 164 creates it with restricted permissions in the same transaction; do not apply 143 afterward. If the table exists, inventory its policies/grants. Confirm the Node DATABASE_URL role is the table owner or a trusted role with SELECT/INSERT rights. A custom database role relying on PUBLIC grants needs an explicit, reviewed grant before applying 164. Do not grant INSERT to authenticated or anon to work around a configuration problem.
-2. Apply 164 to an isolated staging database. It is transactional and re-runnable. The local tests execute the actual migration against PostgreSQL-compatible PGlite with realistic browser/service roles; both fresh-install and upgrade paths use fixture identity helpers and do not substitute for deployed Supabase RLS checks.
+1. Confirm the tenant/auth schema exists (tenants, platform_admins, auth.uid(), can_access_tenant and has_role_or_higher). If audit_logs is absent, 165 creates it with restricted permissions in the same transaction; do not apply 143 afterward. If the table exists, inventory its policies/grants. Confirm the Node DATABASE_URL role is the table owner or a trusted role with SELECT/INSERT rights. A custom database role relying on PUBLIC grants needs an explicit, reviewed grant before applying 165. Do not grant INSERT to authenticated or anon to work around a configuration problem.
+2. Apply 165 to an isolated staging database. It is transactional and re-runnable. The local tests execute the actual migration against PostgreSQL-compatible PGlite with realistic browser/service roles; both fresh-install and upgrade paths use fixture identity helpers and do not substitute for deployed Supabase RLS checks.
 3. Verify an existing authorized application action produces its audit event. Verify manager/owner reads, platform-admin reads, employee denial and cross-tenant denial. Confirm existing integrations still produce events without printing sensitive payloads.
 4. After staging verification, apply the same numbered migration to production. Record operator, time, release, database/environment and result in restricted operational evidence. Merging the PR does not apply this SQL automatically.
 5. If logging fails, check the Node database role and grant only the required privileges to that trusted role. A rollback that restores browser writes reintroduces event forgery; prefer a forward permission correction. Existing records are not rewritten by this migration.
@@ -36,7 +36,7 @@ The helper still catches audit failures. Several callers already commit their bu
 Read-only inspection (run as a database administrator; do not share connection strings):
 
 ```sql
--- Migration 164 verification: inspect audit-log access after applying 164.
+-- Migration 165 verification: inspect audit-log access after applying 165.
 SELECT policyname, roles, cmd, qual, with_check
 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'audit_logs';
 
@@ -61,17 +61,21 @@ Expected table privileges: anon none; authenticated SELECT only (further restric
 Evidence source: Seth's Supabase dashboard and SQL results supplied in the implementation conversation; no direct production database connection was used by the agent.
 
 - Project: tfsostlmjmmggomoejpx, Coffee Management Suite production. Operator: Seth Gundersen, SQL editor role postgres.
-- Before application, tenants and user_profiles existed and audit_logs was absent. Seth manually applied the supplied migration 164.
+- Before application, tenants and user_profiles existed and audit_logs was absent. Seth manually applied the supplied audit migration under its original number 164.
 - Privilege results: postgres SELECT/INSERT/UPDATE/DELETE/TRUNCATE; anon none; authenticated SELECT only; service_role SELECT/INSERT only.
 - RLS enabled. Exactly two SELECT policies returned: audit_logs_select (can_access_tenant plus manager-or-higher) and audit_logs_platform_admin_select (active platform_admins member).
 - Nine tip_payout.approved events for resource type tip_payout were returned, from 2026-10-30 21:11:53.106503+00 through 21:14:51.921426+00 (5:11–5:14 p.m. Eastern).
 - This verifies the production tip-approval write path and inspected configuration. It does not establish live employee/cross-tenant denial tests, actor attribution for each event, delivery for every writer, historical backfill, immutable retention or certification.
 - Local database tests: 25 passing across fresh-install and upgrade paths. GitHub CI run 41127902685 passed for implementation commit b67c41a6c9953cd54c535fc39408fd44ccece1a4.
 
-Railway has only a production environment in the connected account. Seth confirmed APP_URL=https://coffeemanagementsuite.com. PR 60 staging smoke checks remain pending. The Supabase dashboard displayed no backups; backup coverage and restore ability remain unverified.
+An isolated Railway staging project was subsequently deployed on October 30; see PR 65 for staging evidence. Seth confirmed production APP_URL=https://coffeemanagementsuite.com. Production cross-tenant runtime testing remains unverified. The Supabase dashboard displayed no backups; backup coverage and restore ability remain unverified.
 
 ## Next recovery checkpoint
 
 Inspect the project's Database > Backups page before choosing a recovery approach. Record the latest available restore point, retention and plan limitations. The dashboard summary alone does not establish whether an independent backup exists.
 
 Supabase's [backup documentation](https://supabase.com/docs/guides/platform/backups) recommends regular CLI exports and off-site copies for free-tier projects. Database backups exclude Storage API file objects; any uploaded files need separate coverage. No backup schedule, paid upgrade or restore has been configured by this work. A recovery test must use an isolated target and must not overwrite production.
+
+## Numbering correction — 2026-11-09
+
+Main now contains `164_tip_employee_email.sql`. This pending audit migration is renamed to `165_audit_log_access_hardening.sql` to keep numbering unique. Its SQL behavior is unchanged. Historical evidence above refers to the audit SQL applied on October 30 under number 164, not the unrelated tip-email migration. Do not rerun SQL solely because of this rename; verify the existing grants and policies first. No production database change was made during this correction.

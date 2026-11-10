@@ -90,7 +90,9 @@ export default function TipPayout() {
   const [allEmployees, setAllEmployees] = useState<TipEmployee[]>([]);
   const [showInactive, setShowInactive] = useState(false);
   const [newEmployeeName, setNewEmployeeName] = useState('');
+  const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
   const [addingEmployee, setAddingEmployee] = useState(false);
+  const [sendingStatements, setSendingStatements] = useState(false);
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
 
   // Move week dialog
@@ -228,9 +230,11 @@ export default function TipPayout() {
     }
     setAddingEmployee(true);
     try {
-      const { error } = await supabase
-        .from('tip_employees')
-        .insert({ tenant_id: tenant.id, name: newEmployeeName.trim() });
+      const { error } = await supabase.from('tip_employees').insert({
+        tenant_id: tenant.id,
+        name: newEmployeeName.trim(),
+        email: newEmployeeEmail.trim() || null,
+      });
       if (error) {
         if (error.code === '23505') {
           toast({ title: 'Employee already exists', variant: 'destructive' });
@@ -240,12 +244,29 @@ export default function TipPayout() {
       } else {
         toast({ title: `${newEmployeeName.trim()} added!` });
         setNewEmployeeName('');
+        setNewEmployeeEmail('');
         loadEmployees();
       }
     } catch (error: unknown) {
       toast({ title: 'Error adding employee', description: getErrorMessage(error), variant: 'destructive' });
     } finally {
       setAddingEmployee(false);
+    }
+  };
+
+  const updateEmployeeEmail = async (employeeId: string, email: string) => {
+    if (!tenant?.id) return;
+    try {
+      const { error } = await supabase
+        .from('tip_employees')
+        .update({ email: email || null })
+        .eq('id', employeeId)
+        .eq('tenant_id', tenant.id);
+      if (error) throw error;
+      toast({ title: 'Email updated' });
+      loadEmployees();
+    } catch (error: unknown) {
+      toast({ title: 'Error updating email', description: getErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -608,6 +629,35 @@ export default function TipPayout() {
     }
   };
 
+  const sendStatements = async () => {
+    if (!tenant?.id || sendingStatements) return;
+    setSendingStatements(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Please sign in again');
+      const response = await fetch('/api/tip-payouts/send-statements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ tenantId: tenant.id, weekKey, companyName }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to send statements');
+      const skippedNote = result.skipped?.length > 0 ? ` ${result.skipped.length} skipped (no email on file).` : '';
+      const failedNote = result.failed?.length > 0 ? ` ${result.failed.length} failed to send.` : '';
+      toast({
+        title: `Sent ${result.sent} statement${result.sent === 1 ? '' : 's'}`,
+        description: (skippedNote + failedNote).trim() || undefined,
+        variant: result.failed?.length > 0 ? 'destructive' : undefined,
+      });
+    } catch (error: unknown) {
+      toast({ title: 'Failed to send statements', description: getErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setSendingStatements(false);
+    }
+  };
+
   const exportCSV = () => {
     // Tip distribution docs list tip-eligible staff only
     const csvContent = buildCsvContent({ weekRange, employeeHours: eligibleEmployeeHours, hourlyRate, totalPool });
@@ -770,12 +820,15 @@ export default function TipPayout() {
         allEmployees={allEmployees}
         newEmployeeName={newEmployeeName}
         onNewEmployeeNameChange={setNewEmployeeName}
+        newEmployeeEmail={newEmployeeEmail}
+        onNewEmployeeEmailChange={setNewEmployeeEmail}
         onAddEmployee={addEmployee}
         addingEmployee={addingEmployee}
         showInactive={showInactive}
         onToggleShowInactive={() => setShowInactive(!showInactive)}
         onToggleEmployeeActive={toggleEmployeeActive}
         onToggleTipEligible={toggleTipEligible}
+        onUpdateEmployeeEmail={updateEmployeeEmail}
         dialogOpen={manageDialogOpen}
         onDialogOpenChange={(open) => {
           setManageDialogOpen(open);
@@ -872,6 +925,11 @@ export default function TipPayout() {
                   >
                     {approving ? 'Approving...' : approvalStatus === 'approved' ? 'Approved' : 'Approve weekly payout'}
                   </Button>
+                  {approvalStatus === 'approved' && (
+                    <Button variant="outline" onClick={sendStatements} disabled={sendingStatements}>
+                      {sendingStatements ? 'Sending...' : 'Email statements'}
+                    </Button>
+                  )}
                   <span className="text-sm" style={{ color: colors.brownLight }}>
                     {approvalStatus === 'approved'
                       ? 'Visible to linked staff accounts'

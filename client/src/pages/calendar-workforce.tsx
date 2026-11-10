@@ -621,8 +621,8 @@ function ScheduleTab({
         setViewingEvent(clickInfo.event.extendedProps.calendarEvent as CalendarEvent);
         return;
       }
-      if (eventType === 'blackout') {
-        return; // blackout date banners are display-only
+      if (eventType === 'blackout' || eventType === 'anniversary' || eventType === 'unavailability') {
+        return; // display-only banners — no shift to open
       }
       const shift = clickInfo.event.extendedProps.shift as Shift;
       if (canEdit) {
@@ -1245,6 +1245,17 @@ function ScheduleTab({
                   <div className="flex items-center gap-1 px-1 py-0.5 text-xs font-medium truncate cursor-pointer">
                     <Star className="w-3 h-3 flex-shrink-0 fill-current" />
                     <span className="truncate">{calEvent.title}</span>
+                  </div>
+                );
+              }
+              // blackout / anniversary / unavailability / compliance banners carry no
+              // `shift` in extendedProps — their already-formatted title (with its own
+              // emoji prefix) is all there is to render. Falling through to the shift
+              // rendering below for these would crash on `shift.employee_avatar`.
+              if (arg.event.extendedProps.type !== 'shift') {
+                return (
+                  <div className="flex items-center px-1 py-0.5 text-xs font-medium truncate cursor-pointer">
+                    <span className="truncate">{arg.event.title}</span>
                   </div>
                 );
               }

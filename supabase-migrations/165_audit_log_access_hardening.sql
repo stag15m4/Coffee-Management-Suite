@@ -1,4 +1,5 @@
--- Migration 164: Restrict audit-log writes to trusted server connections.
+-- Migration 165: Restrict audit-log writes to trusted server connections.
+-- Previously supplied/applied as migration 164 on 2026-10-30; renamed to avoid tip-email numbering collision.
 -- Creates the audit table if migration 143 was never applied; otherwise hardens it.
 -- Prerequisites: tenants, platform_admins, auth.uid(), can_access_tenant(uuid),
 -- and has_role_or_higher() from the existing tenant/auth schema.
