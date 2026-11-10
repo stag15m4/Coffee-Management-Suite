@@ -295,3 +295,66 @@ export async function sendFeedbackEmail(data: FeedbackEmailData): Promise<{ succ
     return { success: false, error: error.message || 'Failed to send email' };
   }
 }
+
+// Tip Payout Statement Email — one email per employee, for an already-approved week
+export interface TipPayoutStatementEmailData {
+  employeeEmail: string;
+  employeeName: string;
+  companyName: string;
+  weekRange: string;
+  hours: number;
+  payout: number;
+}
+
+export async function sendTipPayoutStatementEmail(
+  data: TipPayoutStatementEmailData
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { client, fromEmail } = getResendClient();
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2 style="color: #5D4037;">Tip Payout Statement</h2>
+        <p>Hi ${escapeHtml(data.employeeName)},</p>
+        <p>Here's your approved tip payout for the week of ${escapeHtml(data.weekRange)}:</p>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <tbody>
+            <tr>
+              <td style="padding: 8px; border-bottom: 1px solid #eee;">Hours worked</td>
+              <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${data.hours.toFixed(2)}</td>
+            </tr>
+            <tr style="font-weight: bold;">
+              <td style="padding: 8px;">Tip payout</td>
+              <td style="padding: 8px; text-align: right;">$${data.payout.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p style="color: #888; font-size: 12px;">
+          Tip statement only. Payroll and taxes are handled separately.
+        </p>
+
+        <p style="color: #888; font-size: 12px; margin-top: 20px;">
+          Sent by ${escapeHtml(data.companyName)} via the Coffee Management Suite.
+        </p>
+      </div>
+    `;
+
+    const result = await client.emails.send({
+      from: fromEmail,
+      to: data.employeeEmail,
+      subject: `Tip Payout Statement — Week of ${data.weekRange}`,
+      html,
+    });
+
+    if (result.error) {
+      return { success: false, error: result.error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending tip payout statement email:', error);
+    return { success: false, error: error.message || 'Failed to send email' };
+  }
+}

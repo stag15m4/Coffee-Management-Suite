@@ -3,7 +3,8 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 import logger from '../logger';
-import { getUserIdFromRequest } from './core';
+import { getUserIdFromRequest, logAuditEvent } from './core';
+import { sendTipPayoutStatementEmail } from '../resend';
 
 const CC_FEE_RATE = 0.035;
 
@@ -39,6 +40,27 @@ const tipPayoutApproveSchema = z.object({
     )
     .min(1, 'At least one employee payout is required'),
 });
+
+const tipPayoutSendStatementsSchema = z.object({
+  tenantId: z.string().uuid(),
+  weekKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'weekKey must be YYYY-MM-DD'),
+  companyName: z.string().trim().min(1).max(200).optional(),
+});
+
+/** "10/6 - 10/12/2026" for a Monday-keyed week, matching the client's own getWeekRange. */
+function formatWeekRange(weekKey: string): string {
+  const monday = new Date(`${weekKey}T00:00:00Z`);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  const start = monday.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' });
+  const end = sunday.toLocaleDateString('en-US', {
+    month: 'numeric',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+  return `${start} - ${end}`;
+}
 
 export function registerTipRoutes(app: Express): void {
   // Only approved, explicitly linked payouts are visible to the signed-in staff member.
@@ -409,6 +431,137 @@ export function registerTipRoutes(app: Express): void {
         return res.status(409).json({ error: 'A payout for this week has already been approved.' });
       }
       logger.error({ err: error }, 'Tip payout approve error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // POST /api/tip-payouts/send-statements
+  // Emails each tip-eligible employee their own approved payout for the
+  // week — only ever the approved snapshot, same source of truth as
+  // /api/tip-payouts/mine, never a live recomputation.
+  app.post('/api/tip-payouts/send-statements', async (req: Request, res: Response) => {
+    try {
+      const { userId } = await getUserIdFromRequest(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
+
+      const profileResult = await db.execute(
+        sql`SELECT tenant_id, role FROM user_profiles WHERE id = ${userId}::uuid AND is_active = true LIMIT 1`
+      );
+      const profile = profileResult.rows[0] as any;
+      if (!profile) return res.status(403).json({ error: 'No active profile found' });
+
+      const body = tipPayoutSendStatementsSchema.parse(req.body);
+
+      const location = await db.execute(sql`
+        SELECT id FROM tenants WHERE id = ${body.tenantId}::uuid
+          AND (id = ${profile.tenant_id}::uuid OR parent_tenant_id = ${profile.tenant_id}::uuid)
+      `);
+      if (!location.rows.length) {
+        return res.status(403).json({ error: 'Not authorized for this tenant' });
+      }
+
+      if (!['manager', 'owner'].includes(profile.role)) {
+        return res.status(403).json({ error: 'Only managers or owners can send tip payout statements.' });
+      }
+
+      const approvalResult = await db.execute(sql`
+        SELECT employee_payouts, status
+        FROM tip_payout_approvals
+        WHERE tenant_id = ${body.tenantId}::uuid AND week_key = ${body.weekKey}::date
+        LIMIT 1
+      `);
+      const approval = approvalResult.rows[0] as any;
+      if (!approval || approval.status !== 'approved') {
+        return res.status(400).json({ error: 'This week has not been approved yet.' });
+      }
+
+      const employeePayouts = (approval.employee_payouts || []) as Array<{
+        employee_id: string;
+        employee_name: string;
+        hours: number;
+        payout: number;
+      }>;
+      if (employeePayouts.length === 0) {
+        return res.json({ sent: 0, skipped: [], failed: [] });
+      }
+
+      const idList = sql.join(
+        employeePayouts.map((e) => sql`${e.employee_id}::uuid`),
+        sql`, `
+      );
+      const emailResult = await db.execute(sql`
+        SELECT id, email FROM tip_employees
+        WHERE tenant_id = ${body.tenantId}::uuid AND id IN (${idList})
+      `);
+      const emailByEmployeeId = new Map(
+        (emailResult.rows as Array<{ id: string; email: string | null }>).map((row) => [row.id, row.email])
+      );
+
+      const weekRange = formatWeekRange(body.weekKey);
+      const companyName = body.companyName || 'Your employer';
+
+      const skipped: Array<{ employee_id: string; employee_name: string; reason: string }> = [];
+      const failed: Array<{ employee_id: string; employee_name: string; reason: string }> = [];
+      let sent = 0;
+
+      for (const employee of employeePayouts) {
+        const email = emailByEmployeeId.get(employee.employee_id);
+        if (!email) {
+          skipped.push({
+            employee_id: employee.employee_id,
+            employee_name: employee.employee_name,
+            reason: 'No email on file',
+          });
+          continue;
+        }
+        const result = await sendTipPayoutStatementEmail({
+          employeeEmail: email,
+          employeeName: employee.employee_name,
+          companyName,
+          weekRange,
+          hours: employee.hours,
+          payout: employee.payout,
+        });
+        if (result.success) {
+          sent++;
+        } else {
+          failed.push({
+            employee_id: employee.employee_id,
+            employee_name: employee.employee_name,
+            reason: result.error || 'Unknown error',
+          });
+        }
+      }
+
+      await logAuditEvent(
+        body.tenantId,
+        userId,
+        'tip_payout.statements_sent',
+        'tip_payout',
+        null,
+        null,
+        { weekKey: body.weekKey, sent, skippedCount: skipped.length, failedCount: failed.length },
+        req.ip
+      );
+
+      logger.info(
+        {
+          userId,
+          tenantId: body.tenantId,
+          weekKey: body.weekKey,
+          sent,
+          skipped: skipped.length,
+          failed: failed.length,
+        },
+        'Tip payout statements sent'
+      );
+
+      res.json({ sent, skipped, failed });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      logger.error({ err: error }, 'Tip payout send-statements error');
       res.status(500).json({ error: 'Internal server error' });
     }
   });

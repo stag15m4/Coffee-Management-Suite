@@ -13,12 +13,15 @@ interface TipPayoutHeaderProps {
   allEmployees: TipEmployee[];
   newEmployeeName: string;
   onNewEmployeeNameChange: (name: string) => void;
+  newEmployeeEmail: string;
+  onNewEmployeeEmailChange: (email: string) => void;
   onAddEmployee: () => void;
   addingEmployee: boolean;
   showInactive: boolean;
   onToggleShowInactive: () => void;
   onToggleEmployeeActive: (employeeId: string, newStatus: boolean) => void;
   onToggleTipEligible: (employeeId: string, newStatus: boolean) => void;
+  onUpdateEmployeeEmail: (employeeId: string, email: string) => void;
   dialogOpen: boolean;
   onDialogOpenChange: (open: boolean) => void;
 }
@@ -31,12 +34,15 @@ export function TipPayoutHeader({
   allEmployees,
   newEmployeeName,
   onNewEmployeeNameChange,
+  newEmployeeEmail,
+  onNewEmployeeEmailChange,
   onAddEmployee,
   addingEmployee,
   showInactive,
   onToggleShowInactive,
   onToggleEmployeeActive,
   onToggleTipEligible,
+  onUpdateEmployeeEmail,
   dialogOpen,
   onDialogOpenChange,
 }: TipPayoutHeaderProps) {
@@ -81,15 +87,27 @@ export function TipPayoutHeader({
                   }}
                   className="flex gap-2"
                 >
-                  <Input
-                    id="new-employee-name"
-                    placeholder="New Employee Name"
-                    value={newEmployeeName}
-                    onChange={(e) => onNewEmployeeNameChange(e.target.value)}
-                    style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
-                    aria-label="New employee name"
-                    data-testid="input-new-employee"
-                  />
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      id="new-employee-name"
+                      placeholder="New Employee Name"
+                      value={newEmployeeName}
+                      onChange={(e) => onNewEmployeeNameChange(e.target.value)}
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                      aria-label="New employee name"
+                      data-testid="input-new-employee"
+                    />
+                    <Input
+                      id="new-employee-email"
+                      type="email"
+                      placeholder="Email (optional)"
+                      value={newEmployeeEmail}
+                      onChange={(e) => onNewEmployeeEmailChange(e.target.value)}
+                      style={{ backgroundColor: colors.inputBg, borderColor: colors.gold }}
+                      aria-label="New employee email"
+                      data-testid="input-new-employee-email"
+                    />
+                  </div>
                   <Button
                     type="submit"
                     disabled={addingEmployee || !newEmployeeName.trim()}
@@ -123,61 +141,76 @@ export function TipPayoutHeader({
                       return (
                         <div
                           key={emp.id}
-                          className="flex items-center justify-between p-2 rounded-md"
+                          className="p-2 rounded-md space-y-1"
                           style={{
                             backgroundColor: active ? colors.inputBg : '#f0f0f0',
                             opacity: active ? 1 : 0.7,
                           }}
                         >
-                          <div className="flex items-center gap-2 min-w-0">
-                            {!active && <UserX className="w-4 h-4 flex-shrink-0" style={{ color: colors.red }} />}
-                            <span className="truncate" style={{ color: colors.brown }}>
-                              {emp.name}
-                            </span>
-                            {!active && (
-                              <span
-                                className="text-xs px-2 py-0.5 rounded flex-shrink-0"
-                                style={{ backgroundColor: colors.creamDark, color: colors.brownLight }}
-                              >
-                                Inactive
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {!active && <UserX className="w-4 h-4 flex-shrink-0" style={{ color: colors.red }} />}
+                              <span className="truncate" style={{ color: colors.brown }}>
+                                {emp.name}
                               </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            {active && (
+                              {!active && (
+                                <span
+                                  className="text-xs px-2 py-0.5 rounded flex-shrink-0"
+                                  style={{ backgroundColor: colors.creamDark, color: colors.brownLight }}
+                                >
+                                  Inactive
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {active && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onToggleTipEligible(emp.id, !eligible)}
+                                  className="text-xs px-2"
+                                  style={{
+                                    color: eligible ? colors.green : colors.brownLight,
+                                    backgroundColor: eligible ? undefined : colors.creamDark,
+                                  }}
+                                >
+                                  {eligible ? 'Tips: Yes' : 'Tips: No'}
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => onToggleTipEligible(emp.id, !eligible)}
-                                className="text-xs px-2"
-                                style={{
-                                  color: eligible ? colors.green : colors.brownLight,
-                                  backgroundColor: eligible ? undefined : colors.creamDark,
-                                }}
+                                onClick={() => onToggleEmployeeActive(emp.id, !active)}
+                                style={{ color: active ? colors.red : colors.green }}
+                                data-testid={`button-toggle-employee-${emp.id}`}
                               >
-                                {eligible ? 'Tips: Yes' : 'Tips: No'}
+                                {active ? (
+                                  <>
+                                    <UserX className="w-4 h-4 mr-1" />
+                                    Deactivate
+                                  </>
+                                ) : (
+                                  <>
+                                    <RotateCcw className="w-4 h-4 mr-1" />
+                                    Reactivate
+                                  </>
+                                )}
                               </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onToggleEmployeeActive(emp.id, !active)}
-                              style={{ color: active ? colors.red : colors.green }}
-                              data-testid={`button-toggle-employee-${emp.id}`}
-                            >
-                              {active ? (
-                                <>
-                                  <UserX className="w-4 h-4 mr-1" />
-                                  Deactivate
-                                </>
-                              ) : (
-                                <>
-                                  <RotateCcw className="w-4 h-4 mr-1" />
-                                  Reactivate
-                                </>
-                              )}
-                            </Button>
+                            </div>
                           </div>
+                          <Input
+                            type="email"
+                            placeholder="Email for tip statements"
+                            defaultValue={emp.email || ''}
+                            onBlur={(e) => {
+                              const value = e.target.value.trim();
+                              if (value !== (emp.email || '')) onUpdateEmployeeEmail(emp.id, value);
+                            }}
+                            className="h-8 text-sm"
+                            style={{ backgroundColor: colors.white, borderColor: colors.creamDark }}
+                            aria-label={`Email for ${emp.name}`}
+                            data-testid={`input-employee-email-${emp.id}`}
+                          />
                         </div>
                       );
                     })}
