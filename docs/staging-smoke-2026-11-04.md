@@ -10,14 +10,14 @@ Observed deployment: `85cd55f3-1b7a-4cd4-806a-f654cdfbac4a`, terminal status SUC
 
 ## Observations
 
-| Check | Observed result | What it establishes |
-| --- | --- | --- |
-| HTTPS GET /api/health | 200, JSON status ok | Public health endpoint responds; does not prove database readiness |
-| HTTPS GET / | 200, HTML | App shell available; interactive login not tested |
-| GET /api/health with an unrelated X-Forwarded-Host | 200, JSON health response | Health path remains available; does not prove redirect handling |
-| GET /login?cms_smoke=1 with X-Forwarded-Proto http and an unrelated X-Forwarded-Host | 200, HTML; no Location header | External proxy path did not exercise application HTTP redirect; SEC-01 redirect verification remains open |
-| Unauthenticated GET /api/dashboard/metrics/00000000-0000-0000-0000-000000000000 | 401, application/json, Unauthorized | This protected dashboard route denies an unauthenticated request |
-| GET /api/alfred/tip-payout-approvals | 200, website HTML | Not an authenticated API success: Alfred routes are not registered when ALFRED_SERVICE_TOKEN is absent |
+| Check                                                                                | Observed result                     | What it establishes                                                                                       |
+| ------------------------------------------------------------------------------------ | ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| HTTPS GET /api/health                                                                | 200, JSON status ok                 | Public health endpoint responds; does not prove database readiness                                        |
+| HTTPS GET /                                                                          | 200, HTML                           | App shell available; interactive login not tested                                                         |
+| GET /api/health with an unrelated X-Forwarded-Host                                   | 200, JSON health response           | Health path remains available; does not prove redirect handling                                           |
+| GET /login?cms_smoke=1 with X-Forwarded-Proto http and an unrelated X-Forwarded-Host | 200, HTML; no Location header       | External proxy path did not exercise application HTTP redirect; SEC-01 redirect verification remains open |
+| Unauthenticated GET /api/dashboard/metrics/00000000-0000-0000-0000-000000000000      | 401, application/json, Unauthorized | This protected dashboard route denies an unauthenticated request                                          |
+| GET /api/alfred/tip-payout-approvals                                                 | 200, website HTML                   | Not an authenticated API success: Alfred routes are not registered when ALFRED_SERVICE_TOKEN is absent    |
 
 Railway runtime/request logs corroborated the hosted requests. Service config lists no ALFRED_SERVICE_TOKEN or ALFRED_ALLOWED_TENANT_IDS; server/routes/alfred.ts explicitly returns before registration without the token. The SPA fallback serves HTML for the resulting unmatched GET. No service token was added. This is an existing disabled-route behavior and a legacy difference from the Alfred JSON-error convention, not evidence of access to payroll data.
 

@@ -1,15 +1,29 @@
-# Staging launch status — 2026-10-30
+# Staging launch status — updated November 9, 2026
 
 The staging site is deployed at https://cms-staging-staging-d7fb.up.railway.app.
 
-Source branch `codex/staging-security-release`, pinned commit `4cb35775911a73f70f26970f2874c2d54763bbc8`. Its tree was compared with the previously tested local combined security release and had no differences. No production PRs were merged.
+Source branch `codex/staging-security-release`, pinned commit `4cb35775911a73f70f26970f2874c2d54763bbc8`. No production security PRs have been merged. The November 9 review candidate is newer than this deployed release and has not been deployed.
 
-Railway deployments `e2022cdd-4a77-495e-9b1c-a88634c2e874` and subsequent `4d33ca61-c2fd-4408-ba80-bb72f7c31fab` reached SUCCESS. HTTP health and root returned 200. The served frontend bundle contains the staging Supabase reference, not the production reference.
+## Resolved launch blocker
 
-## Blocker
+The initial direct Supabase IPv6 connection failed with ENETUNREACH. Seth replaced staging DATABASE_URL with the staging Session pooler connection on October 30. Deployment `85cd55f3-1b7a-4cd4-806a-f654cdfbac4a` reached SUCCESS; a successful application database query was observed. HTTP health alone does not establish database readiness.
 
-The background database query fails with ENETUNREACH against a direct Supabase IPv6 address on port 5432. Enabling Railway outbound IPv6 and redeploying did not resolve it. Database authentication is therefore NOT verified. The health route does not test the database. No browser logins or payroll workflows have passed.
+## Historical workflow evidence
 
-Owner action: replace only staging `DATABASE_URL` with the CMS Staging Supabase Connect > Session pooler URI, inserting the staging database password. The username must identify `iuugcktfbpdlljmmpfrl`. Save directly in Railway; do not disclose the password in chat. After redeploy, verify a successful database query, then provision a genuine test login and test tenant isolation over HTTP.
+Evidence below comes from the October 30 implementation session and Seth's test results, not a new November 9 signed-in test.
 
-The synthetic fixture users have no login passwords. Module/reference fixtures and Auth redirect configuration still need review. The application includes a Dockerfile and railway.toml with compliance migration 163 predeploy configuration; verify effective deployment configuration before subsequent releases. No production data or integration secrets were copied.
+- Staging frontend was verified to reference `iuugcktfbpdlljmmpfrl`, not production.
+- Seth created a genuine staging Auth login, linked to TEST ONLY - Cedar Cafe as a manager. Browser login and the Cedar dashboard succeeded.
+- Tip Payouts and Calendar/Workforce modules were enabled for synthetic tenants. Seth reported both opened successfully.
+- A synthetic shift was published and a $50 tip-input test produced a $48.95 payout pool after the configured card-tip fee. Approval and its matching audit event were observed together.
+- Database role/JWT tests showed Cedar/Harbor separation. These do not replace full two-login browser isolation tests.
+
+## Still open
+
+- Timesheet approval through the UI has not been demonstrated. Seth reported difficulty finding it and planned to check with Brianna.
+- Complete a synthetic pay period: clock records, corrections, approval/reapproval, tip reconciliation and payroll review CSV.
+- Verify deployed proxy redirect behavior; the November 4 header probes did not exercise the redirect branch.
+- Real QuickBooks sandbox OAuth remains untested; separate staging client credentials were absent at the November 4 check.
+- Recovery/restore testing and paid backup upgrades remain deferred. Gusto declined the partnership application; that does not establish a failed technical review or waive CMS security work.
+
+See [November 4 hosted checks](../staging-smoke-2026-11-04.md) for the latest recorded read-only HTTP checks. No new production configuration, database writes, paid subscription or external integration authorization was performed by this documentation update.
