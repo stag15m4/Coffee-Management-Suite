@@ -107,3 +107,13 @@ Local validation passed: all 337 tests in 41 files, TypeScript, production clien
 Gusto lists vulnerability scanning and remediation among the evidence it may request from applicants without formal audits: [security review](https://docs.gusto.com/app-integrations/docs/security-review). This review provides a starting inventory and remediation record only. No claim that all findings are resolved or that Gusto has approved CMS.
 
 Seth deferred the paid backup upgrade until Gusto responds. Backup/restore evidence remains pending. Audit migration 164 has user-supplied production verification; atomic tip-approval logging is prepared separately in PR 62. Scheduling UI work is separate.
+
+## Follow-up scan and compatible updates — November 9, 2026
+
+A fresh production-only scan of the October 30 lockfile reports 30 findings: 0 critical, 8 high, 17 moderate, 5 low. This supersedes the older 29-count snapshot above.
+
+Updated selected packages within existing manifest ranges: Sentry Node 10.39.0 to 10.78.0 (and its OpenTelemetry chain), express-rate-limit 8.3.0 to 8.7.4, ip-address 10.1.0 to 10.7.6, nanoid 5.1.6 to 5.1.16, and minimatch resolutions. package.json is unchanged; no forced major override was used. Transitive tree deduplication changes package paths as well as versions.
+
+`npm audit --omit=dev --json` after these updates reports **15 package findings: 0 critical, 6 high, 4 moderate, 5 low**. This is a package-level scan, not proof of exploitability or a clean bill of health. Remaining high packages are decode-uri-component, query-string, intuit-oauth, drizzle-orm, zod and zod-validation-error. PR 64 mitigates the callback decoder input; it does not eliminate that dependency. Remaining moderate packages are exceljs, postcss-selector-parser, qs and uuid; low packages are the Resend rendering chain and esbuild.
+
+Compatibility-sensitive upgrades of Drizzle, Zod, Intuit OAuth and email/export dependencies remain follow-up work. No production deployment or paid upgrade is included. Gusto's partnership rejection cites priorities/capacity, not a technical security finding.
