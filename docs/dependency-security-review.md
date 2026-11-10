@@ -1,5 +1,15 @@
 # Dependency security review — 2026-10-30
 
+## Latest status — November 10, 2026
+
+Upgraded Drizzle ORM from 0.39.3 to 0.45.4, changing its manifest range. This addresses identifier escaping advisory GHSA-gpj5-g38j-94v9. A regression test confirms embedded quotes and SQL-looking text remain inside a quoted PostgreSQL identifier. Existing schema-validation tests pass with drizzle-zod 0.7.1.
+
+Fresh production-only audit: **14 flagged packages: 0 critical, 5 high, 4 moderate, 5 low**. Remaining high findings concern Zod/zod-validation-error and the Intuit OAuth/query-string/decode-uri-component chain. The historical scans below are retained as dated evidence. These findings remain open; callback input validation mitigates only that specific input path.
+
+Validation on the dependency branch: 337 existing tests passed, the new identifier regression passed, TypeScript passed, and the production build passed using `node --import tsx script/build.ts`. No database migration is required for this library update. No deployment was performed.
+
+Staging checks on November 10: Railway still runs release 4cb35775911a73f70f26970f2874c2d54763bbc8. QBO_CLIENT_ID, QBO_CLIENT_SECRET and QBO_REDIRECT_URI are absent; an end-to-end sandbox connection remains blocked. In Supabase staging, rollback-only role tests verified approval of recorded hours by the Cedar manager and rejection of an employee and another tenant's manager. No approval was retained. This verifies the database path, not the signed-in browser workflow. The unlinked barista fixture has no clock entries; existing entries belong to the staging manager and are handled by the grid's fallback. Do not treat missing fixture linkage as a confirmed explanation for the user's missing approval button.
+
 Status: initial remediation prepared in source; not deployed. This is a dependency-advisory scan, not a penetration test or certification.
 
 ## Scope and method
