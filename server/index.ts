@@ -12,7 +12,9 @@ import { SquareWebhookHandlers } from './squareWebhookHandlers';
 import { startSquareSyncScheduler } from './squareSync';
 import { startConnecteamSyncScheduler } from './connecteamSync';
 import logger from './logger';
+import { getHttpsRedirect, getProductionOrigin } from './production-origin';
 
+const productionOrigin = getProductionOrigin(process.env.NODE_ENV, process.env.APP_URL);
 const app = express();
 app.set('trust proxy', 2); // Trust two proxy layers (Cloudflare → Railway) for correct req.protocol/req.ip
 
@@ -87,13 +89,7 @@ if (process.env.NODE_ENV === 'production') {
     // Skip HTTPS redirect for healthcheck (Railway probes over internal HTTP)
     if (req.path === '/api/health') return next();
     if (req.get('x-forwarded-proto') !== 'https') {
-      if (process.env.APP_URL) {
-        // Use configured APP_URL to avoid host header injection
-        return res.redirect(301, `${process.env.APP_URL}${req.originalUrl}`);
-      }
-      // APP_URL not set in production — log warning, fall back to host header
-      log('SECURITY WARNING: APP_URL not set, HTTPS redirect using Host header', 'security');
-      return res.redirect(301, `https://${req.get('host')}${req.originalUrl}`);
+      return res.redirect(301, getHttpsRedirect(productionOrigin!, req.originalUrl));
     }
     next();
   });
