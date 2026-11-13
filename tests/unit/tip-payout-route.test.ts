@@ -1,3 +1,5 @@
+import { PGlite } from '@electric-sql/pglite';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Express, Request, Response } from 'express';
 const mocks = vi.hoisted(() => ({ execute: vi.fn(), identity: vi.fn(), audit: vi.fn(), log: vi.fn() }));
@@ -66,7 +68,7 @@ describe('approved tip publication', () => {
     const res = await request(approve);
     expect(res.status).toHaveBeenCalledWith(201);
     expect(mocks.execute).toHaveBeenCalledTimes(5);
-    expect(mocks.audit).toHaveBeenCalledOnce();
+    expect(mocks.audit).not.toHaveBeenCalled();
   });
   it("never accepts an anonymous request for another employee's payouts", async () => {
     mocks.identity.mockResolvedValueOnce({ userId: null });
@@ -98,4 +100,50 @@ describe('GET /api/tip-payouts/mine date-range search', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(mocks.execute).not.toHaveBeenCalled();
   });
+});
+
+describe('atomic approval persistence', () => {
+  it('rolls back a failed audit, allows retry, and does not duplicate an approved week', async () => {
+    // Capture the real parameterized statement emitted by the route.
+    await request(approve);
+    const query = new PgDialect().sqlToQuery(mocks.execute.mock.calls[4][0]);
+    const database = new PGlite();
+    try {
+      await database.exec(`
+        CREATE TABLE tip_payout_approvals (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid, week_key date,
+          cash_tips numeric, cc_tips numeric, cc_fee_rate numeric, total_pool numeric,
+          total_hours numeric, hourly_rate numeric, distribution_method text,
+          employee_payouts jsonb, calculated_by uuid, calculated_at timestamptz,
+          approved_by uuid, approved_at timestamptz, status text, updated_at timestamptz,
+          UNIQUE(tenant_id, week_key)
+        );
+        CREATE TABLE audit_logs (
+          tenant_id uuid, actor_id uuid, action text, resource_type text, resource_id uuid,
+          old_value jsonb, new_value jsonb, ip_address text,
+          CONSTRAINT unavailable CHECK (false)
+        );
+      `);
+      await expect(database.query(query.sql, query.params)).rejects.toThrow();
+      expect((await database.query('SELECT * FROM tip_payout_approvals')).rows).toHaveLength(0);
+      await database.exec('ALTER TABLE audit_logs DROP CONSTRAINT unavailable');
+      expect((await database.query(query.sql, query.params)).rows).toHaveLength(1);
+      const events = await database.query('SELECT * FROM audit_logs');
+      expect(events.rows).toHaveLength(1);
+      expect(events.rows[0]).toMatchObject({
+        tenant_id: tenant,
+        actor_id: manager,
+        action: 'tip_payout.approved',
+        new_value: { weekKey: body.weekKey, totalPool: 100, employeeCount: 2, distributionMethod: 'hours' },
+      });
+      expect((await database.query(query.sql, query.params)).rows).toHaveLength(0);
+      expect((await database.query('SELECT * FROM audit_logs')).rows).toHaveLength(1);
+      await database.exec("UPDATE tip_payout_approvals SET status='rejected'");
+      await database.exec('ALTER TABLE audit_logs ADD CONSTRAINT unavailable CHECK (false) NOT VALID');
+      await expect(database.query(query.sql, query.params)).rejects.toThrow();
+      expect((await database.query('SELECT status FROM tip_payout_approvals')).rows[0]).toEqual({ status: 'rejected' });
+    } finally {
+      await database.close();
+    }
+  }, 30000);
 });
